@@ -1,4 +1,4 @@
-import {Category, CNF, CNF_FALSE, CNF_TRUE, implies} from './cnf.js'
+import {Category, CNF, CNF_FALSE, CNF_TRUE, implies} from './cnf.mjs'
 
 function test1 () {
 	let cat1 : Category = new Category (new Set (["Alice", "Bob"]) ) // Alice \/ Bob

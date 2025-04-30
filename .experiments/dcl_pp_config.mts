@@ -1,0 +1,8 @@
+export const DISJ_OPERATOR = "\/"
+export const CONJ_OPERATOR = "/\\"
+export const CAT_DELIM_LEFT = "("
+export const CAT_DELIM_RIGHT = ")"
+export const DC_DELIM_LEFT = "<"
+export const DC_DELIM_RIGHT = ">"
+export const DC_DELIM_SEP = ","
+export const DC_EMPTY_CAT = "\#FALSE"

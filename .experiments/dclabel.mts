@@ -1,4 +1,11 @@
-import {Category, CNF, CNF_FALSE, CNF_TRUE, implies} from './cnf.js'
+import { Category
+       , CNF
+       , CNF_FALSE
+       , CNF_TRUE
+       , implies
+       , conjunction
+       , disjunction
+    } from './cnf.mjs'
 
 abstract class Level { // 2025-04-26; to be later replaced 
     // with the level from the Troupe repo
@@ -23,8 +30,30 @@ export class DCLabel {
         return implies(other.confidentiality, this.integrity) &&
             implies(this.integrity, other.confidentiality);
 
+    } 
+
+    /* 
+
+    L1 ⊔ L2 = <S1 /\ S2, I1 \/ I2) 
+    L1 ⊓ L2 = <S1 \/ S2, I1 /\ I2) 
+
+    */
+
+    join (other:DCLabel): DCLabel {
+        return new DCLabel (
+             conjunction (this.confidentiality, other.confidentiality)
+           , disjunction (this.integrity, other.integrity)
+        )
+    }
+
+    meet (other:DCLabel): DCLabel {
+        return new DCLabel (
+             disjunction (this.confidentiality, other.confidentiality)
+           , conjunction (this.integrity, other.integrity)
+        );
     }
 }
+
 
 
 /*  
@@ -42,6 +71,6 @@ export class DCLabel {
 
 export const IFC_BOT = new DCLabel(CNF_TRUE, CNF_FALSE)
 export const IFC_TOP = new DCLabel(CNF_FALSE, CNF_TRUE)
-export const TRUST_BOT = new DCLabel(CNF_TRUE, CNF_TRUE)
-export const TRUST_TOP = new DCLabel(CNF_FALSE, CNF_FALSE)
+export const TRUST_NULL = new DCLabel(CNF_TRUE, CNF_TRUE)
+export const TRUST_ROOT = new DCLabel(CNF_FALSE, CNF_FALSE)
 
