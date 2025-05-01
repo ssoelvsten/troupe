@@ -1,6 +1,5 @@
 import {CONJ_OPERATOR, CAT_DELIM_LEFT, CAT_DELIM_RIGHT, DISJ_OPERATOR, DC_EMPTY_CAT, Delimiterification, DC_DELIM_RIGHT, DC_DELIM_LEFT, DC_EMPTY_CNF} from './dcl_pp_config.mjs'
 
-
 export class Category {
     labels: Set <string>
     constructor (l: Set <string>) {
@@ -13,18 +12,6 @@ export class Category {
         }
         let r = Array.from (this.labels.values()).join(DISJ_OPERATOR);  
         return r; 
-
-        // switch (parenthesize) {
-        //     case Delimiterification.None:
-        //         return r
-        //     case Delimiterification.AsNeeded:
-        //         if (this.labels.size > 1) {
-        //             return CAT_DELIM_LEFT + r + CAT_DELIM_RIGHT 
-        //         } else 
-        //             return r;
-        //     case Delimiterification.Always:
-        //         return CAT_DELIM_LEFT + r + CAT_DELIM_RIGHT 
-        // } 
     }
 }
 
@@ -49,7 +36,6 @@ export class CNF {
             case Delimiterification.None:
                 p = false; 
                 break;             
-            
         }
         function g (x:Category):string  {
             let s:string = x.stringRep(); 
