@@ -6,6 +6,7 @@ import { Category
        , conjunction
        , disjunction
     } from './cnf.mjs'
+import { DC_DELIM_LEFT, DC_DELIM_RIGHT, DC_DELIM_SEP } from './dcl_pp_config.mjs';
 
 abstract class Level { // 2025-04-26; to be later replaced 
     // with the level from the Troupe repo
@@ -30,8 +31,18 @@ export class DCLabel {
         return implies(other.confidentiality, this.integrity) &&
             implies(this.integrity, other.confidentiality);
 
-    } 
+    }
 
+
+    stringRep(): string {
+        return DC_DELIM_LEFT + 
+            this.confidentiality.stringRep() + 
+            DC_DELIM_SEP +
+            this.integrity.stringRep() + 
+            DC_DELIM_RIGHT
+    }
+
+    
     /* 
 
     L1 ⊔ L2 = <S1 /\ S2, I1 \/ I2) 

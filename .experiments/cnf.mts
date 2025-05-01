@@ -1,10 +1,5 @@
-import {CONJ_OPERATOR, CAT_DELIM_LEFT, CAT_DELIM_RIGHT, DISJ_OPERATOR} from './dcl_pp_config.mjs'
+import {CONJ_OPERATOR, CAT_DELIM_LEFT, CAT_DELIM_RIGHT, DISJ_OPERATOR, DC_EMPTY_CAT, Delimiterification, DC_DELIM_RIGHT, DC_DELIM_LEFT, DC_EMPTY_CNF} from './dcl_pp_config.mjs'
 
-enum Delimiterification {
-    None,
-    AsNeeded, 
-    Always
-}
 
 export class Category {
     labels: Set <string>
@@ -12,19 +7,24 @@ export class Category {
         this.labels = l;
     }
 
-    stringRep (parenthesize = Delimiterification.None) {
+    stringRep ():string {
+        if (this.labels.size == 0) {
+            return DC_EMPTY_CAT;
+        }
         let r = Array.from (this.labels.values()).join(DISJ_OPERATOR);  
-        switch (parenthesize) {
-            case Delimiterification.None:
-                return r
-            case Delimiterification.AsNeeded:
-                if (this.labels.size > 1) {
-                    return CAT_DELIM_LEFT + r + CAT_DELIM_RIGHT 
-                } else 
-                    return r;
-            case Delimiterification.Always:
-                return CAT_DELIM_LEFT + r + CAT_DELIM_RIGHT 
-        } 
+        return r; 
+
+        // switch (parenthesize) {
+        //     case Delimiterification.None:
+        //         return r
+        //     case Delimiterification.AsNeeded:
+        //         if (this.labels.size > 1) {
+        //             return CAT_DELIM_LEFT + r + CAT_DELIM_RIGHT 
+        //         } else 
+        //             return r;
+        //     case Delimiterification.Always:
+        //         return CAT_DELIM_LEFT + r + CAT_DELIM_RIGHT 
+        // } 
     }
 }
 
@@ -34,10 +34,34 @@ export class CNF {
         this.categories = c
     }
 
-    stringRep () {
+    stringRep (parenthesize = Delimiterification.AsNeeded):string {
+        if (this.categories.size == 0) {
+            return DC_EMPTY_CNF;
+        }
+        let p:boolean;
+        switch (parenthesize) {
+            case Delimiterification.AsNeeded:
+                p = this.categories.size > 1;
+                break;
+            case Delimiterification.Always:
+                p = true; 
+                break; 
+            case Delimiterification.None:
+                p = false; 
+                break;             
+            
+        }
+        function g (x:Category):string  {
+            let s:string = x.stringRep(); 
+            let q = p && (x.labels.size > 1)
+            if (q) { 
+                return (CAT_DELIM_LEFT + s + CAT_DELIM_RIGHT)
+            } else 
+                return s
+        }
+
         return Array.from (
-            this.categories.values().map (x => x.stringRep(Delimiterification.AsNeeded))).
-            join (CONJ_OPERATOR)
+            this.categories.values().map(g)).join (CONJ_OPERATOR)
     }
 }
 
