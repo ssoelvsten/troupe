@@ -26,6 +26,7 @@ $alpha = [a-zA-Z]
 $alpha_ = [$alpha \_]
 $eol   = [\n]
 $graphic    = $printable # $white
+@sym        = $alpha_ [$alpha $digit \_ \']*
 @string     = \" ($printable # \")* \"
 @label      = \`\{ ($printable # \})*  \}\`
 
@@ -130,7 +131,10 @@ tokens:-
 <0>   [\:][\:]                       { mkL TokenColonColon }
 <0>   [\[]                           { mkL TokenLBracket }
 <0>   [\]]                           { mkL TokenRBracket }
-<0>   $alpha_ [$alpha $digit \_ \']*  { mkLs (\s -> TokenSym s) }
+<0>   [\`\<]                         { mkL TokenDCLabelLeft }
+<0>   [\>\`]                         { mkL TokenDCLabelRight }
+<0>   [\&]                           { mkL TokenAmpersand }
+<0>   @sym                           { mkLs (\s -> TokenSym s) }
 <0>   @label                         { mkLs (\s -> (TokenLabel (((map toLower) . trim . unquote) s)))}
 
 {
@@ -234,6 +238,9 @@ data Token
   | TokenDot 
   | TokenLBrace
   | TokenRBrace
+  | TokenDCLabelLeft 
+  | TokenDCLabelRight
+  | TokenAmpersand
   deriving (Eq,Show)
 
 type Lexeme = L Token 

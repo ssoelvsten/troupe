@@ -14,6 +14,8 @@ where
 
 import           Basics
 import qualified Text.PrettyPrint.HughesPJ as PP
+import qualified DCLabels
+import DCLabels (DCLabel) 
 import Text.PrettyPrint.HughesPJ (
     (<+>), ($$), text, hsep, vcat, nest)
 import           ShowIndent
@@ -71,6 +73,7 @@ data Lit
     | LBool Bool --SrcPosInf
     | LString String --SrcPosInf
     | LLabel String --SrcPosInf
+    | LDCLabel DCLabel
     | LAtom AtomName --SrcPosInf
   deriving (Eq, Show)
 

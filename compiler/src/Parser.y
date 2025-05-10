@@ -76,7 +76,9 @@ import Control.Monad.Except
     '<<'    { L _ TokenBinShiftLeft }
     '>>'    { L _ TokenBinShiftRight }
     '~>>'   { L _ TokenBinZeroShiftRight }
-
+    '`<'    { L _ TokenDCLabelLeft  } 
+    '>`'    { L _ TokenDCLabelRight } 
+    '&'     { L _ TokenAmpersand }
 
 
     'raisedTo' { L _ TokenRaisedTo }
@@ -192,6 +194,9 @@ Fact : Fact Atom                   { $2 : $1 }
      | Atom                        { [$1] }
 
 
+LabelExp :                              { " "}
+DCLabel:
+      LabelExp ';' LabelExp             { "" } 
 
 
 Lit:   NUM                         { LInt (numTok $1) (pos $1) }
@@ -199,6 +204,7 @@ Lit:   NUM                         { LInt (numTok $1) (pos $1) }
      | true                        { LBool True }
      | false                       { LBool False }
      | LABEL                       { LLabel (lblTok $1) }
+     | '`<' DCLabel '>`'           { LLabel (lblTok (L (AlexPn 0 0 0) (TokenLabel ""))) }  -- TODO: placeholder ; 2025-05-11; AA
 
 
 Atom : '(' Expr ')'                { $2 }
