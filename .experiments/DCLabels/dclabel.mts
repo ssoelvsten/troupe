@@ -63,6 +63,19 @@ export class DCLabel {
            , conjunction (this.integrity, other.integrity)
         );
     }
+
+
+    toJSON () {
+        return { confidentiality: this.confidentiality.toJSON() 
+               , integrity: this.integrity.toJSON()  
+        }
+    }
+
+    static fromJSON (o: { confidentiality: [[string]]
+                        ; integrity: [[string]]; }) {
+        return new DCLabel(CNF.fromJSON(o.confidentiality)
+                         , CNF.fromJSON(o.integrity))
+    }
 }
 
 

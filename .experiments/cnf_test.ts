@@ -19,6 +19,9 @@ function test1 () {
 	// console.log ( implies (CNF_FALSE, cnf4))
 
 	cnfs.map ((x: CNF) => { console.log (x.stringRep(Delimiterification.AsNeeded))})
+	cnfs.map ((x: CNF) => {
+		 console.log (JSON.stringify(x.toJSON()))
+	})
     }
     
 function main () {
