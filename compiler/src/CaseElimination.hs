@@ -1,5 +1,8 @@
 {-# LANGUAGE  FlexibleContexts  #-}
 {-# LANGUAGE LambdaCase #-}
+{-# OPTIONS_GHC -Wno-unrecognised-pragmas #-}
+{-# HLINT ignore "Use camelCase" #-}
+{-# HLINT ignore "Redundant bracket" #-}
 module CaseElimination ( trans )
 where
 
@@ -44,6 +47,10 @@ transLambda lam = do
 
 {-- 2019-01-31 desugaring handlers; AA
 
+-- 2025-05-10: AA: See Section on Input Handlers in
+-- Troupe 2.0 system and security model writeup
+-- as a guide towards a rewrite
+
 Given `hn pat1 | pat2 when e1 => e2`, we desugar it to
 
 fn (input) => 
@@ -52,7 +59,7 @@ fn (input) =>
                             else (1, ())
       _ => HNPATFAIL (1, ())
 
-
+.
 Here, HNPATSUCC and HNPATFAIL are two runtime functions. The semantics
 is that before the handler is called, the runtime sets the thread
 flag to the "HANDLER MODE" that will prevent side effects (including 
