@@ -1,5 +1,5 @@
-import {Category, CNF, CNF_FALSE, CNF_TRUE, implies} from './cnf.mjs'
-import { Delimiterification } from './dcl_pp_config.mjs';
+import {Category, CNF, CNF_FALSE, CNF_TRUE, implies} from './DCLabels/cnf.mjs'
+import { Delimiterification } from './DCLabels/dcl_pp_config.mjs';
 
 function test1 () {
 	let cat1 : Category = new Category (new Set (["Alice", "Bob"]) ) // Alice \/ Bob

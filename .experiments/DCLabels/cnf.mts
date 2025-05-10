@@ -22,6 +22,14 @@ export class Category {
         let r = Array.from(this.labels.values()).join(DISJ_OPERATOR);
         return r;
     }
+
+    // fromObj (o:any): Category {
+    //     return new Category(o.labels)
+    // }
+
+    // toObj() {
+    //     return { labels: this.labels }
+    // }
 }
 
 export class CNF {
