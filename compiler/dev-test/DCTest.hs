@@ -1,0 +1,28 @@
+-- A standalone executable for testing the dc label and other integrity
+-- related components of Troupe 2, 2025-05-13
+{-# OPTIONS_GHC -Wno-unrecognised-pragmas #-}
+{-# HLINT ignore "Redundant bracket" #-}
+
+import DCLabels
+
+(\/) = OpExp Disj
+(/\) = OpExp Conj
+
+t = TagExp 
+
+labexp01 :: LabelExp
+labexp01 = (t "alice") \/  ( (t "bob") /\ t "dorothy" ) \/ (t "charlie")
+labexp02 = (t "alice") /\ (t "bob") /\ (t "charlie")
+labexp03 = (t "alice") /\ ((t "bob") \/ (t "charlie"))
+
+
+
+
+
+main = do 
+  putStrLn (labelExpToString labexp01)
+  putStrLn (show (labelExpToCNF labexp01))
+  putStrLn (labelExpToString labexp02)
+  putStrLn (show (labelExpToCNF labexp02))
+  putStrLn (labelExpToString labexp03)
+  putStrLn (show (labelExpToCNF labexp03))

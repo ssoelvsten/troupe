@@ -8,6 +8,9 @@ import GHC.Generics(Generic)
 import Data.Serialize (Serialize)
 import Data.List (sort, nub)
 import Data.Char (toLower)
+import qualified Text.PrettyPrint.HughesPJ as PP
+import Text.PrettyPrint.HughesPJ (
+    (<+>), ($$), text, hsep, vcat, nest)
 
 type Tag = String
 data LabelOp = Conj | Disj
@@ -64,6 +67,18 @@ labelExpToCNF (OpExp op e1 e2) =
 newtype DCLabel = DCLabel (CNF,CNF)
      deriving (Eq, Generic, Ord, Show)
 
+
+-- DCLabelExp corresponds to the label as it appears in the source; we
+-- therefore keep the string representation for potential use in error
+-- reporting (2025-05-13; AA)
+
+data DCLabelExp = DCLabelExp String (LabelExp, LabelExp)
+     deriving (Eq, Generic, Ord)
+
+instance Show DCLabelExp where 
+    show (DCLabelExp s _) = s 
+
+
 instance Show LabelOp where
   show Conj = "&"
   show Disj = "|"
@@ -73,6 +88,30 @@ opPrec :: LabelOp -> Int
 opPrec Conj = 100
 opPrec Disj = 10
 
+instance Serialize LabelOp
 instance Serialize DisjTags
 instance Serialize CNF
 instance Serialize DCLabel
+instance Serialize LabelExp
+instance Serialize DCLabelExp 
+
+-- pretty printing 
+--
+
+ppLabelExp' :: Int -> LabelExp -> PP.Doc 
+ppLabelExp' _ (TagExp t) = text t 
+ppLabelExp' parenPrec (OpExp o e1 e2) = 
+    let thisPrec = opPrec o 
+        thisTxt = (text.show) o 
+        p1 = ppLabelExp' thisPrec e1 
+        p2 = ppLabelExp' thisPrec e2 
+    in PP.maybeParens (thisPrec < parenPrec) $ 
+           hsep [ p1, thisTxt, p2 ]
+
+
+
+ppLabelExp :: LabelExp -> PP.Doc 
+ppLabelExp = ppLabelExp' 0
+
+labelExpToString :: LabelExp -> String 
+labelExpToString e = PP.render (ppLabelExp e)

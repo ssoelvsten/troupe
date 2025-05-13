@@ -1,14 +1,5 @@
 # What's next 
 
-[ ] Implement a pretty printer for label expressions
-
-[x] LabelExp to CNF conversion
-    - we will use this later in the compilation pipeline (at 
-      first I thought it was the parser, but it can really be 
-      anywhere up to the JS code generation)
-
-[ ] Test the labelExp to CNF conversion function
-
 [ ] Lexing / parsing of the labels in the surface language to JSON 
     - [ ] Implement a parser for the labelExps that supports
           the syntax  `< alice & bob ; alice | bob >`
@@ -19,6 +10,8 @@
     - [ ] We will require changing to lexer, parser.
     - [ ] We will need to look into how to change the declassification authority 
         checks, etc.
+
+[ ] DCLabels.CNF to JSON 
 
 [ ] We should use a separate lexer state for the DC labels, instead of
     the <0> state, because this way we can allow for more symbols to be
