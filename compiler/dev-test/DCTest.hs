@@ -20,9 +20,9 @@ labexp03 = (t "alice") /\ ((t "bob") \/ (t "charlie"))
 
 
 main = do
-  putStrLn (labelExpToString labexp01)
+  print (labexp01)
   print (labelExpToCNF labexp01)
-  putStrLn (labelExpToString labexp02)
+  print (labexp02)
   print (labelExpToCNF labexp02)
-  putStrLn (labelExpToString labexp03)
+  print (labexp03)
   print (labelExpToCNF labexp03)

@@ -102,10 +102,14 @@ tokens:-
 <0>   orb                            { mkL TokenBinOr }
 <0>   xorb                           { mkL TokenBinXor }
 <0>   Atoms                          { mkL TokenAtoms }
+<0>   "#true"                        { mkL TokenDCTrue }
+<0>   "#false"                       { mkL TokenDCFalse }
 <0>   $digit+                        { mkLs (\s -> TokenNum (read s)) }
 <0>   [\<][\<]                       { mkL TokenBinShiftLeft }
 <0>   [\>][\>]                       { mkL TokenBinShiftRight }
 <0>   [\~][\>][\>]                   { mkL TokenBinZeroShiftRight }
+<0>   [\`][\<]                         { mkL TokenDCLabelLeft }
+<0>   [\>][\`]                         { mkL TokenDCLabelRight }
 <0>   [\@]                           { mkL TokenAt }
 <0>   [\=][\>]                       { mkL TokenArrow }
 <0>   [\=]                           { mkL TokenEq }
@@ -131,8 +135,6 @@ tokens:-
 <0>   [\:][\:]                       { mkL TokenColonColon }
 <0>   [\[]                           { mkL TokenLBracket }
 <0>   [\]]                           { mkL TokenRBracket }
-<0>   [\`\<]                         { mkL TokenDCLabelLeft }
-<0>   [\>\`]                         { mkL TokenDCLabelRight }
 <0>   [\&]                           { mkL TokenAmpersand }
 <0>   @sym                           { mkLs (\s -> TokenSym s) }
 <0>   @label                         { mkLs (\s -> (TokenLabel (((map toLower) . trim . unquote) s)))}
@@ -241,6 +243,8 @@ data Token
   | TokenDCLabelLeft 
   | TokenDCLabelRight
   | TokenAmpersand
+  | TokenDCTrue 
+  | TokenDCFalse
   deriving (Eq,Show)
 
 type Lexeme = L Token 

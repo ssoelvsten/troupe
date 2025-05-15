@@ -13,6 +13,7 @@ module Core (   Lambda (..)
               , VarAccess(..)
               , lowerProg
               , renameProg
+              , ppLit
               )
 where
 import GHC.Generics(Generic)
@@ -32,6 +33,7 @@ import           Text.PrettyPrint.HughesPJ (
 import           ShowIndent
 
 import           TroupePositionInfo
+import           DCLabels
 
 --------------------------------------------------
 -- AST is the same as Direct, but lambda are unary (or nullary)
@@ -52,6 +54,7 @@ data Lit
     = LInt Integer PosInf
     | LString String
     | LLabel String
+    | LDCLabel DCLabelExp
     | LUnit
     | LBool Bool
     | LAtom AtomName
@@ -63,7 +66,8 @@ instance Eq Lit where
   (LLabel l) == (LLabel l') = l == l' 
   LUnit == LUnit = True 
   (LBool x) == (LBool y) = x == y 
-  (LAtom x) == (LAtom y) = x == y 
+  (LAtom x) == (LAtom y) = x == y
+  (LDCLabel dc) == (LDCLabel dc') = dc == dc' 
   _ == _ = False
 instance Ord Lit where 
   (LInt x _)   <= (LInt y _)   = x <= y
@@ -72,11 +76,13 @@ instance Ord Lit where
   (LUnit)      <= (LUnit)      = True 
   (LBool x)    <= (LBool y)    = x <=y
   (LAtom x)    <= (LAtom y)    = x <=y
+  (LDCLabel x) <= (LDCLabel y) = x <= y
   (LInt _ _)   <= (LString _)  = True 
   (LString _)  <= (LLabel _)   = True 
   (LLabel _)   <= (LUnit)      = True 
   (LUnit)      <= (LBool _)    = True 
   (LBool _)    <= (LAtom _)    = True 
+  (LAtom _)    <= (LDCLabel _) = True
   _ <= _                       = False 
 
 instance GetPosInfo Lit where
@@ -163,6 +169,7 @@ lowerLam (D.Lambda vs t) =
 lowerLit (D.LInt n pi) = LInt n pi
 lowerLit (D.LString s) = LString s
 lowerLit (D.LLabel s) = LLabel s
+lowerLit (D.LDCLabel dc) = LDCLabel dc
 lowerLit D.LUnit = LUnit
 lowerLit (D.LBool b) = LBool b
 lowerLit (D.LAtom n) = LAtom n
@@ -542,7 +549,7 @@ ppLit LUnit         = text "()"
 ppLit (LBool True)  = text "true"
 ppLit (LBool False) = text "false"
 ppLit (LAtom a) = text a
-
+ppLit (LDCLabel dc) = ppDCLabelExpLit dc
 
 
 termPrec :: Term -> Precedence

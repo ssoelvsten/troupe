@@ -1,0 +1,7 @@
+let 
+    val x = 2 raisedTo `< alice;  >` 
+    val y = 3 raisedTo `<bob;bob>`
+    val z = 4 raisedTo `<; charlie | dorothy & alice>`
+    val w = 5 raisedTo `< alice & (bob | charlie); >`
+in x + y + z  + w 
+end

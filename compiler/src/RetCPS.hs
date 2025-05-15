@@ -10,9 +10,9 @@ import GHC.Generics
 import qualified Data.Serialize as Serialize
 
 import Basics(BinOp(..),UnaryOp(..),Precedence, opPrec)
-
 import qualified Basics
 import qualified Core as C
+import Core (ppLit)
 import qualified Text.PrettyPrint.HughesPJ as PP
 import Text.PrettyPrint.HughesPJ (
     (<+>), ($$), text, hsep, vcat, nest)
@@ -118,16 +118,17 @@ ppKTerm parentPrec t =
    in PP.maybeParens (thisTermPrec < parentPrec   )  $ ppKTerm' t
 
    -- uncomment to pretty print explicitly; 2017-10-14: AA
-   -- in PP.maybeParens (thisTermPrec < 10000)  $ ppTerm' t
+   -- in PP.maybeParens (thisTermPrec < 10000)  $ ppTerm'       Core.LAtom _ -> Nothingt
 
-ppLit :: C.Lit -> PP.Doc
-ppLit  (C.LInt i pi) = PP.integer i 
-ppLit  (C.LString s)   = PP.doubleQuotes (text s)
-ppLit  (C.LLabel s)    = PP.braces (text s)
-ppLit  (C.LUnit) = text "()"
-ppLit  (C.LBool True) = text "true"
-ppLit  (C.LBool False) = text "false"
-ppLit  (C.LAtom a) = text a
+-- ppLit :: C.Lit -> PP.Doc
+-- ppLit = C.ppLit 
+-- ppLit  (C.LInt i pi) = PP.integer i 
+-- ppLit  (C.LString s)   = PP.doubleQuotes (text s)
+-- ppLit  (C.LLabel s)    = PP.braces (text s)
+-- ppLit  (C.LUnit) = text "()"
+-- ppLit  (C.LBool True) = text "true"
+-- ppLit  (C.LBool False) = text "false"
+-- ppLit  (C.LAtom a) = text a
 
 textv (VN x) = text x
 

@@ -19,6 +19,7 @@ import IR (SerializationUnit(..), HFN(..)
           , ppId, ppFunCall, ppArgs, Fields (..), Ident
           , serializeFunDef
           , serializeAtoms )
+import qualified Data.ByteString.Lazy.Char8 as BL
 import qualified IR
 import qualified Raw
 
@@ -28,28 +29,32 @@ import Raw (RawExpr (..), RawType(..), RawVar (..), MonComponent(..), RTAssertio
 import Stack
 
 import qualified Basics
-import Basics(BinOp(..), UnaryOp(..))
+import           Basics(BinOp(..), UnaryOp(..))
 import qualified Core as C
-import RetCPS(VarName(..))
+import           Core (ppLit)
+import           RetCPS(VarName(..))
 import qualified RetCPS as CPS
-import Control.Monad.RWS
-import Control.Monad.State
-import Control.Monad.Writer
-import Control.Monad.Reader
-import Data.List
+import           Control.Monad.RWS
+import           Control.Monad.State
+import           Control.Monad.Writer
+import           Control.Monad.Reader
+import           Data.List
 import qualified Data.Text as T
-import Data.Text.Encoding
-import Data.ByteString.Lazy (ByteString)
-import Data.ByteString.Base64 (encode,decode)
-import CompileMode
-import TroupePositionInfo
+import           Data.Text.Encoding
+import           Data.ByteString.Lazy (ByteString)
+import           Data.ByteString.Base64 (encode,decode)
+import           CompileMode
+import           TroupePositionInfo
 import qualified Data.Aeson as Aeson
-import GHC.Generics (Generic)
+import           GHC.Generics (Generic)
 
 
 import qualified Text.PrettyPrint.HughesPJ as PP
 import Text.PrettyPrint.HughesPJ (
     (<+>), ($$), text, hsep, vcat, nest)
+import Data.Aeson (ToJSON(toJSON), Value)
+import DCLabels (dcLabelExpToDCLabel)
+
 
 data LibAccess = LibAccess Basics.LibName Basics.VarName
    deriving (Eq, Show,Generic)
@@ -196,9 +201,16 @@ instance ToJS C.Atoms where
                                                   , (PP.parens ( (PP.quotes.text) a))]) atoms)
          , text "this.serializedatoms =" <+> (pickle.serializeAtoms) catoms]
 
+
+jsonValueToString :: Value -> String
+jsonValueToString val = BL.unpack (Aeson.encode val)
+
 lit2JS C.LUnit = text "rt.__unitbase"
 lit2JS (C.LLabel s) = text "rt.mkLabel" <> (PP.parens . PP.doubleQuotes) (text s)
-lit2JS lit = CPS.ppLit lit
+lit2JS (C.LDCLabel dc) = 
+  text "rt.mkDCLabel" <> (PP.parens.text.jsonValueToString.toJSON.dcLabelExpToDCLabel) dc 
+
+lit2JS lit = ppLit lit
 
 constsToJS consts = 
      vcat $ map toJsConst consts 
@@ -532,7 +544,7 @@ instance ToJS RawExpr where
       case lit of
         C.LAtom atom -> tell ([], [atom], [])
         _ -> return ()
-      return $ CPS.ppLit lit
+      return $ ppLit lit
     Lib lib'@(Basics.LibName libname) varname -> do
       tell ([LibAccess lib' varname], [], [])
       return $

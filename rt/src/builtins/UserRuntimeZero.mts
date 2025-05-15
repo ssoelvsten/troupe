@@ -193,6 +193,10 @@ export class UserRuntimeZero {
         return levels.mkLevel(x)
     }
 
+    mkDCLabel(x:any):Level {
+        throw new Error ("Not implemented/DC Label")
+    }
+
     /**
      * ComplexRT.
      * Lookup a definition from a library.

@@ -8,6 +8,7 @@ module Parser (
 
 import Lexer
 import Direct
+import DCLabels
 import Basics
 import TroupePositionInfo
 
@@ -114,6 +115,8 @@ import Control.Monad.Except
 %left '<<' '>>' '~>>'
 %left '+' '-' 
 %left '*' '/' div mod
+%left '|' 
+%left '&'
 %right '::'
 %right '.'
 
@@ -194,17 +197,28 @@ Fact : Fact Atom                   { $2 : $1 }
      | Atom                        { [$1] }
 
 
-LabelExp :                              { " "}
-DCLabel:
-      LabelExp ';' LabelExp             { "" } 
+LabelExp: 
+       VAR                         { TagExp (varTok $1) }
+     | '(' LabelExp ')'            { $2 }
+     | LabelExp '&'  LabelExp      { OpExp Conj $1 $3 } 
+     | LabelExp '|'  LabelExp      { OpExp Disj $1 $3 }
 
+ConfLabelExp :                     { Right LabelTrue }
+     | LabelExp                    { Left $1 }
 
-Lit:   NUM                         { LInt (numTok $1) (pos $1) }
+IntLabelExp :                      { Right LabelFalse }
+     | LabelExp                    { Left $1 }     
+
+DCLabelExp:
+     ConfLabelExp ';' IntLabelExp         { DCLabelExp ($1, $3) } 
+
+Lit:   NUM                        { LInt (numTok $1) (pos $1) }
      | STRING                      { LString (strTok $1) }
      | true                        { LBool True }
      | false                       { LBool False }
      | LABEL                       { LLabel (lblTok $1) }
-     | '`<' DCLabel '>`'           { LLabel (lblTok (L (AlexPn 0 0 0) (TokenLabel ""))) }  -- TODO: placeholder ; 2025-05-11; AA
+     |'`<' DCLabelExp '>`'         { LDCLabel $2 }  
+     
 
 
 Atom : '(' Expr ')'                { $2 }

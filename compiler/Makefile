@@ -14,3 +14,5 @@ ghci-troupec:
 	stack ghci --main-is Troupe-compiler:exe:troupec --no-load
 test: 
 	stack test $(STACK_OPTS)
+parser-info:
+	stack exec happy -- -i src/Parser.y

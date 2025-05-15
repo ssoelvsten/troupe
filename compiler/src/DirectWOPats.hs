@@ -5,7 +5,7 @@ module DirectWOPats ( Lambda (..)
               , Lit(..)
               , AtomName
               , Atoms(..)
-              , Prog(..)
+              , Prog(..)            
               )
 where
 
@@ -14,6 +14,7 @@ import qualified Text.PrettyPrint.HughesPJ as PP
 import Text.PrettyPrint.HughesPJ (
     (<+>), ($$), text, hsep, vcat, nest)
 import ShowIndent
+import DCLabels
 import TroupePositionInfo
 
 data Decl
@@ -28,6 +29,7 @@ data Lit
     = LInt Integer PosInf
     | LString String
     | LLabel String
+    | LDCLabel DCLabelExp
     | LUnit
     | LBool Bool
     | LAtom AtomName
@@ -217,6 +219,7 @@ ppLit :: Lit -> PP.Doc
 ppLit (LInt i _)      = PP.integer i
 ppLit (LString s)   = PP.doubleQuotes (text s)
 ppLit (LLabel s)    = PP.braces (text s)
+ppLit (LDCLabel dc) = ppDCLabelExpLit dc
 ppLit LUnit         = text "()"
 ppLit (LBool True)  = text "true"
 ppLit (LBool False) = text "false"

@@ -1,9 +1,22 @@
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DefaultSignatures #-}
 {-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE RecordWildCards #-}
+
+{-# OPTIONS_GHC -Wno-unrecognised-pragmas #-}
+{-# HLINT ignore "Use newtype instead of data" #-}
 
 
-module DCLabels where
+module DCLabels 
+  ( DCLabelExp(..)
+  , LabelExp (..)
+  , LabelOp(..)
+  , LabelConst(..)
+  , ppDCLabelExp
+  , ppDCLabelExpLit
+  , labelExpToCNF
+  , dcLabelExpToDCLabel) where
 import GHC.Generics(Generic)
 import Data.Serialize (Serialize)
 import Data.List (sort, nub)
@@ -11,6 +24,7 @@ import Data.Char (toLower)
 import qualified Text.PrettyPrint.HughesPJ as PP
 import Text.PrettyPrint.HughesPJ (
     (<+>), ($$), text, hsep, vcat, nest)
+import Data.Aeson
 
 type Tag = String
 data LabelOp = Conj | Disj
@@ -21,16 +35,24 @@ data LabelExp
      | OpExp LabelOp LabelExp LabelExp
      deriving (Eq, Generic, Ord)
 
+
+
+data LabelConst = LabelTrue | LabelFalse 
+     deriving (Eq, Generic, Ord)
+
+instance Show LabelConst where 
+     show LabelTrue = "#true"
+     show LabelFalse = "#false"
+
+
 newtype DisjTags = DisjTags [Tag]
      deriving (Eq, Generic, Ord, Show)
 
 newtype CNF = CNF [DisjTags]
      deriving (Eq, Generic, Ord, Show)
 
-
 --- Normalization and conversion from labelExp to CNF 
 --- 
-
 
 --- Auxiliary functions 
 lowerString = map toLower
@@ -72,12 +94,26 @@ newtype DCLabel = DCLabel (CNF,CNF)
 -- therefore keep the string representation for potential use in error
 -- reporting (2025-05-13; AA)
 
-data DCLabelExp = DCLabelExp String (LabelExp, LabelExp)
-     deriving (Eq, Generic, Ord)
+-- data DCLabelExp = DCLabelExp String (LabelExp, LabelExp)
+type DCLabOrConst = Either LabelExp LabelConst
+newtype DCLabelExp = 
+     DCLabelExp (DCLabOrConst, DCLabOrConst)
+        deriving (Eq, Generic, Ord)
 
-instance Show DCLabelExp where 
-    show (DCLabelExp s _) = s 
+labelConstToCNF :: LabelConst -> CNF 
+labelConstToCNF (LabelTrue) = CNF []
+labelConstToCNF (LabelFalse) = CNF [DisjTags []]
 
+dcLabelExpToDCLabel :: DCLabelExp -> DCLabel
+dcLabelExpToDCLabel (DCLabelExp (e1,e2)) =
+    let f e = case e of 
+                 Left le -> labelExpToCNF le
+                 Right lc -> labelConstToCNF lc 
+    in DCLabel(f e1, f e2)
+
+
+-- instance Show DCLabelExp where 
+--     show (DCLabelExp s ) = s 
 
 instance Show LabelOp where
   show Conj = "&"
@@ -88,6 +124,7 @@ opPrec :: LabelOp -> Int
 opPrec Conj = 100
 opPrec Disj = 10
 
+instance Serialize LabelConst
 instance Serialize LabelOp
 instance Serialize DisjTags
 instance Serialize CNF
@@ -108,10 +145,39 @@ ppLabelExp' parenPrec (OpExp o e1 e2) =
     in PP.maybeParens (thisPrec < parenPrec) $ 
            hsep [ p1, thisTxt, p2 ]
 
-
-
 ppLabelExp :: LabelExp -> PP.Doc 
 ppLabelExp = ppLabelExp' 0
 
-labelExpToString :: LabelExp -> String 
-labelExpToString e = PP.render (ppLabelExp e)
+
+ppDCLabelExp :: DCLabelExp -> PP.Doc 
+ppDCLabelExp (DCLabelExp (e1, e2))  = 
+     hsep [ text "<"
+          , ppMLabelExp e1
+          , text ";"
+          , ppMLabelExp e2
+          , text ">" 
+          ]
+        where 
+          ppMLabelExp (Left e) = ppLabelExp e 
+          ppMLabelExp (Right s) = text (show s)
+
+ppDCLabelExpLit e = 
+     text "`" PP.<> (ppDCLabelExp e) PP.<> text "`"
+
+
+instance Show LabelExp where 
+     show = PP.render. ppLabelExp
+
+instance Show DCLabelExp where 
+     show = PP.render . ppDCLabelExp
+
+instance ToJSON DisjTags where 
+     toJSON (DisjTags ts) = toJSON ts 
+instance ToJSON CNF where 
+     toJSON (CNF cats) = 
+          toJSON (map toJSON cats)
+
+instance ToJSON DCLabel where 
+     toJSON ( DCLabel (c, i)) = 
+          object [ "confidentiality" .= c
+                 , "integrity" .= i]

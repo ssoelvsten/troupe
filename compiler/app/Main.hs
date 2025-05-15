@@ -67,11 +67,13 @@ options =
   , Option ['o']      ["output"] (ReqArg OutputFile "FILE")  "output FILE"
   ]
 
-
+-- debugTokens (Right tks) = 
+  -- mapM_ print tks 
 
 process :: [Flag] -> Maybe String -> String -> IO ExitCode
 process flags fname input = do
---  let tokens = parseTokens input
+  -- let tokens = parseTokens input
+  -- debugTokens tokens
   let ast    = parseProg input
 
   let compileMode =

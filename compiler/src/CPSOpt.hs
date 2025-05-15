@@ -532,7 +532,7 @@ iter kt =
                           OptState { __env_of_state = Map.empty
                           }
       in if kt == kt' then kt
-                      else -- trace ((show kt) ++ ("\n------")) 
+                      else -- trace ((show kt) ++ ("\n------\n") ++ (show kt') ++ "\n========\n") 
                            iter kt' 
 
 rewrite :: Prog -> Prog

@@ -9,13 +9,13 @@ module Direct ( Lambda (..)
               , Prog(..)
               , Handler(..)
               , FieldName
+              , ppLit
               )
 where
 
 import           Basics
 import qualified Text.PrettyPrint.HughesPJ as PP
-import qualified DCLabels
-import DCLabels (DCLabel) 
+import DCLabels 
 import Text.PrettyPrint.HughesPJ (
     (<+>), ($$), text, hsep, vcat, nest)
 import           ShowIndent
@@ -73,7 +73,7 @@ data Lit
     | LBool Bool --SrcPosInf
     | LString String --SrcPosInf
     | LLabel String --SrcPosInf
-    | LDCLabel DCLabel
+    | LDCLabel DCLabelExp
     | LAtom AtomName --SrcPosInf
   deriving (Eq, Show)
 
@@ -334,6 +334,7 @@ ppDeclPattern (RecordPattern fields) =
 ppLit :: Lit -> PP.Doc
 ppLit (LInt i _ )      = PP.integer i
 ppLit (LString s )   = PP.doubleQuotes (text s)
+ppLit (LDCLabel dc) = ppDCLabelExp dc
 ppLit (LUnit )       = text "()"
 ppLit (LBool True  )  = text "true"
 ppLit (LBool False) = text "false"

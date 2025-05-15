@@ -29,6 +29,7 @@ transAtoms (S.Atoms atms) = T.Atoms atms
 transLit (S.LInt n pi)    = T.LInt n pi
 transLit (S.LString s) = T.LString s
 transLit (S.LLabel s)  = T.LLabel s
+transLit (S.LDCLabel dc)  = T.LDCLabel dc
 transLit (S.LUnit)     = T.LUnit
 transLit (S.LBool b)   = T.LBool b
 transLit (S.LAtom a)   = T.LAtom a

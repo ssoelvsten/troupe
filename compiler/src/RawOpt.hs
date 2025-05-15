@@ -182,6 +182,8 @@ typeOfLit lit =
       Core.LLabel _ -> Just RawLevel               
       Core.LBool _ -> Just RawBoolean 
       Core.LAtom _ -> Nothing
+      Core.LDCLabel _ -> Just RawDCLabel
+      
 
 guessType :: RawExpr -> Maybe RawType
 guessType = \case

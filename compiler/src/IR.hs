@@ -15,7 +15,7 @@ import           RetCPS                    (VarName (..))
 
 import qualified Core                      as C
 import qualified RetCPS                    as CPS
-
+import           Core (ppLit)
 import           Control.Monad.Except
 import           Control.Monad.Reader
 import           Control.Monad.RWS
@@ -32,6 +32,7 @@ import           CompileMode
 import           Text.PrettyPrint.HughesPJ (hsep, nest, text, vcat, ($$), (<+>))
 import qualified Text.PrettyPrint.HughesPJ as PP
 import           TroupePositionInfo
+import           DCLabels
 
 -- | Describes a variable containing a labelled value.
 data VarAccess
@@ -378,7 +379,7 @@ instance Show IRProgram where
 
 ppConsts consts = 
   vcat $ map ppConst consts 
-    where ppConst (x, lit) = hsep [ ppId x , text "=", CPS.ppLit lit ]
+    where ppConst (x, lit) = hsep [ ppId x , text "=", ppLit lit ]
 
 ppFunDef (FunDef hfn  arg consts insts)
   = vcat [ text "func" <+> ppFunCall (ppId hfn) [ppId arg] <+> text "{"
@@ -400,7 +401,7 @@ ppIRExpr (List vars) =
 ppIRExpr (ListCons v1 v2) =
   text "cons" <>  ( PP.parens $ ppId v1 <> text "," <> ppId v2)
 ppIRExpr (Const (C.LUnit)) = text "__unit"
-ppIRExpr (Const lit) = CPS.ppLit lit
+ppIRExpr (Const lit) = ppLit lit
 ppIRExpr (Base v) = if v == "$$authorityarg" -- special casing; hack; 2018-10-18: AA
                       then text v 
                       else text v <> text "$base"

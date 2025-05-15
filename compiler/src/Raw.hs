@@ -16,6 +16,7 @@ import qualified IR (FunDef (..))
 
 
 import qualified Core                      as C
+import           Core (ppLit)
 import qualified RetCPS                    as CPS
 import Data.Map.Lazy (Map, (!))
 import qualified Data.Map.Lazy as Map 
@@ -67,6 +68,7 @@ instance Identifier MonComponent where
 data RawType
   = RawNumber| RawUnit | RawBoolean | RawString | RawFunction
   | RawLocalObj| RawHandler| RawList | RawTuple| RawRecord
+  | RawDCLabel
   | RawNode| RawProcessId| RawCapability| RawLevel
   | RawAuthority | RawTopAuthority| RawEnv
     deriving (Eq, Show)
@@ -275,7 +277,7 @@ ppRawExpr (List vars) =
 ppRawExpr (ListCons v1 v2) =
   text "cons" <> (PP.parens $ ppId v1 <> text "," <> ppId v2)
 ppRawExpr (Const C.LUnit) = text "__unit"
-ppRawExpr (Const lit) = CPS.ppLit lit
+ppRawExpr (Const lit) = ppLit lit
 -- ppRawExpr (Base v) = if v == "$$authorityarg" -- special casing; hack; 2018-10-18: AA
 --                       then text v 
 --                       else text v <> text "$base"
@@ -356,6 +358,6 @@ ppBB (BB insts tr) = vcat $ (map ppIR insts) ++ [ppTr tr]
 
 ppConsts consts = 
   vcat $ map ppConst consts 
-    where ppConst (x, lit) = hsep [ ppId x , text "=", CPS.ppLit lit ]
+    where ppConst (x, lit) = hsep [ ppId x , text "=", ppLit lit ]
 
 
