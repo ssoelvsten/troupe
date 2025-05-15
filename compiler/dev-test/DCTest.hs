@@ -8,7 +8,7 @@ import DCLabels
 (\/) = OpExp Disj
 (/\) = OpExp Conj
 
-t = TagExp 
+t = TagExp
 
 labexp01 :: LabelExp
 labexp01 = (t "alice") \/  ( (t "bob") /\ t "dorothy" ) \/ (t "charlie")
@@ -19,10 +19,10 @@ labexp03 = (t "alice") /\ ((t "bob") \/ (t "charlie"))
 
 
 
-main = do 
+main = do
   putStrLn (labelExpToString labexp01)
-  putStrLn (show (labelExpToCNF labexp01))
+  print (labelExpToCNF labexp01)
   putStrLn (labelExpToString labexp02)
-  putStrLn (show (labelExpToCNF labexp02))
+  print (labelExpToCNF labexp02)
   putStrLn (labelExpToString labexp03)
-  putStrLn (show (labelExpToCNF labexp03))
+  print (labelExpToCNF labexp03)
