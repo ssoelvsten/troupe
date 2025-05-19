@@ -2,12 +2,12 @@
 
 
 ## Backend / JS runtime integration of the DCLabels
- 
- [ ] Integrate DC Labels in the runtime
-
  [ ] Implement backward-compatible parsing of `{alice, bob}` in DC labels to 
-     mean ` alice & bob ; alice | bob `. This will allow us to test against 
-     the existing codebase.
+     mean ` alice & bob ; alice | bob `. 
+     
+     - This will allow us to test against the existing codebase.
+
+ [ ] Initiate integration of DC Labels in the runtime.
  
  [ ] Declassification checks and other authority checks (!)
 
