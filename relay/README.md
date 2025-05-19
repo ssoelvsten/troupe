@@ -1,18 +1,23 @@
-# Troupe p2p relay in Go 
+# Troupe p2p Relay
 
-This example is adapted from libp2p's Go relay. 
+This example is adapted from libp2p's Go relay and since then ported
+to Javascript's p2p implementation.
 
-## How to compile
+## Generating Key
 
-1. Install Go 
-2. Run `go build`
+The relay needs a key pair to function; its public *id* has to be
+shared with the Troupe nodes via the `default_relays` variable in
+`rt/src/p2p/p2pconfig.mjs`. To generate this pair, use the
+corresponding *make target* as follows:
 
-## How to run
-
-This program accepts an optional key argument provided via `--key` flag. Sample usage
-
+```bash
+make generate-relay-key
 ```
-> ./troupe-p2p-runtime --key=mykey.priv
-```
 
-If no key argument is provided, a fresh key is auto-generated.
+## How To Run
+
+To start the relay server, run the corresponding *make target* as follows:
+
+```bash
+make start-relay
+```
