@@ -1,6 +1,6 @@
 # Contributing to Troupe
 
-Thank you for considering a contribution to this project! To ensure a smooth and productive workflow, please follow the guidelines below when opening pull requests or submitting code.
+Thank you for considering a contribution to Troupe! To ensure a smooth and productive workflow, please follow the guidelines below when opening pull requests or submitting code.
 
 ## Pull Request Policy
 
