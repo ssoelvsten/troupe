@@ -21,7 +21,7 @@ Once all dependencies have been installed, the whole project can be built and Tr
    TROUPE=<path to the installation directory>
    export TROUPE=<path to the installation directory>
    ```
-   Read <a href="https://www.digitalocean.com/community/tutorials/how-to-read-and-set-environmental-and-shell-variables-on-a-linux-vps"> here</a> for more info on environment variables.
+   Read [here](https://www.digitalocean.com/community/tutorials/how-to-read-and-set-environmental-and-shell-variables-on-a-linux-vps") for more info on environment variables.
 6. Install [TypeScript](https://www.typescriptlang.org/): `npm install -g typescript`
    - To install to the home directory without root, first run `npm config set prefix ~/.npm` and add `~/.npm/bin` to your PATH
 7. Compile Troupe runtime by typing `make rt`
