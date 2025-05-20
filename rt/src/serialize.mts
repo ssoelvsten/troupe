@@ -18,7 +18,10 @@ import { StopThreadError, ThreadError } from './TroupeError.mjs';
 import { getRuntimeObject } from './SysState.mjs';
 
 import yargs from 'yargs';
-let logLevel = yargs.argv.debug ? 'debug': 'info'
+import { hideBin } from 'yargs/helpers';
+const argv:any = yargs(hideBin(process.argv)).parse()
+
+let logLevel = argv.debug ? 'debug': 'info'
 import { mkLogger } from './logger.mjs'
 const logger = mkLogger('SRL', logLevel);
 const debug = x => logger.debug(x)

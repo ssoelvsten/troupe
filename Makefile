@@ -7,8 +7,8 @@ COMPILER=./bin/troupec
 stack:
 	$(MAKE) -C compiler 
 
-yarn:
-	yarn install
+npm:
+	npm install
 rt:
 	cd rt; tsc 
 service:
@@ -30,7 +30,7 @@ test:
 	mkdir -p out
 	cd compiler && $(MAKE) test
 
-dist: stack yarn rt libs
+dist: stack npm rt libs
 	rm -rf ./build/
 	mkdir -p ./build/Troupe/rt/built
 	mkdir -p ./build/Troupe/bin
@@ -38,7 +38,6 @@ dist: stack yarn rt libs
 	cp -RL lib ./build/Troupe/
 	cp -RL trustmap.json ./build/Troupe/trustmap.json
 	cp -RL node_modules ./build/Troupe/node_modules
-	# yarn run rollup --config
 	cp -RL rt/built ./build/Troupe/rt/
 	cp rt/troupe ./build/Troupe/rt/troupe
 	cp local.sh ./build/Troupe/bin/local.sh
@@ -46,7 +45,7 @@ dist: stack yarn rt libs
 	cp -RL tests ./build/Troupe/
 all:
 	make stack 
-	yarn
+	npm i
 	make rt 
 	make libs 
 	make service

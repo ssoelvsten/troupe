@@ -6,8 +6,10 @@ import { __nodeManager } from "./NodeManager.mjs";
 const { readFile } = fs.promises
 
 
+import { hideBin } from 'yargs/helpers';
+const argv:any = yargs(hideBin(process.argv)).parse()
 
-let logLevel = yargs.argv.debug ? 'debug' : 'info';
+let logLevel = argv.debug ? 'debug' : 'info';
 import { mkLogger } from './logger.mjs'
 const logger = mkLogger('RTM', logLevel);
 
@@ -28,8 +30,8 @@ async function loadTrustMap(trustMapFile) {
 
 
 export async function initTrustMap() {
-    if (yargs.argv.trustmap) {
-        await loadTrustMap(yargs.argv.trustmap);
+    if (argv.trustmap) {
+        await loadTrustMap(argv.trustmap);
     } else {
         let default_trustmap = "trustmap.json"
         if (fs.existsSync(default_trustmap)) {

@@ -8,8 +8,10 @@ import * as fs from 'node:fs'
 import * as fsPromises from 'node:fs/promises';
 import { createEd25519PeerId } from '@libp2p/peer-id-factory'
 import { toString as uint8ArrayToString } from 'uint8arrays/to-string'
-import pkg from 'yargs'
-const {argv} = pkg;
+import yargs from 'yargs'
+import { hideBin } from 'yargs/helpers';
+const argv:any = yargs(hideBin(process.argv)).parse()
+
 
 let outfile = argv.outfile
 if (!outfile && ! (argv.privkeyfile && argv.idfile)) {

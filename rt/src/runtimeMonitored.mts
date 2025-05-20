@@ -27,11 +27,14 @@ import { Console } from 'node:console'
 
 const { flowsTo, lub, glb } = levels
 import yargs from 'yargs'
+
 const readFile = fs.promises.readFile
 const rt_uuid = runId
+import { hideBin } from 'yargs/helpers';
+const argv:any = yargs(hideBin(process.argv)).parse()
 
 
-let logLevel = yargs.argv.debug ? 'debug': 'info'
+let logLevel = argv.debug ? 'debug': 'info'
 import { mkLogger } from './logger.mjs'
 const logger = mkLogger('RTM', logLevel);
 
@@ -103,7 +106,7 @@ async function spawnAtNode(nodeid, f) {
   }
 }
 
-let _allowRemoteSpawn = (yargs.argv.rspawn) && (yargs.argv.rspawn == "true")
+let _allowRemoteSpawn = (argv.rspawn) && (argv.rspawn == "true")
 function remoteSpawnOK() {
   return _allowRemoteSpawn;
 }
@@ -436,7 +439,7 @@ async function loadServiceCode() {
 
 
 async function getNetworkPeerId(rtHandlers) {
-  const nodeIdFile = yargs.argv.id as string;
+  const nodeIdFile = argv.id as string;
   if (nodeIdFile) {
     try {
       let nodeIdObj = await readFile(nodeIdFile, 'utf-8')
@@ -451,9 +454,9 @@ async function getNetworkPeerId(rtHandlers) {
     }
   } else {
     try {
-      if (yargs.argv.localonly || yargs.argv.persist) {
+      if (argv.localonly || argv.persist) {
         info("Skipping network creation. Observe that all external IO operations will yield a runtime error.")
-        if (yargs.argv.persist) {
+        if (argv.persist) {
           info("Running with persist flag.")
         }
         return null//  OBS: 2018-07-22: we are jumping over the network creation
@@ -503,7 +506,7 @@ export async function start(f) {
     , levels.BOT
     , levels.BOT
     , true
-    , yargs.argv.persist
+    , argv.persist
   )
   __sched.loop()
 }

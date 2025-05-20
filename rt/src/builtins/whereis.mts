@@ -14,7 +14,10 @@ import {p2p} from '../p2p/p2p.mjs'
 // import runId from '../runId.mjs';
 
 import yargs from 'yargs';
-let logLevel = yargs.argv.debug ? 'debug': 'info'
+import { hideBin } from 'yargs/helpers';
+const argv:any = yargs(hideBin(process.argv)).parse()
+
+let logLevel = argv.debug ? 'debug': 'info'
 import { mkLogger } from '../logger.mjs'
 const logger = mkLogger('RTM', logLevel);
 const debug = x => logger.debug(x)

@@ -3,9 +3,11 @@ import { LVal, LValCopyAt } from '../Lval.mjs';
 import * as options from '../options.mjs'
 import { assertNormalState, assertIsNTuple, assertIsNumber, assertIsFunction } from '../Asserts.mjs'
 import { __unit } from '../UnitVal.mjs';
-
 import yargs from 'yargs';
-let logLevel = yargs.argv.debugsandbox? 'debug': 'info'
+import { hideBin } from 'yargs/helpers';
+const argv:any = yargs(hideBin(process.argv)).parse()
+
+let logLevel = argv.debugsandbox? 'debug': 'info'
 import { mkLogger } from '../logger.mjs'
 const logger = mkLogger('MBX', logLevel);
 const debug = x => logger.debug(x)

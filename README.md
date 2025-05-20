@@ -13,10 +13,8 @@ Once all dependencies have been installed, the whole project can be built and Tr
 
 ### Step 1. Install JS runtime
 1. Install NodeJS (e.g. `sudo apt-get install nodejs`)
-2. Get [yarn](https://yarnpkg.com/lang/en/) package manager (e.g. `npm install --global yarn`)
-3. Install js dependencies via `yarn install`
-4. Apply local js patches to the dependencies via `yarn patch-package` (might already be executed by `yarn install`)
-5. Set the `TROUPE` environment variable to point to the folder that contains this README. In bash this is done by adding the following lines to a file such as `~/.bashrc` or `~/.bash_profile`:
+2. Install js dependencies via `npm install`
+3. Set the `TROUPE` environment variable to point to the folder that contains this README. In bash this is done by adding the following lines to a file such as `~/.bashrc` or `~/.bash_profile`:
    ```
    TROUPE=<path to the installation directory>
    export TROUPE=<path to the installation directory>
