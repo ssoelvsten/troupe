@@ -85,8 +85,11 @@ import { kadDHT } from '@libp2p/kad-dht';
 
 // LOGGING AND DEBUGGING 
 
-let logLevel = yargs.argv.debugp2p? 'debug':'info';
-let __port = yargs.argv.port || 0;
+import { hideBin } from 'yargs/helpers';
+const argv:any = yargs(hideBin(process.argv)).parse()
+
+let logLevel = argv.debugp2p? 'debug':'info';
+let __port = argv.port || 0;
 
 let logger: Logger;
 (async() => {

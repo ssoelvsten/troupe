@@ -13,7 +13,10 @@ import  {ThreadError, TroupeError} from './TroupeError.mjs'
 import  {lub} from './options.mjs'
 // import * as levels from './options'
 import yargs from 'yargs';
-const showStack = yargs.argv.showStack
+import { hideBin } from 'yargs/helpers';
+const argv:any = yargs(hideBin(process.argv)).parse()
+
+const showStack = argv.showStack
 import { mkLogger } from './logger.mjs'
 const logger = mkLogger('scheduler');
 const info = x => logger.info(x)

@@ -3,6 +3,9 @@
 import * as fs from 'node:fs'
 import * as levels from "./options.mjs";
 import yargs from 'yargs'
+import { hideBin } from 'yargs/helpers';
+const argv:any = yargs(hideBin(process.argv)).parse()
+
 
 class Node {
     nodeId: any;
@@ -18,8 +21,8 @@ class NodeManager {
     
     constructor () {
 
-        let aliases = yargs.argv.aliases
-                        ? JSON.parse ( fs.readFileSync(yargs.argv.aliases as string, 'utf8'))
+        let aliases = argv.aliases
+                        ? JSON.parse ( fs.readFileSync(argv.aliases as string, 'utf8'))
                         : {}
 
         

@@ -2,7 +2,10 @@ import * as levels from './options.mjs'
 import { LVal, LValCopyAt } from './Lval.mjs';
 import { HandlerError, ImplementationError, StrThreadError } from './TroupeError.mjs';
 import yargs from 'yargs';
-let logLevel = yargs.argv.debug? 'debug' : 'info'
+import { hideBin } from 'yargs/helpers';
+const argv:any = yargs(hideBin(process.argv)).parse()
+
+let logLevel = argv.debug? 'debug' : 'info'
 import { mkLogger } from './logger.mjs'
 const logger = mkLogger('thread',  logLevel);
 const debug = x => logger.debug(x)
@@ -19,7 +22,7 @@ import { getRuntimeObject } from './SysState.mjs';
 import { HnState } from './SandboxStatus.mjs';
 
 
-let isPiniMode = yargs.argv.pini?true:false;
+let isPiniMode = argv.pini?true:false;
 
 
 export enum PCDeclassificationPurpose {

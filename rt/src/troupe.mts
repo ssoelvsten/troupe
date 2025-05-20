@@ -5,7 +5,10 @@ import yargs from 'yargs'
 import fs from 'node:fs'
 // let yargs = require('yargs');
 // let fs = require('fs');
-let p:any = yargs.argv.f;
+import { hideBin } from 'yargs/helpers';
+const argv:any = yargs(hideBin(process.argv)).parse()
+
+let p:any = argv.f;
 if (!path.isAbsolute(p)) {
     p = path.normalize(process.cwd() + "/" + p);
 }

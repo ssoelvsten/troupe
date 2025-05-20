@@ -1,5 +1,5 @@
 {
-  "name": "picomlret",
+  "name": "troupe-runtime",
   "version": "1.0.0",
   "description": "",
   "main": "runtime.js",
@@ -36,12 +36,12 @@
     "request": "^2.88.2",
     "update": "^0.7.4",
     "uuid": "^7.0.2",
-    "winston": "^3.2.1",
-    "yargs": "^15.3.1"
+    "winston": "^3.17.0",
+    "yargs": "^17.7.2"
   },
   "devDependencies": {
     "@types/ws": "^8.5.4",
-    "@types/yargs": "^15.0.4",
+    "@types/yargs": "^17.0.33",
     "patch-package": "^6.5.1",
     "postinstall-prepare": "^1.0.1",
     "rollup": "^2.3.1",
