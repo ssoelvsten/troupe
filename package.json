@@ -29,6 +29,7 @@
     "aggregate-error": "^4.0.1",
     "chalk": "^5.2.0",
     "find-free-port": "^2.0.0",
+    "it-length-prefixed": "^10.0.1",
     "libp2p": "^0.45.3",
     "npm": "^6.14.4",
     "postinstall-postinstall": "^2.1.0",
