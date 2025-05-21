@@ -23,7 +23,7 @@
     "@libp2p/tcp": "^7.0.1",
     "@libp2p/websockets": "^6.0.1",
     "@nodeutils/defaults-deep": "^1.1.0",
-    "@types/node": "^22.15.20",
+    "@types/node": "^22.15.21",
     "aggregate-error": "^5.0.0",
     "chalk": "^5.4.1",
     "find-free-port": "^2.0.0",
