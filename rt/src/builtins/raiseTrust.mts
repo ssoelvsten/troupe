@@ -36,7 +36,7 @@ export function BuiltinRaiseTrust<TBase extends Constructor<UserRuntimeZero>>(Ba
 
             //flowsTo (levTo.val, authFrom.val.authorityLevel);
             // AA, 2018-10-20 : beware that no information flow is enforced here
-            // let l_meta = lubs ([__sched.pc, arg.lev, authFrom.lev, levTo.lev])
+            // let l_meta = lub (__sched.pc, arg.lev, authFrom.lev, levTo.lev)
             let l_raise = ok_to_raise ? levTo.val : levels.BOT;
             let nodeId = __nodeManager.getNode(data.val).nodeId;
             if (!nodeId) {

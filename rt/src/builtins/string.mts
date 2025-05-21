@@ -2,7 +2,7 @@ import {UserRuntimeZero, Constructor, mkBase} from './UserRuntimeZero.mjs'
 import { LVal } from '../Lval.mjs';
 import * as options from '../options.mjs'
 import { assertIsUnit, assertIsString, assertIsNTuple, assertIsNumber } from '../Asserts.mjs'
-import { lub, lubs } from '../levels/tagsets.mjs';
+import { lub } from '../levels/tagsets.mjs';
 const levels = options;
 
 

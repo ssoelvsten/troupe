@@ -2,7 +2,7 @@
 import { UserRuntimeZero, Constructor, mkBase } from './UserRuntimeZero.mjs'
 import * as levels from '../options.mjs'
 import { ProcessID } from '../process.mjs';
-const { lubs, flowsTo } = levels
+const { lub, flowsTo } = levels
 import {deserialize} from '../deserialize.mjs'
 import { __nodeManager } from '../NodeManager.mjs';
 import { assertNormalState, assertIsNTuple, assertIsString, assertIsProcessId, assertIsAuthority, assertIsTopAuthority, assertIsNode } from '../Asserts.mjs';
@@ -75,7 +75,7 @@ export function BuiltinRegistry<TBase extends Constructor<UserRuntimeZero>>(Base
             let theThread = $r.$t;
 
             
-            let okToLookup = flowsTo(lubs([$r.$t.pc, arg.val[0].lev, arg.val[1].lev]), nodeLev);
+            let okToLookup = flowsTo(lub($r.$t.pc, arg.val[0].lev, arg.val[1].lev), nodeLev);
             if (!okToLookup) {
                 $r.$t.threadError("Information flow violation in whereis");
                 return;

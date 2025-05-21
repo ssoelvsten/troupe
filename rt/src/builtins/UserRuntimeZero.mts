@@ -23,7 +23,7 @@ import { Level } from '../Level.mjs'
 export type Constructor<T = {}> = new (...args: any[]) => T;
 
 
-const {lub, lubs} = levels
+const {lub} = levels
 
 class RtEnv {
     _is_rt_env: boolean;

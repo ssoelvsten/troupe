@@ -3,7 +3,6 @@ import { LCopyVal } from '../Lval.mjs';
 import { assertIsNTuple, assertIsAuthority, assertIsLevel } from '../Asserts.mjs'
 import { __unit } from '../UnitVal.mjs';
 import * as options from '../options.mjs'
-let { lubs } = options
 
 const levels = options;
 const { lub, flowsTo } = levels
@@ -41,7 +40,7 @@ export function BuiltinDeclassify<TBase extends Constructor<UserRuntimeZero>>(Ba
             }
  
             // check that levFrom ⊑ auth ⊔ levTo
-            let _l = lubs([auth.val.authorityLevel, lev_to]);
+            let _l = lub(auth.val.authorityLevel, lev_to);
 
 
             let ok_to_declassify =
@@ -49,7 +48,7 @@ export function BuiltinDeclassify<TBase extends Constructor<UserRuntimeZero>>(Ba
 
             if (ok_to_declassify) {
                 // we need to collect all the restrictions
-                let r = new LCopyVal(data, lubs([lev_to, pc, arg.lev, auth.lev]));
+                let r = new LCopyVal(data, lub(lev_to, pc, arg.lev, auth.lev));
 
                 return this.runtime.ret(r) // schedule the return value
             } else {
