@@ -3,6 +3,7 @@ import { Thread, Capability } from './Thread.mjs';
 import { isListFlagSet, isTupleFlagSet } from './ValuesUtil.mjs';
 import * as proc from './process.mjs';
 const ProcessID = proc.ProcessID;
+import { AbstractLevel } from './AbstractLevel.mjs';
 import { Level } from './Level.mjs';
 import { Authority } from './Authority.mjs'
 import * as levels from './options.mjs'; 
@@ -212,13 +213,13 @@ export function assertIsCapability(x: any) {
 
 export function assertIsLevel(x: any) {
     _thread().raiseBlockingThreadLev(x.tlev);
-    if (!(x.val instanceof Level)) {
+    if (!(x.val instanceof AbstractLevel)) {
         err("value " + __stringRep(x) + " is not a level");
     }
 }
 
 export function rawAssertIsLevel (x:any) {
-    if (!(x instanceof Level)) {
+    if (!(x instanceof AbstractLevel)) {
         err("value " + __stringRep(x) + " is not a level");
     }
 }

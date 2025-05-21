@@ -1,14 +1,14 @@
 
-import { Level }  from '../Level.mjs'
+import { AbstractLevel }  from '../AbstractLevel.mjs'
 
 
-class Singleton extends Level {
+export class Singleton extends AbstractLevel {
     isTop = true
     get dataLevel () {
         return __theLevel; // observe delayed 
     }
-    constructor (lev) {
-        super(lev);
+    constructor () {
+        super();
     }
 
     stringRep () {
@@ -17,26 +17,26 @@ class Singleton extends Level {
     }
 }
 
-let __theLevel = new Singleton(0)
+let __theLevel = new Singleton()
 
 
-export function lub (...ls:Level[]):Level {
+export function lub (...ls:Singleton[]):Singleton {
     return __theLevel
 }
 
 
-export function glb (l1:Level, l2:Level):Level {
+export function glb (l1:Singleton, l2:Singleton):Singleton {
     return __theLevel
 }
 
-export function flowsTo (l1:Level, l2:Level):boolean {
+export function flowsTo (l1:Singleton, l2:Singleton):boolean {
     return true;
     
 }
 
 
 
-function fromString (str2): Level {
+function fromString (str2): Singleton {
     return __theLevel    
 }
 
@@ -48,17 +48,7 @@ export function lubs (x) {
 }
 
 
-let levels = {
-    BOT: __theLevel,
-    TOP: __theLevel,
-    lub: lub,
-    glb: glb,
-    flowsTo: flowsTo,
-    mkLevel :fromString,
-    lubs    
-}
-
-
 export let BOT = __theLevel
 export let TOP = __theLevel 
 export let mkLevel = fromString
+// export type Level = Singleton

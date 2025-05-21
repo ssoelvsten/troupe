@@ -3,7 +3,7 @@ const logger = mkLogger('TAGSETS');
 const info = x => logger.info(x)
 const debug = x => logger.debug(x)
 
-import { Level }  from '../Level.mjs'
+import { AbstractLevel }  from '../AbstractLevel.mjs'
 
 
 function stringRep (T) {
@@ -26,13 +26,15 @@ function stringRep (T) {
 let __cache = {}
 
 
-class TagLevel extends Level {
+export class TagLevel extends AbstractLevel {
+    lev: any 
     isTop: boolean;
     __stringRep : string ;
    
-    constructor (lev, s = null) {
+    constructor (lev:any, s = null) {
         s = s || stringRep (lev);
-        super(lev);
+        super();
+        this.lev = lev;
         this.__stringRep = s
       
     }
@@ -74,7 +76,7 @@ topLevel.isTop = true;
 
 
 
-export function lub (...ls:Level[]):Level {
+export function lub (...ls:TagLevel[]):TagLevel {
     if (ls.length == 2) {
         if (ls[0] == ls[1]) {
             return ls[0]
@@ -93,7 +95,7 @@ export function lub (...ls:Level[]):Level {
 }
 
 
-export function glb (l1:Level, l2:Level):Level {
+export function glb (l1:TagLevel, l2:TagLevel):TagLevel {
     if (l1 == topLevel) {
         return l2;
     }
@@ -112,7 +114,7 @@ export function glb (l1:Level, l2:Level):Level {
     return createTagLevel (s);
 }
 
-export function flowsTo (l1:Level, l2:Level):boolean {
+export function flowsTo (l1:TagLevel, l2:TagLevel):boolean {
     if (l1 == l2) {
         return true;
     }
@@ -142,7 +144,7 @@ export function flowsTo (l1:Level, l2:Level):boolean {
  * for caching, this unchecked input set is rendered into a string, and it seems that the actual tag set
  * of the resulting Level also just becomes this set.).
  */
-function fromString (str2): Level {
+function fromString (str2): TagLevel {
     // debug (str2.toString())
     // the implementation is slightly over-protected
     // to deal with {} issues; 2018-09-19; AA
@@ -171,7 +173,7 @@ function fromString (str2): Level {
 
 export function lubs (x) {
   if (x.length == 0) {
-    return levels.BOT;
+    return BOT;
   } else {
     let r = x[0];
     for (let i = 1; i < x.length; i++) {
@@ -182,18 +184,7 @@ export function lubs (x) {
 }
 
 
-let levels = {
-    BOT: botLevel, 
-    TOP: topLevel,
-    lub: lub,
-    glb: glb,
-    flowsTo: flowsTo,
-    mkLevel :fromString,
-    lubs    
-}
 
 export let BOT = botLevel
 export let TOP = topLevel 
 export let mkLevel = fromString
-
-// export default levels
