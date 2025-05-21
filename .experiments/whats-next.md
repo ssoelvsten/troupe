@@ -2,8 +2,9 @@
 
 
 ## Backend / JS runtime integration of the DCLabels
- [x] Move DCLabels into the rt/levels and check that they compile as part 
-     of the Troupe codebase
+
+ [ ] Refactor the existing Level interface to something more maintainable
+ in the anticipation of the integration of the DCLabels. 
 
  [ ] Implement backward-compatible parsing of `{alice, bob}` in DC labels to 
      mean ` alice & bob ; alice | bob `. 
@@ -47,6 +48,12 @@
 [ ] Serialization
 
 # DONE
+
+## 2025-05-21
+
+[x] Move DCLabels into the rt/levels and check that they compile as part 
+     of the Troupe codebase.  
+
 ## 2025-05-13
 
 [x] Generalize parsing from LabelExp CNF
