@@ -25,7 +25,7 @@ export class ProcessID implements TroupeRawValue {
       this.uuid = rt_uuid;
       this.pid = pid;
       this.node = node ; // getLocalNode();
-      this.stringRep = toString;
+      this.stringRep = ProcessID.toString;
       this.equals = pid_equals;
       this.stringRep = this.toString;
     }   

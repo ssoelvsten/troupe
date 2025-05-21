@@ -2,6 +2,9 @@
 
 
 ## Backend / JS runtime integration of the DCLabels
+ [ ] Move DCLabels into the rt/levels and check that they compile as part 
+     of the Troupe codebase
+
  [ ] Implement backward-compatible parsing of `{alice, bob}` in DC labels to 
      mean ` alice & bob ; alice | bob `. 
      
@@ -19,6 +22,10 @@
  [ ] Add support for #true or #false in the LabelExp parsing, 
      maybe just at the top level?
 
+## Dependency management
+
+- [ ] Upgrade all libp2p dependencies.
+- [ ] "skipLibCheck" in tsconfig should be set back to false (or removed).
 
 ## Other improvements
 
