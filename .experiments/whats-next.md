@@ -6,6 +6,8 @@
  [ ] Refactor the existing Level interface to something more maintainable
  in the anticipation of the integration of the DCLabels. 
 
+    -  move individual exports into the level module? 
+
  [ ] Implement backward-compatible parsing of `{alice, bob}` in DC labels to 
      mean ` alice & bob ; alice | bob `. 
      
