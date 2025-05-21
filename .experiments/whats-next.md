@@ -22,6 +22,11 @@
  [ ] Add support for #true or #false in the LabelExp parsing, 
      maybe just at the top level?
 
+## Refactoring
+
+- [ ] Get rid of lubs, because it is redundant, now that 
+  we have a multi-arg lub
+
 ## Dependency management
 
 - [ ] Upgrade all libp2p dependencies.
