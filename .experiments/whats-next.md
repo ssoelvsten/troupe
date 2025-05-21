@@ -2,7 +2,7 @@
 
 
 ## Backend / JS runtime integration of the DCLabels
- [ ] Move DCLabels into the rt/levels and check that they compile as part 
+ [x] Move DCLabels into the rt/levels and check that they compile as part 
      of the Troupe codebase
 
  [ ] Implement backward-compatible parsing of `{alice, bob}` in DC labels to 

@@ -8,7 +8,7 @@
         "esModuleInterop": true,
         "skipLibCheck": true,                                /* Skip type checking all .d.ts files. */
         "incremental": true,
-        "lib": ["ES2023"],
+        "lib": ["ESNext"],
     },
     "include": [
         "src/**/*"
