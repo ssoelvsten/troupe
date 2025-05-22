@@ -8,17 +8,3 @@ export abstract class AbstractLevel implements TroupeRawValue {
   abstract dataLevel;
   abstract stringRep (): string 
 }
-
-
-export interface LevelSystem <L extends AbstractLevel> {
-  BOT: L
-  TOP: L 
-  NULL: L 
-  ROOT: L 
-  mkLevel (x:string) : L 
-  lub (...ls:L[]): L 
-  glb2 (a:L, b:L): L 
-  flowsTo (a: L, b:L) : boolean 
-  lubs (arr: L[]) : L 
-}
-

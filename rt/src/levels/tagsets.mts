@@ -3,7 +3,7 @@ const logger = mkLogger('TAGSETS');
 const info = x => logger.info(x)
 const debug = x => logger.debug(x)
 
-import { AbstractLevel, LevelSystem }  from '../AbstractLevel.mjs'
+import { AbstractLevel }  from '../AbstractLevel.mjs'
 
 
 function stringRep (T) {
@@ -188,16 +188,3 @@ export function lubs (x) {
 export let BOT = botLevel
 export let TOP = topLevel 
 export let mkLevel = fromString
-
-
-export class TagLevelSystem implements LevelSystem <TagLevel> {
-    BOT = botLevel
-    TOP = topLevel
-    NULL = botLevel 
-    ROOT = botLevel 
-    mkLevel = fromString
-    lub = lub 
-    glb2 = glb 
-    flowsTo = flowsTo
-    lubs = lubs 
-}
