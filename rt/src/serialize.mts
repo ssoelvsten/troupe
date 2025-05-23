@@ -10,7 +10,7 @@
 */
 
 import assert from 'assert'
-import { lub } from './options.mjs';
+import { lub } from './Level.mjs';
 import * as Ty from './TroupeTypes.mjs'
 import { LVal } from './Lval.mjs';
 import { Level } from './Level.mjs';

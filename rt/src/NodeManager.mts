@@ -1,7 +1,7 @@
 'use strict'
 
 import * as fs from 'node:fs'
-import * as levels from "./options.mjs";
+import * as levels from "./Level.mjs";
 import yargs from 'yargs'
 import { hideBin } from 'yargs/helpers';
 const argv:any = yargs(hideBin(process.argv)).parse()

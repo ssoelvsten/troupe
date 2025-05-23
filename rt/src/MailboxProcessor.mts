@@ -13,8 +13,8 @@ import { mkLogger } from './logger.mjs'
 const logger = mkLogger('MBX', logLevel);
 const debug = x => logger.debug(x);
 import  { HandlerState as SandboxStatus }  from  './SandboxStatus.mjs' ;
-import {lub,flowsTo} from './options.mjs'
-import * as levels from './options.mjs'
+import {lub,flowsTo} from './Level.mjs'
+import * as levels from './Level.mjs'
 import { ReceiveTaintAction } from "./ReceiveTaintAction.mjs";
 import { LVal, MbVal } from "./Lval.mjs";
 import { MailboxInterface } from "./MailboxInterface.mjs";

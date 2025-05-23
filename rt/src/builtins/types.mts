@@ -3,7 +3,7 @@ import { UserRuntimeZero, Constructor, mkBase } from './UserRuntimeZero.mjs'
 import { LVal } from '../Lval.mjs';
 import { assertIsNTuple, assertIsRecord, assertIsString, assertIsUnit, assertNormalState } from '../Asserts.mjs'
 import { Record } from "../Record.mjs";
-import { lub } from '../options.mjs';
+import { lub } from '../Level.mjs';
 import { __unit } from '../UnitVal.mjs';
 import { TroupeType } from '../TroupeTypes.mjs';
 

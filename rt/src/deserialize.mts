@@ -8,7 +8,7 @@ import { ProcessID } from './process.mjs';
 import { Authority } from './Authority.mjs';
 import { Atom } from './Atom.mjs';
 import { __unitbase }from './UnitBase.mjs'
-import { glb, mkLevel } from './options.mjs';
+import { glb, mkLevel } from './Level.mjs';
 import { RuntimeInterface } from './RuntimeInterface.mjs';
 import { Level } from './Level.mjs';
 import { Record } from './Record.mjs';

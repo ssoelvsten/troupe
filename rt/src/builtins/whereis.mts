@@ -1,6 +1,6 @@
 'use strict'
 import { UserRuntimeZero, Constructor, mkBase } from './UserRuntimeZero.mjs'
-import * as levels from '../options.mjs'
+import * as levels from '../Level.mjs'
 import { ProcessID } from '../process.mjs';
 const { lub, flowsTo } = levels
 import {deserialize} from '../deserialize.mjs'

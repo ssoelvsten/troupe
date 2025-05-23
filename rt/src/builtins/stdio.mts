@@ -1,7 +1,7 @@
 import { UserRuntimeZero, Constructor, mkBase } from './UserRuntimeZero.mjs'
 import { LocalObject } from '../LocalObject.mjs'
-import * as options from '../options.mjs'
-import { mkLevel } from '../options.mjs'
+import * as options from '../Level.mjs'
+import { mkLevel } from '../Level.mjs'
 import { assertIsAuthority, assertIsTopAuthority, assertIsNTuple, assertIsLocalObject, assertIsString, assertIsUnit, assertNormalState } from '../Asserts.mjs'
 import { __unit } from '../UnitVal.mjs';
 import yargs from 'yargs'

@@ -1,4 +1,4 @@
-import * as levels from "./options.mjs";
+import * as levels from './Level.mjs';
 import yargs from "yargs";
 import * as fs from 'node:fs';
 import { Level } from "./Level.mjs";

@@ -1,5 +1,5 @@
 import { UserRuntimeZero, Constructor, mkBase } from './UserRuntimeZero.mjs'
-import {lub} from '../options.mjs'
+import {lub} from '../Level.mjs'
 import { assertNormalState, assertIsFunction, assertIsNode } from '../Asserts.mjs'
 import { __nodeManager } from '../NodeManager.mjs';
 import { __unit } from '../UnitVal.mjs';

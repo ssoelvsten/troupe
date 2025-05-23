@@ -3,11 +3,6 @@
 
 ## Backend / JS runtime integration of the DCLabels
 
- [ ] Refactor the existing Level interface to something more maintainable
- in the anticipation of the integration of the DCLabels. 
-
-    -  move individual exports into the level module? 
-
  [ ] Implement backward-compatible parsing of `{alice, bob}` in DC labels to 
      mean ` alice & bob ; alice | bob `. 
      
@@ -50,6 +45,15 @@
 [ ] Serialization
 
 # DONE
+
+## 2025-05-24
+
+[+moving-on-from-here+] Refactor the existing Level interface to
+something more maintainable in the anticipation of the integration of
+the DCLabels. 
+
+   -  move individual exports into the level module? 
+
 
 ## 2025-05-21
 

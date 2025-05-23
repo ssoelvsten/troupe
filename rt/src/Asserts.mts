@@ -6,7 +6,7 @@ const ProcessID = proc.ProcessID;
 import { AbstractLevel } from './AbstractLevel.mjs';
 import { Level } from './Level.mjs';
 import { Authority } from './Authority.mjs'
-import * as levels from './options.mjs'; 
+import * as levels from './Level.mjs'; 
 import { TroupeType } from './TroupeTypes.mjs';
 const flowsTo = levels.flowsTo;
 
