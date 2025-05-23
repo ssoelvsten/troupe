@@ -26,7 +26,7 @@ function stringRep (T) {
 let __cache = {}
 
 
-export class TagLevel extends AbstractLevel {
+class TagLevel extends AbstractLevel<TagLevel> {
     lev: any 
     isTop: boolean;
     __stringRep : string ;
@@ -188,3 +188,5 @@ export function lubs (x) {
 export let BOT = botLevel
 export let TOP = topLevel 
 export let mkLevel = fromString
+
+export type Level = TagLevel 

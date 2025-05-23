@@ -2,7 +2,7 @@
 import { AbstractLevel }  from '../AbstractLevel.mjs'
 
 
-export class Singleton extends AbstractLevel {
+export class Singleton extends AbstractLevel<Singleton> {
     isTop = true
     get dataLevel () {
         return __theLevel; // observe delayed 
