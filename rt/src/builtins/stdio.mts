@@ -1,6 +1,6 @@
 import { UserRuntimeZero, Constructor, mkBase } from './UserRuntimeZero.mjs'
 import { LocalObject } from '../LocalObject.mjs'
-import * as options from '../Level.mjs'
+import * as levels from '../Level.mjs'
 import { mkLevel } from '../Level.mjs'
 import { assertIsAuthority, assertIsTopAuthority, assertIsNTuple, assertIsLocalObject, assertIsString, assertIsUnit, assertNormalState } from '../Asserts.mjs'
 import { __unit } from '../UnitVal.mjs';
@@ -8,7 +8,6 @@ import yargs from 'yargs'
 import { hideBin } from 'yargs/helpers';
 const argv:any = yargs(hideBin(process.argv)).parse()
 
-const levels = options;
 const flowsTo = levels.flowsTo;
 
 import * as _rl from 'node:readline';

@@ -2,11 +2,10 @@ import { UserRuntimeZero, Constructor, mkBase } from './UserRuntimeZero.mjs'
 import { LCopyVal } from '../Lval.mjs';
 import { assertIsNTuple, assertIsAuthority, assertIsLevel, assertNormalState, assertIsString, assertIsTopAuthority } from '../Asserts.mjs'
 import { __unit } from '../UnitVal.mjs';
-import * as options from '../Level.mjs'
+import * as levels from '../Level.mjs'
 import { __nodeManager } from '../NodeManager.mjs';
 import { nodeTrustLevel, _trustMap } from '../TrustManager.mjs';
 
-const levels = options;
 const { lub, flowsTo } = levels
 
 export function BuiltinRaiseTrust<TBase extends Constructor<UserRuntimeZero>>(Base: TBase) {

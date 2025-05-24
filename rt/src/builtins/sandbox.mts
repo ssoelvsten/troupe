@@ -1,6 +1,5 @@
 import { UserRuntimeZero, Constructor, mkBase } from './UserRuntimeZero.mjs'
 import { LVal, LValCopyAt } from '../Lval.mjs';
-import * as options from '../Level.mjs'
 import { assertNormalState, assertIsNTuple, assertIsNumber, assertIsFunction } from '../Asserts.mjs'
 import { __unit } from '../UnitVal.mjs';
 import yargs from 'yargs';
@@ -22,7 +21,6 @@ function rt_raisedToLev(x, y) {
     return new LValCopyAt(x, y)
 }
 
-const { lub, flowsTo } = options;
 
 
 function setupSandbox($r:RuntimeInterface, delay, resumeState = null) {

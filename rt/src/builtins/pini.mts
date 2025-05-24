@@ -1,8 +1,6 @@
 import {UserRuntimeZero, Constructor, mkBase} from './UserRuntimeZero.mjs'
-import { LVal } from '../Lval.mjs';
-import * as options from '../Level.mjs'
+import * as levels from '../Level.mjs'
 import { assertNormalState, assertIsAuthority, assertIsCapability, assertIsNTuple, assertIsLevel } from '../Asserts.mjs'
-const levels = options;
 const flowsTo = levels.flowsTo;
 
 

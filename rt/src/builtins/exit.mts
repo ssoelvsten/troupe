@@ -1,11 +1,7 @@
 import { UserRuntimeZero, Constructor, mkBase } from './UserRuntimeZero.mjs'
-import { LVal } from '../Lval.mjs';
-import * as options from '../Level.mjs'
 import { assertNormalState, assertIsNTuple, assertIsAuthority, assertIsNumber, assertIsTopAuthority } from '../Asserts.mjs'
 import { __unit } from '../UnitVal.mjs';
 
-const levels = options;
-const { lub, flowsTo } = levels
 
 export function BuiltinExit <TBase extends Constructor<UserRuntimeZero>>(Base: TBase) {
     return class extends Base {
