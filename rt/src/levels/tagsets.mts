@@ -3,7 +3,7 @@ const logger = mkLogger('TAGSETS');
 const info = x => logger.info(x)
 const debug = x => logger.debug(x)
 
-import { AbstractLevel }  from '../AbstractLevel.mjs'
+import { AbstractLevel, AbstractLevelSystem }  from '../AbstractLevel.mjs'
 
 
 function stringRep (T) {
@@ -76,65 +76,6 @@ topLevel.isTop = true;
 
 
 
-export function lub (...ls:TagLevel[]):TagLevel {
-    if (ls.length == 2) {
-        if (ls[0] == ls[1]) {
-            return ls[0]
-        }
-
-    }  
-
-    let s = new Set ();
-    for (let l of ls) {
-        if (l == topLevel) {
-            return topLevel
-        }
-        l.lev.forEach(t => s.add(t));
-    }
-    return createTagLevel (s); 
-}
-
-
-export function glb (l1:TagLevel, l2:TagLevel):TagLevel {
-    if (l1 == topLevel) {
-        return l2;
-    }
-
-    if (l2 == topLevel ) {
-        return l1;
-    }
-
-    let s = new Set();
-    l1.lev.forEach (
-        t => {
-            if (l2.lev.has(t)) {
-              s.add(t);
-            }
-        });
-    return createTagLevel (s);
-}
-
-export function flowsTo (l1:TagLevel, l2:TagLevel):boolean {
-    if (l1 == l2) {
-        return true;
-    }
-    if (l2 == topLevel) {
-        return true;
-    }
-
-    if (l1 == topLevel) {
-      return (l2 == topLevel);
-    }
-
-    const iter = l1.lev.entries();
-    for (let t1 of iter) {
-        if (!l2.lev.has(t1[0])) {
-          return false;
-        }
-    }
-
-    return true;
-}
 
 /**
  * TODO Review and document the semantics of this.
@@ -171,22 +112,90 @@ function fromString (str2): TagLevel {
 
 
 
-export function lubs (x) {
-  if (x.length == 0) {
-    return BOT;
-  } else {
-    let r = x[0];
-    for (let i = 1; i < x.length; i++) {
-      r = lub (r, x[i]);
+// export function lubs (x) {
+//   if (x.length == 0) {
+//     return BOT;
+//   } else {
+//     let r = x[0];
+//     for (let i = 1; i < x.length; i++) {
+//       r = lub (r, x[i]);
+//     }
+//     return r;
+//   }
+// }
+
+
+
+
+
+class TagLevelSystem extends AbstractLevelSystem<TagLevel>  {
+    BOT = botLevel
+    TOP = topLevel
+    NULL = botLevel
+    ROOT = topLevel
+
+    lub (...ls:TagLevel[]):TagLevel {
+        if (ls.length == 0) {
+            return botLevel;
+        }
+        if (ls.length == 2) {
+            if (ls[0] == ls[1]) {
+                return ls[0]
+            }
+        }  
+
+        let s = new Set ();
+        for (let l of ls) {
+            if (l == topLevel) {
+                return topLevel
+            }
+            l.lev.forEach(t => s.add(t));
+        }
+        return createTagLevel (s); 
     }
-    return r;
-  }
+
+    glb (l1:TagLevel, l2:TagLevel):TagLevel {
+        if (l1 == topLevel) {
+            return l2;
+        }
+
+        if (l2 == topLevel ) {
+            return l1;
+        }
+
+        let s = new Set();
+        l1.lev.forEach (
+            t => {
+                if (l2.lev.has(t)) {
+                s.add(t);
+                }
+            });
+        return createTagLevel (s);
+    }
+
+    flowsTo (l1:TagLevel, l2:TagLevel):boolean {
+        if (l1 == l2) {
+            return true;
+        }
+        if (l2 == topLevel) {
+            return true;
+        }
+
+        if (l1 == topLevel) {
+        return (l2 == topLevel);
+        }
+
+        const iter = l1.lev.entries();
+        for (let t1 of iter) {
+            if (!l2.lev.has(t1[0])) {
+            return false;
+            }
+        }
+
+        return true;
+    }
 }
 
-
-
-export let BOT = botLevel
-export let TOP = topLevel 
 export let mkLevel = fromString
-
 export type Level = TagLevel 
+export const levels = new TagLevelSystem ();

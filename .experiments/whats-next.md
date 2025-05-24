@@ -48,9 +48,8 @@
 
 ## 2025-05-24
 
-[+moving-on-from-here+] Refactor the existing Level interface to
-something more maintainable in the anticipation of the integration of
-the DCLabels. 
+[x] Refactor the existing Level interface to
+something more maintainable in the anticipation of the integration of the DCLabels. 
 
    -  move individual exports into the level module? 
 

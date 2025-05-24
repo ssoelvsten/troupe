@@ -11,7 +11,6 @@ import {ProcessID, pid_equals} from './process.mjs'
 import SandboxStatus from './SandboxStatus.mjs'
 import  {ThreadError, TroupeError} from './TroupeError.mjs'
 import  {lub} from './Level.mjs'
-// import * as levels from './options'
 import yargs from 'yargs';
 import { hideBin } from 'yargs/helpers';
 const argv:any = yargs(hideBin(process.argv)).parse()

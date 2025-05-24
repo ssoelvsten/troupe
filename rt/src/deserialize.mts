@@ -13,7 +13,7 @@ import { RuntimeInterface } from './RuntimeInterface.mjs';
 import { Level } from './Level.mjs';
 import { Record } from './Record.mjs';
 import { RawClosure } from './RawClosure.mjs';
-import * as levels from './levels/tagsets.mjs';
+import * as levels from './Level.mjs';
 
 let __compilerOsProcess = null;
 

@@ -1,6 +1,6 @@
 'use strict'
 import * as fs from 'node:fs'
-import * as levels from './levels/tagsets.mjs';
+import * as levels from './Level.mjs';
 const { readFile } = fs.promises
 
 import { mkLogger } from './logger.mjs'
