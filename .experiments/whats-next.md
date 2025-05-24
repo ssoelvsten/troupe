@@ -8,7 +8,7 @@
      
      - This will allow us to test against the existing codebase.
 
- [ ] Initiate integration of DC Labels in the runtime.
+ [+ongoing+] Initiate integration of DC Labels in the runtime.
  
  [ ] Declassification checks and other authority checks (!)
 
@@ -24,6 +24,18 @@
 
 - [ ] Get rid of lubs, because it is redundant, now that 
   we have a multi-arg lub
+
+- [ ] Refactor the interface for AbstractLevelSystem
+  - use `lub2` , `glb2` for binary operations 
+  - define abstract overridable `lub` `glb` that do 
+    the obvious thing of iterating over the list and 
+    computing the results using pairwise applications of 
+    lub2, glb2; and allow for improved implementations in the
+    classes (e.g., the way it is done in tagsets)
+   
+    | the only reason this is not done right now 
+    | is that it may be difficult to test it exhaustively 
+    | and it is not the biggest of the priorities. 
 
 ## Dependency management
 

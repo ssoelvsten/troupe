@@ -1,3 +1,4 @@
+import { AbstractLevel, AbstractLevelSystem } from '../../AbstractLevel.mjs';
 import { Category
        , CNF
        , CNF_FALSE
@@ -8,17 +9,20 @@ import { Category
     } from './cnf.mjs'
 import { DC_DELIM_LEFT, DC_DELIM_RIGHT, DC_DELIM_SEP } from './dcl_pp_config.mjs';
 
-abstract class Level { // 2025-04-26; to be later replaced 
-    // with the level from the Troupe repo
 
-}
-
-export class DCLabel {
+export class DCLabel extends AbstractLevel<DCLabel> {
     integrity: CNF
     confidentiality: CNF
+
+    get dataLevel () {
+        return IFC_BOT
+    }
+
     constructor(c: CNF, i: CNF) {
+        super ()
         this.confidentiality = c;
         this.integrity = i;
+        
     }
 
     flowsTo(other: DCLabel): boolean {
@@ -92,9 +96,39 @@ export class DCLabel {
 /// for the intuition about trust
 
 
-
 export const IFC_BOT = new DCLabel(CNF_TRUE, CNF_FALSE)
 export const IFC_TOP = new DCLabel(CNF_FALSE, CNF_TRUE)
 export const TRUST_NULL = new DCLabel(CNF_TRUE, CNF_TRUE)
 export const TRUST_ROOT = new DCLabel(CNF_FALSE, CNF_FALSE)
 
+
+export class DCLevelSystem extends AbstractLevelSystem<DCLabel> {
+    BOT = IFC_BOT
+    TOP = IFC_TOP
+    NULL = TRUST_NULL
+    ROOT = TRUST_ROOT
+    flowsTo(a: DCLabel, b: DCLabel): boolean {
+        return a.flowsTo (b);   
+    }
+
+    glb(a: DCLabel, b: DCLabel): DCLabel {
+         return a.meet(b)
+    }
+
+    // 2025-05-24: TODO
+    // - make a better version of this
+    lub(...ls: DCLabel[]): DCLabel {
+        if (ls.length == 0) {
+            return IFC_BOT
+        }
+        let r = ls[1]
+        for (let i = 1; i < ls.length; i ++) {
+            r = r.join (ls[i])
+        }
+        return r;
+    }
+}
+
+
+export type Level = typeof DCLabel
+export const levels = new DCLevelSystem ()
