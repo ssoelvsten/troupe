@@ -1,5 +1,5 @@
 import { AbstractLevel, AbstractLevelSystem } from '../../AbstractLevel.mjs';
-import { TOP } from '../singleton.mjs';
+import { BOT, TOP } from '../singleton.mjs';
 import { Category
        , CNF
        , CNF_FALSE
@@ -8,7 +8,7 @@ import { Category
        , conjunction
        , disjunction
     } from './cnf.mjs'
-import { DC_CONF_LITERALS, DC_DELIM_LEFT, DC_DELIM_RIGHT, DC_DELIM_SEP, DC_INTG_LITERALS } from './dcl_pp_config.mjs';
+import { DC_CONF_LITERALS, DC_DELIM_LEFT, DC_DELIM_LEFT_V1, DC_DELIM_RIGHT, DC_DELIM_RIGHT_V1, DC_DELIM_SEP, DC_INTG_LITERALS } from './dcl_pp_config.mjs';
 
 
 export class DCLabel extends AbstractLevel<DCLabel> {
@@ -58,6 +58,10 @@ export class DCLabel extends AbstractLevel<DCLabel> {
 
 
     stringRep(): string {
+        if (this.flowsTo(IFC_BOT)) {
+            return DC_DELIM_LEFT_V1 + DC_DELIM_RIGHT_V1
+        }
+
         return DC_DELIM_LEFT + 
             this.confidentiality.stringRep(DC_CONF_LITERALS) + 
             DC_DELIM_SEP +

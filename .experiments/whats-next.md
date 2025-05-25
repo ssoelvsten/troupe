@@ -2,6 +2,8 @@
 
 ## Backend / JS runtime integration of the DCLabels
 
+[ ] Backward-compatible printing for the bottom-level
+
 [+ongoing+] Integration of DC Labels in the runtime.
 
 [ ] Declassification checks and other authority checks (!)
