@@ -189,8 +189,8 @@ export class UserRuntimeZero {
     }
 
     // SimpleRT
-    mkLabel(x: string): Level {
-        return levels.mkLevel(x)
+    mkV1Label(x: string): Level {
+        return levels.mkV1Level(x)
     }
 
     mkDCLabel(x:any):Level {

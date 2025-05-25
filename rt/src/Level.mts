@@ -1,5 +1,9 @@
-import {levels } from './levels/tagsets.mjs'
-export { mkLevel, Level } from './levels/tagsets.mjs'
+import {levels } from './levels/DCLabels/dclabel.mjs'
+export { mkLevel, mkV1Level, Level } from './levels/DCLabels/dclabel.mjs'
+
+
+// import {levels } from './levels/tagsets.mjs'
+// export { mkLevel, Level } from './levels/tagsets.mjs'
 
 export function lub(...x) { return levels.lub (...x) }
 export function lubs(x)   { return levels.lubs (x  ) } 

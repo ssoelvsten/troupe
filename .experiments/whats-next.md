@@ -3,8 +3,12 @@
 
 ## Backend / JS runtime integration of the DCLabels
 
+ [ ] Can we run `zero.trp` with the new label system?
+
  [ ] Implement backward-compatible parsing of `{alice, bob}` in DC labels to 
      mean ` alice & bob ; alice | bob `. 
+
+     
      
      - This will allow us to test against the existing codebase.
 

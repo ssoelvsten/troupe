@@ -539,7 +539,7 @@ instance ToJS RawExpr where
       text "rt.cons" <>  PP.parens (ppId v1 <> text "," <> ppId v2)
     Const C.LUnit -> return $ text "rt.__unitbase"
     Const (C.LLabel s) -> return $
-      text "rt.mkLabel" <> (PP.parens . PP.doubleQuotes) (text s)
+      text "rt.mkV1Label" <> (PP.parens . PP.doubleQuotes) (text s)
     Const lit -> do
       case lit of
         C.LAtom atom -> tell ([], [atom], [])

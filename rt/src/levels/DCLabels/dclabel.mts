@@ -80,6 +80,10 @@ export class DCLabel extends AbstractLevel<DCLabel> {
         return new DCLabel(CNF.fromJSON(o.confidentiality)
                          , CNF.fromJSON(o.integrity))
     }
+
+    static fromV1String (s:string):DCLabel {
+        throw new Error ("not implemented")
+    }
 }
 
 
@@ -121,7 +125,7 @@ export class DCLevelSystem extends AbstractLevelSystem<DCLabel> {
         if (ls.length == 0) {
             return IFC_BOT
         }
-        let r = ls[1]
+        let r = ls[0]
         for (let i = 1; i < ls.length; i ++) {
             r = r.join (ls[i])
         }
@@ -129,6 +133,7 @@ export class DCLevelSystem extends AbstractLevelSystem<DCLabel> {
     }
 }
 
-
-export type Level = typeof DCLabel
+export const mkLevel = DCLabel.fromJSON
+export const mkV1Level = DCLabel.fromV1String 
+export type Level = DCLabel
 export const levels = new DCLevelSystem ()
