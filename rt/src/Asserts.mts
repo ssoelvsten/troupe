@@ -8,7 +8,7 @@ import { Level } from './Level.mjs';
 import { Authority } from './Authority.mjs'
 import * as levels from './Level.mjs'; 
 import { TroupeType } from './TroupeTypes.mjs';
-const flowsTo = levels.flowsTo;
+const actsFor = levels.actsFor;
 
 import { getRuntimeObject } from './SysState.mjs';
 import { __nodeManager } from './NodeManager.mjs';
@@ -224,7 +224,7 @@ export function rawAssertIsLevel (x:any) {
     }
 }
 export function assertIsTopAuthority(x: any) {
-    let isTop = flowsTo(levels.TOP, x.val.authorityLevel);
+    let isTop = actsFor(x.val.authorityLevel, levels.ROOT);
     if (!isTop) {
         let errorMessage =
             "Provided authority is not TOP\n" +

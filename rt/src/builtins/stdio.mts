@@ -21,7 +21,7 @@ const readline = _rl.createInterface({
 const lineBuffer = [];
 const readlineCallbacks = []
 
-const __stdio_lev = argv.stdiolev ? mkLevel (argv.stdiolev): levels.TOP
+const __stdio_lev = argv.stdiolev ? mkLevel (argv.stdiolev): levels.ROOT
 
 function lineListener(input) {
     if (readlineCallbacks.length > 0) {
