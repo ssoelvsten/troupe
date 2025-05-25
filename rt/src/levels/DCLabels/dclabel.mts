@@ -61,6 +61,7 @@ export class DCLabel extends AbstractLevel<DCLabel> {
         if (this.flowsTo(IFC_BOT)) {
             return DC_DELIM_LEFT_V1 + DC_DELIM_RIGHT_V1
         }
+        
 
         return DC_DELIM_LEFT + 
             this.confidentiality.stringRep(DC_CONF_LITERALS) + 
@@ -166,9 +167,14 @@ export class DCLevelSystem extends AbstractLevelSystem<DCLabel> {
 
     fromV1String (str2:string):DCLabel {
         const str1 = str2.trim();
-        const str = str1.startsWith ("{") && str1.endsWith ("}") ?
+        let str = str1.startsWith ("{") && str1.endsWith ("}") ?
                 str1.substring(1, str1.length - 1) :
                 str1;
+        
+        str = str.trim();
+        if (str == "") {
+            return IFC_BOT
+        }
 
         if (str == "#TOP") {
             return IFC_TOP;

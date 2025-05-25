@@ -51,6 +51,7 @@ export class CNF {
         if (this.categories.size == 0) {
             return pp_literals.trueLit;
         }
+
         let p: boolean;
         switch (parenthesize) {
             case Delimiterification.AsNeeded:

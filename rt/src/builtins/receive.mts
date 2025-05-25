@@ -8,6 +8,7 @@ import { mkTuple } from '../ValuesUtil.mjs';
 import { __unit } from '../UnitVal.mjs';
 import SandboxStatus from '../SandboxStatus.mjs';
 import { Thread } from '../Thread.mjs';
+import { debug } from 'console';
 
 
 
@@ -125,11 +126,9 @@ export function BuiltinReceive<TBase extends Constructor<UserRuntimeZero>>(Base:
               ` | pc level at the time of raise: ${mclear.pc_at_creation.stringRep()}`  // we need better terminology for these       
             $r.$t.threadError (errorMessage);
           }
-      
-
-          return this.runtime.__mbox.consume (
-              lub (this.runtime.$t.pc, i.lev, lowb.lev, highb.lev, highb.val, mclear.boost_level), 
-              i.val, lowb.val, highb.val )
+     
+          let consume_l = lub (this.runtime.$t.pc, i.lev, lowb.lev, highb.lev, highb.val, mclear.boost_level)
+          return this.runtime.__mbox.consume ( consume_l, i.val, lowb.val, highb.val )
         })
 
         _blockThread = mkBase ((arg) => {

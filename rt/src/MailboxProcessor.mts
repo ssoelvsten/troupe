@@ -142,7 +142,7 @@ export class MailboxProcessor implements MailboxInterface {
         let theThread = this.sched.__currentThread
         let mb = theThread.mailbox;
         debug (`consume index: ${index}`)        
-        debug (`consume interval: [${lowb.stringRep()}, ${highb.stringRep()}]`)
+        debug (`consume interval: [${lowb.stringRep()} to ${highb.stringRep()}]`)
         let lclear = mb.mclear 
         theThread.raiseBlockingThreadLev (lub (highb, lclear.boost_level))
         theThread.invalidateSparseBit()
