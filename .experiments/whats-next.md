@@ -2,7 +2,7 @@
 
 ## Backend / JS runtime integration of the DCLabels
 
-[ ] Backward-compatible printing for the bottom-level
+[ ] BUG: `consume01.trp` is blocking
 
 [+ongoing+] Integration of DC Labels in the runtime.
 
@@ -71,26 +71,27 @@
 
 # DONE
 
-# 2025-05-25
+## 2025-05-25
 
- [x] Implement actsfor primitives in the DCLabel
+- [x] Backward-compatible printing for the bottom-level
+
+- [x] Implement actsfor primitives in the DCLabel
+
+- [x] Main authority value given in the beginning of the program should be ROOT
  
- [x] Main authority value given in the beginning of the program 
- should be ROOT
  
- 
-## 2025-05-24
- [x] Update string representation: 
-     [x] Printing 
-         [x] printing of CNFs using the & and | syntax
-         [x] printing of DC Labels 
-     [x] Security-context--depending printing of the CNF formulas
+## 2025-05-25
+- [x] Update string representation: 
+      [x] Printing 
+          [x] printing of CNFs using the & and | syntax
+          [x] printing of DC Labels 
+      [x] Security-context--depending printing of the CNF formulas
          gives better intuition than true/false literals or 
          any combination of symbols that I could find at the moment.
          
 
- [x] Implement backward-compatible parsing of `{alice, bob}` in DC labels to 
-     mean ` alice & bob ; alice | bob `. 
+-  [x] Implement backward-compatible parsing of `{alice, bob}` in DC labels to 
+       mean ` alice & bob ; alice | bob `. 
 
 ## 2025-05-24
 
