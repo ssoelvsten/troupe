@@ -2,31 +2,35 @@
 
 ## Backend / JS runtime integration of the DCLabels
 
- [ ] Implement actsfor primitives in the DCLabel
- 
- [ ] Authority value given in the beginning for printing, etc. 
- 
- [+ongoing+] Integration of DC Labels in the runtime.
+[+ongoing+] Integration of DC Labels in the runtime.
 
- [ ] Work out the pretty printing of the labels in the RT to be
- comptaible with how we are parsing them in the source compiler. 
- 
- [ ] Declassification checks and other authority checks (!)
+[ ] Declassification checks and other authority checks (!)
 
-
- [+ongoing+] Test existing against the existing codebase (see the progress below)
+[+ongoing+] Test existing against the existing codebase (see the progress below)
 
 ### Integrity integration progress list
 
- [ x | 2025-05-25 ] `zero.trp`           
- [ x | 2025-05-25 ] `fib.trp`            
- [ x | 2025-05-25 ] `infoflow01.trp`   
-
+- [ x | 2025-05-25 ] `zero.trp`           
+- [ x | 2025-05-25 ] `fib.trp`            
+- [ x | 2025-05-25 ] `infoflow01.trp`   
+ 
 
 ## Frontend
 
- [ ] Add support for #true or #false in the LabelExp parsing, 
-     maybe just at the top level?
+- [ ] Note that the way the edge labels are printed in by the runtime is
+  currently different from how they are supposed to be parsed.  This may or may
+  not be okay; we can talk about implementing context-depending parsing as part
+  of the frontend
+
+- [ ] Add support for context-depending #null, #root - style parsing in the
+  LabelExp parsing and lexing
+
+### Other improvements
+
+- [ ] We should use a separate lexer state for the DC labels, instead of the
+  <0> state, because this way we can allow for more symbols to be used as in
+  the labels; for as long as we are in the 0th state, we cannot use Troupe
+  reserved words, e.g., if / let in the DC Labels. 
 
 ## Refactoring
 
@@ -51,30 +55,37 @@
 ### Compiler
 
 - [ ] For the declaration `type DCLabOrConst = Either LabelExp LabelConst`
- change it to a new custom type (easier to track than Left/Right)
+  change it to a new custom type (easier to track than Left/Right)
 
 ## Dependency management
 
 - [ ] Upgrade all libp2p dependencies.
 - [ ] "skipLibCheck" in tsconfig should be set back to false (or removed).
 
-## Other improvements
-
- [ ] We should use a separate lexer state for the DC labels, instead of
-     the <0> state, because this way we can allow for more symbols to be
-     used as in the labels; for as long as we are in the 0th state, we
-     cannot use Troupe reserved words, e.g., if / let in the DC Labels. 
     
- [ ] Update string representation: 
-     [ ] Printing 
-         [ ] printing of CNFs using the & and | syntax
-         [ ] printing of DC Labels 
+## Serialization 
 
-[ ] Serialization
+- [ ] Serialization
 
 # DONE
 
+# 2025-05-25
+
+ [x] Implement actsfor primitives in the DCLabel
+ 
+ [x] Main authority value given in the beginning of the program 
+ should be ROOT
+ 
+ 
 ## 2025-05-24
+ [x] Update string representation: 
+     [x] Printing 
+         [x] printing of CNFs using the & and | syntax
+         [x] printing of DC Labels 
+     [x] Security-context--depending printing of the CNF formulas
+         gives better intuition than true/false literals or 
+         any combination of symbols that I could find at the moment.
+         
 
  [x] Implement backward-compatible parsing of `{alice, bob}` in DC labels to 
      mean ` alice & bob ; alice | bob `. 

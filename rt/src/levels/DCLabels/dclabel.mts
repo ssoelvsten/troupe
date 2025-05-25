@@ -8,7 +8,7 @@ import { Category
        , conjunction
        , disjunction
     } from './cnf.mjs'
-import { DC_DELIM_LEFT, DC_DELIM_RIGHT, DC_DELIM_SEP } from './dcl_pp_config.mjs';
+import { DC_CONF_LITERALS, DC_DELIM_LEFT, DC_DELIM_RIGHT, DC_DELIM_SEP, DC_INTG_LITERALS } from './dcl_pp_config.mjs';
 
 
 export class DCLabel extends AbstractLevel<DCLabel> {
@@ -59,9 +59,9 @@ export class DCLabel extends AbstractLevel<DCLabel> {
 
     stringRep(): string {
         return DC_DELIM_LEFT + 
-            this.confidentiality.stringRep() + 
+            this.confidentiality.stringRep(DC_CONF_LITERALS) + 
             DC_DELIM_SEP +
-            this.integrity.stringRep() + 
+            this.integrity.stringRep(DC_INTG_LITERALS) + 
             DC_DELIM_RIGHT
     }
 

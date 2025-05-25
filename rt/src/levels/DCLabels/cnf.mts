@@ -2,11 +2,11 @@ import { CONJ_OPERATOR
        , CAT_DELIM_LEFT
        , CAT_DELIM_RIGHT
        , DISJ_OPERATOR
-       , DC_EMPTY_CAT
+    //    , DC_EMPTY_CAT
        , Delimiterification
-       , DC_DELIM_RIGHT
-       , DC_DELIM_LEFT
-       , DC_EMPTY_CNF 
+    //    , DC_DELIM_RIGHT
+    //    , DC_DELIM_LEFT
+    //    , DC_EMPTY_CNF 
     } from './dcl_pp_config.mjs'
 
 export class Category {
@@ -23,9 +23,9 @@ export class Category {
         this.labels = l;
     }
 
-    stringRep(): string {
+    stringRep(pp_empty_cat): string {
         if (this.labels.size == 0) {
-            return DC_EMPTY_CAT;
+            return pp_empty_cat;
         }
         let r = Array.from(this.labels.values()).join(DISJ_OPERATOR);
         return r;
@@ -47,9 +47,9 @@ export class CNF {
         this.categories = c
     }
 
-    stringRep(parenthesize = Delimiterification.AsNeeded): string {
+    stringRep(pp_literals, parenthesize = Delimiterification.AsNeeded): string {
         if (this.categories.size == 0) {
-            return DC_EMPTY_CNF;
+            return pp_literals.trueLit;
         }
         let p: boolean;
         switch (parenthesize) {
@@ -64,7 +64,7 @@ export class CNF {
                 break;
         }
         function g(x: Category): string {
-            let s: string = x.stringRep();
+            let s: string = x.stringRep(pp_literals.falseLit);
             let q = p && (x.labels.size > 1)
             if (q) {
                 return (CAT_DELIM_LEFT + s + CAT_DELIM_RIGHT)
