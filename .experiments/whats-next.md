@@ -2,20 +2,23 @@
 
 ## Backend / JS runtime integration of the DCLabels
 
-[ ] BUG: `consume01.trp` is blocking
-
 [+ongoing+] Integration of DC Labels in the runtime.
 
 [ ] Declassification checks and other authority checks (!)
+
+    - [ ] Mailbox clearances
 
 [+ongoing+] Test existing against the existing codebase (see the progress below)
 
 ### Integrity integration progress list
 
+Highlighting the representative programs that I've spend some time on either
+for testing or debugging:
+
 - [ x | 2025-05-25 ] `zero.trp`           
 - [ x | 2025-05-25 ] `fib.trp`            
 - [ x | 2025-05-25 ] `infoflow01.trp`   
- 
+- [ x | 2025-05-25 ] `consume01.trp` 
 
 ## Frontend
 
@@ -72,6 +75,9 @@
 # DONE
 
 ## 2025-05-25
+
+- [x] BUG: `consume01.trp` is blocking
+      RESOLUTION: parsing of V1 labels was broken
 
 - [x] Backward-compatible printing for the bottom-level
 
