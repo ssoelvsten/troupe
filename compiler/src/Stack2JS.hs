@@ -206,7 +206,7 @@ jsonValueToString :: Value -> String
 jsonValueToString val = BL.unpack (Aeson.encode val)
 
 lit2JS C.LUnit = text "rt.__unitbase"
-lit2JS (C.LLabel s) = text "rt.mkLabel" <> (PP.parens . PP.doubleQuotes) (text s)
+lit2JS (C.LLabel s) = text "rt.mkV1Label" <> (PP.parens . PP.doubleQuotes) (text s)
 lit2JS (C.LDCLabel dc) = 
   text "rt.mkDCLabel" <> (PP.parens.text.jsonValueToString.toJSON.dcLabelExpToDCLabel) dc 
 

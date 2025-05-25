@@ -1,4 +1,5 @@
 import { AbstractLevel, AbstractLevelSystem } from '../../AbstractLevel.mjs';
+import { TOP } from '../singleton.mjs';
 import { Category
        , CNF
        , CNF_FALSE
@@ -81,8 +82,11 @@ export class DCLabel extends AbstractLevel<DCLabel> {
                          , CNF.fromJSON(o.integrity))
     }
 
-    static fromV1String (s:string):DCLabel {
-        throw new Error ("not implemented")
+    static fromSingleTag (s:string):DCLabel {
+        let labels = new Set ([s])
+        let cat = new Category(labels)
+        let cnf = new CNF (new Set ([cat]))
+        return new DCLabel(cnf, cnf)
     }
 }
 
@@ -131,9 +135,24 @@ export class DCLevelSystem extends AbstractLevelSystem<DCLabel> {
         }
         return r;
     }
+
+    fromV1String (str2:string):DCLabel {
+        const str1 = str2.trim();
+        const str = str1.startsWith ("{") && str1.endsWith ("}") ?
+                str1.substring(1, str1.length - 1) :
+                str1;
+
+        if (str == "#TOP") {
+            return IFC_TOP;
+        }
+
+        let s = new Set ();
+        const tags = str.split(',');
+        const dcs = tags.map (t => DCLabel.fromSingleTag(t))
+        return this.lub (...dcs)
+    }
 }
 
 export const mkLevel = DCLabel.fromJSON
-export const mkV1Level = DCLabel.fromV1String 
 export type Level = DCLabel
 export const levels = new DCLevelSystem ()

@@ -1,23 +1,27 @@
 # What's next 
 
-
 ## Backend / JS runtime integration of the DCLabels
 
- [ ] Can we run `zero.trp` with the new label system?
-
- [ ] Implement backward-compatible parsing of `{alice, bob}` in DC labels to 
-     mean ` alice & bob ; alice | bob `. 
-
-     
-     
-     - This will allow us to test against the existing codebase.
-
+ [ ] There is a bug in the join implementation somewhere right now
+ 
  [+ongoing+] Initiate integration of DC Labels in the runtime.
+
+ [+ongoing+] Implement backward-compatible parsing of `{alice, bob}` in DC labels to 
+     mean ` alice & bob ; alice | bob `. 
  
  [ ] Declassification checks and other authority checks (!)
 
  For the declaration `type DCLabOrConst = Either LabelExp LabelConst`
  change it to a new custom type (easier to track than Left/Right)
+
+ [ ] Test existing against the existing codebase (see the progress below)
+
+### Integrity integration progress list
+
+ [ x | 2025-05-25 ] `zero.trp`           
+ [ x | 2025-05-25 ] `fib.trp`            
+ [   | 2025-05-25 ] `infoflow01.trp`   
+
 
 ## Frontend
 
