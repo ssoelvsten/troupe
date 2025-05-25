@@ -93,20 +93,20 @@ export function implies(X: CNF, Y: CNF): boolean {
 
 export function conjunction(X: CNF, Y: CNF): CNF {
     if (implies(X, Y)) {
-        return Y
+        return X
     }
     if (implies(Y, X)) {
-        return X;
+        return Y;
     }
     return new CNF(X.categories.union(Y.categories))
 }
 
 export function disjunction(X: CNF, Y: CNF): CNF {
     if (implies(X, Y)) {
-        return X;
+        return Y;
     }
     if (implies(Y, X)) {
-        return Y;
+        return X;
     }
 
     let newCategories: Set<Category> = new Set();
