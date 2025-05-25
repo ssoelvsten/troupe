@@ -89,14 +89,14 @@ export function BuiltinStdIo<TBase extends Constructor<UserRuntimeZero>>(Base: T
             assertNormalState("inputLine")
             assertIsUnit(arg)
             let theThread = this.runtime.$t;
-            theThread.raiseBlockingThreadLev(levels.TOP)
+            theThread.raiseBlockingThreadLev(__stdio_lev)
             if (lineBuffer.length > 0) {
                 let s = lineBuffer.shift();
-                let r = theThread.mkValWithLev(s, levels.TOP);
+                let r = theThread.mkValWithLev(s, __stdio_lev);
                 return theThread.returnImmediateLValue(r);
             } else {
                 readlineCallbacks.push((s) => {
-                    let r = theThread.mkValWithLev(s, levels.TOP)
+                    let r = theThread.mkValWithLev(s, __stdio_lev)
                     theThread.returnSuspended(r)
                     this.runtime.__sched.scheduleThread(theThread);
                     this.runtime.__sched.resumeLoopAsync()
@@ -109,9 +109,9 @@ export function BuiltinStdIo<TBase extends Constructor<UserRuntimeZero>>(Base: T
             readline.removeListener('line', lineListener);
             let theThread = this.runtime.$t;
             assertIsString(arg);
-            theThread.raiseBlockingThreadLev(levels.TOP)
+            theThread.raiseBlockingThreadLev(__stdio_lev)
             readline.question(arg.val, (s) => {
-                let r = theThread.mkValWithLev(s, levels.TOP)
+                let r = theThread.mkValWithLev(s, __stdio_lev)
                 theThread.returnSuspended(r)
                 this.runtime.__sched.scheduleThread(theThread);
                 this.runtime.__sched.resumeLoopAsync()

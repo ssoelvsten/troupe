@@ -44,7 +44,7 @@ export async function initTrustMap() {
 
 export function nodeTrustLevel(nodeid):Level {
     if (__nodeManager.isLocalNode(nodeid)) {
-        return levels.TOP
+        return levels.ROOT
     }
     if (_trustMap) {
         // console.log ("true");
