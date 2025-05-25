@@ -31,11 +31,29 @@ export class DCLabel extends AbstractLevel<DCLabel> {
         S_2 ==> S1         I1 ==> I_2
         -------------------------------
         <S_1, I_1> flowsto <S_2, I_2>
+
+        assuming this = <S_1, I_1>
     	
         */
-        return implies(other.confidentiality, this.integrity) &&
-            implies(this.integrity, other.confidentiality);
+        return implies(other.confidentiality, this.confidentiality) 
+            && implies(this.integrity, other.integrity);
 
+    }
+
+    actsFor(other:DCLabel) : boolean {
+        /* 
+        returns true if this label actsfor another label. 
+
+        S_1 ==> S2         I_1 ==> I_2
+        -------------------------------
+        <S_1, I_1> flowsto <S_2, I_2>
+
+        assuming this = <S_1, I_1>
+        */
+
+        return implies(this.confidentiality, other.confidentiality)
+            && implies(this.integrity, other.integrity);
+        
     }
 
 
@@ -118,6 +136,12 @@ export class DCLevelSystem extends AbstractLevelSystem<DCLabel> {
     flowsTo(a: DCLabel, b: DCLabel): boolean {
         return a.flowsTo (b);   
     }
+
+    actsFor(a: DCLabel, b: DCLabel): boolean {
+        return a.actsFor (b);   
+    }
+
+    
 
     glb(a: DCLabel, b: DCLabel): DCLabel {
          return a.meet(b)

@@ -497,7 +497,7 @@ export async function start(f) {
 
   await loadServiceCode()
   await __userRuntime.linkLibs(f)
-  let mainAuthority = new LVal(new Authority(levels.TOP), levels.BOT);
+  let mainAuthority = new LVal(new Authority(levels.ROOT), levels.BOT);
 
   __sched.scheduleNewThreadAtLevel(
     () => f.main ({__dataLevel:levels.BOT})

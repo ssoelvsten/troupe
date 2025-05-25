@@ -21,5 +21,6 @@ export abstract class AbstractLevelSystem <T extends AbstractLevel<T>> {
     }
     abstract glb (a : T, b: T) : T 
     abstract flowsTo (a: T, b: T) : boolean
+    abstract actsFor (a: T, b: T) : boolean
 }
 

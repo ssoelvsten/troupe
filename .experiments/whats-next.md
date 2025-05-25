@@ -1,16 +1,18 @@
 # What's next 
 
 ## Backend / JS runtime integration of the DCLabels
+
+ [ ] Implement actsfor primitives in the DCLabel
  
- [+ongoing+] Initiate integration of DC Labels in the runtime.
+ [ ] Authority value given in the beginning for printing, etc. 
+ 
+ [+ongoing+] Integration of DC Labels in the runtime.
 
  [ ] Work out the pretty printing of the labels in the RT to be
  comptaible with how we are parsing them in the source compiler. 
  
  [ ] Declassification checks and other authority checks (!)
 
- For the declaration `type DCLabOrConst = Either LabelExp LabelConst`
- change it to a new custom type (easier to track than Left/Right)
 
  [+ongoing+] Test existing against the existing codebase (see the progress below)
 
@@ -28,8 +30,11 @@
 
 ## Refactoring
 
-- [ ] Get rid of lubs, because it is redundant, now that 
+### Runtime 
+
+- [ ] Get rid of lubs in the runtime codebase, because it is redundant, now that 
   we have a multi-arg lub
+
 
 - [ ] Refactor the interface for AbstractLevelSystem
   - use `lub2` , `glb2` for binary operations 
@@ -42,6 +47,11 @@
     | the only reason this is not done right now 
     | is that it may be difficult to test it exhaustively 
     | and it is not the biggest of the priorities. 
+
+### Compiler
+
+- [ ] For the declaration `type DCLabOrConst = Either LabelExp LabelConst`
+ change it to a new custom type (easier to track than Left/Right)
 
 ## Dependency management
 

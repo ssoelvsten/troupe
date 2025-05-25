@@ -194,6 +194,10 @@ class TagLevelSystem extends AbstractLevelSystem<TagLevel>  {
 
         return true;
     }
+
+    actsFor (l1, l2) : boolean {
+        return this.flowsTo(l2, l1)
+    }
 }
 
 export let mkLevel = fromString

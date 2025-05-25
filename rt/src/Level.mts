@@ -9,6 +9,7 @@ export function lub(...x) { return levels.lub (...x) }
 export function lubs(x)   { return levels.lubs (x  ) } 
 export function glb(a,b)  { return levels.glb (a,b)  }
 export function flowsTo (a:Level,b:Level) { return levels.flowsTo (a,b) }
+export function actsFor (a:Level,b:Level) { return levels.actsFor (a,b) }
 export function mkV1Level (x:string ) {
 	return levels.fromV1String (x);
 }
