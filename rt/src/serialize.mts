@@ -160,13 +160,13 @@ export function serialize(w:LVal, pclev:Level) {
                 }
                 break;
             case Ty.TroupeType.LEVEL:
-                jsonObj = { lev: x.stringRep(), isLevel: true };
+                jsonObj = { lev: x.toJSON(), isLevel: true };
                 break;
             case Ty.TroupeType.LVAL:
                 jsonObj = walk(x);
                 break;
             case Ty.TroupeType.AUTHORITY:
-                jsonObj = { authorityLevel: x.authorityLevel.stringRep() }
+                jsonObj = { authorityLevel: x.authorityLevel.toJSON() }
                 break;
             case Ty.TroupeType.ATOM:
                 jsonObj = { atom: x.atom, creation_uuid: x.creation_uuid };
@@ -185,14 +185,14 @@ export function serialize(w:LVal, pclev:Level) {
 
         return {
             val: jsonObj
-            , lev: lval.lev.stringRep()
-            , tlev: lval.tlev.stringRep()
+            , lev: lval.lev.toJSON()
+            , tlev: lval.tlev.toJSON()
             , troupeType: _tt               
         };
     }
 
     let value = walk(w);
-    value.lev = lub(w.lev, pclev).stringRep();
+    value.lev = lub(w.lev, pclev).toJSON();
 
 
     let nsp = [];
