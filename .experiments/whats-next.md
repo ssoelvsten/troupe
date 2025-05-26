@@ -4,6 +4,14 @@
 
 [+ongoing+] Integration of DC Labels in the runtime.
 
+[ ] What is the integrity interpretation of the mailbox clearances?
+    
+    - [ ] We should explore this in the project on SELECT
+
+[ ] Create tests that investigate the integrity of the mailbox 
+    clearances
+
+[ ] okToDowngrade
 
 [ ] Run test programs from pos/ifc 
     
@@ -12,6 +20,8 @@
 [ ] Declassification checks and other authority checks (!)
 
     - [ ] Mailbox clearances
+    - [ ] Check the downgrading at 
+          https://github.com/aslanix/Troupe/blob/15b37a2f2ed629a2564686201b295d31c9742232/rt/src/builtins/receive.mts#L108
 
 [+ongoing+] Test existing against the existing codebase (see the progress below)
 

@@ -6,7 +6,7 @@ let val main = self ()
     val _ = spawn ( fn () => if (true raisedTo `{bob}`) then send (main, 2) else ())
                               
 
-    val auth_alice = attenuate (authority, `{alice}`)
+    val auth_alice = attenuate (authority, `<alice;>`)
 
     val c = raisembox (`{alice}`) 
 

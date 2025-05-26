@@ -288,7 +288,8 @@ async function whereisFromRemote(k) {
 function rt_mkLabel(x) {
   // debug ("mkLabel", x, x === "secret");
 
-  return new LVal(levels.mkLevel(x), $t().pc);
+  
+  return new LVal(levels.fromSingleTag(x), $t().pc);
 
 }
 

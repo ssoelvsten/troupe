@@ -2,7 +2,7 @@ import { UserRuntimeZero, Constructor, mkBase } from './UserRuntimeZero.mjs'
 import { LCopyVal } from '../Lval.mjs';
 import { assertIsNTuple, assertIsAuthority, assertIsLevel } from '../Asserts.mjs'
 import { __unit } from '../UnitVal.mjs';
-import { lub, flowsTo}  from '../Level.mjs'
+import { lub, flowsTo, okToDowngrade}  from '../Level.mjs'
 
 
 export function BuiltinDeclassify<TBase extends Constructor<UserRuntimeZero>>(Base: TBase) {
@@ -37,12 +37,13 @@ export function BuiltinDeclassify<TBase extends Constructor<UserRuntimeZero>>(Ba
                 this.runtime.$t.threadError (errorMessage)
             }
  
-            // check that levFrom ⊑ auth ⊔ levTo
-            let _l = lub(auth.val.authorityLevel, lev_to);
+            // OBSOLETE: check that levFrom ⊑ auth ⊔ levTo
+            // let _l = lub(auth.val.authorityLevel, lev_to);
 
 
             let ok_to_declassify =
-                flowsTo(levFrom, _l)
+                okToDowngrade (levFrom, lev_to, auth.val.authorityLevel)
+                // flowsTo(levFrom, _l)
 
             if (ok_to_declassify) {
                 // we need to collect all the restrictions

@@ -5,7 +5,7 @@ in
 if true raisedTo `{secret}` then 
   let val c = raisembox (`{topsecret}`)
       val y = rcv (`{secret}`, `{secret, topsecret}`, [hn x=> x])
-      val _ = lowermbox (c, attenuate (authority, `{topsecret}`))
+      val _ = lowermbox (c, attenuate (authority, `<topsecret;>`))
   in y
   end 
 else 

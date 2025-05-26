@@ -10,9 +10,11 @@ export function lubs(x)   { return levels.lubs (x  ) }
 export function glb(a,b)  { return levels.glb (a,b)  }
 export function flowsTo (a:Level,b:Level) { return levels.flowsTo (a,b) }
 export function actsFor (a:Level,b:Level) { return levels.actsFor (a,b) }
-export function okToDowngrade (a: Level, b:Level, c: Level) {
-    return levels.okToDowngrade (a,b,c);
+export function okToDowngrade (from: Level, to:Level, auth: Level) {
+    return levels.okToDowngrade (from,to,auth);
 }
+
+export function fromSingleTag(x:string) { return levels.fromV1String(x)}
 
 export function mkV1Level (x:string ) {
 	return levels.fromV1String (x);

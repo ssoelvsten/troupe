@@ -545,7 +545,8 @@ export class Thread {
         debug (`Level to declassify to at pinipop ${levTo.stringRep()}`)
         // check that the provided authority is sufficient for the declassification
         let ok_to_declassify = 
-            levels.flowsTo (levFrom, levels.lub ( auth.val.authorityLevel, levTo ));
+            levels.okToDowngrade (levFrom, levTo, auth.val.authorityLevel)
+            // levels.flowsTo (levFrom, levels.lub ( auth.val.authorityLevel, levTo ));
         if (ok_to_declassify) {        
             this.pc = pc;           
             this.bl = bl;
@@ -604,7 +605,8 @@ export class Thread {
         // this.showStack()
         // check that the provided authority is sufficient to perform declassification to the next level
         let ok_to_declassify = 
-            levels.flowsTo (levFrom, levels.lub ( auth.val.authorityLevel, levTo ));
+            levels.okToDowngrade (levFrom, levTo, auth.val.authorityLevel)
+            // levels.flowsTo (levFrom, levels.lub ( auth.val.authorityLevel, levTo ));
         if (ok_to_declassify) {
             this.bl = levTo ; 
             this.pini_uuid = cap.prev;
@@ -637,7 +639,6 @@ export class Thread {
         }
         let ok_to_declassify = 
             levels.okToDowngrade (this.bl, bl_to, auth.val.authorityLevel)
-            
             // levels.flowsTo (this.bl, levels.lub (auth.val.authorityLevel, bl_to))
         if (ok_to_declassify) {
             this.bl = bl_to; // the actual downgrade
@@ -779,7 +780,11 @@ export class Thread {
 
         // check the authority is sufficient to downgrade from the current boost 
         // to the target one 
-        let ok_to_lower = levels.flowsTo (this.mailbox.mclear.boost_level, lub (auth.val.authorityLevel, cap.data.boost_level))
+        let ok_to_lower = 
+            // levels.flowsTo (this.mailbox.mclear.boost_level, lub (auth.val.authorityLevel, cap.data.boost_level))
+            levels.okToDowngrade ( this.mailbox.mclear.boost_level
+                                 , cap.data.boost_level
+                                 , auth.val.authorityLevel )
         
         if (!ok_to_lower) {
             this.threadError("Insufficient authority for lowering the mailbox clearance\n" +

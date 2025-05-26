@@ -5,7 +5,7 @@ let val x = 42 raisedTo `{alice}`
     (* val z = let pini authority val x = if x + y > 100 then 10 else 20 in x end  *)
 
     val a = 
-            let pini attenuate (authority, `{charlie}`) val a = 
+            let pini attenuate (authority, `<charlie;>`) val a = 
                   if c > 10 then 
                             x + y
                          else 
