@@ -8,7 +8,7 @@ import { Category
        , conjunction
        , disjunction
     } from './cnf.mjs'
-import { DC_CONF_LITERALS, DC_DELIM_LEFT, DC_DELIM_LEFT_V1, DC_DELIM_RIGHT, DC_DELIM_RIGHT_V1, DC_DELIM_SEP, DC_INTG_LITERALS, DC_TRUST_ROOT } from './dcl_pp_config.mjs';
+import { DC_CONF_LITERALS, DC_DELIM_LEFT, DC_DELIM_LEFT_V1, DC_DELIM_RIGHT, DC_DELIM_RIGHT_V1, DC_DELIM_SEP, DC_IFC_TOP, DC_INTG_LITERALS, DC_TRUST_ROOT } from './dcl_pp_config.mjs';
 
 
 // export class DowngradeResult {
@@ -101,7 +101,11 @@ export class DCLabel extends AbstractLevel<DCLabel> {
             this._cachedStringRepresentation = 
                 DC_DELIM_LEFT_V1 + DC_DELIM_RIGHT_V1
         } else
-        if (TRUST_ROOT.flowsTo(this)) {
+        if (IFC_TOP.flowsTo(this)) {
+               this._cachedStringRepresentation = 
+                DC_DELIM_LEFT_V1 + DC_IFC_TOP + DC_DELIM_RIGHT_V1
+        } else 
+        if (TRUST_ROOT.flowsTo(this) && this.flowsTo(TRUST_ROOT)) {
             this._cachedStringRepresentation = 
                 DC_DELIM_LEFT_V1 + DC_TRUST_ROOT + DC_DELIM_RIGHT_V1
         } else  {

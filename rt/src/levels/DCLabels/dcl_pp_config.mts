@@ -14,6 +14,7 @@ export const DC_DELIM_LEFT_V1  = "{"
 export const DC_DELIM_RIGHT_V1 = "}"
 export const DC_DELIM_SEP = ","
 export const DC_TRUST_ROOT = "#ROOT"
+export const DC_IFC_TOP = "#TOP"
 
 // export const DC_EMPTY_CAT = "\#FALSE"
 // export const DC_EMPTY_CNF = "\#TRUE"
