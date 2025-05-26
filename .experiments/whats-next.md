@@ -8,34 +8,20 @@
     
     - [ ] We should explore this in the project on SELECT
 
+[ ] Create tests that are specific to integrity and DC labels
+
 [ ] Create tests that investigate the integrity of the mailbox 
     clearances
 
-[ ] okToDowngrade
-
-[ ] Run test programs from pos/ifc 
-    
-    - These programs will likely require more careful inspection
-
-[ ] Declassification checks and other authority checks (!)
-
-    - [ ] Mailbox clearances
-    - [ ] Check the downgrading at 
-          https://github.com/aslanix/Troupe/blob/15b37a2f2ed629a2564686201b295d31c9742232/rt/src/builtins/receive.mts#L108
-
-[+ongoing+] Test existing against the existing codebase (see the progress below)
-
-### Integrity integration progress list
-
-Highlighting the representative programs that I've spend some time on either
-for testing or debugging:
-
-- [ x | 2025-05-25 ] `zero.trp`           
-- [ x | 2025-05-25 ] `fib.trp`            
-- [ x | 2025-05-25 ] `infoflow01.trp`   
-- [ x | 2025-05-25 ] `consume01.trp` 
 
 ## Frontend
+
+- [ ] Revisit AtPattern AST node. 
+        
+       See the declaration in the Parser.y 
+       and the usage in a few places. We don't appear to be using 
+       it in any of the examples, but it may appear useful again 
+       in the context of quarantining. 
 
 - [ ] Note that the way the edge labels are printed in by the runtime is
   currently different from how they are supposed to be parsed.  This may or may
@@ -88,13 +74,25 @@ for testing or debugging:
 - [ ] Upgrade all libp2p dependencies.
 - [ ] "skipLibCheck" in tsconfig should be set back to false (or removed).
 
-    
 ## Serialization 
 
-- [ ] Serialization
+- [ ] Using efficient serialization engine, e.g., protobufs
 
 # DONE
 ## 2025-05-26
+
+- [x] Update earlier tests so that attenuation refers  
+  only to the confidentiality dimension.
+
+- [x] Test existing against the existing codebase
+
+- [x] okToDowngrade
+
+- [x] Run test programs from pos/ifc 
+
+- [x] Declassification checks and other authority checks (!)
+
+    - [x] Mailbox clearances
 
 - [x] Run all test programs from pos/core
 
