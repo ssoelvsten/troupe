@@ -8,7 +8,7 @@ import { Category
        , conjunction
        , disjunction
     } from './cnf.mjs'
-import { DC_CONF_LITERALS, DC_DELIM_LEFT, DC_DELIM_LEFT_V1, DC_DELIM_RIGHT, DC_DELIM_RIGHT_V1, DC_DELIM_SEP, DC_INTG_LITERALS } from './dcl_pp_config.mjs';
+import { DC_CONF_LITERALS, DC_DELIM_LEFT, DC_DELIM_LEFT_V1, DC_DELIM_RIGHT, DC_DELIM_RIGHT_V1, DC_DELIM_SEP, DC_INTG_LITERALS, DC_TRUST_ROOT } from './dcl_pp_config.mjs';
 
 
 export class DCLabel extends AbstractLevel<DCLabel> {
@@ -91,7 +91,11 @@ export class DCLabel extends AbstractLevel<DCLabel> {
         if (this.flowsTo(IFC_BOT)) {
             this._cachedStringRepresentation = 
                 DC_DELIM_LEFT_V1 + DC_DELIM_RIGHT_V1
-        } else {
+        } else
+        if (TRUST_ROOT.flowsTo(this)) {
+            this._cachedStringRepresentation = 
+                DC_DELIM_LEFT_V1 + DC_TRUST_ROOT + DC_DELIM_RIGHT_V1
+        } else  {
             let s = this.isTagsetCompatible() 
             if (s) {
                 this._cachedStringRepresentation = 
