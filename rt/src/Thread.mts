@@ -636,7 +636,9 @@ export class Thread {
             return; // should be unnecessary
         }
         let ok_to_declassify = 
-            levels.flowsTo (this.bl, levels.lub (auth.val.authorityLevel, bl_to))
+            levels.okToDowngrade (this.bl, bl_to, auth.val.authorityLevel)
+            
+            // levels.flowsTo (this.bl, levels.lub (auth.val.authorityLevel, bl_to))
         if (ok_to_declassify) {
             this.bl = bl_to; // the actual downgrade
         } else {

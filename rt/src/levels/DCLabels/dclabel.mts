@@ -11,6 +11,15 @@ import { Category
 import { DC_CONF_LITERALS, DC_DELIM_LEFT, DC_DELIM_LEFT_V1, DC_DELIM_RIGHT, DC_DELIM_RIGHT_V1, DC_DELIM_SEP, DC_INTG_LITERALS, DC_TRUST_ROOT } from './dcl_pp_config.mjs';
 
 
+// export class DowngradeResult {
+//     result : boolean 
+//     errorMessage : string 
+//     constructor(r:boolean,e:string  = null) {
+//         this.result = r ;
+//         this.errorMessage = e
+//     }
+// }
+
 export class DCLabel extends AbstractLevel<DCLabel> {
     integrity: CNF
     confidentiality: CNF
@@ -48,7 +57,7 @@ export class DCLabel extends AbstractLevel<DCLabel> {
 
         S_1 ==> S2         I_1 ==> I_2
         -------------------------------
-        <S_1, I_1> flowsto <S_2, I_2>
+        <S_1, I_1> actsfor <S_2, I_2>
 
         assuming this = <S_1, I_1>
         */
@@ -136,6 +145,7 @@ export class DCLabel extends AbstractLevel<DCLabel> {
     }
 
 
+
     toJSON () {
         return { confidentiality: this.confidentiality.toJSON() 
                , integrity: this.integrity.toJSON()  
@@ -154,6 +164,8 @@ export class DCLabel extends AbstractLevel<DCLabel> {
         let cnf = new CNF (new Set ([cat]))
         return new DCLabel(cnf, cnf)
     }
+
+    
 }
 
 
@@ -227,6 +239,31 @@ export class DCLevelSystem extends AbstractLevelSystem<DCLabel> {
         const tags = str.split(',');
         const dcs = tags.map (t => DCLabel.fromSingleTag(t))
         return this.lub (...dcs)
+    }
+
+    okToDowngrade ( l_from : DCLabel
+                 ,  l_to   : DCLabel
+                 ,  l_auth : DCLabel ) :  boolean {
+
+        /* 
+        
+         S_auth /\ S_to ==> S_from        I_auth /\ I_from ==> I_to
+        -----------------------------------------------------------
+             <S_from, I_from> flowsto_{l_auth} <S_to, I_to>
+        
+        */
+
+        let enough_confidentiality = 
+            implies( conjunction ( l_auth.confidentiality
+                               ,   l_to.confidentiality)
+                   , l_from.confidentiality)
+        let enough_integrity = 
+            implies( conjunction ( l_auth.integrity
+                                 , l_from.integrity)
+                   , l_to.integrity)            
+               
+        let ok_to_declassify = enough_confidentiality && enough_integrity
+        return ok_to_declassify
     }
 }
 
