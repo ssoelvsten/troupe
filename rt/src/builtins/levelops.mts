@@ -28,6 +28,7 @@ export function BuiltinLevOps <TBase extends Constructor<UserRuntimeZero>> (Base
         newlabel = mkBase((arg) => {
             assertIsUnit(arg);
             let levid = uuidv4().toString()
+            let lev = levels
             return this.runtime.ret(this.runtime.mkLabel(levid));
         })       
     }

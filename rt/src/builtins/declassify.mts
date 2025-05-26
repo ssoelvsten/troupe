@@ -37,13 +37,8 @@ export function BuiltinDeclassify<TBase extends Constructor<UserRuntimeZero>>(Ba
                 this.runtime.$t.threadError (errorMessage)
             }
  
-            // OBSOLETE: check that levFrom ⊑ auth ⊔ levTo
-            // let _l = lub(auth.val.authorityLevel, lev_to);
-
-
             let ok_to_declassify =
                 okToDowngrade (levFrom, lev_to, auth.val.authorityLevel)
-                // flowsTo(levFrom, _l)
 
             if (ok_to_declassify) {
                 // we need to collect all the restrictions
