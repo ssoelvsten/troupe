@@ -194,7 +194,7 @@ export class UserRuntimeZero {
     }
 
     mkDCLabel(x:any):Level {
-        throw new Error ("Not implemented/DC Label")
+        return levels.mkLevel(x);
     }
 
     /**

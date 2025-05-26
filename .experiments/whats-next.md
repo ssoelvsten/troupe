@@ -4,11 +4,8 @@
 
 [+ongoing+] Integration of DC Labels in the runtime.
 
-[ ] Should attenuation fail or not? 
 
-[ ] Run more test programs from pos/core
-
-[ ] Rum test programs from pos/ifc 
+[ ] Run test programs from pos/ifc 
     
     - These programs will likely require more careful inspection
 
@@ -88,6 +85,8 @@ for testing or debugging:
 
 # DONE
 ## 2025-05-26
+
+- [x] Run all test programs from pos/core
 
 - [x] Attenuation should be using actsfor instead of flowsTo
 
