@@ -159,7 +159,7 @@ export class DCLabel extends AbstractLevel<DCLabel> {
     }
 
     static fromSingleTag (s:string):DCLabel {
-        let labels = new Set ([s])
+        let labels = new Set ([s.trim()])
         let cat = new Category(labels)
         let cnf = new CNF (new Set ([cat]))
         return new DCLabel(cnf, cnf)
