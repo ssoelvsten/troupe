@@ -1,5 +1,5 @@
 import { AbstractLevel, AbstractLevelSystem } from '../../AbstractLevel.mjs';
-import { BOT, TOP } from '../singleton.mjs';
+import { tagsetStringRep } from '../tagsets.mjs';
 import { Category
        , CNF
        , CNF_FALSE
@@ -18,6 +18,8 @@ export class DCLabel extends AbstractLevel<DCLabel> {
     get dataLevel () {
         return IFC_BOT
     }
+
+    _cachedStringRepresentation: string = null ;
 
     constructor(c: CNF, i: CNF) {
         super ()
@@ -56,18 +58,55 @@ export class DCLabel extends AbstractLevel<DCLabel> {
         
     }
 
+   
+    isTagsetCompatible() : boolean |  Set<string> {
+        if (this.integrity.categories.size != 1) {
+            return false; 
+        }
+        const _the_integrity: Category = 
+            this.integrity.categories.values().next().value;
+
+        const s :Set <string> = _the_integrity.labels;
+
+        for (let cat of this.confidentiality.categories) {
+            if (cat.labels.size == 1) {
+                const l:string  = cat.labels.values().next().value;
+                if (!s.has(l)) {
+                    return false; 
+                }
+            } else {
+                return false;
+            }
+        }
+
+        return s;
+    }
+
 
     stringRep(): string {
-        if (this.flowsTo(IFC_BOT)) {
-            return DC_DELIM_LEFT_V1 + DC_DELIM_RIGHT_V1
+        if (this._cachedStringRepresentation) {
+            return this._cachedStringRepresentation
         }
-        
 
-        return DC_DELIM_LEFT + 
-            this.confidentiality.stringRep(DC_CONF_LITERALS) + 
-            DC_DELIM_SEP +
-            this.integrity.stringRep(DC_INTG_LITERALS) + 
-            DC_DELIM_RIGHT
+        if (this.flowsTo(IFC_BOT)) {
+            this._cachedStringRepresentation = 
+                DC_DELIM_LEFT_V1 + DC_DELIM_RIGHT_V1
+        } else {
+            let s = this.isTagsetCompatible() 
+            if (s) {
+                this._cachedStringRepresentation = 
+                    tagsetStringRep (s as Set <string>);
+            } else {
+                this._cachedStringRepresentation = 
+                    DC_DELIM_LEFT + 
+                    this.confidentiality.stringRep(DC_CONF_LITERALS) + 
+                    DC_DELIM_SEP +
+                    this.integrity.stringRep(DC_INTG_LITERALS) + 
+                    DC_DELIM_RIGHT
+                }
+        } 
+        
+        return this._cachedStringRepresentation;
     }
 
     

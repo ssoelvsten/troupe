@@ -4,6 +4,12 @@
 
 [+ongoing+] Integration of DC Labels in the runtime.
 
+[ ] Run more test programs from pos/core
+
+[ ] Rum test programs from pos/ifc 
+    
+    - These programs will likely require more careful inspection
+
 [ ] Declassification checks and other authority checks (!)
 
     - [ ] Mailbox clearances
@@ -32,10 +38,15 @@ for testing or debugging:
 
 ### Other improvements
 
+#### Frontend 
 - [ ] We should use a separate lexer state for the DC labels, instead of the
   <0> state, because this way we can allow for more symbols to be used as in
   the labels; for as long as we are in the 0th state, we cannot use Troupe
   reserved words, e.g., if / let in the DC Labels. 
+
+#### Backend
+
+- [ ] Provide a runtime option to NOT use V1 compatible pretty printing
 
 ## Refactoring
 
@@ -44,6 +55,7 @@ for testing or debugging:
 - [ ] Get rid of lubs in the runtime codebase, because it is redundant, now that 
   we have a multi-arg lub
 
+- [ ] DCLabel caching
 
 - [ ] Refactor the interface for AbstractLevelSystem
   - use `lub2` , `glb2` for binary operations 
@@ -73,6 +85,11 @@ for testing or debugging:
 - [ ] Serialization
 
 # DONE
+## 2025-05-26
+
+- [x] Cache string representation of DC labels 
+
+- [x] Extend the pretty printing of the DC labels to recognize tagsets.
 
 ## 2025-05-25
 

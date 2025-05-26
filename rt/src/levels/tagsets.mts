@@ -6,7 +6,7 @@ const debug = x => logger.debug(x)
 import { AbstractLevel, AbstractLevelSystem }  from '../AbstractLevel.mjs'
 
 
-function stringRep (T) {
+function stringRep (T:Set <string>) {
     let n = T.size
     let s = "{";
     let i = 0;
@@ -22,6 +22,8 @@ function stringRep (T) {
     return s;
 }
 
+
+export const tagsetStringRep = stringRep
 
 let __cache = {}
 
