@@ -16,7 +16,7 @@ export function BuiltinAttenuate<TBase extends Constructor<UserRuntimeZero>>(Bas
             let levTo = argv[1];
             assertIsLevel(levTo);
 
-            let ok_to_attenuate = flowsTo(levTo.val, authFrom.val.authorityLevel);
+            let ok_to_attenuate = levels.actsFor(authFrom.val.authorityLevel, levTo.val);
 
             // todo: 2018-10-18: AA; are we missing anything?
             let l_meta = lub(this.runtime.$t.pc, arg.lev, authFrom.lev, levTo.lev)
