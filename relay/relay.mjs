@@ -62,29 +62,30 @@ async function main () {
     }
   });
 
+  // Log 'keep alive' messages
   await node.handle("/trouperelay/keepalive", async ({ connection, stream }) => {
-    let id = connection.remotePeer;
-    console.log(`Relay handling protocol, id: ${id}`);
-    streamToConsole(stream, id);
+    const id = connection.remotePeer;
+
+    // Log start of 'keep alive' protocol
+    console.log(`Relay handling protocol (keep-alives) from: ${id}`);
+
+    // Log each 'keep alive' message to the console
+    pipe(
+      stream.source,
+      (source) => lp.decode(source),
+      (source) => map(source, (buf) => uint8ArrayToString(buf.subarray())),
+      async (source) => {
+        for await (const msg of source) {
+          console.log(`Keep alive message from ${id}: ${msg.toString()}`);
+        }
+      }
+    );
   });
 
+  // Log set up of Relay node finished and its addresses.
   console.log(`Relay node started with id ${node.peerId.toString()}`);
   console.log('Listening on:');
   node.getMultiaddrs().forEach((ma) => console.log(ma.toString()));
-}
-
-function streamToConsole (stream, id) {
-  console.log(`Handling keep-alives from ${id}`);
-  pipe(
-    stream.source,
-    (source) => lp.decode(source),
-    (source) => map(source, (buf) => uint8ArrayToString(buf.subarray())),
-    async function (source) {
-      for await (const msg of source) {
-        console.log(`Keep alive message from ${id}: ${msg.toString()}`);
-      }
-    }
-  );
 }
 
 main();
