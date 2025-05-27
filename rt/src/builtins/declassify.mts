@@ -20,8 +20,9 @@ function stringOfDowngrader (d) {
     }
 }
 
-function downgrader (runtime, arg, kind:DowngradeKind, isNMIFC: boolean) {
-                assertIsNTuple(arg, 3);
+function downgrader (runtime, kind:DowngradeKind, isNMIFC: boolean ) {
+    return (arg => {
+            assertIsNTuple(arg, 3);
             let argv = arg.val;
             let data = argv[0];
             let auth = argv[1];
@@ -60,18 +61,19 @@ function downgrader (runtime, arg, kind:DowngradeKind, isNMIFC: boolean) {
                 runtime.$t.threadError(errorMessage);
 
             }
+        })
 
 }
 
 export function BuiltinDeclassify<TBase extends Constructor<UserRuntimeZero>>(Base: TBase) {
     return class extends Base {
-        endorse = mkBase((arg) => {
-            return downgrader (this.runtime, arg, DowngradeKind.ENDORSE, false)
-        }, "endorse")
+        endorse = mkBase
+            ( downgrader (this.runtime, DowngradeKind.ENDORSE, false)
+            , "endorse")
 
 
-        declassify = mkBase((arg) => {
-            return downgrader (this.runtime, arg, DowngradeKind.DECLASSIFY, false)
-        }, "declassify")
+        declassify = mkBase
+            ( downgrader (this.runtime, DowngradeKind.DECLASSIFY, false)
+            , "declassify")
     }
 }
