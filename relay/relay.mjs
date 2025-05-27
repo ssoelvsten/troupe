@@ -2,6 +2,7 @@ import { noise } from '@chainsafe/libp2p-noise';
 import { yamux } from '@chainsafe/libp2p-yamux';
 import { mplex } from '@libp2p/mplex';
 import { webSockets } from '@libp2p/websockets';
+import { logger } from '@libp2p/logger'
 import { createLibp2p } from 'libp2p';
 import { circuitRelayServer } from 'libp2p/circuit-relay';
 import { identifyService } from 'libp2p/identify';
@@ -62,14 +63,18 @@ async function main () {
     }
   });
 
+  // HACK: Use 'libp2p' logger with the exact same logging 'address' as the one in
+  //       'js-libp2p/packages/transport-circuit-relay-v2/src/server/index.ts'.
+  const log = logger('libp2p:circuit-relay:server');
+
   // Log established connections
   const _CONNECT = 'peer:connect';
   await node.addEventListener(_CONNECT, async ({ detail }) => {
-    logTraffic(detail, _CONNECT);
+    log(`connection with ${detail} established`);
   });
   const _DISCONNECT = 'peer:disconnect';
   await node.addEventListener(_DISCONNECT, async ({ detail }) => {
-    logTraffic(detail, _DISCONNECT);
+    log(`disconnection from ${detail}`);
   });
 
   // Log 'keep alive' messages
@@ -78,7 +83,7 @@ async function main () {
     const src_id = connection.remotePeer;
 
     // Log start of 'keep alive' protocol
-    logTraffic(src_id, _RELAY_PROTOCOL, 'Relay handling protocol (keep-alives) initiated.');
+    log(`initiating keep alive protocol with ${src_id}`);
 
     // Log each 'keep alive' message to the console
     pipe(
@@ -87,7 +92,7 @@ async function main () {
       (source) => map(source, (buf) => uint8ArrayToString(buf.subarray())),
       async (source) => {
         for await (const msg of source) {
-          logTraffic(src_id, _RELAY_PROTOCOL, msg.toString());
+          log(`keep alive from ${src_id}: '${msg.toString()}'`);
         }
       }
     );
@@ -105,15 +110,10 @@ async function main () {
   //   To also log *all* traffic, also include '*libp2p:yamux:trace' in DEBUG.
 
   // Log set up of Relay node finished and its addresses.
-  console.log(`Relay node started with id ${node.peerId.toString()}`);
-  console.log('Listening on:');
-  node.getMultiaddrs().forEach((ma) => console.log(`  ${ma.toString()}`));
-  console.log('');
+  log(`Relay ready with id ${node.peerId.toString()}`);
+  log('Listening on:');
+  node.getMultiaddrs().forEach((ma) => log(`  ${ma.toString()}`));
+    console.log('');
 }
-
-const logTraffic = (id, protocol, msg) => {
-    console.log(`${(new Date()).toISOString()} [${id}]: ${protocol}`);
-    if (msg) { console.log(`  ${msg}`); }
-};
 
 main();
