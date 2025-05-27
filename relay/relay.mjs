@@ -42,7 +42,7 @@ async function main () {
           There is also no way to distinguish whether the relay cut off the connection
           because of a time/data limit or the other party cut off the connection. Therefore,
           it is impossible to know whether to re-establish the connection or not.
-          
+
           Two alternatives to giving large limits were considered.
           - The good solution
           Implement the connections being intentionally broken by the peers involved
