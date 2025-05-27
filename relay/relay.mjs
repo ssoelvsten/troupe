@@ -93,7 +93,16 @@ async function main () {
     );
   });
 
-  // TODO: Relayed messages
+  // TODO: Log relayed traffic
+  //
+  // NOTE:
+  //   For libp2p logging messages, please set the DEBUG environment variable to
+  //   'libp2p*' or 'libp2p:circuit-relay:*'. For example:
+  //
+  //   ```
+  //     DEBUG=libp2p:circuit-relay node relay.mjs
+  //   ```
+  //   To also log *all* traffic, also include '*libp2p:yamux:trace' in DEBUG.
 
   // Log set up of Relay node finished and its addresses.
   console.log(`Relay node started with id ${node.peerId.toString()}`);
