@@ -269,6 +269,10 @@ export class DCLevelSystem extends AbstractLevelSystem<DCLabel> {
         let ok_to_declassify = enough_confidentiality && enough_integrity
         return ok_to_declassify
     }
+
+    okToEndorse = this.okToDowngrade 
+    okToDeclassify = this.okToDowngrade
+
 }
 
 export const mkLevel = DCLabel.fromJSON

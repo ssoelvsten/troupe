@@ -276,6 +276,7 @@ instance WellFormedIRCheck IRExpr where
                      , "debugpc"
                      , "declassify"
                      , "exit"
+                     , "endorse"
                      , "floor"
                      , "flowsTo"                     
                      , "fprintln"

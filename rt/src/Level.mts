@@ -13,7 +13,12 @@ export function actsFor (a:Level,b:Level) { return levels.actsFor (a,b) }
 export function okToDowngrade (from: Level, to:Level, auth: Level) {
     return levels.okToDowngrade (from,to,auth);
 }
-
+export function okToDeclassify (from: Level, to:Level, auth: Level) {
+    return levels.okToDeclassify (from,to,auth);
+}
+export function okToEndorse (from: Level, to:Level, auth: Level) {
+    return levels.okToEndorse (from,to,auth);
+}
 export function fromSingleTag(x:string) { return levels.fromV1String(x)}
 
 export function mkV1Level (x:string ) {
