@@ -62,12 +62,23 @@ async function main () {
     }
   });
 
+  // Log established connections
+  const _CONNECT = 'peer:connect';
+  await node.addEventListener(_CONNECT, async ({ detail }) => {
+    logTraffic(detail, _CONNECT);
+  });
+  const _DISCONNECT = 'peer:disconnect';
+  await node.addEventListener(_DISCONNECT, async ({ detail }) => {
+    logTraffic(detail, _DISCONNECT);
+  });
+
   // Log 'keep alive' messages
-  await node.handle("/trouperelay/keepalive", async ({ connection, stream }) => {
-    const id = connection.remotePeer;
+  const _RELAY_PROTOCOL = '/trouperelay/keepalive';
+  await node.handle(_RELAY_PROTOCOL, async ({ connection, stream }) => {
+    const src_id = connection.remotePeer;
 
     // Log start of 'keep alive' protocol
-    console.log(`Relay handling protocol (keep-alives) from: ${id}`);
+    logTraffic(src_id, _RELAY_PROTOCOL, 'Relay handling protocol (keep-alives) initiated.');
 
     // Log each 'keep alive' message to the console
     pipe(
@@ -76,17 +87,24 @@ async function main () {
       (source) => map(source, (buf) => uint8ArrayToString(buf.subarray())),
       async (source) => {
         for await (const msg of source) {
-          console.log(`Keep alive message from ${id}: ${msg.toString()}`);
+          logTraffic(src_id, _RELAY_PROTOCOL, msg.toString());
         }
       }
     );
   });
 
+  // TODO: Relayed messages
+
   // Log set up of Relay node finished and its addresses.
   console.log(`Relay node started with id ${node.peerId.toString()}`);
   console.log('Listening on:');
-  node.getMultiaddrs().forEach((ma) => console.log(ma.toString()));
+  node.getMultiaddrs().forEach((ma) => console.log(`  ${ma.toString()}`));
   console.log('');
 }
+
+const logTraffic = (id, protocol, msg) => {
+    console.log(`${(new Date()).toISOString()} [${id}]: ${protocol}`);
+    if (msg) { console.log(`  ${msg}`); }
+};
 
 main();
