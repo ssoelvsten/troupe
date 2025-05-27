@@ -4,15 +4,37 @@
 
 [+ongoing+] Integration of DC Labels in the runtime.
 
+[ ] Add endorse to the frontend
+[ ] Add endorse to the backend
+[ ] Introduce a downgrade result Enum?
+[ ] okToDeclassify and okToEndorse
+    - [ ] check that declassification/endorsement do not 
+          modify secrecy/integrity levels
+          (use the downgrade result Enum to communicate errors)
+
+[ ] Update the current codebase to use okToDeclassify in declassification
+    - [ ] Recheck all the IFC tests (!)
+
+[ ] okToDeclassifyNMIFC and okToEndorseNMIFC
+    - [ ] Should the checks be enforcing NMIFC ?           
+
+[ ] Do we need `blockendorse` ? 
+
 [ ] What is the integrity interpretation of the mailbox clearances?
     
-    - [ ] We should explore this in the project on SELECT
+[ ] Capability checks in the runtime should check for the ROOT 
+    authority, e.g., for privileged operations such as register.
+
+[ ] Do we need a coalescing primitive for authority (it's sort of but not 
+    exactly the opposuite of attenuation) to support quarantining?
+
 
 [ ] Create tests that are specific to integrity and DC labels
 
 [ ] Create tests that investigate the integrity of the mailbox 
     clearances
 
+[ ] Sanitization-inspired example for integrity
 
 ## Frontend
 
@@ -76,6 +98,7 @@
 
 ## Serialization 
 
+- [ ] Using new security model in serialization
 - [ ] Using efficient serialization engine, e.g., protobufs
 
 # DONE
