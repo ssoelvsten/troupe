@@ -66,7 +66,7 @@ async function main () {
     let id = connection.remotePeer;
     console.log(`Relay handling protocol, id: ${id}`);
     streamToConsole(stream, id);
-  })
+  });
 
   console.log(`Relay node started with id ${node.peerId.toString()}`);
   console.log('Listening on:');
@@ -87,4 +87,4 @@ function streamToConsole (stream, id) {
   );
 }
 
-main()
+main();
