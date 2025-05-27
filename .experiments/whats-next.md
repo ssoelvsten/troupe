@@ -4,16 +4,14 @@
 
 [+ongoing+] Integration of DC Labels in the runtime.
 
-[ ] Add endorse to the frontend
-[ ] Add endorse to the backend
 [ ] Introduce a downgrade result Enum?
-[ ] okToDeclassify and okToEndorse
-    - [ ] check that declassification/endorsement do not 
-          modify secrecy/integrity levels
-          (use the downgrade result Enum to communicate errors)
-
-[ ] Update the current codebase to use okToDeclassify in declassification
+[ ] check that OkToDeclassify and okToEndorse
+    declassification/endorsement do not 
+    modify secrecy/integrity levels
+    (use the downgrade result Enum to communicate errors)
+    
     - [ ] Recheck all the IFC tests (!)
+
 
 [ ] okToDeclassifyNMIFC and okToEndorseNMIFC
     - [ ] Should the checks be enforcing NMIFC ?           
@@ -102,6 +100,15 @@
 - [ ] Using efficient serialization engine, e.g., protobufs
 
 # DONE
+
+## 2025-05-27
+
+- [x] Create a module for Downgrading
+- [x] Add endorse to the frontend
+- [x] Add endorse to the backend
+- [x] okToDeclassify and okToEndorse
+- [x] Update the current codebase to use okToDeclassify in declassification
+
 ## 2025-05-26
 
 - [x] Update earlier tests so that attenuation refers  
@@ -163,12 +170,6 @@ something more maintainable in the anticipation of the integration of the DCLabe
 [x] Move DCLabels into the rt/levels and check that they compile as part 
      of the Troupe codebase.  
 
-## 2025-05-13
-
-[x] Generalize parsing from LabelExp CNF
-    to an arbitrary formula that is noramlized by the compiler in a
-    desugaring pass.
-
 
 
 ## 2025-05-15
@@ -187,6 +188,11 @@ something more maintainable in the anticipation of the integration of the DCLabe
 
   [x] Testing of the parser on a few examples
 
+## 2025-05-13
+
+[x] Generalize parsing from LabelExp CNF
+    to an arbitrary formula that is noramlized by the compiler in a
+    desugaring pass.
 # SCRAP BOOK
 
 
