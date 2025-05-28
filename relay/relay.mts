@@ -14,9 +14,9 @@ import { toString as uint8ArrayToString } from 'uint8arrays/to-string';
 import { readFileSync } from 'fs';
 
 async function main () {
-  const relayId = readFileSync("keys/relay.id");
-  const relayKey = readFileSync("keys/relay.priv");
-  const id = await createFromJSON({id : relayId, privKey : relayKey});
+  const relayId  = readFileSync("keys/relay.id").toString();
+  const relayKey = readFileSync("keys/relay.priv").toString();
+  const id       = await createFromJSON({id : relayId, privKey : relayKey});
 
   const node = await createLibp2p({
     peerId : id,

@@ -1,20 +1,28 @@
 # Troupe p2p Relay
 
 This example is adapted from libp2p's Go relay and since then ported to
-Javascript's p2p implementation.
+JavaScript's p2p implementation.
 
-## Generating Key
+## Build
+
+The relay is written in TypeScript. To compile it to JavaScript, such that it
+can run, please use the following *Make* target:
+
+```bash
+make build/relay
+```
 
 The relay needs a key pair to function; its public *id* has to be shared with
 the Troupe nodes via the `default_relays` variable in
-`rt/src/p2p/p2pconfig.mjs`. To generate this pair, use the corresponding *Make*
-target as follows:
+`rt/src/p2p/p2pconfig.mjs`. To generate this pair, use the corresponding target
+as follows:
 
 ```bash
-make keys
+make build/keys
 ```
 
-To remove the keys again, use the following *make target*:
+To remove the build artifact `relay.mjs` and the keys, use the following
+target:
 
 ```bash
 make clean
@@ -22,7 +30,7 @@ make clean
 
 ## How To Run
 
-To start the relay server, run the corresponding *make target* as follows:
+To start the relay server, run the corresponding *Make* target as follows:
 
 ```bash
 make start

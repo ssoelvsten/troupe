@@ -12,9 +12,19 @@ start/basic:
 start/verbose:
 	DEBUG=libp2p:circuit-relay:server,libp2p:yamux:trace node relay.mjs
 
-keys:
+build: build/relay
+
+build/keys:
 	mkdir -p keys
 	node $(TROUPE)/rt/built/p2p/mkid.mjs --privkeyfile=keys/relay.priv --idfile=keys/relay.id --verbose
 
-clean:
+build/relay:
+	tsc
+
+clean: clean/keys clean/relay
+
+clean/keys:
 	rm -rf keys
+
+clean/relay:
+	rm relay.mjs
