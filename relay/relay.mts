@@ -2,6 +2,7 @@ import { noise } from '@chainsafe/libp2p-noise';
 import { yamux } from '@chainsafe/libp2p-yamux';
 import { mplex } from '@libp2p/mplex';
 import { webSockets } from '@libp2p/websockets';
+import { logger } from '@libp2p/logger'
 import { createLibp2p } from 'libp2p';
 import { circuitRelayServer } from 'libp2p/circuit-relay';
 import { identifyService } from 'libp2p/identify';
@@ -13,9 +14,9 @@ import { toString as uint8ArrayToString } from 'uint8arrays/to-string';
 import { readFileSync } from 'fs';
 
 async function main () {
-  const relayId = readFileSync("keys/relay.id");
-  const relayKey = readFileSync("keys/relay.priv");
-  const id = await createFromJSON({id : relayId, privKey : relayKey});
+  const relayId  = readFileSync("keys/relay.id").toString();
+  const relayKey = readFileSync("keys/relay.priv").toString();
+  const id       = await createFromJSON({id : relayId, privKey : relayKey});
 
   const node = await createLibp2p({
     peerId : id,
@@ -42,7 +43,7 @@ async function main () {
           There is also no way to distinguish whether the relay cut off the connection
           because of a time/data limit or the other party cut off the connection. Therefore,
           it is impossible to know whether to re-establish the connection or not.
-          
+
           Two alternatives to giving large limits were considered.
           - The good solution
           Implement the connections being intentionally broken by the peers involved
@@ -62,29 +63,57 @@ async function main () {
     }
   });
 
-  await node.handle("/trouperelay/keepalive", async ({ connection, stream }) => {
-    let id = connection.remotePeer;
-    console.log(`Relay handling protocol, id: ${id}`);
-    streamToConsole(stream, id);
-  })
+  // HACK: Use 'libp2p' logger with the exact same logging 'address' as the one in
+  //       'js-libp2p/packages/transport-circuit-relay-v2/src/server/index.ts'.
+  const log = logger('libp2p:circuit-relay:server');
 
-  console.log(`Relay node started with id ${node.peerId.toString()}`);
-  console.log('Listening on:');
-  node.getMultiaddrs().forEach((ma) => console.log(ma.toString()));
-}
+  // Log established connections
+  const _CONNECT = 'peer:connect';
+  await node.addEventListener(_CONNECT, async ({ detail }) => {
+    log(`connection with ${detail} established`);
+  });
+  const _DISCONNECT = 'peer:disconnect';
+  await node.addEventListener(_DISCONNECT, async ({ detail }) => {
+    log(`disconnection from ${detail}`);
+  });
 
-function streamToConsole (stream, id) {
-  console.log(`Handling keep-alives from ${id}`);
-  pipe(
-    stream.source,
-    (source) => lp.decode(source),
-    (source) => map(source, (buf) => uint8ArrayToString(buf.subarray())),
-    async function (source) {
-      for await (const msg of source) {
-        console.log(`Keep alive message from ${id}: ${msg.toString()}`);
+  // Log 'keep alive' messages
+  const _RELAY_PROTOCOL = '/trouperelay/keepalive';
+  await node.handle(_RELAY_PROTOCOL, async ({ connection, stream }) => {
+    const src_id = connection.remotePeer;
+
+    // Log start of 'keep alive' protocol
+    log(`initiating keep alive protocol with ${src_id}`);
+
+    // Log each 'keep alive' message to the console
+    pipe(
+      stream.source,
+      (source) => lp.decode(source),
+      (source) => map(source, (buf) => uint8ArrayToString(buf.subarray())),
+      async (source) => {
+        for await (const msg of source) {
+          log(`keep alive from ${src_id}: '${msg.toString()}'`);
+        }
       }
-    }
-  );
+    );
+  });
+
+  // TODO: Log relayed traffic
+  //
+  // NOTE:
+  //   For libp2p logging messages, please set the DEBUG environment variable to
+  //   'libp2p*' or 'libp2p:circuit-relay:*'. For example:
+  //
+  //   ```
+  //     DEBUG=libp2p:circuit-relay node relay.mjs
+  //   ```
+  //   To also log *all* traffic, also include '*libp2p:yamux:trace' in DEBUG.
+
+  // Log set up of Relay node finished and its addresses.
+  log(`Relay ready with id ${node.peerId.toString()}`);
+  log('Listening on:');
+  node.getMultiaddrs().forEach((ma) => log(`  ${ma.toString()}`));
+    console.log('');
 }
 
-main()
+main();
