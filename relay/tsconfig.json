@@ -1,0 +1,13 @@
+{
+    "compilerOptions": {
+        "outDir": "./",
+        "allowJs": false,
+        "moduleResolution": "node16",
+        "module": "Node16",
+        "target": "ES2022",
+        "esModuleInterop": true,
+        "incremental": false,
+    },
+    "include": ["./relay.mts"],
+    "exclude": []
+}
