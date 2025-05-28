@@ -1,7 +1,7 @@
 import declassifyutil 
 (* testing various corner cases of declassification *)
-let val secretAlice = 1 raisedTo `{alice}`
-    val secretBob = 1 raisedTo `{bob}`
+let val secretAlice = 1 raisedTo `<alice;>`
+    val secretBob = 1 raisedTo `<bob;>`
     val aliceAuth = attenuate (authority, `<alice;>`)
     val bobAuth = attenuate (authority, `<bob;>`)
 

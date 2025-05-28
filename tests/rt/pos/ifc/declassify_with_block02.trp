@@ -4,8 +4,8 @@
    and declassification.
 
 *)
-let val x = false raisedTo `{alice; bob}`
-    val y = false raisedTo `{alice}`
+let val x = false raisedTo `<alice & bob;>`
+    val y = false raisedTo `<alice;>`
     val auth_alice = attenuate (authority, `<alice;>`) 
     val _ = if x then receive [] else () 
     val _ = blockdecl authority 

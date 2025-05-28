@@ -4,15 +4,18 @@
 
 [+ongoing+] Integration of DC Labels in the runtime.
 
-[ ] Introduce a downgrade result Enum?
-[ ] check that OkToDeclassify and okToEndorse
+[- not sure we need this? -] Introduce a downgrade result Enum?
+
+[x] check that OkToDeclassify and okToEndorse
     declassification/endorsement do not 
     modify secrecy/integrity levels
     (use the downgrade result Enum to communicate errors)
+
+    - [x] Recheck all the IFC tests (!)
+
+[ ] Split declassification kinds across dimensions 
+    and kinds
     
-    - [ ] Recheck all the IFC tests (!)
-
-
 [ ] okToDeclassifyNMIFC and okToEndorseNMIFC
     - [ ] Should the checks be enforcing NMIFC ?           
 

@@ -11,6 +11,22 @@ import { Category
 import { DC_CONF_LITERALS, DC_DELIM_LEFT, DC_DELIM_LEFT_V1, DC_DELIM_RIGHT, DC_DELIM_RIGHT_V1, DC_DELIM_SEP, DC_IFC_TOP, DC_INTG_LITERALS, DC_TRUST_ROOT } from './dcl_pp_config.mjs';
 
 
+export enum DowngradeKind {
+    DECLASSIFY = 1,
+    ENDORSE = 2,
+    GENERIC = 3,
+    BLOCKING = 4,
+    MAILBOX = 5
+}
+
+export enum DowngradeResult {
+    SUCCESS = 0,
+    INTEGRITY_MISMATCH = 1,    // For declassification when integrity levels aren't equal
+    CONFIDENTIALITY_MISMATCH = 2, // For endorsement when confidentiality levels aren't equal
+    INSUFFICIENT_AUTHORITY = 3,  // When auth level isn't sufficient for the downgrade
+    BLOCKING_LEVEL_MISMATCH = 4 // When blocking level does not flow to target level
+}
+
 // export class DowngradeResult {
 //     result : boolean 
 //     errorMessage : string 
@@ -67,7 +83,10 @@ export class DCLabel extends AbstractLevel<DCLabel> {
         
     }
 
-   
+    equals(other: DCLabel): boolean {
+        return this.flowsTo(other) && other.flowsTo(this);
+    }
+
     isTagsetCompatible() : boolean |  Set<string> {
         if (this.integrity.categories.size != 1) {
             return false; 
@@ -245,33 +264,71 @@ export class DCLevelSystem extends AbstractLevelSystem<DCLabel> {
         return this.lub (...dcs)
     }
 
-    okToDowngrade ( l_from : DCLabel
-                 ,  l_to   : DCLabel
-                 ,  l_auth : DCLabel ) :  boolean {
+    
+    okToDowngradeGeneric (kind: DowngradeKind) { 
+        return (( l_from : DCLabel
+                , l_to   : DCLabel
+                , l_auth : DCLabel
+                , bl     : DCLabel 
+                , isNMIFC: boolean = false ) : DowngradeResult => {
 
-        /* 
-        
-         S_auth /\ S_to ==> S_from        I_auth /\ I_from ==> I_to
-        -----------------------------------------------------------
-             <S_from, I_from> flowsto_{l_auth} <S_to, I_to>
-        
-        */
+            switch (kind) {
+                case DowngradeKind.DECLASSIFY:
+                case DowngradeKind.ENDORSE:
+                case DowngradeKind.GENERIC:
+                    if (!this.flowsTo(bl, l_to)) {
+                        return DowngradeResult.BLOCKING_LEVEL_MISMATCH;
+                    }
+                case DowngradeKind.MAILBOX:
+                case DowngradeKind.BLOCKING:
+                    break;
+            }
 
-        let enough_confidentiality = 
-            implies( conjunction ( l_auth.confidentiality
-                               ,   l_to.confidentiality)
-                   , l_from.confidentiality)
-        let enough_integrity = 
-            implies( conjunction ( l_auth.integrity
-                                 , l_from.integrity)
-                   , l_to.integrity)            
-               
-        let ok_to_declassify = enough_confidentiality && enough_integrity
-        return ok_to_declassify
+            /* 
+            
+            S_auth /\ S_to ==> S_from        I_auth /\ I_from ==> I_to
+            -----------------------------------------------------------
+                <S_from, I_from> flowsto_{l_auth} <S_to, I_to>
+            
+            */
+
+            switch (kind) {
+                case DowngradeKind.DECLASSIFY:
+                    if (!l_from.integrity.equals(l_to.integrity)) {
+                        return DowngradeResult.INTEGRITY_MISMATCH;
+                    }
+                    break;
+                case DowngradeKind.ENDORSE:
+                    if (!l_from.confidentiality.equals(l_to.confidentiality)) {
+                        return DowngradeResult.CONFIDENTIALITY_MISMATCH;
+                    }
+                    break;
+                default:
+            }
+
+            let enough_confidentiality = 
+                implies( conjunction ( l_auth.confidentiality
+                                ,   l_to.confidentiality)
+                    , l_from.confidentiality)
+            let enough_integrity = 
+                implies( conjunction ( l_auth.integrity
+                                    , l_from.integrity)
+                    , l_to.integrity)            
+                
+            if (!(enough_confidentiality && enough_integrity)) {
+                return DowngradeResult.INSUFFICIENT_AUTHORITY;
+            }
+            
+            return DowngradeResult.SUCCESS;
+        }
+     )}
+
+    okToEndorse = this.okToDowngradeGeneric (DowngradeKind.ENDORSE)
+    okToDeclassify = this.okToDowngradeGeneric (DowngradeKind.DECLASSIFY)
+    okToDowngrade (kind: DowngradeKind) {
+        return this.okToDowngradeGeneric(kind);
     }
 
-    okToEndorse = this.okToDowngrade 
-    okToDeclassify = this.okToDowngrade
 
 }
 

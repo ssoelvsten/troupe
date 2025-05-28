@@ -47,6 +47,10 @@ export class CNF {
         this.categories = c
     }
 
+    equals(other: CNF): boolean {
+        return implies(this, other) && implies(other, this);
+    }
+
     stringRep(pp_literals, parenthesize = Delimiterification.AsNeeded): string {
         if (this.categories.size == 0) {
             return pp_literals.trueLit;
@@ -74,7 +78,8 @@ export class CNF {
         }
 
         return Array.from(
-            this.categories.values().map(g)).join(CONJ_OPERATOR)
+            this.categories.values().map(g)).
+                sort((a,b) => a.localeCompare(b)).join(CONJ_OPERATOR)
     }
 }
 

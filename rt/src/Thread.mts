@@ -1,4 +1,5 @@
 import * as levels from './Level.mjs'
+import { DowngradeKind, DowngradeResult } from './levels/DCLabels/dclabel.mjs'
 import { LVal, LValCopyAt } from './Lval.mjs';
 import { HandlerError, ImplementationError, StrThreadError } from './TroupeError.mjs';
 import yargs from 'yargs';
@@ -544,9 +545,9 @@ export class Thread {
 
         debug (`Level to declassify to at pinipop ${levTo.stringRep()}`)
         // check that the provided authority is sufficient for the declassification
-        let ok_to_declassify = 
-            levels.okToDowngrade (levFrom, levTo, auth.val.authorityLevel)
-        if (ok_to_declassify) {        
+        let ok_to_declassify_result = 
+            levels.okToDowngrade (DowngradeKind.BLOCKING)(levFrom, levTo, auth.val.authorityLevel, this.bl)
+        if (ok_to_declassify_result === DowngradeResult.SUCCESS) {        
             this.pc = pc;           
             this.bl = bl;
 
@@ -603,9 +604,9 @@ export class Thread {
         debug (`Level to declassify to at pinipop ${levTo.stringRep()}`)
         // this.showStack()
         // check that the provided authority is sufficient to perform declassification to the next level
-        let ok_to_declassify = 
-            levels.okToDowngrade (levFrom, levTo, auth.val.authorityLevel)
-        if (ok_to_declassify) {
+        let ok_to_declassify_result = 
+            levels.okToDowngrade (DowngradeKind.BLOCKING)(levFrom, levTo, auth.val.authorityLevel, null)
+        if (ok_to_declassify_result === DowngradeResult.SUCCESS) {
             this.bl = levTo ; 
             this.pini_uuid = cap.prev;
             return this.returnImmediateLValue (__unit);                        
@@ -635,9 +636,10 @@ export class Thread {
                               ` | target blocking level: ${bl_to.stringRep()}`)
             return; // should be unnecessary
         }
-        let ok_to_declassify = 
-            levels.okToDowngrade (this.bl, bl_to, auth.val.authorityLevel)
-        if (ok_to_declassify) {
+        let ok_to_declassify_result = 
+            levels.okToDowngrade (DowngradeKind.BLOCKING)
+            (this.bl, bl_to, auth.val.authorityLevel, this.bl)
+        if (ok_to_declassify_result === DowngradeResult.SUCCESS) {
             this.bl = bl_to; // the actual downgrade
         } else {
             this.threadError ("Not enough authority for blocking level declassification\n" + 
@@ -777,12 +779,14 @@ export class Thread {
 
         // check the authority is sufficient to downgrade from the current boost 
         // to the target one 
-        let ok_to_lower = 
-            levels.okToDowngrade ( this.mailbox.mclear.boost_level
+        let ok_to_lower_result = 
+            levels.okToDowngrade (DowngradeKind.MAILBOX)
+                                 ( this.mailbox.mclear.boost_level
                                  , cap.data.boost_level
-                                 , auth.val.authorityLevel )
+                                 , auth.val.authorityLevel
+                                 , this.bl )
         
-        if (!ok_to_lower) {
+        if (ok_to_lower_result !== DowngradeResult.SUCCESS) {
             this.threadError("Insufficient authority for lowering the mailbox clearance\n" +
                             `| authority provided: ${auth.val.stringRep()}\n` +
                             `| current level of the mailbox: ${this.mailbox.mclear.boost_level.stringRep()}\n` +

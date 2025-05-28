@@ -1,6 +1,7 @@
 import { UserRuntimeZero, Constructor, mkBase } from './UserRuntimeZero.mjs'
 import { __unit } from '../UnitVal.mjs';
-import { downgrader, DowngradeKind } from '../downgrading.mjs';
+import { downgrader } from '../downgrading.mjs';
+import { DowngradeKind } from '../levels/DCLabels/dclabel.mjs';
 
 export function BuiltinDeclassify<TBase extends Constructor<UserRuntimeZero>>(Base: TBase) {
     return class extends Base {

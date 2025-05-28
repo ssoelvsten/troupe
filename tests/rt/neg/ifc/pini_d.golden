@@ -2,5 +2,5 @@
 Runtime error in thread 3ee9313d-c30a-4467-bebe-21135e60af18@{}%{}
 >> Illegal flow in adv function:
  |    pc: {}
- | block: {alice,bob}
+ | block: <alice&bob,#root-integrity>
  | value: 1@{}%{}

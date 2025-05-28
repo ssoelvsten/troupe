@@ -1,4 +1,4 @@
-import {levels, Level } from './levels/DCLabels/dclabel.mjs'
+import {levels, Level, DowngradeResult, DowngradeKind } from './levels/DCLabels/dclabel.mjs'
 export { mkLevel, Level } from './levels/DCLabels/dclabel.mjs'
 
 
@@ -10,14 +10,14 @@ export function lubs(x)   { return levels.lubs (x  ) }
 export function glb(a,b)  { return levels.glb (a,b)  }
 export function flowsTo (a:Level,b:Level) { return levels.flowsTo (a,b) }
 export function actsFor (a:Level,b:Level) { return levels.actsFor (a,b) }
-export function okToDowngrade (from: Level, to:Level, auth: Level) {
-    return levels.okToDowngrade (from,to,auth);
+export function okToDowngrade (kind: DowngradeKind) {
+    return levels.okToDowngrade(kind);
 }
-export function okToDeclassify (from: Level, to:Level, auth: Level) {
-    return levels.okToDeclassify (from,to,auth);
+export function okToDeclassify (from: Level, to:Level, auth: Level, bl: Level, isNMIFC: boolean): DowngradeResult {
+    return levels.okToDeclassify (from,to,auth, bl, isNMIFC);
 }
-export function okToEndorse (from: Level, to:Level, auth: Level) {
-    return levels.okToEndorse (from,to,auth);
+export function okToEndorse (from: Level, to:Level, auth: Level, bl: Level, isNMIFC: boolean): DowngradeResult {
+    return levels.okToEndorse (from,to,auth, bl, isNMIFC);
 }
 export function fromSingleTag(x:string) { return levels.fromV1String(x)}
 
