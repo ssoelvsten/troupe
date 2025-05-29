@@ -1,28 +1,43 @@
 # What's next 
 
-## Backend / JS runtime integration of the DCLabels
 
-[+ongoing+] Integration of DC Labels in the runtime.
+## Integrity 
 
-- [+ongoing+] Consolidate error handling of downgrading
+## NMIFC 
 
-- [ ] We should rename all tests extensions to .trp
+- [ ] Integrity of blocking and mailboxes
+      - [ ] Blocking
+        - [ ] Add a primitive `blockendorseto` for endorsement of the blocking label
+        - [ ] Create simple examples showcasing why it is needed. 
+      - Mailboxes 
+        - [ ] What is the integrity interpretation of the mailbox clearances?
+        - [ ] Investigate the syntax to use for mailbox declassification and endorsement. 
+              Do we need to rename `lowermbox` to `declassifyMbox` `endorseMbox`. In principle, we can do that, creating some backward compatible code for transition
+        - [ ] Create examples showcasing the usage of these primitives
+  
+      - [ ] Recall checked endorsements of my paper with Andrew; are they relevant here? 
 
-- [ ] Shouldn't we have lowermboxto? 
+- [ ] NMIFC
 
-- [ ] Do we need `blockendorse` ? 
+      Add internal methods
+      - [ ] okToDeclassifyNMIFC and okToEndorseNMIFC
+
+      Make downgrades NMIFC-enforcing in the following order 
+
+      - [ ] Value downgrades
+      - [ ] Blocking label 
+      - [ ] Mailboxes 
+
+      Can we have NMIFC enforced by default? If no, what does it mean for the meta-theory?
+      
     
-- [ ] okToDeclassifyNMIFC and okToEndorseNMIFC
-    - [ ] Should the checks be enforcing NMIFC ?           
 
-- [ ] What is the integrity interpretation of the mailbox clearances?
     
 - [ ] Capability checks in the runtime should check for the ROOT 
     authority, e.g., for privileged operations such as register.
 
 - [ ] Do we need a coalescing primitive for authority (it's sort of but not 
      exactly the opposuite of attenuation) to support quarantining?
-
 
 - [ ] Create tests that are specific to integrity and DC labels
 
@@ -62,7 +77,11 @@
 
 ## Refactoring
 
+- [ ] We should rename all tests extensions to .trp
+
 ### Runtime 
+
+- [+ongoing+] Consolidate error handling of downgrading
 
 - [ ] Get rid of lubs in the runtime codebase, because it is redundant, now that 
   we have a multi-arg lub
@@ -100,6 +119,7 @@
 
 ## 2025-05-29
 
+[x] Integration of DC Labels in the runtime.
 
 [x] Introduce a downgrade result Enum?
 

@@ -95,7 +95,7 @@ function getValueDowngradeErrorMessageForReason(
     levFrom: Level,
     levTo: Level,
     authorityLevel: Level,
-    currentBlockingLevelForCheck: Level | null
+    currentBlockingLevelForCheck: Level
 ): string {
     if (reason === DowngradeErrorReason.BLOCKING_LEVEL_MISMATCH && currentBlockingLevelForCheck === null) {
         throw new ImplementationError("Internal inconsistency: currentBlockingLevelForCheck is null for VALUE kind with BLOCKING_LEVEL_MISMATCH reason.");
