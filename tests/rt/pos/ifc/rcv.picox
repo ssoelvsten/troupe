@@ -1,4 +1,4 @@
-let val secret = 10 raisedTo `{secret}`
+let val secret = 10 raisedTo `<secret;>`
     val pid = spawn (
                     fn () =>
                          rcvp( `{}`

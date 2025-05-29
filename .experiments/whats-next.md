@@ -3,39 +3,32 @@
 ## Backend / JS runtime integration of the DCLabels
 
 [+ongoing+] Integration of DC Labels in the runtime.
+- [ ] Consolidate error handling in Thread.mts to avoid repetition
 
-[- not sure we need this? -] Introduce a downgrade result Enum?
+- [ ] We should rename all tests extensions to .trp
 
-[x] check that OkToDeclassify and okToEndorse
-    declassification/endorsement do not 
-    modify secrecy/integrity levels
-    (use the downgrade result Enum to communicate errors)
+- [ ] Shouldn't we have lowermboxto? 
 
-    - [x] Recheck all the IFC tests (!)
-
-[ ] Split declassification kinds across dimensions 
-    and kinds
+- [ ] Do we need `blockendorse` ? 
     
-[ ] okToDeclassifyNMIFC and okToEndorseNMIFC
+- [ ] okToDeclassifyNMIFC and okToEndorseNMIFC
     - [ ] Should the checks be enforcing NMIFC ?           
 
-[ ] Do we need `blockendorse` ? 
-
-[ ] What is the integrity interpretation of the mailbox clearances?
+- [ ] What is the integrity interpretation of the mailbox clearances?
     
-[ ] Capability checks in the runtime should check for the ROOT 
+- [ ] Capability checks in the runtime should check for the ROOT 
     authority, e.g., for privileged operations such as register.
 
-[ ] Do we need a coalescing primitive for authority (it's sort of but not 
-    exactly the opposuite of attenuation) to support quarantining?
+- [ ] Do we need a coalescing primitive for authority (it's sort of but not 
+     exactly the opposuite of attenuation) to support quarantining?
 
 
-[ ] Create tests that are specific to integrity and DC labels
+- [ ] Create tests that are specific to integrity and DC labels
 
-[ ] Create tests that investigate the integrity of the mailbox 
-    clearances
+- [ ] Create tests that investigate the integrity of the mailbox 
+      clearances
 
-[ ] Sanitization-inspired example for integrity
+- [ ] Sanitization-inspired example for integrity
 
 ## Frontend
 
@@ -103,6 +96,22 @@
 - [ ] Using efficient serialization engine, e.g., protobufs
 
 # DONE
+
+## 2025-05-29
+
+
+[x] Introduce a downgrade result Enum?
+
+[x] check that OkToDeclassify and okToEndorse
+    declassification/endorsement do not 
+    modify secrecy/integrity levels
+    (use the downgrade result Enum to communicate errors)
+
+- [x] Recheck all the IFC tests (!)
+
+
+- [x] Split declassification kinds across dimensions 
+      and kinds
 
 ## 2025-05-27
 

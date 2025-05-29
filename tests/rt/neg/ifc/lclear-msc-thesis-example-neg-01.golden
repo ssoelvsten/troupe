@@ -6,6 +6,6 @@ PID:6a126aef-158f-41f6-a33e-216ff07ad8fc@{}%{}     PC:{}                BL:{alic
 Runtime error in thread 6a126aef-158f-41f6-a33e-216ff07ad8fc@{}%{}
 >> Illegal flow in adv function:
  |    pc: {}
- | block: {alice,bob}
- | l_adv: {alice}@{}%{} 
+ | block: <alice&bob,#root-integrity>
+ | l_adv: <alice,#root-integrity>@{}%{} 
  | value: ()@{}%{}

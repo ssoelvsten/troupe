@@ -2,5 +2,5 @@
 Runtime error in thread 5cdb98ff-989e-41b4-bb6b-168854468313@{}%{}
 >> Illegal flow in adv function:
  |    pc: {}
- | block: {secret}
+ | block: <secret,#root-integrity>
  | value: 2@{}%{}

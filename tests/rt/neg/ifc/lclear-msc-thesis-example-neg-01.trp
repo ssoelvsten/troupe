@@ -14,17 +14,17 @@ on the formalization of Troupe in Coq.
 (* I will need two processes *)
 
 let fun f () = 
-	let  val c = raisembox (`{bob}`)
-	     val x = consume  (0, `{alice}`, `{alice,bob}`) 
+	let  val c = raisembox (`<bob;>`)
+	     val x = consume  (0, `<alice;>`, `<alice & bob;>`) 
 	     val _ = debugpc ()
-	     val _ = blockdeclto (authority , `{alice}`)
+	     val _ = blockdeclto (authority , `<alice;>`)
 	     val _ = debugpc ()
-	     val _ = peek  (0, `{alice}`, `{alice}`)
+	     val _ = peek  (0, `<alice;>`, `<alice;>`)
 	     val _ = debugpc ()
-	in ladv (`{alice}`, ()) 
+	in ladv (`<alice;>`, ()) 
 	end 
     val p1 = spawn f 
-    fun g () = if true raisedTo `{alice}` then 
+    fun g () = if true raisedTo `<alice;>` then 
     			send (p1, "HELLO");
                		send (p1, "BYE")
 	        else () 

@@ -5,7 +5,7 @@ let fun f () =
       end 
     val p = spawn f 
 in send (p, 1) ;
-   (if true raisedTo `{secret}` then send (p,2) else ()); 
+   (if true raisedTo `<secret;>` then send (p,2) else ()); 
    blockdecl (authority);
    send (p, 3)
 end 

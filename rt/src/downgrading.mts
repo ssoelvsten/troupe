@@ -3,22 +3,22 @@ import { assertIsNTuple, assertIsAuthority, assertIsLevel } from './Asserts.mjs'
 import { __unit } from './UnitVal.mjs';
 import { lub, flowsTo, okToDeclassify, okToEndorse}  from './Level.mjs'
 import { DowngradeKind } from './levels/DCLabels/dclabel.mjs';
-import { DowngradeResult } from './levels/DCLabels/dclabel.mjs';
+import { DowngradeResult, DowngradeDimension } from './levels/DCLabels/dclabel.mjs';
 import { DC_CONF_LITERALS, DC_INTG_LITERALS } from './levels/DCLabels/dcl_pp_config.mjs';
 
 
 function stringOfDowngrader (d) {
     switch (d) {
-        case DowngradeKind.DECLASSIFY: {
+        case DowngradeDimension.CONFIDENTIALITY: {
             return "declassification"
         }
-        case DowngradeKind.ENDORSE: {
+        case DowngradeDimension.INTEGRITY: {
             return "endorsement"
         }
     }
 }
 
-export function downgrader (runtime, kind:DowngradeKind, isNMIFC: boolean ) {
+export function downgrader (runtime, dimension:DowngradeDimension, isNMIFC: boolean ) {
     return (arg => {
             assertIsNTuple(arg, 3);
             let argv = arg.val;
@@ -31,10 +31,10 @@ export function downgrader (runtime, kind:DowngradeKind, isNMIFC: boolean ) {
             let levFrom = data.lev;
             let bl = runtime.$t.bl ;
             let lev_to = toLevV.val 
-            const downgradeKindString = stringOfDowngrader (kind)
+            const downgradeKindString = stringOfDowngrader (dimension)
 
             const dg_f = 
-                kind == DowngradeKind.DECLASSIFY ? okToDeclassify : okToEndorse;
+                dimension == DowngradeDimension.CONFIDENTIALITY ? okToDeclassify : okToEndorse;
             const ok_to_downgrade_result: DowngradeResult =
                 dg_f(levFrom, lev_to, auth.val.authorityLevel, bl, isNMIFC)
 

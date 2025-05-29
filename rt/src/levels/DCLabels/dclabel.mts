@@ -12,11 +12,14 @@ import { DC_CONF_LITERALS, DC_DELIM_LEFT, DC_DELIM_LEFT_V1, DC_DELIM_RIGHT, DC_D
 
 
 export enum DowngradeKind {
-    DECLASSIFY = 1,
-    ENDORSE = 2,
-    GENERIC = 3,
-    BLOCKING = 4,
-    MAILBOX = 5
+    VALUE = 1,
+    BLOCKING = 2,
+    MAILBOX = 3
+}
+
+export enum DowngradeDimension {
+    CONFIDENTIALITY = 1,
+    INTEGRITY = 2,
 }
 
 export enum DowngradeResult {
@@ -265,7 +268,7 @@ export class DCLevelSystem extends AbstractLevelSystem<DCLabel> {
     }
 
     
-    okToDowngradeGeneric (kind: DowngradeKind) { 
+    okToDowngradeGeneric (kind: DowngradeKind, dimension: DowngradeDimension) { 
         return (( l_from : DCLabel
                 , l_to   : DCLabel
                 , l_auth : DCLabel
@@ -273,9 +276,7 @@ export class DCLevelSystem extends AbstractLevelSystem<DCLabel> {
                 , isNMIFC: boolean = false ) : DowngradeResult => {
 
             switch (kind) {
-                case DowngradeKind.DECLASSIFY:
-                case DowngradeKind.ENDORSE:
-                case DowngradeKind.GENERIC:
+                case DowngradeKind.VALUE:
                     if (!this.flowsTo(bl, l_to)) {
                         return DowngradeResult.BLOCKING_LEVEL_MISMATCH;
                     }
@@ -292,15 +293,15 @@ export class DCLevelSystem extends AbstractLevelSystem<DCLabel> {
             
             */
 
-            switch (kind) {
-                case DowngradeKind.DECLASSIFY:
-                    if (!l_from.integrity.equals(l_to.integrity)) {
-                        return DowngradeResult.INTEGRITY_MISMATCH;
-                    }
-                    break;
-                case DowngradeKind.ENDORSE:
+            switch (dimension) {
+                case DowngradeDimension.INTEGRITY:
                     if (!l_from.confidentiality.equals(l_to.confidentiality)) {
                         return DowngradeResult.CONFIDENTIALITY_MISMATCH;
+                    }
+                    break;
+                case DowngradeDimension.CONFIDENTIALITY:
+                    if (!l_from.integrity.equals(l_to.integrity)) {
+                        return DowngradeResult.INTEGRITY_MISMATCH;
                     }
                     break;
                 default:
@@ -323,10 +324,10 @@ export class DCLevelSystem extends AbstractLevelSystem<DCLabel> {
         }
      )}
 
-    okToEndorse = this.okToDowngradeGeneric (DowngradeKind.ENDORSE)
-    okToDeclassify = this.okToDowngradeGeneric (DowngradeKind.DECLASSIFY)
-    okToDowngrade (kind: DowngradeKind) {
-        return this.okToDowngradeGeneric(kind);
+    okToEndorse = this.okToDowngradeGeneric (DowngradeKind.VALUE, DowngradeDimension.INTEGRITY)
+    okToDeclassify = this.okToDowngradeGeneric (DowngradeKind.VALUE, DowngradeDimension.CONFIDENTIALITY)
+    okToDowngrade (kind: DowngradeKind, dimension: DowngradeDimension) {
+        return this.okToDowngradeGeneric(kind, dimension);
     }
 
 

@@ -1,4 +1,4 @@
-import {levels, Level, DowngradeResult, DowngradeKind } from './levels/DCLabels/dclabel.mjs'
+import {levels, Level, DowngradeResult, DowngradeKind, DowngradeDimension} from './levels/DCLabels/dclabel.mjs'
 export { mkLevel, Level } from './levels/DCLabels/dclabel.mjs'
 
 
@@ -10,8 +10,8 @@ export function lubs(x)   { return levels.lubs (x  ) }
 export function glb(a,b)  { return levels.glb (a,b)  }
 export function flowsTo (a:Level,b:Level) { return levels.flowsTo (a,b) }
 export function actsFor (a:Level,b:Level) { return levels.actsFor (a,b) }
-export function okToDowngrade (kind: DowngradeKind) {
-    return levels.okToDowngrade(kind);
+export function okToDowngrade (kind: DowngradeKind, dimension: DowngradeDimension) {
+    return levels.okToDowngrade(kind, dimension);
 }
 export function okToDeclassify (from: Level, to:Level, auth: Level, bl: Level, isNMIFC: boolean): DowngradeResult {
     return levels.okToDeclassify (from,to,auth, bl, isNMIFC);
