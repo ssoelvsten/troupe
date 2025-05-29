@@ -1,9 +1,17 @@
 import * as levels from './Level.mjs'
-import { DowngradeDimension, DowngradeKind, DowngradeResult } from './levels/DCLabels/dclabel.mjs'
+import { DowngradeDimension, DowngradeKind, DowngradeResult } from './DowngradeEnums.mjs'
 import { LVal, LValCopyAt } from './Lval.mjs';
 import { HandlerError, ImplementationError, StrThreadError } from './TroupeError.mjs';
 import yargs from 'yargs';
 import { hideBin } from 'yargs/helpers';
+import {
+    formatIntegrityMismatchMsg,
+    formatConfidentialityMismatchMsg,
+    formatPiniBlockingLevelMismatchMsg,
+    formatPiniInsufficientAuthorityMsg,
+    formatMboxBlockingLevelMismatchMsg,
+    formatMboxInsufficientAuthorityMsg
+} from './DowngradeFormatter.mjs';
 const argv:any = yargs(hideBin(process.argv)).parse()
 
 let logLevel = argv.debug? 'debug' : 'info'
@@ -43,7 +51,30 @@ const BRANCHFLAGOFFSET = 1
 const BRANCH_FLAG_OFF = false
 const BRANCH_FLAG_ON  = true 
 
+// Type alias for the downgrade error messages map
+type DowngradeErrorMessagesMap = {
+    [DowngradeResult.INTEGRITY_MISMATCH]: string;
+    [DowngradeResult.CONFIDENTIALITY_MISMATCH]: string;
+    [DowngradeResult.BLOCKING_LEVEL_MISMATCH]: string;
+    [DowngradeResult.INSUFFICIENT_AUTHORITY]: string;
+};
 
+// Specific type for the return value of _createBaseDowngradeErrorParts
+type BaseDowngradeMessages = {
+    [DowngradeResult.INTEGRITY_MISMATCH]: string;
+    [DowngradeResult.CONFIDENTIALITY_MISMATCH]: string;
+};
+
+// New consolidated type for downgrade parameters
+type ValidateDowngradeParams = {
+    downgradeKind: DowngradeKind;
+    levFrom: Level;
+    levTo: Level;
+    authorityLevel: Level;
+    downgradeDimension: DowngradeDimension;
+    currentBlockingLevelForCheck: Level | null;
+    operationDescription?: string;
+};
 
 export class Capability<T> {
     /*
@@ -363,6 +394,85 @@ export class Thread {
         this.monitors[r.val] = {pid: pid, uuid: r} 
     }
 
+    // Helper method to create the appropriate DowngradeErrorMessagesMap
+    private _createDowngradeErrorMap(
+        params: ValidateDowngradeParams
+    ): DowngradeErrorMessagesMap {
+        switch (params.downgradeKind) {
+            case DowngradeKind.BLOCKING:
+                if (typeof params.operationDescription !== 'string') {
+                    throw new ImplementationError("operationDescription is required and must be a string for BLOCKING downgradeKind.");
+                }
+                return this._createPiniStyleErrorMap(
+                    params
+                );
+            case DowngradeKind.MAILBOX:
+                if (params.currentBlockingLevelForCheck === null) {
+                    throw new ImplementationError("currentBlockingLevelForCheck cannot be null for MAILBOX downgradeKind.");
+                }
+                return this._createMboxStyleErrorMap(params)
+            default:
+                // This default case should ideally be unreachable if all DowngradeKind members are handled.
+                throw new ImplementationError(`Unhandled downgradeKind: ${params.downgradeKind}`);
+        }
+    }
+
+    // Helper method to handle downgrade operations and their results
+    private _validateDowngradeOrThrow(
+        params: ValidateDowngradeParams
+    ): void { // Returns void on success, or throws.
+        
+        const ok_to_declassify_result: DowngradeResult =
+            levels.okToDowngrade(params.downgradeKind, params.downgradeDimension)
+                 (params.levFrom, params.levTo, params.authorityLevel, params.currentBlockingLevelForCheck);
+        
+        if (ok_to_declassify_result != DowngradeResult.SUCCESS) {
+            const errorMessagesMap: DowngradeErrorMessagesMap = this._createDowngradeErrorMap(params);
+            const errorMessage = errorMessagesMap[ok_to_declassify_result];
+            if (errorMessage !== undefined) {
+                this.threadError(errorMessage);
+            } else {
+                // Handle DowngradeResult values that are not SUCCESS and not explicitly in errorMessagesMap.
+                // This matches the behavior of the original 'default' case in the switch.
+                this.threadError("Unexpected downgrade result: " + ok_to_declassify_result, true);
+            }
+        }
+    }
+
+    // Helper to create the common integrity and confidentiality error message parts
+    private _createBaseDowngradeErrorParts(
+        operationDescription: string,
+        dataLevel: Level,
+        targetLevel: Level
+    ): BaseDowngradeMessages {
+        return {
+            [DowngradeResult.INTEGRITY_MISMATCH]: formatIntegrityMismatchMsg(operationDescription, dataLevel, targetLevel),
+            [DowngradeResult.CONFIDENTIALITY_MISMATCH]: formatConfidentialityMismatchMsg(operationDescription, dataLevel, targetLevel),
+        };
+    }
+
+    // Error map creation helpers
+    private _createPiniStyleErrorMap(
+        validationParams: ValidateDowngradeParams
+    ): DowngradeErrorMessagesMap {
+        return {
+            ...this._createBaseDowngradeErrorParts(validationParams.operationDescription, validationParams.levFrom, validationParams.levTo),
+            [DowngradeResult.BLOCKING_LEVEL_MISMATCH]: formatPiniBlockingLevelMismatchMsg(validationParams.operationDescription, validationParams.levFrom, validationParams.levTo),
+            [DowngradeResult.INSUFFICIENT_AUTHORITY]: formatPiniInsufficientAuthorityMsg(validationParams.operationDescription, validationParams.levFrom, validationParams.authorityLevel, validationParams.levTo)
+        };
+    }
+
+    private _createMboxStyleErrorMap(
+        validationParams: ValidateDowngradeParams
+    ): DowngradeErrorMessagesMap {
+        const operationDescription = "lowering mailbox clearance";
+        return {
+            ...this._createBaseDowngradeErrorParts(operationDescription, validationParams.levFrom, validationParams.levTo),
+            [DowngradeResult.BLOCKING_LEVEL_MISMATCH]: formatMboxBlockingLevelMismatchMsg(validationParams.currentBlockingLevelForCheck as Level, validationParams.levTo),
+            [DowngradeResult.INSUFFICIENT_AUTHORITY]: formatMboxInsufficientAuthorityMsg(validationParams.authorityLevel, validationParams.levFrom, validationParams.levTo)
+        };
+    }
+
     tailCall (f, x) {
         this.setR0ToLValue (x);
         return f;
@@ -546,59 +656,28 @@ export class Thread {
 
         debug (`Level to declassify to at pinipop ${levTo.stringRep()}`)
         // check that the provided authority is sufficient for the declassification
-        let ok_to_declassify_result = 
-            levels.okToDowngrade (DowngradeKind.BLOCKING,DowngradeDimension.CONFIDENTIALITY)
-            (levFrom, levTo, auth.val.authorityLevel, this.bl)
-        switch (ok_to_declassify_result) {
-            case DowngradeResult.SUCCESS: {
-                this.pc = pc;           
-                this.bl = bl;
+        this._validateDowngradeOrThrow({
+            levFrom,
+            levTo,
+            authorityLevel: auth.val.authorityLevel,
+            downgradeKind: DowngradeKind.BLOCKING,
+            downgradeDimension: DowngradeDimension.CONFIDENTIALITY,
+            currentBlockingLevelForCheck: this.bl,
+            operationDescription: "pini declassification"
+        });
+        
+        this.pc = pc;           
+        this.bl = bl;
+        let loop_sp = this._sp 
+        let j = loop_sp - PCOFFSET; 
+        while (j >= 0 && !levels.flowsTo (this.callStack[j], pc)) {   
+            this.callStack[j] = pc;
+            loop_sp = this.callStack[loop_sp - SPOFFSET]
+            j = loop_sp - PCOFFSET 
+        }            
+        this.pini_uuid = cap.prev;
 
-                // declassify the call stack...             
-                let loop_sp = this._sp 
-                let j = loop_sp - PCOFFSET; 
-    
-                while (j >= 0 && !levels.flowsTo (this.callStack[j], pc)) {   
-                    this.callStack[j] = pc;
-                    loop_sp = this.callStack[loop_sp - SPOFFSET]
-                    j = loop_sp - PCOFFSET 
-                //   throw new Error ("revisit") //FRAMESIZE;
-                }            
-
-                // make sure we can restore earlier caps
-                this.pini_uuid = cap.prev;
-                // return in the thread through the scheduler
-                return this.returnImmediateLValue (__unit); 
-            }
-            case DowngradeResult.INTEGRITY_MISMATCH: {
-                this.threadError ( "Integrity level mismatch for pini declassification\n" + 
-                            ` | integrity level of the data: ${levFrom.integrity.stringRep(DC_INTG_LITERALS)}\n` +
-                            ` | integrity level of the target: ${levTo.integrity.stringRep(DC_INTG_LITERALS)}`);
-                break;
-            }
-            case DowngradeResult.CONFIDENTIALITY_MISMATCH: {
-                this.threadError ( "Confidentiality level mismatch for pini declassification\n" + 
-                            ` | confidentiality level of the data: ${levFrom.confidentiality.stringRep(DC_CONF_LITERALS)}\n` +
-                            ` | confidentiality level of the target: ${levTo.confidentiality.stringRep(DC_CONF_LITERALS)}`);
-                break;
-            }
-            case DowngradeResult.BLOCKING_LEVEL_MISMATCH: {
-                this.threadError ( "Current blocking level does not flow to the target level of the pini declassification\n" + 
-                            ` | current blocking level: ${levFrom.stringRep()}\n` +
-                            ` | target blocking level: ${levTo.stringRep()}`);
-                break;
-            }
-            case DowngradeResult.INSUFFICIENT_AUTHORITY: {  
-                this.threadError ( "Not enough authority for pini declassification\n" + 
-                            ` | from level of the blocking level: ${levFrom.stringRep()}\n` +
-                            ` | level of the authority: ${auth.val.authorityLevel.stringRep()}\n`  +
-                            ` | to level of the blocking level: ${levTo.stringRep()}`);
-                break;
-            } 
-            default:
-                throw new Error ("Unexpected downgrade result: " + ok_to_declassify_result);
-                
-        }                
+        return this.returnImmediateLValue (__unit); 
     }
     
 
@@ -631,38 +710,21 @@ export class Thread {
         debug (`Level to declassify to at pinipop ${levTo.stringRep()}`)
         // this.showStack()
         // check that the provided authority is sufficient to perform declassification to the next level
-        let ok_to_declassify_result = 
-            levels.okToDowngrade (DowngradeKind.BLOCKING, DowngradeDimension.CONFIDENTIALITY)
-                (levFrom, levTo, auth.val.authorityLevel, null)
-        switch (ok_to_declassify_result) {
-            case DowngradeResult.SUCCESS: 
-                this.bl = levTo ;
-                this.pini_uuid = cap.prev;
-                return this.returnImmediateLValue (__unit);                        
-            case DowngradeResult.INTEGRITY_MISMATCH: 
-                this.threadError ( "Integrity level mismatch for pini declassification\n" + 
-                            ` | integrity level of the data: ${levFrom.integrity.stringRep(DC_INTG_LITERALS)}\n` +
-                            ` | integrity level of the target: ${levTo.integrity.stringRep(DC_INTG_LITERALS)}`);
-                break;
-            case DowngradeResult.CONFIDENTIALITY_MISMATCH: 
-                this.threadError ( "Confidentiality level mismatch for pini declassification\n" + 
-                            ` | confidentiality level of the data: ${levFrom.confidentiality.stringRep(DC_CONF_LITERALS)}\n` +
-                            ` | confidentiality level of the target: ${levTo.confidentiality.stringRep(DC_CONF_LITERALS)}`);
-                break;
-            case DowngradeResult.BLOCKING_LEVEL_MISMATCH: 
-                this.threadError ( "Current blocking level does not flow to the target level of the pini declassification\n" + 
-                            ` | current blocking level: ${levFrom.stringRep()}\n` +
-                            ` | target blocking level: ${levTo.stringRep()}`);
-                break;
-            case DowngradeResult.INSUFFICIENT_AUTHORITY: 
-                this.threadError ( "Not enough authority for pini declassification\n" + 
-                            ` | from level of the blocking level: ${levFrom.stringRep()}\n` +
-                            ` | level of the authority: ${auth.val.authorityLevel.stringRep()}\n`  +
-                            ` | to level of the blocking level: ${levTo.stringRep()}`);
-                break;
-            default:
-                throw new Error ("Unexpected downgrade result: " + ok_to_declassify_result);
-        }        
+        this._validateDowngradeOrThrow({
+            levFrom,
+            levTo,
+            authorityLevel: auth.val.authorityLevel,
+            downgradeKind: DowngradeKind.BLOCKING,
+            downgradeDimension: DowngradeDimension.CONFIDENTIALITY,
+            currentBlockingLevelForCheck: null,
+            operationDescription: "pini declassification"
+        });
+        
+        // Logic from former onSuccess callback
+        this.bl = levTo ;
+        this.pini_uuid = cap.prev;
+
+        return this.returnImmediateLValue (__unit); 
     }
 
 
@@ -671,7 +733,7 @@ export class Thread {
             this.threadError ("The provided target blocking level is lower than the current pc\n" + 
                               ` | the current pc: ${this.pc.stringRep()}\n` +
                               ` | target blocking level: ${bl_to.stringRep()}`)
-            return; // should be unnecessary
+            return null; // threadError throws, so this indicates an error path to the caller if needed
         }
         
 
@@ -681,43 +743,25 @@ export class Thread {
             this.threadError ("The provided authority value is tainted\n" + 
                               ` | the level of the authority value: ${auth.lev.stringRep()}\n` +
                               ` | target blocking level: ${bl_to.stringRep()}`)
-            return; // should be unnecessary
+            return null; // threadError throws
         }
-        let ok_to_declassify_result = 
-            levels.okToDowngrade (DowngradeKind.BLOCKING, DowngradeDimension.CONFIDENTIALITY)
-            (this.bl, bl_to, auth.val.authorityLevel, this.bl)
-        switch (ok_to_declassify_result) {
-            case DowngradeResult.SUCCESS:
-                this.bl = bl_to; // the actual downgrade
-                break;
-            case DowngradeResult.INTEGRITY_MISMATCH:
-                this.threadError ( "Integrity level mismatch for blocking level declassification\n" + 
-                            ` | integrity level of the data: ${this.bl.integrity.stringRep(DC_INTG_LITERALS)}\n` +
-                            ` | integrity level of the target: ${bl_to.integrity.stringRep(DC_INTG_LITERALS)}`);
-                break;
-            case DowngradeResult.CONFIDENTIALITY_MISMATCH:
-                this.threadError ( "Confidentiality level mismatch for blocking level declassification\n" + 
-                            ` | confidentiality level of the data: ${this.bl.confidentiality.stringRep(DC_CONF_LITERALS)}\n` +
-                            ` | confidentiality level of the target: ${bl_to.confidentiality.stringRep(DC_CONF_LITERALS)}`);
-                break;
-            case DowngradeResult.BLOCKING_LEVEL_MISMATCH: // This case might be unlikely here given the checks above, but included for completeness
-                this.threadError ( "Current blocking level does not flow to the target level of the blocking level declassification\n" + 
-                            ` | current blocking level: ${this.bl.stringRep()}\n` +
-                            ` | target blocking level: ${bl_to.stringRep()}`);
-                break;
-            case DowngradeResult.INSUFFICIENT_AUTHORITY:
-                this.threadError ("Not enough authority for blocking level declassification\n" + 
-                                  ` | provided authority: ${auth.val.authorityLevel.stringRep()}\n` +
-                                  ` | current blocking level: ${this.bl.stringRep()}\n` +
-                                  ` | target blocking level: ${bl_to.stringRep()}\n`
-                                  );
-                break;
-            default:
-                this.threadError("An unexpected error occurred during blocking level declassification.");
-                break;
-        }
-        return this.returnImmediateLValue (__unit); 
+        
+        const current_bl = this.bl; // Capture this.bl for use in error messages, as it's levFrom
 
+        this._validateDowngradeOrThrow({
+            levFrom: current_bl,
+            levTo: bl_to,
+            authorityLevel: auth.val.authorityLevel,
+            downgradeKind: DowngradeKind.BLOCKING,
+            downgradeDimension: DowngradeDimension.CONFIDENTIALITY,
+            currentBlockingLevelForCheck: current_bl,
+            operationDescription: "blocking level declassification"
+        });
+
+        // Logic from former onSuccess callback
+        this.bl = bl_to; // the actual downgrade
+
+        return this.returnImmediateLValue (__unit); 
     }
 
     raiseBlockingThreadLev (l) {                
@@ -820,7 +864,7 @@ export class Thread {
     lowerMboxClearance (cap_lval:any, auth:any) {
         if (this.mailbox.caps == null ) {
             this.threadError ("unmatched lowering of mailbox clearance")
-            return;
+            return null; // threadError throws
         }
         
         let cap:Capability<MboxClearance> = cap_lval.val 
@@ -829,7 +873,7 @@ export class Thread {
             this.threadError ("Ill-scoped raise/lower of mailbox clearance:\n" + 
                               `expected cap: ${this.mailbox.caps}\n` + 
                               `provided cap: ${cap.uid}`)
-            return;
+            return null; // threadError throws
         }
 
 
@@ -845,50 +889,25 @@ export class Thread {
             
         }
 
-        // check the authority is sufficient to downgrade from the current boost 
-        // to the target one 
-        let ok_to_lower_result = 
-            levels.okToDowngrade (DowngradeKind.MAILBOX, DowngradeDimension.CONFIDENTIALITY)
-                                 ( this.mailbox.mclear.boost_level
-                                 , cap.data.boost_level
-                                 , auth.val.authorityLevel
-                                 , this.bl )
-        
-        switch (ok_to_lower_result) {
-            case DowngradeResult.SUCCESS:
-                // Do nothing, proceed to lower mailbox clearance
-                break;
-            case DowngradeResult.INTEGRITY_MISMATCH:
-                this.threadError ( "Integrity level mismatch for lowering mailbox clearance\n" + 
-                            ` | integrity level of current mailbox: ${this.mailbox.mclear.boost_level.integrity.stringRep(DC_INTG_LITERALS)}\n` +
-                            ` | integrity level of target mailbox: ${cap.data.boost_level.integrity.stringRep(DC_INTG_LITERALS)}`);
-                return;
-            case DowngradeResult.CONFIDENTIALITY_MISMATCH:
-                this.threadError ( "Confidentiality level mismatch for lowering mailbox clearance\n" + 
-                            ` | confidentiality level of current mailbox: ${this.mailbox.mclear.boost_level.confidentiality.stringRep(DC_CONF_LITERALS)}\n` +
-                            ` | confidentiality level of target mailbox: ${cap.data.boost_level.confidentiality.stringRep(DC_CONF_LITERALS)}`);
-                return;
-            case DowngradeResult.BLOCKING_LEVEL_MISMATCH:
-                this.threadError ( "Current blocking level does not flow to the target level for lowering mailbox clearance\n" + 
-                            ` | current blocking level: ${this.bl.stringRep()}\n` +
-                            ` | target mailbox level: ${cap.data.boost_level.stringRep()}`);
-                return;
-            case DowngradeResult.INSUFFICIENT_AUTHORITY:
-                this.threadError("Insufficient authority for lowering the mailbox clearance\n" +
-                                `| authority provided: ${auth.val.authorityLevel.stringRep()}\n` +
-                                `| current level of the mailbox: ${this.mailbox.mclear.boost_level.stringRep()}\n` +
-                                `| target level of the mailbox: ${cap.data.boost_level.stringRep()}`
-                );
-                return;
-            default:
-                throw new Error ("Unexpected downgrade result: " + ok_to_lower_result);
-        }            
+        const currentMboxBoostLevel = this.mailbox.mclear.boost_level;
+        const targetMboxBoostLevel = cap.data.boost_level;
+        const currentThreadBl = this.bl; // For BLOCKING_LEVEL_MISMATCH message
 
+        this._validateDowngradeOrThrow({
+            levFrom: currentMboxBoostLevel,
+            levTo: targetMboxBoostLevel,
+            authorityLevel: auth.val.authorityLevel,
+            downgradeKind: DowngradeKind.MAILBOX,
+            downgradeDimension: DowngradeDimension.CONFIDENTIALITY,
+            currentBlockingLevelForCheck: currentThreadBl
+            // No operationDescription needed or used for MAILBOX kind by _validateDowngradeOrThrow
+        });       
+        
+        // Logic from former onSuccess callback
         this.mailbox.mclear = cap.data; // restoring the clearance level
         this.mailbox.caps = cap.prev;
-        return this.returnImmediateLValue(__unit) 
-        // this.returnSuspended(__unit)
-        // this.sched.stepThread();         
+
+        return this.returnImmediateLValue(__unit);
     }
 }
 

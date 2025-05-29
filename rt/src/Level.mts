@@ -1,4 +1,5 @@
-import {levels, Level, DowngradeResult, DowngradeKind, DowngradeDimension} from './levels/DCLabels/dclabel.mjs'
+import {levels, Level } from './levels/DCLabels/dclabel.mjs'
+import { DowngradeResult, DowngradeKind, DowngradeDimension } from './DowngradeEnums.mjs'
 export { mkLevel, Level } from './levels/DCLabels/dclabel.mjs'
 
 

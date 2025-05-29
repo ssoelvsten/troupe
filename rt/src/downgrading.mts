@@ -2,8 +2,7 @@ import { LCopyVal } from './Lval.mjs';
 import { assertIsNTuple, assertIsAuthority, assertIsLevel } from './Asserts.mjs'
 import { __unit } from './UnitVal.mjs';
 import { lub, flowsTo, okToDeclassify, okToEndorse}  from './Level.mjs'
-import { DowngradeKind } from './levels/DCLabels/dclabel.mjs';
-import { DowngradeResult, DowngradeDimension } from './levels/DCLabels/dclabel.mjs';
+import { DowngradeResult, DowngradeDimension } from './DowngradeEnums.mjs';
 import { DC_CONF_LITERALS, DC_INTG_LITERALS } from './levels/DCLabels/dcl_pp_config.mjs';
 
 

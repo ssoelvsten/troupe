@@ -1,4 +1,5 @@
 import { AbstractLevel, AbstractLevelSystem } from '../../AbstractLevel.mjs';
+import { DowngradeKind, DowngradeDimension, DowngradeResult } from '../../DowngradeEnums.mjs';
 import { tagsetStringRep } from '../tagsets.mjs';
 import { Category
        , CNF
@@ -11,33 +12,6 @@ import { Category
 import { DC_CONF_LITERALS, DC_DELIM_LEFT, DC_DELIM_LEFT_V1, DC_DELIM_RIGHT, DC_DELIM_RIGHT_V1, DC_DELIM_SEP, DC_IFC_TOP, DC_INTG_LITERALS, DC_TRUST_ROOT } from './dcl_pp_config.mjs';
 
 
-export enum DowngradeKind {
-    VALUE = 1,
-    BLOCKING = 2,
-    MAILBOX = 3
-}
-
-export enum DowngradeDimension {
-    CONFIDENTIALITY = 1,
-    INTEGRITY = 2,
-}
-
-export enum DowngradeResult {
-    SUCCESS = 0,
-    INTEGRITY_MISMATCH = 1,    // For declassification when integrity levels aren't equal
-    CONFIDENTIALITY_MISMATCH = 2, // For endorsement when confidentiality levels aren't equal
-    INSUFFICIENT_AUTHORITY = 3,  // When auth level isn't sufficient for the downgrade
-    BLOCKING_LEVEL_MISMATCH = 4 // When blocking level does not flow to target level
-}
-
-// export class DowngradeResult {
-//     result : boolean 
-//     errorMessage : string 
-//     constructor(r:boolean,e:string  = null) {
-//         this.result = r ;
-//         this.errorMessage = e
-//     }
-// }
 
 export class DCLabel extends AbstractLevel<DCLabel> {
     integrity: CNF
