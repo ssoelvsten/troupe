@@ -1,5 +1,6 @@
 import { Level } from './Level.mjs';
 
+
 export enum DowngradeKind {
 	VALUE = 1,
 	BLOCKING = 2,
@@ -31,12 +32,16 @@ export type DowngradeResult = SuccessfulDowngradeResult | FailedDowngradeResult;
 
 export const DowngradeResultSuccess: SuccessfulDowngradeResult = { kind: "SUCCESS" };
 
+export function DowngradeError(reason: DowngradeErrorReason): FailedDowngradeResult {
+	return { kind: "FAILURE", reason };
+}
+
 export type ValidateDowngradeParams = {
 	downgradeKind: DowngradeKind;
 	levFrom: Level;
 	levTo: Level;
 	authorityLevel: Level;
 	downgradeDimension: DowngradeDimension;
-	currentBlockingLevelForCheck: Level | null;
+	blockLevel?: Level ; 
 	operationDescription?: string;
 };

@@ -3,7 +3,8 @@
 ## Backend / JS runtime integration of the DCLabels
 
 [+ongoing+] Integration of DC Labels in the runtime.
-- [ ] Consolidate error handling in Thread.mts to avoid repetition
+
+- [+ongoing+] Consolidate error handling of downgrading
 
 - [ ] We should rename all tests extensions to .trp
 

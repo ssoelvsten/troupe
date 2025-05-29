@@ -47,4 +47,92 @@ export function formatValueInsufficientAuthorityMsg(operationDescription: string
            ` | level of the data: ${dataLevel.stringRep()}\n` +
            ` | level of the authority: ${authorityLevel.stringRep()}\n` +
            ` | target level of the ${operationDescription}: ${targetLevel.stringRep()}`;
+}
+
+// Non-exported helper for BLOCKING kind
+function getBlockDowngradeErrorMessageForReason(
+    reason: DowngradeErrorReason,
+    operationDescription: string,
+    levFrom: Level,
+    levTo: Level,
+    authorityLevel: Level
+): string {
+    switch (reason) {
+        case DowngradeErrorReason.INTEGRITY_MISMATCH: return formatIntegrityMismatchMsg(operationDescription, levFrom, levTo);
+        case DowngradeErrorReason.CONFIDENTIALITY_MISMATCH: return formatConfidentialityMismatchMsg(operationDescription, levFrom, levTo);
+        case DowngradeErrorReason.BLOCKING_LEVEL_MISMATCH: return formatPiniBlockingLevelMismatchMsg(operationDescription, levFrom, levTo);
+        case DowngradeErrorReason.INSUFFICIENT_AUTHORITY: return formatPiniInsufficientAuthorityMsg(operationDescription, levFrom, authorityLevel, levTo);
+        default:
+            const _exhaustiveBlockReason: never = reason;
+            throw new ImplementationError(`Unexpected reason for BLOCKING: ${_exhaustiveBlockReason}`);
+    }
+}
+
+// Non-exported helper for MAILBOX kind
+function getMailboxDowngradeErrorMessageForReason(
+    reason: DowngradeErrorReason,
+    operationDescription: string,
+    levFrom: Level,
+    levTo: Level,
+    authorityLevel: Level,
+    currentBlockingLevelForCheck: Level
+): string {
+    switch (reason) {
+        case DowngradeErrorReason.INTEGRITY_MISMATCH: return formatIntegrityMismatchMsg(operationDescription, levFrom, levTo);
+        case DowngradeErrorReason.CONFIDENTIALITY_MISMATCH: return formatConfidentialityMismatchMsg(operationDescription, levFrom, levTo);
+        case DowngradeErrorReason.BLOCKING_LEVEL_MISMATCH: return formatMboxBlockingLevelMismatchMsg(currentBlockingLevelForCheck, levTo);
+        case DowngradeErrorReason.INSUFFICIENT_AUTHORITY: return formatMboxInsufficientAuthorityMsg(authorityLevel, levFrom, levTo);
+        default:
+            const _exhaustiveMboxReason: never = reason;
+            throw new ImplementationError(`Unexpected reason for MAILBOX: ${_exhaustiveMboxReason}`);
+    }
+}
+
+// Non-exported helper for VALUE kind
+function getValueDowngradeErrorMessageForReason(
+    reason: DowngradeErrorReason,
+    operationDescription: string,
+    levFrom: Level,
+    levTo: Level,
+    authorityLevel: Level,
+    currentBlockingLevelForCheck: Level | null
+): string {
+    if (reason === DowngradeErrorReason.BLOCKING_LEVEL_MISMATCH && currentBlockingLevelForCheck === null) {
+        throw new ImplementationError("Internal inconsistency: currentBlockingLevelForCheck is null for VALUE kind with BLOCKING_LEVEL_MISMATCH reason.");
+    }
+    switch (reason) {
+        case DowngradeErrorReason.INTEGRITY_MISMATCH: return formatIntegrityMismatchMsg(operationDescription, levFrom, levTo);
+        case DowngradeErrorReason.CONFIDENTIALITY_MISMATCH: return formatConfidentialityMismatchMsg(operationDescription, levFrom, levTo);
+        case DowngradeErrorReason.BLOCKING_LEVEL_MISMATCH:
+            return formatPiniBlockingLevelMismatchMsg(operationDescription, currentBlockingLevelForCheck!, levTo);
+        case DowngradeErrorReason.INSUFFICIENT_AUTHORITY: return formatValueInsufficientAuthorityMsg(operationDescription, levFrom, authorityLevel, levTo);
+        default:
+            const _exhaustiveValueReason: never = reason;
+            throw new ImplementationError(`Unexpected reason for VALUE: ${_exhaustiveValueReason}`);
+    }
+}
+
+export function getDowngradeErrorMessage(params: ValidateDowngradeParams, reason: DowngradeErrorReason): string {
+    const { levFrom, levTo, authorityLevel, downgradeKind, blockLevel: currentBlockingLevelForCheck } = params;
+    let opDesc = params.operationDescription; // Allow opDesc to be potentially modified
+
+    switch (downgradeKind) {
+        case DowngradeKind.BLOCKING:
+            if (typeof opDesc !== 'string') {
+                throw new ImplementationError("operationDescription is required for BLOCKING downgradeKind.");
+            }
+            return getBlockDowngradeErrorMessageForReason(reason, opDesc, levFrom, levTo, authorityLevel);
+        case DowngradeKind.MAILBOX:
+            opDesc = "lowering mailbox clearance"; // Standardize opDesc for mailbox
+            if (currentBlockingLevelForCheck === null) {
+                throw new ImplementationError("currentBlockingLevelForCheck is required for MAILBOX downgradeKind.");
+            }
+            return getMailboxDowngradeErrorMessageForReason(reason, opDesc, levFrom, levTo, authorityLevel, currentBlockingLevelForCheck);
+        case DowngradeKind.VALUE:
+            opDesc = opDesc || "value downgrade"; // Default opDesc for value
+            return getValueDowngradeErrorMessageForReason(reason, opDesc, levFrom, levTo, authorityLevel, currentBlockingLevelForCheck);
+        default:
+            const _exhaustiveKind: never = downgradeKind;
+            throw new ImplementationError(`Unhandled DowngradeKind: ${_exhaustiveKind}`);
+    }
 } 

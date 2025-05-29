@@ -1,5 +1,5 @@
 import { AbstractLevel, AbstractLevelSystem } from '../../AbstractLevel.mjs';
-import { DowngradeKind, DowngradeDimension, DowngradeResult, DowngradeErrorReason, DowngradeResultSuccess } from '../../DowngradeEnums.mjs';
+import { DowngradeKind, DowngradeDimension, DowngradeResult, DowngradeErrorReason, DowngradeResultSuccess, DowngradeError } from '../../DowngradeEnums.mjs';
 import { tagsetStringRep } from '../tagsets.mjs';
 import { Category
        , CNF
@@ -249,14 +249,10 @@ export class DCLevelSystem extends AbstractLevelSystem<DCLabel> {
                 , bl     : DCLabel 
                 , isNMIFC: boolean = false ) : DowngradeResult => {
 
-            switch (kind) {
-                case DowngradeKind.VALUE:
-                    if (!this.flowsTo(bl, l_to)) {
-                        return { kind: "FAILURE", reason: DowngradeErrorReason.BLOCKING_LEVEL_MISMATCH };
-                    }
-                case DowngradeKind.MAILBOX:
-                case DowngradeKind.BLOCKING:
-                    break;
+
+            
+            if (kind === DowngradeKind.VALUE && !this.flowsTo(bl, l_to)) {
+                return DowngradeError(DowngradeErrorReason.BLOCKING_LEVEL_MISMATCH);
             }
 
             /* 
@@ -270,12 +266,12 @@ export class DCLevelSystem extends AbstractLevelSystem<DCLabel> {
             switch (dimension) {
                 case DowngradeDimension.INTEGRITY:
                     if (!l_from.confidentiality.equals(l_to.confidentiality)) {
-                        return { kind: "FAILURE", reason: DowngradeErrorReason.CONFIDENTIALITY_MISMATCH };
+                        return DowngradeError(DowngradeErrorReason.CONFIDENTIALITY_MISMATCH);
                     }
                     break;
                 case DowngradeDimension.CONFIDENTIALITY:
                     if (!l_from.integrity.equals(l_to.integrity)) {
-                        return { kind: "FAILURE", reason: DowngradeErrorReason.INTEGRITY_MISMATCH };
+                        return DowngradeError(DowngradeErrorReason.INTEGRITY_MISMATCH);
                     }
                     break;
                 default:
@@ -293,7 +289,7 @@ export class DCLevelSystem extends AbstractLevelSystem<DCLabel> {
                     , l_to.integrity)            
                 
             if (!(enough_confidentiality && enough_integrity)) {
-                return { kind: "FAILURE", reason: DowngradeErrorReason.INSUFFICIENT_AUTHORITY };
+                return DowngradeError(DowngradeErrorReason.INSUFFICIENT_AUTHORITY);
             }
             
             return DowngradeResultSuccess;
