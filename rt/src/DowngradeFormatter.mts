@@ -1,6 +1,9 @@
 import { Level } from './Level.mjs';
 import { DC_INTG_LITERALS, DC_CONF_LITERALS } from './levels/DCLabels/dcl_pp_config.mjs';
+import { DowngradeKind, DowngradeDimension, ValidateDowngradeParams, DowngradeErrorReason } from './DowngradeEnums.mjs';
+import { ImplementationError } from './TroupeError.mjs';
 
+// Individual formatter functions (formatIntegrityMismatchMsg, etc.) remain here and are exported.
 export function formatIntegrityMismatchMsg(operationDescription: string, dataLevel: Level, targetLevel: Level): string {
     return `Integrity level mismatch for ${operationDescription}\n` +
            ` | integrity level of the data: ${dataLevel.integrity.stringRep(DC_INTG_LITERALS)}\n` +
@@ -37,4 +40,11 @@ export function formatMboxInsufficientAuthorityMsg(authorityProvidedLevel: Level
            `| authority provided: ${authorityProvidedLevel.stringRep()}\n` +
            `| current level of the mailbox: ${currentMailboxLevel.stringRep()}\n` +
            `| target level of the mailbox: ${targetMailboxLevel.stringRep()}`;
+}
+
+export function formatValueInsufficientAuthorityMsg(operationDescription: string, dataLevel: Level, authorityLevel: Level, targetLevel: Level): string {
+    return `Not enough authority for ${operationDescription}\n` +
+           ` | level of the data: ${dataLevel.stringRep()}\n` +
+           ` | level of the authority: ${authorityLevel.stringRep()}\n` +
+           ` | target level of the ${operationDescription}: ${targetLevel.stringRep()}`;
 } 

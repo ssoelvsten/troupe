@@ -1,3 +1,5 @@
+import { Level } from './Level.mjs';
+
 export enum DowngradeKind {
 	VALUE = 1,
 	BLOCKING = 2,
@@ -9,10 +11,32 @@ export enum DowngradeDimension {
 	INTEGRITY = 2,
 }
 
-export enum DowngradeResult {
-	SUCCESS = 0,
-	INTEGRITY_MISMATCH = 1,    // For declassification when integrity levels aren't equal
-	CONFIDENTIALITY_MISMATCH = 2, // For endorsement when confidentiality levels aren't equal
-	INSUFFICIENT_AUTHORITY = 3,  // When auth level isn't sufficient for the downgrade
-	BLOCKING_LEVEL_MISMATCH = 4 // When blocking level does not flow to target level
+export enum DowngradeErrorReason {
+	INTEGRITY_MISMATCH = 1,
+	CONFIDENTIALITY_MISMATCH = 2,
+	INSUFFICIENT_AUTHORITY = 3,
+	BLOCKING_LEVEL_MISMATCH = 4
 }
+
+export type SuccessfulDowngradeResult = {
+	kind: "SUCCESS";
+};
+
+export type FailedDowngradeResult = {
+	kind: "FAILURE";
+	reason: DowngradeErrorReason;
+};
+
+export type DowngradeResult = SuccessfulDowngradeResult | FailedDowngradeResult;
+
+export const DowngradeResultSuccess: SuccessfulDowngradeResult = { kind: "SUCCESS" };
+
+export type ValidateDowngradeParams = {
+	downgradeKind: DowngradeKind;
+	levFrom: Level;
+	levTo: Level;
+	authorityLevel: Level;
+	downgradeDimension: DowngradeDimension;
+	currentBlockingLevelForCheck: Level | null;
+	operationDescription?: string;
+};

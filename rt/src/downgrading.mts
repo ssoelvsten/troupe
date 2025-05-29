@@ -2,8 +2,13 @@ import { LCopyVal } from './Lval.mjs';
 import { assertIsNTuple, assertIsAuthority, assertIsLevel } from './Asserts.mjs'
 import { __unit } from './UnitVal.mjs';
 import { lub, flowsTo, okToDeclassify, okToEndorse}  from './Level.mjs'
-import { DowngradeResult, DowngradeDimension } from './DowngradeEnums.mjs';
-import { DC_CONF_LITERALS, DC_INTG_LITERALS } from './levels/DCLabels/dcl_pp_config.mjs';
+import { DowngradeResult, DowngradeDimension, DowngradeErrorReason } from './DowngradeEnums.mjs';
+import {
+    formatIntegrityMismatchMsg,
+    formatConfidentialityMismatchMsg,
+    formatPiniBlockingLevelMismatchMsg,
+    formatValueInsufficientAuthorityMsg
+} from './DowngradeFormatter.mjs';
 
 
 function stringOfDowngrader (d) {
@@ -37,41 +42,29 @@ export function downgrader (runtime, dimension:DowngradeDimension, isNMIFC: bool
             const ok_to_downgrade_result: DowngradeResult =
                 dg_f(levFrom, lev_to, auth.val.authorityLevel, bl, isNMIFC)
 
-            if (ok_to_downgrade_result === DowngradeResult.SUCCESS) {
-                // we need to collect all the restrictions
+            if (ok_to_downgrade_result.kind === "SUCCESS") {
                 let r = new LCopyVal(data, lub(lev_to, pc, arg.lev, auth.lev));
-                return runtime.ret(r) // schedule the return value
+                return runtime.ret(r)
             } else {
-                let errorMessage = `Not enough authority for ${downgradeKindString}`;
-                switch (ok_to_downgrade_result) {
-                    case DowngradeResult.INTEGRITY_MISMATCH:
-                        errorMessage = `Integrity level mismatch for ${downgradeKindString}\n` +
-                                      ` | integrity level of the data: ${data.lev.integrity.stringRep(DC_INTG_LITERALS)}\n` +
-                                      ` | integrity level of the target: ${lev_to.integrity.stringRep(DC_INTG_LITERALS)}`;
+                let errorMessage = "";
+                switch (ok_to_downgrade_result.reason) {
+                    case DowngradeErrorReason.INTEGRITY_MISMATCH:
+                        errorMessage = formatIntegrityMismatchMsg(downgradeKindString, levFrom, lev_to);
                         break;
-                    case DowngradeResult.CONFIDENTIALITY_MISMATCH:
-                        errorMessage = `Confidentiality level mismatch for ${downgradeKindString}\n` +
-                                      ` | confidentiality level of the data: ${data.lev.confidentiality.stringRep(DC_CONF_LITERALS)}\n` +
-                                      ` | confidentiality level of the target: ${lev_to.confidentiality.stringRep(DC_CONF_LITERALS)}`;
+                    case DowngradeErrorReason.CONFIDENTIALITY_MISMATCH:
+                        errorMessage = formatConfidentialityMismatchMsg(downgradeKindString, levFrom, lev_to);
                         break;
-                    case DowngradeResult.BLOCKING_LEVEL_MISMATCH:
-                        errorMessage = `Current blocking level does not flow to the target level of the ${downgradeKindString}\n` +
-                                     ` | target level of the ${downgradeKindString}: ${lev_to.stringRep()}\n` +
-                                     ` | current blocking level: ${bl.stringRep()}`;
+                    case DowngradeErrorReason.BLOCKING_LEVEL_MISMATCH:
+                        errorMessage = formatPiniBlockingLevelMismatchMsg(downgradeKindString, bl, lev_to);
                         break;
-                    case DowngradeResult.INSUFFICIENT_AUTHORITY:
-                        // errorMessage is already set correctly for this case
+                    case DowngradeErrorReason.INSUFFICIENT_AUTHORITY:
+                        errorMessage = formatValueInsufficientAuthorityMsg(downgradeKindString, levFrom, auth.val.authorityLevel, lev_to);
                         break;
-                }
-                if (ok_to_downgrade_result === DowngradeResult.INSUFFICIENT_AUTHORITY) {
-                    errorMessage += 
-                        `\n | level of the data: ${data.lev.stringRep()}` +
-                        `\n | level of the authority: ${auth.val.authorityLevel.stringRep()}` +
-                        `\n | target level of the ${downgradeKindString}: ${lev_to.stringRep()}`;
+                    default:
+                        const _exhaustiveCheck: never = ok_to_downgrade_result.reason;
+                        errorMessage = `Unhandled downgrade error reason: ${_exhaustiveCheck} for ${downgradeKindString}`;
                 }
                 runtime.$t.threadError(errorMessage);
-
             }
         })
-
 }
