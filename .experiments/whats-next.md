@@ -117,6 +117,11 @@
 
 # DONE
 
+## 2025-06-01
+
+[x] CLI argument refactoring (to confine the dependency on yargs)
+
+
 ## 2025-05-29
 
 [x] Integration of DC Labels in the runtime.
