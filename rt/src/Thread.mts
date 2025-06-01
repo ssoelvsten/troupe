@@ -638,8 +638,43 @@ export class Thread {
         return this.returnImmediateLValue (__unit); 
     }
 
+    blockEndorseTo (auth, bl_to = this.pc) {
+        // 2025-05-30; AA
+        // These are copy paste from declassify
+        // we should recheck
+        if (! flowsTo (this.pc, bl_to)) {
+            this.threadError ("The provided target blocking level is lower than the current pc\n" + 
+                              ` | the current pc: ${this.pc.stringRep()}\n` +
+                              ` | target blocking level: ${bl_to.stringRep()}`)
+        }
+        
 
-    blockdeclto (auth, bl_to = this.pc) {        
+        let ok_to_use = levels.flowsTo (auth.lev, bl_to);
+        if (!ok_to_use) {
+            this.threadError ("The provided authority value is tainted\n" + 
+                              ` | the level of the authority value: ${auth.lev.stringRep()}\n` +
+                              ` | target blocking level: ${bl_to.stringRep()}`)
+        }
+        
+        const current_bl = this.bl; // Capture this.bl as it's effectively levFrom
+
+        this._validateDowngradeOrThrow({
+            levFrom: current_bl,
+            levTo: bl_to,
+            authorityLevel: auth.val.authorityLevel,
+            downgradeKind: DowngradeKind.BLOCKING,
+            downgradeDimension: DowngradeDimension.INTEGRITY,
+            blockLevel: current_bl,
+            operationDescription: "blocking level declassification"
+        });
+
+        this.bl = bl_to; // the actual downgrade
+        return this.returnImmediateLValue (__unit); 
+
+    }
+
+
+    blockDeclassifyTo (auth, bl_to = this.pc) {        
         if (! flowsTo (this.pc, bl_to)) {
             this.threadError ("The provided target blocking level is lower than the current pc\n" + 
                               ` | the current pc: ${this.pc.stringRep()}\n` +
