@@ -2,15 +2,14 @@ import * as levels from './Level.mjs'
 import { DowngradeDimension, DowngradeKind, DowngradeResult, DowngradeErrorReason, ValidateDowngradeParams } from './DowngradeEnums.mjs';
 import { LVal, LValCopyAt } from './Lval.mjs';
 import { HandlerError, ImplementationError, StrThreadError } from './TroupeError.mjs';
-import yargs from 'yargs';
-import { hideBin } from 'yargs/helpers';
+import { getCliArgs, TroupeCliArg } from './TroupeCliArgs.mjs';
 import {
     getDowngradeErrorMessage,
 } from './DowngradeFormatter.mjs';
 
-const argv:any = yargs(hideBin(process.argv)).parse()
+const argv = getCliArgs();
 
-let logLevel = argv.debug? 'debug' : 'info'
+let logLevel = argv[TroupeCliArg.Debug]? 'debug' : 'info'
 import { mkLogger } from './logger.mjs'
 const logger = mkLogger('thread',  logLevel);
 const debug = x => logger.debug(x)
@@ -27,7 +26,7 @@ import { getRuntimeObject } from './SysState.mjs';
 import { HnState } from './SandboxStatus.mjs';
 
 
-let isPiniMode = argv.pini?true:false;
+let isPiniMode = argv[TroupeCliArg.Pini]?true:false;
 
 
 export enum PCDeclassificationPurpose {

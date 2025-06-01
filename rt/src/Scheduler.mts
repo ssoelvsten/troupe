@@ -11,11 +11,10 @@ import {ProcessID, pid_equals} from './process.mjs'
 import SandboxStatus from './SandboxStatus.mjs'
 import  {ThreadError, TroupeError} from './TroupeError.mjs'
 import  {lub} from './Level.mjs'
-import yargs from 'yargs';
-import { hideBin } from 'yargs/helpers';
-const argv:any = yargs(hideBin(process.argv)).parse()
+import { getCliArgs, TroupeCliArg } from './TroupeCliArgs.mjs';
+const argv = getCliArgs();
 
-const showStack = argv.showStack
+const showStack = argv[TroupeCliArg.ShowStack]
 import { mkLogger } from './logger.mjs'
 const logger = mkLogger('scheduler');
 const info = x => logger.info(x)

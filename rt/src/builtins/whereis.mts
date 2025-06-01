@@ -13,11 +13,13 @@ import {p2p} from '../p2p/p2p.mjs'
 
 // import runId from '../runId.mjs';
 
-import yargs from 'yargs';
-import { hideBin } from 'yargs/helpers';
-const argv:any = yargs(hideBin(process.argv)).parse()
+// import yargs from 'yargs';
+// import { hideBin } from 'yargs/helpers';
+import { getCliArgs, TroupeCliArg } from '../TroupeCliArgs.mjs';
+// const argv:any = yargs(hideBin(process.argv)).parse()
+const argv = getCliArgs();
 
-let logLevel = argv.debug ? 'debug': 'info'
+let logLevel = argv[TroupeCliArg.Debug] ? 'debug': 'info'
 import { mkLogger } from '../logger.mjs'
 const logger = mkLogger('RTM', logLevel);
 const debug = x => logger.debug(x)

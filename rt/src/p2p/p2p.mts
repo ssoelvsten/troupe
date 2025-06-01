@@ -56,7 +56,7 @@ the libp2p).
 // IMPORTS
 
 import { PeerId } from '@libp2p/interface-peer-id';
-import yargs from 'yargs';
+import { getCliArgs, TroupeCliArg } from '../TroupeCliArgs.mjs';
 import { tcp } from '@libp2p/tcp';
 import { webSockets } from '@libp2p/websockets';
 import { mplex } from '@libp2p/mplex';
@@ -85,11 +85,10 @@ import { kadDHT } from '@libp2p/kad-dht';
 
 // LOGGING AND DEBUGGING 
 
-import { hideBin } from 'yargs/helpers';
-const argv:any = yargs(hideBin(process.argv)).parse()
+const argv = getCliArgs();
 
-let logLevel = argv.debugp2p? 'debug':'info';
-let __port = argv.port || 0;
+let logLevel = argv[TroupeCliArg.DebugP2p]? 'debug':'info';
+let __port = argv[TroupeCliArg.Port] || 0;
 
 let logger: Logger;
 (async() => {

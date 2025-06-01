@@ -26,15 +26,14 @@ import { Thread } from './Thread.mjs';
 import { Console } from 'node:console'
 
 const { flowsTo, lub, glb } = levels
-import yargs from 'yargs'
+import { getCliArgs, TroupeCliArg } from './TroupeCliArgs.mjs';
 
 const readFile = fs.promises.readFile
 const rt_uuid = runId
-import { hideBin } from 'yargs/helpers';
-const argv:any = yargs(hideBin(process.argv)).parse()
+const argv = getCliArgs();
 
 
-let logLevel = argv.debug ? 'debug': 'info'
+let logLevel = argv[TroupeCliArg.Debug] ? 'debug': 'info'
 import { mkLogger } from './logger.mjs'
 const logger = mkLogger('RTM', logLevel);
 
@@ -106,7 +105,7 @@ async function spawnAtNode(nodeid, f) {
   }
 }
 
-let _allowRemoteSpawn = (argv.rspawn) && (argv.rspawn == "true")
+let _allowRemoteSpawn = argv[TroupeCliArg.RSpawn];
 function remoteSpawnOK() {
   return _allowRemoteSpawn;
 }
@@ -440,7 +439,7 @@ async function loadServiceCode() {
 
 
 async function getNetworkPeerId(rtHandlers) {
-  const nodeIdFile = argv.id as string;
+  const nodeIdFile = argv[TroupeCliArg.Id] as string;
   if (nodeIdFile) {
     try {
       let nodeIdObj = await readFile(nodeIdFile, 'utf-8')
@@ -455,9 +454,9 @@ async function getNetworkPeerId(rtHandlers) {
     }
   } else {
     try {
-      if (argv.localonly || argv.persist) {
+      if (argv[TroupeCliArg.LocalOnly] || argv[TroupeCliArg.Persist]) {
         info("Skipping network creation. Observe that all external IO operations will yield a runtime error.")
-        if (argv.persist) {
+        if (argv[TroupeCliArg.Persist]) {
           info("Running with persist flag.")
         }
         return null//  OBS: 2018-07-22: we are jumping over the network creation
@@ -507,7 +506,7 @@ export async function start(f) {
     , levels.BOT
     , levels.BOT
     , true
-    , argv.persist
+    , argv[TroupeCliArg.Persist]
   )
   __sched.loop()
 }

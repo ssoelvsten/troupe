@@ -2,9 +2,11 @@
 
 import * as fs from 'node:fs'
 import * as levels from "./Level.mjs";
-import yargs from 'yargs'
-import { hideBin } from 'yargs/helpers';
-const argv:any = yargs(hideBin(process.argv)).parse()
+// import yargs from 'yargs'
+// import { hideBin } from 'yargs/helpers';
+import { getCliArgs, TroupeCliArg } from './TroupeCliArgs.mjs';
+// const argv:any = yargs(hideBin(process.argv)).parse()
+const argv = getCliArgs();
 
 
 class Node {
@@ -21,8 +23,8 @@ class NodeManager {
     
     constructor () {
 
-        let aliases = argv.aliases
-                        ? JSON.parse ( fs.readFileSync(argv.aliases as string, 'utf8'))
+        let aliases = argv[TroupeCliArg.Aliases]
+                        ? JSON.parse ( fs.readFileSync(argv[TroupeCliArg.Aliases] as string, 'utf8'))
                         : {}
 
         

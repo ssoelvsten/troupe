@@ -4,10 +4,12 @@ import { SchedulerInterface } from "./SchedulerInterface.mjs";
 import { __unit } from "./UnitVal.mjs";
 import { RuntimeInterface } from "./RuntimeInterface.mjs";
 
-import yargs from 'yargs'
-import { hideBin } from 'yargs/helpers';
-const argv:any = yargs(hideBin(process.argv)).parse()
-let logLevel = argv.debugmailbox ? 'debug': 'info'
+// import yargs from 'yargs'
+// import { hideBin } from 'yargs/helpers';
+import { getCliArgs, TroupeCliArg } from './TroupeCliArgs.mjs';
+// const argv:any = yargs(hideBin(process.argv)).parse()
+const argv = getCliArgs();
+let logLevel = argv[TroupeCliArg.DebugMailbox] ? 'debug': 'info'
 
 import { mkLogger } from './logger.mjs'
 const logger = mkLogger('MBX', logLevel);

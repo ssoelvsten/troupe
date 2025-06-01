@@ -4,9 +4,8 @@ import * as levels from '../Level.mjs'
 import { mkLevel } from '../Level.mjs'
 import { assertIsAuthority, assertIsTopAuthority, assertIsNTuple, assertIsLocalObject, assertIsString, assertIsUnit, assertNormalState } from '../Asserts.mjs'
 import { __unit } from '../UnitVal.mjs';
-import yargs from 'yargs'
-import { hideBin } from 'yargs/helpers';
-const argv:any = yargs(hideBin(process.argv)).parse()
+import { getCliArgs, TroupeCliArg } from '../TroupeCliArgs.mjs';
+const argv = getCliArgs();
 
 const flowsTo = levels.flowsTo;
 
@@ -21,7 +20,7 @@ const readline = _rl.createInterface({
 const lineBuffer = [];
 const readlineCallbacks = []
 
-const __stdio_lev = argv.stdiolev ? mkLevel (argv.stdiolev): levels.ROOT
+const __stdio_lev = argv[TroupeCliArg.Stdiolev] ? levels.mkV1Level (argv[TroupeCliArg.Stdiolev]): levels.ROOT
 
 function lineListener(input) {
     if (readlineCallbacks.length > 0) {

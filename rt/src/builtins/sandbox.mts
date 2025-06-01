@@ -2,11 +2,10 @@ import { UserRuntimeZero, Constructor, mkBase } from './UserRuntimeZero.mjs'
 import { LVal, LValCopyAt } from '../Lval.mjs';
 import { assertNormalState, assertIsNTuple, assertIsNumber, assertIsFunction } from '../Asserts.mjs'
 import { __unit } from '../UnitVal.mjs';
-import yargs from 'yargs';
-import { hideBin } from 'yargs/helpers';
-const argv:any = yargs(hideBin(process.argv)).parse()
+import { getCliArgs, TroupeCliArg } from '../TroupeCliArgs.mjs';
+const argv = getCliArgs();
 
-let logLevel = argv.debugsandbox? 'debug': 'info'
+let logLevel = argv[TroupeCliArg.DebugSandbox]? 'debug': 'info'
 import { mkLogger } from '../logger.mjs'
 const logger = mkLogger('MBX', logLevel);
 const debug = x => logger.debug(x)
