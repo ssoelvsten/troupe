@@ -17,10 +17,7 @@ import { Level } from './Level.mjs';
 import { StopThreadError, ThreadError } from './TroupeError.mjs';
 import { getRuntimeObject } from './SysState.mjs';
 
-// import yargs from 'yargs';
-// import { hideBin } from 'yargs/helpers';
 import { getCliArgs, TroupeCliArg } from './TroupeCliArgs.mjs';
-// const argv:any = yargs(hideBin(process.argv)).parse()
 const argv = getCliArgs();
 
 let logLevel = argv[TroupeCliArg.Debug] ? 'debug': 'info'

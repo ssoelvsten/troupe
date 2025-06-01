@@ -4,10 +4,7 @@ import { SchedulerInterface } from "./SchedulerInterface.mjs";
 import { __unit } from "./UnitVal.mjs";
 import { RuntimeInterface } from "./RuntimeInterface.mjs";
 
-// import yargs from 'yargs'
-// import { hideBin } from 'yargs/helpers';
 import { getCliArgs, TroupeCliArg } from './TroupeCliArgs.mjs';
-// const argv:any = yargs(hideBin(process.argv)).parse()
 const argv = getCliArgs();
 let logLevel = argv[TroupeCliArg.DebugMailbox] ? 'debug': 'info'
 

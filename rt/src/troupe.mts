@@ -1,12 +1,7 @@
 import { start } from './runtimeMonitored.mjs';
 import { getRuntimeObject } from './SysState.mjs';
 import path  from 'path';
-// import yargs from 'yargs'
 import fs from 'node:fs'
-// let yargs = require('yargs');
-// let fs = require('fs');
-// import { hideBin } from 'yargs/helpers';
-// const argv:any = yargs(hideBin(process.argv)).parse()
 import { getCliArgs, TroupeCliArg } from './TroupeCliArgs.mjs';
 const argv = getCliArgs();
 

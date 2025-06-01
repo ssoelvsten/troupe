@@ -2,10 +2,7 @@
 
 import * as fs from 'node:fs'
 import * as levels from "./Level.mjs";
-// import yargs from 'yargs'
-// import { hideBin } from 'yargs/helpers';
 import { getCliArgs, TroupeCliArg } from './TroupeCliArgs.mjs';
-// const argv:any = yargs(hideBin(process.argv)).parse()
 const argv = getCliArgs();
 
 

@@ -6,8 +6,6 @@ import { __nodeManager } from "./NodeManager.mjs";
 const { readFile } = fs.promises
 
 
-// import { hideBin } from 'yargs/helpers';
-// const argv:any = yargs(hideBin(process.argv)).parse()
 const argv = getCliArgs();
 
 let logLevel = argv[TroupeCliArg.Debug] ? 'debug' : 'info';

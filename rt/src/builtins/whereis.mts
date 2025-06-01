@@ -13,10 +13,7 @@ import {p2p} from '../p2p/p2p.mjs'
 
 // import runId from '../runId.mjs';
 
-// import yargs from 'yargs';
-// import { hideBin } from 'yargs/helpers';
 import { getCliArgs, TroupeCliArg } from '../TroupeCliArgs.mjs';
-// const argv:any = yargs(hideBin(process.argv)).parse()
 const argv = getCliArgs();
 
 let logLevel = argv[TroupeCliArg.Debug] ? 'debug': 'info'
