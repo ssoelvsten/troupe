@@ -33,8 +33,8 @@ $graphic    = $printable # $white
 
 tokens:-
 -- Whitespace insensitive
-<0> $eol                           ;
-<0> $white+                        ;
+<0, state_dclabel> $eol                           ;
+<0, state_dclabel> $white+                        ;
 
 -- Comments
 <0> "(*)".*                        ;
@@ -104,12 +104,17 @@ tokens:-
 <0>   Atoms                          { mkL TokenAtoms }
 <0>   "#true"                        { mkL TokenDCTrue }
 <0>   "#false"                       { mkL TokenDCFalse }
+<state_dclabel> "#root-confidentiality" { mkL TokenDCRootConf }
+<state_dclabel> "#root-integrity"       { mkL TokenDCRootInteg }
+<state_dclabel> "#null-confidentiality" { mkL TokenDCNullConf }
+<state_dclabel> "#null-integrity"       { mkL TokenDCNullInteg }
 <0>   $digit+                        { mkLs (\s -> TokenNum (read s)) }
 <0>   [\<][\<]                       { mkL TokenBinShiftLeft }
 <0>   [\>][\>]                       { mkL TokenBinShiftRight }
 <0>   [\~][\>][\>]                   { mkL TokenBinZeroShiftRight }
-<0>   [\`][\<]                         { mkL TokenDCLabelLeft }
-<0>   [\>][\`]                         { mkL TokenDCLabelRight }
+<0>   [\`][\<]                       { mkL TokenDCLabelLeft `andBegin` state_dclabel}
+<state_dclabel>   [\>][\`]           { mkL TokenDCLabelRight `andBegin` state_initial }
+<0>   [\>][\`]                       { mkL TokenDCLabelRight }
 <0>   [\@]                           { mkL TokenAt }
 <0>   [\=][\>]                       { mkL TokenArrow }
 <0>   [\=]                           { mkL TokenEq }
@@ -118,25 +123,25 @@ tokens:-
 <0>   [\*]                           { mkL TokenMul }
 <0>   [\^]                           { mkL TokenCaret } 
 <0>   [\/]                           { mkL TokenDiv }
-<0>   [\;]                           { mkL TokenSemi }
+<0, state_dclabel>   [\;]            { mkL TokenSemi }
 <0>   [\<][\>]                       { mkL TokenNe }
 <0>   [\<][\=]                       { mkL TokenLe }
 <0>   [\<]                           { mkL TokenLt }
 <0>   [\>][\=]                       { mkL TokenGe }
 <0>   [\>]                           { mkL TokenGt }
-<0>   \(                             { mkL TokenLParen }
-<0>   \)                             { mkL TokenRParen }
+<0, state_dclabel>   \(              { mkL TokenLParen }
+<0, state_dclabel>   \)              { mkL TokenRParen }
 <0>   [\.]                           { mkL TokenDot }
 <0>   [\{]                           { mkL TokenLBrace }
 <0>   [\}]                           { mkL TokenRBrace }
 <0>   [\,]                           { mkL TokenComma }
-<0>   [\|]                           { mkL TokenBar }
+<0, state_dclabel>   [\|]            { mkL TokenBar }
 <0>   [\_]                           { mkL TokenWildcard }
 <0>   [\:][\:]                       { mkL TokenColonColon }
 <0>   [\[]                           { mkL TokenLBracket }
 <0>   [\]]                           { mkL TokenRBracket }
-<0>   [\&]                           { mkL TokenAmpersand }
-<0>   @sym                           { mkLs (\s -> TokenSym s) }
+<0, state_dclabel>   [\&]            { mkL TokenAmpersand }
+<0, state_dclabel>   @sym            { mkLs (\s -> TokenSym s) }
 <0>   @label                         { mkLs (\s -> (TokenLabel (((map toLower) . trim . unquote) s)))}
 
 {
@@ -245,6 +250,10 @@ data Token
   | TokenAmpersand
   | TokenDCTrue 
   | TokenDCFalse
+  | TokenDCRootConf
+  | TokenDCRootInteg
+  | TokenDCNullConf
+  | TokenDCNullInteg
   deriving (Eq,Show)
 
 type Lexeme = L Token 

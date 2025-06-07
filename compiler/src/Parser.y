@@ -80,7 +80,10 @@ import Control.Monad.Except
     '`<'    { L _ TokenDCLabelLeft  } 
     '>`'    { L _ TokenDCLabelRight } 
     '&'     { L _ TokenAmpersand }
-
+    '#root-confidentiality' { L _ TokenDCRootConf }
+    '#null-confidentiality' { L _ TokenDCNullConf }
+    '#root-integrity' { L _ TokenDCRootInteg }
+    '#null-integrity' { L _ TokenDCNullInteg }    
 
     'raisedTo' { L _ TokenRaisedTo }
     'isTuple' { L _ TokenIsTuple }
@@ -204,9 +207,13 @@ LabelExp:
      | LabelExp '|'  LabelExp      { OpExp Disj $1 $3 }
 
 ConfLabelExp :                     { Right LabelTrue }
+     | '#root-confidentiality'     { Right LabelFalse }
+     | '#null-confidentiality'     { Right LabelTrue }
      | LabelExp                    { Left $1 }
 
 IntLabelExp :                      { Right LabelFalse }
+     | '#root-integrity'           { Right LabelFalse }
+     | '#null-integrity'           { Right LabelTrue }
      | LabelExp                    { Left $1 }     
 
 DCLabelExp:
