@@ -11,7 +11,13 @@ import { Category
     } from './cnf.mjs'
 import { DC_CONF_LITERALS, DC_DELIM_LEFT, DC_DELIM_LEFT_V1, DC_DELIM_RIGHT, DC_DELIM_RIGHT_V1, DC_DELIM_SEP, DC_IFC_TOP, DC_INTG_LITERALS, DC_TRUST_ROOT } from './dcl_pp_config.mjs';
 
+import { getCliArgs, TroupeCliArg } from '../../TroupeCliArgs.mjs';
+import { mkLogger } from '../../logger.mjs';
 
+// const argv = getCliArgs();
+// const logLevel = argv[TroupeCliArg.Debug] ? 'debug' : 'info';
+// const logger = mkLogger('DCLabel', logLevel);
+// const debug = x => logger.debug(x);
 
 export class DCLabel extends AbstractLevel<DCLabel> {
     integrity: CNF
@@ -65,6 +71,10 @@ export class DCLabel extends AbstractLevel<DCLabel> {
     }
 
     isTagsetCompatible() : boolean |  Set<string> {
+        if (this.confidentiality.categories.size == 0) {
+            return false;
+        }
+
         if (this.integrity.categories.size != 1) {
             return false; 
         }
@@ -73,13 +83,17 @@ export class DCLabel extends AbstractLevel<DCLabel> {
 
         const s :Set <string> = _the_integrity.labels;
 
+
         for (let cat of this.confidentiality.categories) {
             if (cat.labels.size == 1) {
+                // debug (`isTagsetCompatible: cat.labels.size is 1`);
                 const l:string  = cat.labels.values().next().value;
+                // debug (`checking the label ${l}`)
                 if (!s.has(l)) {
                     return false; 
                 }
             } else {
+                // debug (`isTagsetCompatible: cat.labels.size is ${cat.labels.size}`);
                 return false;
             }
         }
@@ -105,7 +119,9 @@ export class DCLabel extends AbstractLevel<DCLabel> {
             this._cachedStringRepresentation = 
                 DC_DELIM_LEFT_V1 + DC_TRUST_ROOT + DC_DELIM_RIGHT_V1
         } else  {
+            // debug (`calling isTagsetCompatible`)
             let s = this.isTagsetCompatible() 
+            // debug (`returning from isTagsetCompatible: ${s}`)
             if (s) {
                 this._cachedStringRepresentation = 
                     tagsetStringRep (s as Set <string>);

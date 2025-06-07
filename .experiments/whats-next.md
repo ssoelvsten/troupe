@@ -3,7 +3,8 @@
 
 ## Integrity 
 
-## NMIFC 
+- [ ] Negative tests for DC label parsing 
+
 
 - [ ] Integrity of blocking and mailboxes
       - [ ] Blocking
@@ -16,6 +17,9 @@
         - [ ] Create examples showcasing the usage of these primitives
   
       - [ ] Recall checked endorsements of my paper with Andrew; are they relevant here? 
+
+## NMIFC 
+
 
 - [ ] NMIFC
 
@@ -30,9 +34,7 @@
 
       Can we have NMIFC enforced by default? If no, what does it mean for the meta-theory?
       
-    
-
-    
+        
 - [ ] Capability checks in the runtime should check for the ROOT 
     authority, e.g., for privileged operations such as register.
 
@@ -66,10 +68,6 @@
 ### Other improvements
 
 #### Frontend 
-- [ ] We should use a separate lexer state for the DC labels, instead of the
-  <0> state, because this way we can allow for more symbols to be used as in
-  the labels; for as long as we are in the 0th state, we cannot use Troupe
-  reserved words, e.g., if / let in the DC Labels. 
 
 #### Backend
 
@@ -119,12 +117,18 @@
 
 ## 2025-06-07
 
+[x] Lexing and parsing of DC label root/null-conf/integrity literals 
+
+- [x] We should use a separate lexer state for the DC labels, instead of the
+  <0> state, because this way we can allow for more symbols to be used as in
+  the labels; for as long as we are in the 0th state, we cannot use Troupe
+  reserved words, e.g., if / let in the DC Labels. 
+
 [x] Tested a `cert` function
 
 ## 2025-06-01
 
 [x] CLI argument refactoring (to confine the dependency on yargs)
-
 
 ## 2025-05-29
 
