@@ -1,4 +1,4 @@
-2025-05-29T11:02:20.008Z [RTM] [32minfo[39m: Skipping network creation. Observe that all external IO operations will yield a runtime error.
-PID:79f46e40-8bd5-4930-88f8-ebdbbc17dd9d@{}%{}     PC:{}                BL:<alice&bob,#root-integrity> HNNORMAL             _sp:16               
-PID:79f46e40-8bd5-4930-88f8-ebdbbc17dd9d@{}%{}     PC:{}                BL:<bob,#root-integrity> HNNORMAL             _sp:16               
->>> Main thread finished with value: ()@<bob,#root-integrity>%<bob,#root-integrity>
+2025-06-07T12:20:24.930Z [RTM] [32minfo[39m: Skipping network creation. Observe that all external IO operations will yield a runtime error.
+PID:bcc2e301-70ef-4334-b3cf-87725825e971@{}%{}     PC:{}                BL:<alice&bob;#root-integrity> HNNORMAL             _sp:16               
+PID:bcc2e301-70ef-4334-b3cf-87725825e971@{}%{}     PC:{}                BL:<bob;#root-integrity> HNNORMAL             _sp:16               
+>>> Main thread finished with value: ()@<bob;#root-integrity>%<bob;#root-integrity>

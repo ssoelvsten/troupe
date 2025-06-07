@@ -1,6 +1,6 @@
-2023-03-17T21:23:23.471Z [RTM] [32minfo[39m: Skipping network creation. Observe that all external IO operations will yield a runtime error.
-Runtime error in thread 48c25822-c647-44da-9ba9-2895fc8bf286@{}%{}
+2025-06-07T12:20:28.400Z [RTM] [32minfo[39m: Skipping network creation. Observe that all external IO operations will yield a runtime error.
+Runtime error in thread 6c24e870-62fc-4bb9-98a3-c59fb9b6217e@{}%{}
 >> Not enough authority for declassification
- | level of the data: <alice&bob,#root-integrity>
- | level of the authority: <alice,#root-integrity>
- | target level of the declassification: <alice,#root-integrity>
+ | level of the data: <alice&bob;#root-integrity>
+ | level of the authority: <alice;#root-integrity>
+ | target level of the declassification: <alice;#root-integrity>
