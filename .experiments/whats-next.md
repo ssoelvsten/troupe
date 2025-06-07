@@ -117,6 +117,10 @@
 
 # DONE
 
+## 2025-06-07
+
+[x] Tested a `cert` function
+
 ## 2025-06-01
 
 [x] CLI argument refactoring (to confine the dependency on yargs)

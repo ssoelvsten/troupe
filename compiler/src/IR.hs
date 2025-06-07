@@ -272,6 +272,7 @@ instance WellFormedIRCheck IRExpr where
                      , "blockdeclto"
                      , "blockendrto"
                      , "ceil"
+                     , "cert"
                      , "consume"
                      , "_debug"
                      , "debugpc"

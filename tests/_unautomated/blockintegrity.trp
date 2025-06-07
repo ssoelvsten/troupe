@@ -1,0 +1,8 @@
+let val x = 1 
+    val u = 10 raisedTo `{alice}`
+    val _ = debugpc ()
+    val _ = printWithLabels (u)
+    val _ = debugpc ()
+
+in cert(u) 
+end

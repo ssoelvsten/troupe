@@ -30,6 +30,22 @@ export function BuiltinAdv <TBase extends Constructor<UserRuntimeZero>>(Base: TB
             return this.runtime.ret(__unit);
         })
 
+        cert = mkBase ((x) =>{
+            assertNormalState("baseCertify");
+            // assert that
+            // pc ⊔ x.lev ⊑ ROOT
+            let __sched = this.runtime.__sched
+
+            if (!flowsTo(lub(this.runtime.$t.bl, x.lev), levels.ROOT)) {
+                this.runtime.$t.
+                threadError("Illegal flow in cert function:\n" +
+                    ` |    pc: ${this.runtime.$t.pc.stringRep()}\n` +
+                    ` | block: ${this.runtime.$t.bl.stringRep()}\n` +
+                    ` | value: ${x.stringRep()}`)
+            }
+            return this.runtime.ret(__unit);            
+        })
+
         ladv = mkBase((x) => {
             assertNormalState("ladv");
             assertIsNTuple(x, 2)
