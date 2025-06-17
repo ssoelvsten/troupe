@@ -1,0 +1,5 @@
+let val x = 1 
+    val _ = cert (x) 
+    val u = 10 raisedTo `{alice}`
+in cert(u) 
+end

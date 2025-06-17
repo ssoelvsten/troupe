@@ -1,0 +1,3 @@
+let val secret = "data" raisedTo `<alice; bob`
+in print secret
+end

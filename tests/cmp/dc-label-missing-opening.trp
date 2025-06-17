@@ -1,0 +1,3 @@
+let val data = 100 raisedTo alice; bob>`
+in print data
+end

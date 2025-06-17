@@ -1,0 +1,3 @@
+let val x = 70 raisedTo `<#root; #null>`
+in printWithLabels x
+end
