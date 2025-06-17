@@ -61,7 +61,7 @@ export function BuiltinPini <TBase extends Constructor<UserRuntimeZero>> (Base:T
             return this.runtime.$t.blockDeclassifyTo(arg.val[0], arg.val[1].val)
         })
 
-        blockendrto = mkBase((arg) => {
+        blockendorseto = mkBase((arg) => {
             assertIsNTuple(arg, 2);
             assertIsAuthority(arg.val[0])
             assertIsLevel(arg.val[1]);

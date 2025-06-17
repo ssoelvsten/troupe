@@ -1,11 +1,7 @@
 # What's next 
 
-
 ## Integrity 
-
-- [ ] Negative tests for DC label parsing 
-
-
+ 
 - [ ] Integrity of blocking and mailboxes
       - [ ] Blocking
         - [ ] Add a primitive `blockendorseto` for endorsement of the blocking label
@@ -114,6 +110,13 @@
 - [ ] Using efficient serialization engine, e.g., protobufs
 
 # DONE
+
+## 2025-06-17
+
+[x | 2025-06-17] Negative tests for DC label parsing 
+     (accomplished with the help of CC)
+
+[x] Add tests for the `cert` function
 
 ## 2025-06-07
 

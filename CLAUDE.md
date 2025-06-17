@@ -101,6 +101,7 @@ The runtime implements:
 - `MailboxProcessor.mts` - Message handling
 - `TrustManager.mts` - Trust and security management
 - `p2p/p2p.mts` - P2P networking layer
+- `builtins` - Many language built-ins.
 
 ## Testing Strategy
 

@@ -270,7 +270,7 @@ instance WellFormedIRCheck IRExpr where
                      , "_blockThread"
                      , "blockdecl"
                      , "blockdeclto"
-                     , "blockendrto"
+                     , "blockendorseto"
                      , "ceil"
                      , "cert"
                      , "consume"
