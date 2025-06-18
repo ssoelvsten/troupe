@@ -4,8 +4,8 @@
  
 - [ ] Integrity of blocking and mailboxes
       - [ ] Blocking
-        - [ ] Add a primitive `blockendorseto` for endorsement of the blocking label
-        - [ ] Create simple examples showcasing why it is needed. 
+        - [x | 2025-06-18 ] Add a primitive `blockendorseto` for endorsement of the blocking label
+        - [  | see _unautomated/blocking for wip ] Create simple examples showcasing why it is needed. 
       - Mailboxes 
         - [ ] What is the integrity interpretation of the mailbox clearances?
         - [ ] Investigate the syntax to use for mailbox declassification and endorsement. 

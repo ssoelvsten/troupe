@@ -1,0 +1,8 @@
+(* Test 1: Basic blockendorseto - positive test *)
+let val lowValue = 42
+    val highValue = lowValue raisedTo `<alice;>`
+    val _ = blockendorseto (authority, `<alice;>`)
+    (* This should succeed because endorsement TO alice is blocked *)
+    val _ = if highValue > 0 then print "leaked" else ()
+in print "test passed"
+end

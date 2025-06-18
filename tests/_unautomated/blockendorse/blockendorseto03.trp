@@ -1,0 +1,13 @@
+(* Test 3: blockendorseto interaction with processes - positive test *)
+let fun worker () =
+      let val msg = peek (0, `{}`, `{}`)
+          val _ = blockendorseto (authority, `<secret;>`)
+          (* This should prevent endorsement to secret label *)
+          val _ = debugpc ()
+      in print msg
+      end
+    val p = spawn worker
+    val sensitiveData = "data" raisedTo `<public;>`
+in send (p, sensitiveData);
+   send (p, "done")
+end

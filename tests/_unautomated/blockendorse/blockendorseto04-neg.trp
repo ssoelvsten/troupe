@@ -1,0 +1,9 @@
+(* Test 4: blockendorseto negative test - should fail *)
+let val public = 100
+    val labeled = public raisedTo `<alice;>`
+    val auth = attenuate (authority, `<alice;>`)
+    val _ = blockendorseto (authority, `<alice;>`)
+    (* This should fail because endorsement to alice is blocked *)
+    val endorsed = endorse (labeled, auth, `<alice;>`)
+in adv endorsed
+end
