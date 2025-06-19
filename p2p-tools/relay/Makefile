@@ -16,7 +16,7 @@ build: build/relay
 
 build/keys:
 	mkdir -p keys
-	node $(TROUPE)/rt/built/p2p/mkid.mjs --privkeyfile=keys/relay.priv --idfile=keys/relay.id --verbose
+	node $(TROUPE)/p2p-tools/built/mkid.mjs --privkeyfile=keys/relay.priv --idfile=keys/relay.id --verbose
 
 build/relay:
 	tsc

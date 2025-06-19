@@ -57,6 +57,11 @@ On OS X, make sure to have `gtimeout` and `greadlink` utilities. These can be in
 Check that the installation works by running the local test suite: `$TROUPE/bin/golden`
 (alternatively `make test` in this directory).
 
+#### Multinode tests
+
+Multinode tests are located in `tests/rt/multinode-tests/` and can be run using the script:
+`scripts/run-multinode-tests.sh`
+
 
 ## Setting up a development environment
 
@@ -157,7 +162,7 @@ in a runtime error.
 
 
 ### Generating new persistent IDs
-See [rt/src/p2p/mkid.js](rt/src/p2p/mkid.js).
+See [p2p-tools/mkid.mts](p2p-tools/mkid.mts).
 
 ### Auto-created IDs
 

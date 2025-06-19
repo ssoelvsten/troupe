@@ -7,8 +7,23 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 Troupe is an actor-based programming language with dynamic information flow control. The codebase consists of three main components:
 
 1. **Compiler** (`/compiler/`) - Haskell-based compiler that transforms Troupe code to JavaScript
-2. **Runtime** (`/rt/`) - TypeScript/JavaScript runtime implementing the actor model and information flow control
+2. **Runtime** (`/rt/`) - TypeScript/JavaScript runtime implementing the actor model and information flow control. Note that the folder (`/rt/built`) is used as target for the generated code; it should be ignored for source code analysis.
 3. **Standard Library** (`/lib/`) - Built-in libraries written in Troupe
+
+### Additional tools 
+
+In addition to the core language runtime  and the compiler, the codebase includes a few tools. 
+
+1. **Libp2p relay** (`/relay`) - TypeScript/JavaScript implementation of a libp2p relay. In multinode deployments we want to offer to our users at least one relay in order to allow communicating with Troupe nodes behind NAT.
+
+
+
+## Folders with executables
+
+- Executable binaries (`/bin`). Contains compiled binaries. Important to not add any scripts or other version-controllable artifacts in here, because this folder is to be ignored by version control. 
+
+- Executiable scripts (`/scripts`). Contains useful executable scripts that are version controlled. 
+
 
 ## Essential Commands
 
@@ -39,6 +54,8 @@ bin/golden -p <the-pattern>
 ```
 
 ### Running Troupe Programs
+There are two convenient scripts for running Troupe programs. They are in the root folder, and should remain there because of how frequently they are accessed.
+
 
 ```bash
 # Local execution (no P2P networking, faster startup)
@@ -105,7 +122,7 @@ The runtime implements:
 
 ## Testing Strategy
 
-Tests are organized in `/tests/`:
+Tests are organized in `/tests/`, with the following subfolders
 
 - `cmp` - Negative compiler tests.
 - `rt` - Runtime tests 
@@ -116,6 +133,7 @@ Tests are organized in `/tests/`:
    - `neg/` - Negative tests (should fail)
    - `timeout/` - Tests with timeouts
    - `warn/` - Tests that should produce warnings
+   - `multinode/` - Multinode (networking) tests
 
 Each test has a `.trp` source file and a `.golden` file with expected output. The comparison of the expected output is handled using the golden utility. This is needed because outputs often include timestamped value and that utility invokes the special diff that discards the timestamps. 
 
@@ -130,9 +148,6 @@ Troupe implements dynamic information flow control with:
 - **Declassification**: Controlled information release
 - **Sandboxing**: Isolated execution with label constraints
 
-Key IFC-related files:
-- Runtime: `Level.mts`, `DCLabels/`, declassification builtins
-- Compiler: `DCLabels.hs`, level-related transformations
 
 ## File Extensions
 

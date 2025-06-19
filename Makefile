@@ -11,6 +11,8 @@ npm:
 	npm install
 rt:
 	cd rt; tsc 
+p2p-tools:
+	cd p2p-tools; tsc
 service:
 	$(COMPILER) ./trp-rt/service.trp -l	
 libs:
@@ -30,15 +32,17 @@ test:
 	mkdir -p out
 	cd compiler && $(MAKE) test
 
-dist: stack npm rt libs
+dist: stack npm rt p2p-tools libs
 	rm -rf ./build/
 	mkdir -p ./build/Troupe/rt/built
+	mkdir -p ./build/Troupe/p2p-tools/built
 	mkdir -p ./build/Troupe/bin
 	cp -RP bin  ./build/Troupe
 	cp -RL lib ./build/Troupe/
 	cp -RL trustmap.json ./build/Troupe/trustmap.json
 	cp -RL node_modules ./build/Troupe/node_modules
 	cp -RL rt/built ./build/Troupe/rt/
+	cp -RL p2p-tools/built ./build/Troupe/p2p-tools/
 	cp rt/troupe ./build/Troupe/rt/troupe
 	cp local.sh ./build/Troupe/bin/local.sh
 	cp network.sh ./build/Troupe/bin/network.sh
@@ -47,6 +51,7 @@ all:
 	make stack 
 	npm i
 	make rt 
+	make p2p-tools
 	make libs 
 	make service
 clear-built-rt:

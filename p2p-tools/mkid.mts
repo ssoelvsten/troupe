@@ -16,7 +16,7 @@ const argv:any = yargs(hideBin(process.argv)).parse()
 let outfile = argv.outfile
 if (!outfile && ! (argv.privkeyfile && argv.idfile)) {
     console.log ("Troupe p2p identifier generator") 
-    console.log ("Usage: node $TROUPE/rt/bulit/p2p/mkid.mjs --outfile=FILENAME | --privkeyfile=FILENAME --idfile=FILENAME [ --verbose]");
+    console.log ("Usage: node $TROUPE/p2p-tools/built/mkid.mjs --outfile=FILENAME | --privkeyfile=FILENAME --idfile=FILENAME [ --verbose]");
     process.exit(1)
 }
 
