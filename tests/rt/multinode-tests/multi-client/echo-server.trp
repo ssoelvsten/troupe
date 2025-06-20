@@ -1,0 +1,40 @@
+(* Multi-Client Echo Server Test *)
+(* Handles messages from multiple clients then exits *)
+
+let 
+    val timeout_pid = spawn(fn () => 
+        let val _ = sleep 30 (* 30 second timeout *)
+        in exit(authority, 124)
+        end)
+    
+    fun echo_server() =
+        let val _ = print "SERVER: Starting multi-client echo server"
+            val _ = register("echo", self(), authority)
+            val _ = print "SERVER: Registered echo service"
+            
+            (* Handle messages from 2 clients *)
+            fun handle_messages n =
+                if n <= 0 then
+                    (print "SERVER: Handled all client messages successfully";
+                     exit(authority, 0))
+                else
+                    let val result = receive [
+                        hn ("ECHO", msg, sender) => 
+                            let val _ = print ("SERVER: Received from client: " ^ msg)
+                                val _ = send(sender, ("REPLY", msg))
+                                val _ = print ("SERVER: Sent reply: " ^ msg)
+                            in "success"
+                            end
+                    ]
+                    in if result = "success" then
+                        handle_messages (n-1)
+                       else
+                        (print "SERVER: Failed to handle message"; 
+                         exit(authority, 1))
+                    end
+            
+        in handle_messages 2  (* Expect 2 client messages *)
+        end
+
+in echo_server()
+end

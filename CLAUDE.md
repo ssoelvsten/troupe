@@ -14,7 +14,9 @@ Troupe is an actor-based programming language with dynamic information flow cont
 
 In addition to the core language runtime  and the compiler, the codebase includes a few tools. 
 
-1. **Libp2p relay** (`/relay`) - TypeScript/JavaScript implementation of a libp2p relay. In multinode deployments we want to offer to our users at least one relay in order to allow communicating with Troupe nodes behind NAT.
+1. **P2P** tools (`/p2p-tools`). 
+
+   1. **Libp2p relay** (`relay/`) - TypeScript/JavaScript implementation of a libp2p relay. In multinode deployments we want to offer to our users at least one relay in order to allow communicating with Troupe nodes behind NAT.
 
 
 

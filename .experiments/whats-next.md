@@ -14,8 +14,12 @@
   
       - [ ] Recall checked endorsements of my paper with Andrew; are they relevant here? 
 
-## NMIFC 
+## Quarantining 
 
+- [ ] Testing of quarantining logic
+
+
+## NMIFC 
 
 - [ ] NMIFC
 

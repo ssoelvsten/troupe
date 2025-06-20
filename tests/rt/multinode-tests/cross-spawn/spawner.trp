@@ -1,0 +1,43 @@
+(* Cross-Node Process Spawning Test *)
+(* Node A spawns a process on Node B and waits for confirmation *)
+
+let 
+    val timeout_pid = spawn(fn () => 
+        let val _ = sleep 25 
+        in exit(authority, 124)
+        end)
+    
+    fun remote_task() = 
+        let val _ = print "REMOTE_TASK: Running on remote node"
+            val spawner = whereis("@spawner", "coordinator")
+            val _ = print "REMOTE_TASK: Found spawner node"
+            val _ = send(spawner, ("TASK_COMPLETE", "Remote work done"))
+        in print "REMOTE_TASK: Sent completion message"
+        end
+    
+    fun spawner() =
+        let val _ = print "SPAWNER: Starting cross-spawn test"
+            val _ = register("coordinator", self(), authority)
+            val _ = print "SPAWNER: Registered coordinator service"
+            
+            val _ = print "SPAWNER: Spawning remote task"
+            val remote_pid = spawn("@target", remote_task)
+            val _ = print "SPAWNER: Remote task spawned"
+            
+            val result = receive [
+                hn ("TASK_COMPLETE", msg) => 
+                    let val _ = print ("SPAWNER: Received completion: " ^ msg)
+                    in "success"
+                    end
+            ]
+            
+        in if result = "success" then
+            (print "SPAWNER: Cross-spawn test completed successfully"; 
+             exit(authority, 0))
+           else
+            (print "SPAWNER: Cross-spawn test failed"; 
+             exit(authority, 1))
+        end
+
+in spawner()
+end
