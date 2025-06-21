@@ -3,7 +3,7 @@
 
 let 
     val timeout_pid = spawn(fn () => 
-        let val _ = sleep 25 (* 25 second timeout *)
+        let val _ = sleep 25000 (* 25 second timeout *)
         in exit(authority, 124) (* Timeout exit code *)
         end)
     
