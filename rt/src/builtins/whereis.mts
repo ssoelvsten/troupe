@@ -5,7 +5,7 @@ import { ProcessID } from '../process.mjs';
 const { lub, flowsTo } = levels
 import {deserialize} from '../deserialize.mjs'
 import { __nodeManager } from '../NodeManager.mjs';
-import { assertNormalState, assertIsNTuple, assertIsString, assertIsProcessId, assertIsAuthority, assertIsTopAuthority, assertIsNode } from '../Asserts.mjs';
+import { assertNormalState, assertIsNTuple, assertIsString, assertIsProcessId, assertIsAuthority, assertIsRootAuthority, assertIsNode } from '../Asserts.mjs';
 import { __unit } from '../UnitVal.mjs';
 import { nodeTrustLevel } from '../TrustManager.mjs';
 export let __theRegister = {}
@@ -31,7 +31,7 @@ export function BuiltinRegistry<TBase extends Constructor<UserRuntimeZero>>(Base
             assertIsString(arg.val[0])
             assertIsProcessId(arg.val[1]);
             assertIsAuthority(arg.val[2]);
-            assertIsTopAuthority(arg.val[2]);
+            assertIsRootAuthority(arg.val[2]);
             
 
             let ok_to_raise =

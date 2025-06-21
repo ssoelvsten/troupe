@@ -223,7 +223,7 @@ export function rawAssertIsLevel (x:any) {
         err("value " + __stringRep(x) + " is not a level");
     }
 }
-export function assertIsTopAuthority(x: any) {
+export function assertIsRootAuthority(x: any) {
     let isTop = actsFor(x.val.authorityLevel, levels.ROOT);
     if (!isTop) {
         let errorMessage =

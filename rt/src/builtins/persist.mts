@@ -3,17 +3,19 @@ import { LVal } from '../Lval.mjs';
 import * as levels from '../Level.mjs'
 import {deserialize} from '../deserialize.mjs'
 import * as fs from 'node:fs';
-import { assertIsNTuple, assertIsString } from '../Asserts.mjs'
+import { assertIsNTuple, assertIsRootAuthority, assertIsString } from '../Asserts.mjs'
 import { __unit } from '../UnitVal.mjs';
 
 export function BuiltinPersist<TBase extends Constructor<UserRuntimeZero>>(Base: TBase) {
     return class extends Base {
         save = mkBase((larg) => {
-            assertIsNTuple(larg, 2);
+            assertIsNTuple(larg, 3);
             this.runtime.$t.raiseCurrentThreadPC(larg.lev);
             let arg = larg.val;
-            let file = arg[0].val;
-            let data = arg[1];
+            let auth = arg[0]; 
+            let file = arg[1].val;
+            let data = arg[2];
+            assertIsRootAuthority(auth);
             this.runtime.persist(data, "./out/saved." + file + ".json")
             return this.runtime.ret(__unit);
         }, "save")

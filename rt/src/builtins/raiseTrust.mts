@@ -1,6 +1,6 @@
 import { UserRuntimeZero, Constructor, mkBase } from './UserRuntimeZero.mjs'
 import { LCopyVal } from '../Lval.mjs';
-import { assertIsNTuple, assertIsAuthority, assertIsLevel, assertNormalState, assertIsString, assertIsTopAuthority } from '../Asserts.mjs'
+import { assertIsNTuple, assertIsAuthority, assertIsLevel, assertNormalState, assertIsString, assertIsRootAuthority } from '../Asserts.mjs'
 import { __unit } from '../UnitVal.mjs';
 import * as levels from '../Level.mjs'
 import { __nodeManager } from '../NodeManager.mjs';
@@ -21,7 +21,7 @@ export function BuiltinRaiseTrust<TBase extends Constructor<UserRuntimeZero>>(Ba
 
             let authFrom = argv[1];
             assertIsAuthority(authFrom);
-            assertIsTopAuthority(authFrom); // AA; 2019-03-07: may be a bit pessimistic, but okay for now
+            assertIsRootAuthority(authFrom); // AA; 2019-03-07: may be a bit pessimistic, but okay for now
             let levTo = argv[2];
             assertIsLevel(levTo);
 

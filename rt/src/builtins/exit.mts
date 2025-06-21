@@ -1,5 +1,5 @@
 import { UserRuntimeZero, Constructor, mkBase } from './UserRuntimeZero.mjs'
-import { assertNormalState, assertIsNTuple, assertIsAuthority, assertIsNumber, assertIsTopAuthority } from '../Asserts.mjs'
+import { assertNormalState, assertIsNTuple, assertIsAuthority, assertIsNumber, assertIsRootAuthority } from '../Asserts.mjs'
 import { __unit } from '../UnitVal.mjs';
 
 
@@ -11,7 +11,7 @@ export function BuiltinExit <TBase extends Constructor<UserRuntimeZero>>(Base: T
             assertIsNTuple(arg, 2);
             assertIsAuthority(arg.val[0]);
             assertIsNumber(arg.val[1]);
-            assertIsTopAuthority(arg.val[0]);
+            assertIsRootAuthority(arg.val[0]);
             (async () => {
                 await $r.cleanup()
                 process.exit(arg.val[1].val);
@@ -22,7 +22,7 @@ export function BuiltinExit <TBase extends Constructor<UserRuntimeZero>>(Base: T
         _resetScheduler = mkBase((arg) => {
             assertNormalState("exit");
             assertIsAuthority(arg);
-            assertIsTopAuthority(arg);
+            assertIsRootAuthority(arg);
             this.runtime.__sched.resetScheduler ()
             return this.runtime.ret(__unit)
             
