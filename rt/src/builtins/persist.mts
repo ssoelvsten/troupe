@@ -16,7 +16,7 @@ export function BuiltinPersist<TBase extends Constructor<UserRuntimeZero>>(Base:
             let file = arg[1].val;
             let data = arg[2];
             assertIsRootAuthority(auth);
-            this.runtime.persist(data, "./out/saved." + file + ".json")
+            this.runtime.persist(data, "./out/saved." + file + ".persist.json")
             return this.runtime.ret(__unit);
         }, "save")
 
@@ -27,7 +27,7 @@ export function BuiltinPersist<TBase extends Constructor<UserRuntimeZero>>(Base:
             let file = arg;
 
             (async () => {
-                let jsonStr = await fs.promises.readFile("./out/saved." + file.val + ".json", 'utf8');
+                let jsonStr = await fs.promises.readFile("./out/saved." + file.val + ".persist.json", 'utf8');
                 let data = await deserialize(levels.TOP, JSON.parse(jsonStr));                
                 theThread.returnSuspended(data);
                 this.runtime.__sched.scheduleThread(theThread);
