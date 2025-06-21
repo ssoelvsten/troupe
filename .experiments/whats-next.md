@@ -1,5 +1,10 @@
 # What's next 
 
+
+## Infra
+
+- [ ] Not entirely sure whether multinode-tests/<test-nameE>/aliases.json and ids need to be version controlled.
+
 ## Integrity 
  
 - [ ] Integrity of blocking and mailboxes

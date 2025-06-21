@@ -1,6 +1,6 @@
 {
   "test_name": "basic-echo",
-  "timeout": 30,
+  "timeout": 60,
   "coordination": "parallel",
   "network": {
     "relay_port": 5555,

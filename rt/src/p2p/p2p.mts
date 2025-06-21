@@ -74,7 +74,7 @@ import map from 'it-map';
 import { fromString as uint8ArrayFromString } from 'uint8arrays/from-string';
 import { toString as uint8ArrayToString } from 'uint8arrays/to-string';
 import { pushable } from 'it-pushable';
-import p2pconfig from './p2pconfig.mjs';
+import p2pconfig, { setCliRelays, getRelays } from './p2pconfig.mjs';
 import { multiaddr } from '@multiformats/multiaddr';
 import { identifyService } from 'libp2p/identify';
 import { circuitRelayTransport } from 'libp2p/circuit-relay';
@@ -137,6 +137,12 @@ const bootstrappers = [
  * the connections to relays.
  */
 async function startp2p(nodeId, rt: any): Promise<String> {
+  // Set CLI relays if provided
+  const cliRelays = argv[TroupeCliArg.Relay];
+  if (cliRelays) {
+    setCliRelays(Array.isArray(cliRelays) ? cliRelays : [cliRelays]);
+  }
+
   // Load or create a peer id
   let id : PeerId = await obtainPeerId(nodeId);
 
@@ -198,7 +204,12 @@ async function startp2p(nodeId, rt: any): Promise<String> {
 
   // Make sure the relay is dialed and the connections are kept live
   // To use more than one relay, make sure to dial them all
-  keepAliveRelay(p2pconfig.relays[0]);
+  const relays = getRelays();
+  if (relays && relays.length > 0) {
+    keepAliveRelay(relays[0]);
+  } else {
+    debug("No relay configured, skipping relay connection");
+  }
 
   return id.toString();
 }

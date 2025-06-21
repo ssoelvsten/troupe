@@ -11,17 +11,73 @@ import { pipe } from 'it-pipe';
 import * as lp from 'it-length-prefixed';
 import map from 'it-map';
 import { toString as uint8ArrayToString } from 'uint8arrays/to-string';
-import { readFileSync } from 'fs';
+import { readFileSync, existsSync } from 'fs';
+import yargs from 'yargs';
+import { hideBin } from 'yargs/helpers';
+
+// Parse command line arguments
+const argv = yargs(hideBin(process.argv))
+  .option('port', {
+    alias: 'p',
+    type: 'number',
+    default: 5555,
+    describe: 'Port number for the relay server'
+  })
+  .option('id-file', {
+    type: 'string',
+    default: 'keys/relay.id',
+    describe: 'Path to the relay ID file'
+  })
+  .option('priv-file', {
+    type: 'string', 
+    default: 'keys/relay.priv',
+    describe: 'Path to the relay private key file'
+  })
+  .help()
+  .parseSync();
 
 async function main () {
-  const relayId  = readFileSync("keys/relay.id").toString();
-  const relayKey = readFileSync("keys/relay.priv").toString();
-  const id       = await createFromJSON({id : relayId, privKey : relayKey});
+  // Check if key files exist
+  if (!existsSync(argv['id-file'])) {
+    console.error(`Error: Relay ID file not found: ${argv['id-file']}`);
+    console.error('Please generate keys first or specify existing key files with --id-file and --priv-file');
+    process.exit(1);
+  }
+  
+  if (!existsSync(argv['priv-file'])) {
+    console.error(`Error: Relay private key file not found: ${argv['priv-file']}`);
+    console.error('Please generate keys first or specify existing key files with --id-file and --priv-file');
+    process.exit(1);
+  }
+
+  const relayId  = readFileSync(argv['id-file']).toString();
+  const relayKey = readFileSync(argv['priv-file']).toString();
+  
+  // Create peer ID from private key and validate it matches the ID file
+  let id;
+  try {
+    id = await createFromJSON({id: relayId, privKey: relayKey});
+  } catch (error) {
+    console.error(`Error: Failed to create peer ID from key files: ${error.message}`);
+    console.error('Please ensure the ID file and private key file are valid and match each other');
+    process.exit(1);
+  }
+  
+  // Validate that the ID from the file matches the ID derived from the private key
+  const expectedId = id.toString();
+  const providedId = relayId.trim();
+  if (expectedId !== providedId) {
+    console.error(`Error: ID mismatch between files`);
+    console.error(`  ID file contains: ${providedId}`);
+    console.error(`  Private key generates: ${expectedId}`);
+    console.error('Please ensure the ID file and private key file correspond to each other');
+    process.exit(1);
+  }
 
   const node = await createLibp2p({
     peerId : id,
     addresses: {
-      listen: ['/ip4/0.0.0.0/tcp/5555/ws']
+      listen: [`/ip4/0.0.0.0/tcp/${argv.port}/ws`]
     },
     transports: [
       webSockets()

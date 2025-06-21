@@ -10,6 +10,7 @@ TEST_CONFIG=""
 CLEANUP_PIDS=()
 TEMP_DIR=""
 VERBOSE=false
+RELAY_MULTIADDR=""
 
 usage() {
     cat << EOF
@@ -153,28 +154,80 @@ start_relay_if_needed() {
     use_relay=$(jq -r '.network.use_relay // true' "$config_file")
     
     if [[ "$use_relay" == "true" ]]; then
-        # Ensure relay is built before starting
-        ensure_relay_built
+        # Check if relay address is provided in config
+        local relay_address
+        relay_address=$(jq -r '.network.relay_address // ""' "$config_file")
         
-        local relay_port
-        relay_port=$(jq -r '.network.relay_port // 5555' "$config_file")
-        
-        log "Starting relay server on port $relay_port"
-        
-        # Start relay in background
-        node "$TROUPE_ROOT/p2p-tools/relay/relay.mjs" --port="$relay_port" &
-        local relay_pid=$!
-        CLEANUP_PIDS+=("$relay_pid")
-        
-        # Wait for relay to be ready
-        sleep 2
-        
-        if ! kill -0 "$relay_pid" 2>/dev/null; then
-            echo "Error: Failed to start relay server" >&2
-            exit 1
+        if [[ -n "$relay_address" ]]; then
+            # Use provided relay address
+            RELAY_MULTIADDR="$relay_address"
+            log "Using configured relay address: $RELAY_MULTIADDR"
+        else
+            # Start local relay
+            ensure_relay_built
+            
+            # Generate relay keys in temp directory
+            local relay_keys_dir="$TEMP_DIR/relay-keys"
+            mkdir -p "$relay_keys_dir"
+            
+            log "Generating temporary relay keys..."
+            node "$TROUPE_ROOT/p2p-tools/built/mkid.mjs" \
+                --privkeyfile="$relay_keys_dir/relay.priv" \
+                --idfile="$relay_keys_dir/relay.id" \
+                --verbose >&2
+            
+            if [[ ! -f "$relay_keys_dir/relay.id" || ! -f "$relay_keys_dir/relay.priv" ]]; then
+                echo "Error: Failed to generate relay keys" >&2
+                exit 1
+            fi
+            
+            local relay_port
+            relay_port=$(jq -r '.network.relay_port // 5555' "$config_file")
+            
+            log "Starting relay server on port $relay_port"
+            
+            # Create a temporary file for relay output
+            local relay_output="$TEMP_DIR/relay.out"
+            
+            # Start relay in background with custom port and key files
+            DEBUG=libp2p:circuit-relay:server node "$TROUPE_ROOT/p2p-tools/relay/relay.mjs" \
+                --port="$relay_port" \
+                --id-file="$relay_keys_dir/relay.id" \
+                --priv-file="$relay_keys_dir/relay.priv" \
+                > "$relay_output" 2>&1 &
+            local relay_pid=$!
+            CLEANUP_PIDS+=("$relay_pid")
+            
+            # Wait for relay to be ready and extract multiaddr
+            local wait_count=0
+            while [[ $wait_count -lt 30 ]]; do
+                if ! kill -0 "$relay_pid" 2>/dev/null; then
+                    echo "Error: Relay server failed to start" >&2
+                    cat "$relay_output" >&2
+                    exit 1
+                fi
+                
+                # Check if relay has output its address
+                if grep -q "Listening on:" "$relay_output" 2>/dev/null; then
+                    # Extract the WebSocket multiaddr with peer ID, removing timestamp prefix
+                    RELAY_MULTIADDR=$(grep -A 10 "Listening on:" "$relay_output" | grep "/ws/p2p/" | head -1 | sed 's/.*\(\/ip4\/.*\)/\1/' | xargs)
+                    if [[ -n "$RELAY_MULTIADDR" ]]; then
+                        log "Relay server started (PID: $relay_pid)"
+                        log "Relay multiaddr: $RELAY_MULTIADDR"
+                        break
+                    fi
+                fi
+                
+                sleep 0.5
+                ((wait_count++))
+            done
+            
+            if [[ -z "$RELAY_MULTIADDR" ]]; then
+                echo "Error: Failed to get relay multiaddr" >&2
+                cat "$relay_output" >&2
+                exit 1
+            fi
         fi
-        
-        log "Relay server started (PID: $relay_pid)"
     fi
 }
 
@@ -228,11 +281,18 @@ run_node() {
         done < <(echo "$node_env" | jq -r 'to_entries | .[] | "\(.key)=\(.value)"')
     fi
     
+    # Build command with optional relay parameter
+    local cmd_args=("./network.sh" "$script_path" "--id" "$id_file" "--aliases" "$aliases_file" "--port" "$port")
+    
+    # Add relay parameter if available
+    if [[ -n "$RELAY_MULTIADDR" ]]; then
+        cmd_args+=("--relay" "$RELAY_MULTIADDR")
+    fi
+    
+    log "Executing command: ${cmd_args[*]}"
+    
     timeout "$(jq -r '.timeout // 30' "$config_file")" \
-        ./network.sh "$script_path" \
-        --id "$id_file" \
-        --aliases "$aliases_file" \
-        --port "$port" \
+        "${cmd_args[@]}" \
         > "$output_file" 2> "$error_file" &
     
     local node_pid=$!

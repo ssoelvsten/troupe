@@ -51,4 +51,22 @@ if (existsSync(P2PCONFIG_FILE)) {
   relays = default_relays
 }
 
-export default { relays, known_nodes }
+let cliRelays = null;
+
+export function setCliRelays(relayAddresses) {
+  if (relayAddresses && relayAddresses.length > 0) {
+    cliRelays = relayAddresses;
+    logger?.info(`Using CLI-provided relay addresses: ${relayAddresses.join(', ')}`);
+  }
+}
+
+export function getRelays() {
+  // CLI relays take precedence
+  if (cliRelays && cliRelays.length > 0) {
+    return cliRelays;
+  }
+  // Otherwise use file-based or default relays
+  return relays;
+}
+
+export default { relays: getRelays(), known_nodes, setCliRelays, getRelays }

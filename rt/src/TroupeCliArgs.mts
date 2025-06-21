@@ -17,6 +17,7 @@ export enum TroupeCliArg {
     Port = 'port',
     File = 'file',
     RSpawn = 'rspawn',
+    Relay = 'relay',
 }
 
 export interface ParsedArgs {
@@ -35,6 +36,7 @@ export interface ParsedArgs {
     [TroupeCliArg.Port]?: number;
     [TroupeCliArg.File]?: string;
     [TroupeCliArg.RSpawn]?: boolean;
+    [TroupeCliArg.Relay]?: string | string[];
     [key: string]: any;
 }
 
@@ -58,6 +60,7 @@ export function getCliArgs(): ParsedArgs {
             .option(TroupeCliArg.Port, { type: 'number', describe: 'Network port for P2P communication' })
             .option(TroupeCliArg.File, { alias: 'f', type: 'string', describe: 'Path to the main troupe program file to execute' })
             .option(TroupeCliArg.RSpawn, { type: 'boolean', default: false, describe: 'Allow remote spawning of troupe processes' })
+            .option(TroupeCliArg.Relay, { type: 'array', describe: 'Relay server multiaddress(es) for P2P connectivity' })
             .parseSync();
 
         if (rawArgs.f && !rawArgs.file) {
