@@ -31,6 +31,10 @@ libs:
 test:
 	mkdir -p out
 	cd compiler && $(MAKE) test
+	./scripts/run-multinode-tests.sh
+
+test-multinode:
+	./scripts/run-multinode-tests.sh
 
 dist: stack npm rt p2p-tools libs
 	rm -rf ./build/

@@ -167,4 +167,4 @@ Each test run creates temporary output files for each node in `/tmp/troupe-multi
 - Network condition simulation (latency, packet loss)
 - Chaos engineering tests (random failures)
 - Performance benchmarking
-- Integration with golden test system
+- Integration with golden test system, but right now we do not create .golden files for these tests.
