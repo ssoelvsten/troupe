@@ -18,6 +18,7 @@ let
                     let val _ = print ("SERVER: Received echo request: " ^ msg)
                         val _ = send(sender, ("REPLY", msg))
                         val _ = print ("SERVER: Sent reply: " ^ msg)
+                        val _ = sleep 1000
                     in "success"
                     end
             ]

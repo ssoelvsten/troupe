@@ -15,8 +15,27 @@
 import * as fs from 'node:fs';
 import * as path from 'path';
 import yargs from 'yargs'
+import { hideBin } from 'yargs/helpers'
 
-const argv:any =yargs.argv
+const argv:any = yargs(hideBin(process.argv))
+  .option('include', {
+    array: true,
+    type: 'string',
+    describe: 'Files to include'
+  })
+  .option('outfile', {
+    type: 'string',
+    describe: 'Output file'
+  })
+  .option('trustmap', {
+    type: 'string',
+    describe: 'Trust map file'
+  })
+  .option('droptrustprefix', {
+    type: 'string',
+    describe: 'Prefix to drop from trust level'
+  })
+  .argv
 
 const files_args:any = argv['include'];
 

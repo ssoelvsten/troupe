@@ -3,7 +3,7 @@
 
 let 
     val timeout_pid = spawn(fn () => 
-        let val _ = sleep 30 
+        let val _ = sleep 30000
         in exit(authority, 124)
         end)
     
@@ -14,7 +14,7 @@ let
             (* The target node doesn't need to do anything special *)
             (* Remote spawning will automatically create processes here *)
             (* We just wait for the test to complete *)
-            val _ = sleep 20  (* Wait for spawned process to complete *)
+            val _ = sleep 5000  (* Wait for spawned process to complete *)
             
         in (print "TARGET: Test completed";
             exit(authority, 0))

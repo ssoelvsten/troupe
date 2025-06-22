@@ -18,7 +18,8 @@
       "id": "target", 
       "script": "target.trp",
       "port": 6795,
-      "expected_exit_code": 0
+      "expected_exit_code": 0,
+      "extra_argv": "--rspawn --stdiolev='{}'"
     }
   ],
   "output": {
