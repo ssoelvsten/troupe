@@ -1,0 +1,3 @@
+let val processRecord = fn {name, age, score} => {name = name, passed = score > 50}
+in processRecord {name = "Alice", age = 25, score = 75}
+end

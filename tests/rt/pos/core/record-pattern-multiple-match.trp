@@ -1,0 +1,5 @@
+case {type = "user", name = "Alice", age = 25} of 
+    {type = "admin", name = n} => "Admin: " ^ n
+  | {type = "user", name = n, age = a} => "User: " ^ n 
+  | {type = "guest"} => "Guest user"
+  | _ => "Unknown"

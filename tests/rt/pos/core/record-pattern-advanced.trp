@@ -1,0 +1,3 @@
+case {outer = {inner = 42}} of 
+    {outer = {inner = x}} => x 
+  | _ => 0

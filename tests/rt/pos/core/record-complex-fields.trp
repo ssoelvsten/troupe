@@ -1,0 +1,1 @@
+{func = fn x => x + 1, list = [1,2,3], tuple = (1,"hello")}.func 10

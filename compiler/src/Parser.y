@@ -272,6 +272,7 @@ Pattern : VAR                               { VarPattern (varTok $1) }
     | '_'                                   { Wildcard }
     | Lit                                   { ValPattern $1 }
     | '(' CSPattern Pattern ')'             { TuplePattern (reverse ($3:$2)) }
+    | '{' '}'                               { RecordPattern [] }
     | '{' FieldPatterns '}'                 { RecordPattern $2 }
     | ListPattern   { $1}
 

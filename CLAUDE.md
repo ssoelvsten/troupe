@@ -184,6 +184,8 @@ Troupe language user guide is available at https://troupelang.github.io/troupe-u
 6. Set `TROUPE` environment variable to the repository root
 
 
+
+
 ### Temporary test generation
 
 For temporary test generation, please use the folder `tests/_unuatomated/claude`. 
@@ -193,7 +195,22 @@ For temporary test generation, please use the folder `tests/_unuatomated/claude`
 The compiler binary `troupec` has an option for verbose output `-v`, and the generated files are written into the `/out` folder, named with different stages of the compilation. 
 
 
-### Syntax highlighting 
+#### Turning off raw optimizations
+
+Some bugs may be further caught by turning off the raw ouptimizations. There is a flag `--no-rawopt` that disables Raw optimizations. It can be helpful for some corner compiler-related bugs.
+
+#### Troupe parser implementation.
+
+There should be no shift/reduce or reduce/reduce coflicts in the Troupe parser.
+
+
+### Troupe programs
+
+#### Syntax 
+
+See the user guide for the exact language syntax, that is useful when creating tests.
+
+#### Syntax highlighting
 
 Troupe programs use Standard ML - style syntax, and that can be used for syntax highlighting.
 
