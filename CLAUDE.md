@@ -188,7 +188,7 @@ Troupe language user guide is available at https://troupelang.github.io/troupe-u
 
 ### Temporary test generation
 
-For temporary test generation, please use the folder `tests/_unuatomated/claude`. 
+For temporary test generation, please use the folder `tests/_unautomated/claude`. 
 
 ### Testing the compiler-generated output.
 

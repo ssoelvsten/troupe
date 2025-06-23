@@ -263,11 +263,18 @@ mapFromImports (Imports imports) =
            -- (we should be in theory able to do that)
 
 
+-- | Sanitize variable names to be JavaScript-compatible identifiers
+sanitizeForJS :: VarName -> VarName
+sanitizeForJS = map sanitizeChar
+  where
+    sanitizeChar '\'' = '_'  -- Replace single quotes with underscores
+    sanitizeChar c = c        -- Keep other characters as-is
+
 unique :: VarName -> S VarName
 unique v = do
   n <- State.get
   put (n + 1)
-  return $ v ++ show n
+  return $ sanitizeForJS v ++ show n
 
 
 lookforalpha :: VarName -> Env -> VarName
