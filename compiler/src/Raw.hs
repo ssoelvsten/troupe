@@ -83,6 +83,7 @@ data RTAssertion
   | AssertTypesBothStringsOrBothNumbers RawVar RawVar
   | AssertTupleLengthGreaterThan RawVar Word
   | AssertRecordHasField RawVar Basics.FieldName
+  | AssertNotZero RawVar
    deriving (Eq, Show)
 
 -- data List2OrMore a = List2OrMore a a [a] deriving (Eq, Show)
@@ -170,6 +171,7 @@ ppRTAssertionCode f a = f (text $ "rt.rawAssert" ++ rtFun) args
           AssertTypesBothStringsOrBothNumbers x y -> ("PairsAreStringsOrNumbers", [ppId x, ppId y])
           AssertTupleLengthGreaterThan x n -> ("TupleLengthGreaterThan", [ppId x, text (show n)])
           AssertRecordHasField x f -> ("RecordHasField", [ppId x, PP.quotes $ text f])
+          AssertNotZero x -> ("NotZero", [ppId x])
 
 
 

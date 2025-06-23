@@ -516,12 +516,24 @@ expr2rawComp = \case
       Basics.Plus -> numBinOpComp
       Basics.Minus -> numBinOpComp
       Basics.Mult -> numBinOpComp
-      -- Note: Division operations never result in an exception.
+      -- Note: Division operations now check for division by zero.
       -- Revision 2023-08: Removed incorrect raising of PC by value label
       -- of second operand (the operation always succeeds).
-      Basics.Div -> numBinOpComp
-      Basics.Mod -> numBinOpComp
-      Basics.IntDiv -> numBinOpComp
+      Basics.Div -> do
+        assertTypeAndRaise v1 RawNumber
+        assertTypeAndRaise v2 RawNumber
+        assertWithValAndRaise v2 $ \r -> AssertNotZero r
+        basicBinOpComp
+      Basics.Mod -> do
+        assertTypeAndRaise v1 RawNumber
+        assertTypeAndRaise v2 RawNumber
+        assertWithValAndRaise v2 $ \r -> AssertNotZero r
+        basicBinOpComp
+      Basics.IntDiv -> do
+        assertTypeAndRaise v1 RawNumber
+        assertTypeAndRaise v2 RawNumber
+        assertWithValAndRaise v2 $ \r -> AssertNotZero r
+        basicBinOpComp
       Basics.Gt -> numOrStringBinOpComp
       Basics.Lt -> numOrStringBinOpComp
       Basics.Ge -> numOrStringBinOpComp

@@ -17,6 +17,7 @@ import { Thread } from '../Thread.mjs'
 import { TroupeRawValue } from '../TroupeRawValue.mjs'
 import { RawTuple } from '../RawTuple.mjs'
 import { Level } from '../Level.mjs'
+import { rawAssertNotZero } from '../Asserts.mjs'
 
 // import { builtin_sandbox } from './builtins/sandox'
 
@@ -127,6 +128,9 @@ export class UserRuntimeZero {
     intdiv(x: number, y: number): number {
         return Math.trunc(x / y)
     }
+
+    // SimpleRT
+    rawAssertNotZero = rawAssertNotZero
 
     // ComplexRT
     raw_indexTuple(x: TroupeRawValue, y: number): LVal {

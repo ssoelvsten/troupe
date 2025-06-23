@@ -183,6 +183,12 @@ export function rawAssertIsString(x:any) {
     } 
 }
 
+export function rawAssertNotZero(x:any) {
+    if (x === 0) {
+        err("Division by zero error")
+    }
+}
+
 
 export function assertIsNode(x: any) {
     _thread().raiseBlockingThreadLev(x.tlev);

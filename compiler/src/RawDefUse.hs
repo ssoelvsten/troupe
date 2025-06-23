@@ -282,6 +282,7 @@ instance Usable RawInst b where
        RTAssertion (AssertTypesBothStringsOrBothNumbers x y) -> use [x,y]
        RTAssertion (AssertRecordHasField r _) -> use r
        RTAssertion (AssertTupleLengthGreaterThan r _) -> use r
+       RTAssertion (AssertNotZero r) -> use r
        MkFunClosures xs _ -> use (snd (unzip xs))
        -- Instructions without variables
        InvalidateSparseBit -> return ()

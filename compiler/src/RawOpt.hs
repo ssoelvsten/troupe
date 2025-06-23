@@ -66,6 +66,7 @@ instance Substitutable RawInst where
         AssertTypesBothStringsOrBothNumbers r1 r2 -> AssertTypesBothStringsOrBothNumbers (apply subst r1) (apply subst r2)
         AssertTupleLengthGreaterThan v n -> AssertTupleLengthGreaterThan (apply subst v) n
         AssertRecordHasField v f -> AssertRecordHasField (apply subst v) f
+        AssertNotZero r -> AssertNotZero (apply subst r)
       InvalidateSparseBit -> i
       _ -> i
 
@@ -340,6 +341,7 @@ pevalInst i = do
       RTAssertion (AssertTupleLengthGreaterThan r n) -> _keep $ markUsed r
       -- TODO track record fields
       RTAssertion (AssertRecordHasField r f) -> _keep $ markUsed r
+      RTAssertion (AssertNotZero r) -> _keep $ markUsed r
       MkFunClosures ee _ -> _keep $ markUsed (snd (unzip ee)) 
       -- No applicable optimizations.
       SetBranchFlag -> return $ Just i'
