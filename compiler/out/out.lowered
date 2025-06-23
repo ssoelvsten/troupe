@@ -1,0 +1,45 @@
+  let val $decltemp$ = $$authorityarg
+  in let val authority = $decltemp$
+     in let fun print print_arg1 = let val print_pat1 = fn $arg1 => assert if is-tuple $arg1
+                                                                           then (tuple-length $arg1) = 1
+                                                                           else false
+                                                                    then let val x = $arg1.0
+                                                                         in let val $decltemp$ = getStdout authority
+                                                                            in let val out = $decltemp$
+                                                                               in fprintln (out,x)
+                                                                               end
+                                                                            end
+                                                                         end
+                                                                    elseError "pattern match failure in function print"
+                                   in print_pat1 (print_arg1)
+                                   end
+            and printWithLabels printWithLabels_arg1 = let val printWithLabels_pat1 = fn $arg1 => assert if is-tuple $arg1
+                                                                                                         then (tuple-length $arg1) = 1
+                                                                                                         else false
+                                                                                                  then let val x = $arg1.0
+                                                                                                       in let val $decltemp$ = getStdout authority
+                                                                                                          in let val out = $decltemp$
+                                                                                                             in fprintlnWithLabels (out,x)
+                                                                                                             end
+                                                                                                          end
+                                                                                                       end
+                                                                                                  elseError "pattern match failure in function printWithLabels"
+                                                       in printWithLabels_pat1 (printWithLabels_arg1)
+                                                       end
+            and printString printString_arg1 = let val printString_pat1 = fn $arg1 => assert if is-tuple $arg1
+                                                                                             then (tuple-length $arg1) = 1
+                                                                                             else false
+                                                                                      then let val x = $arg1.0
+                                                                                           in let val $decltemp$ = getStdout authority
+                                                                                              in let val out = $decltemp$
+                                                                                                 in fwrite (out,x ^ "\n")
+                                                                                                 end
+                                                                                              end
+                                                                                           end
+                                                                                      elseError "pattern match failure in function printString"
+                                               in printString_pat1 (printString_arg1)
+                                               end
+        in ({x=100,x=200}).x
+        end
+     end
+  end

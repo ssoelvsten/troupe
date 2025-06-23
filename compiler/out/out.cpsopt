@@ -1,0 +1,40 @@
+  let-simple gensym46 = $$authorityarg$base
+  in let-fun fun print2 print_arg15 =
+               let-ret $decltemp$9 = let-simple gensym3 = fprintln$base
+                                     in let-simple gensym4 = ($decltemp$9, print_arg15)
+                                        in gensym3 gensym4
+                                        end
+                                     end
+               in let-simple gensym5 = getStdout$base
+                  in gensym5 gensym46
+                  end
+               end
+             and printWithLabels3 printWithLabels_arg111 =
+               let-ret $decltemp$15 = let-simple gensym16 = fprintlnWithLabels$base
+                                      in let-simple gensym17 = ($decltemp$15, printWithLabels_arg111)
+                                         in gensym16 gensym17
+                                         end
+                                      end
+               in let-simple gensym18 = getStdout$base
+                  in gensym18 gensym46
+                  end
+               end
+             and printString4 printString_arg117 =
+               let-ret $decltemp$21 = let-simple gensym29 = fwrite$base
+                                      in let-simple gensym32 = "\n"
+                                         in let-simple gensym30 = printString_arg117 ^ gensym32
+                                            in let-simple gensym31 = ($decltemp$21, gensym30)
+                                               in gensym29 gensym31
+                                               end
+                                            end
+                                         end
+                                      end
+               in let-simple gensym33 = getStdout$base
+                  in gensym33 gensym46
+                  end
+               end
+     in let-simple gensym43 = 100
+        in halt gensym43
+        end
+     end
+  end

@@ -178,3 +178,11 @@ Troupe implements dynamic information flow control with:
 ## Syntax highlighting 
 
 Troupe programs use Standard ML - style syntax, and that can be used for syntax highlighting.
+
+## Temporary test generatino
+
+For temporary test generation, please use the folder `tests/_unuatomated/claude`. 
+
+## Testing the compiler-generated output.
+
+`troupec` has an option for verbose output `-v`, and the generated files are written into the `out` folder, named with different stages of the compilation. 

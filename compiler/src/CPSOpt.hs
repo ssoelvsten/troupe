@@ -37,6 +37,15 @@ import qualified Data.Set as Set
 import RetFreeVars as FreeVars
 import TroupePositionInfo
 
+-- 2025-06-23: AA+cc
+-- Helper function to get the last occurrence of a key in an association list.
+-- This is needed for correct record field resolution when duplicate field names exist.
+-- In Troupe, record field semantics follow "last assignment wins" (e.g., {x=100, x=200}.x should return 200),
+-- but Haskell's standard 'lookup' returns the first match. This function ensures we get the last match
+-- by reversing the list before lookup, which gives us the rightmost (last) field value.
+lookupLast :: Eq a => a -> [(a, b)] -> Maybe b
+lookupLast key pairs = lookup key (reverse pairs)
+
 
 
 newtype Subst = Subst (Map VarName VarName)
@@ -351,7 +360,7 @@ simplifySimpleTerm t =
         _ -> _nochange
   ProjField x s ->  do 
     fs <- fields x
-    case lookup s fs of 
+    case lookupLast s fs of 
       Just y -> _subst y 
       Nothing -> _nochange
   ProjIdx x idx -> do

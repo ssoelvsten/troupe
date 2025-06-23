@@ -1,0 +1,389 @@
+func print2 () {
+  _$reg0_val_0 = <r0_val>
+  _$reg0_vlbl_1 = <pc>
+  _$reg0_tlbl_2 = <pc>
+  group
+    _$reg0_vlbl_1 = <r0_lev>
+    _$reg0_tlbl_2 = <r0_tlev>
+  print_arg15 = LVal (_$reg0_val_0 , _$reg0_vlbl_1 , _$reg0_tlbl_2)
+  $STACK[0] =  print_arg15
+  group
+    _pc_3 = <pc>
+  = call
+    _raw_4 = getStdout
+    _lbl_8 = <pc>
+    _lbl_10 = <pc>
+    group
+      _pc_5 = <pc>
+      _pc_6 = <pc>
+      _pc_7 = <pc>
+      _lbl_8 = _pc_7 join _pc_5
+      _pc_9 = <pc>
+      _lbl_10 = _pc_9 join _pc_6
+    gensym5 = LVal (_raw_4 , _lbl_8 , _lbl_10)
+    _vlbl_11 = gensym5.lev
+    group
+      _pc_12 = <pc>
+      _pc_13 = _pc_12 join _vlbl_11
+      <pc> <- _pc_13
+      _bl_14 = <block>
+      _bl_15 = _bl_14 join _vlbl_11
+      <block> <- _bl_15
+    _tlbl_16 = gensym5.tlev
+    group
+      _bl_17 = <block>
+      _bl_18 = _bl_17 join _tlbl_16
+      <block> <- _bl_18
+    _val_19 = gensym5.val
+    rt.rawAssertIsFunction (_val_19)
+    _val_20 = $env.gensym46.val
+    _vlbl_21 = $env.gensym46.lev
+    _tlbl_22 = $env.gensym46.tlev
+    <r0_val> <- _val_20
+    <r0_lev> <- _vlbl_21
+    <r0_tlev> <- _tlbl_22
+    _val_23 = gensym5.val
+    tail (_val_23)
+  print_arg15 <- $STACK[0]
+  _$reg0_val_51 = <r0_val>
+  _$reg0_vlbl_52 = <pc>
+  _$reg0_tlbl_53 = <pc>
+  group
+    _$reg0_vlbl_52 = <r0_lev>
+    _$reg0_tlbl_53 = <r0_tlev>
+  $decltemp$9 = LVal (_$reg0_val_51 , _$reg0_vlbl_52 , _$reg0_tlbl_53)
+  _raw_24 = fprintln
+  _lbl_28 = <pc>
+  _lbl_30 = <pc>
+  group
+    _pc_25 = <pc>
+    _pc_26 = <pc>
+    _pc_27 = <pc>
+    _lbl_28 = _pc_27 join _pc_25
+    _pc_29 = <pc>
+    _lbl_30 = _pc_29 join _pc_26
+  gensym3 = LVal (_raw_24 , _lbl_28 , _lbl_30)
+  _raw_31 = ($decltemp$9, print_arg15)
+  _lbl_35 = <pc>
+  _lbl_37 = <pc>
+  group
+    _pc_32 = <pc>
+    _pc_33 = <pc>
+    _pc_34 = <pc>
+    _lbl_35 = _pc_34 join _pc_32
+    _pc_36 = <pc>
+    _lbl_37 = _pc_36 join _pc_33
+  gensym4 = LVal (_raw_31 , _lbl_35 , _lbl_37)
+  _vlbl_38 = gensym3.lev
+  group
+    _pc_39 = <pc>
+    _pc_40 = _pc_39 join _vlbl_38
+    <pc> <- _pc_40
+    _bl_41 = <block>
+    _bl_42 = _bl_41 join _vlbl_38
+    <block> <- _bl_42
+  _tlbl_43 = gensym3.tlev
+  group
+    _bl_44 = <block>
+    _bl_45 = _bl_44 join _tlbl_43
+    <block> <- _bl_45
+  _val_46 = gensym3.val
+  rt.rawAssertIsFunction (_val_46)
+  _val_47 = gensym4.val
+  _vlbl_48 = gensym4.lev
+  _tlbl_49 = gensym4.tlev
+  <r0_val> <- _val_47
+  <r0_lev> <- _vlbl_48
+  <r0_tlev> <- _tlbl_49
+  _val_50 = gensym3.val
+  tail (_val_50)
+}
+func printWithLabels3 () {
+  _$reg0_val_0 = <r0_val>
+  _$reg0_vlbl_1 = <pc>
+  _$reg0_tlbl_2 = <pc>
+  group
+    _$reg0_vlbl_1 = <r0_lev>
+    _$reg0_tlbl_2 = <r0_tlev>
+  printWithLabels_arg111 = LVal (_$reg0_val_0 , _$reg0_vlbl_1 , _$reg0_tlbl_2)
+  $STACK[0] =  printWithLabels_arg111
+  group
+    _pc_3 = <pc>
+  = call
+    _raw_4 = getStdout
+    _lbl_8 = <pc>
+    _lbl_10 = <pc>
+    group
+      _pc_5 = <pc>
+      _pc_6 = <pc>
+      _pc_7 = <pc>
+      _lbl_8 = _pc_7 join _pc_5
+      _pc_9 = <pc>
+      _lbl_10 = _pc_9 join _pc_6
+    gensym18 = LVal (_raw_4 , _lbl_8 , _lbl_10)
+    _vlbl_11 = gensym18.lev
+    group
+      _pc_12 = <pc>
+      _pc_13 = _pc_12 join _vlbl_11
+      <pc> <- _pc_13
+      _bl_14 = <block>
+      _bl_15 = _bl_14 join _vlbl_11
+      <block> <- _bl_15
+    _tlbl_16 = gensym18.tlev
+    group
+      _bl_17 = <block>
+      _bl_18 = _bl_17 join _tlbl_16
+      <block> <- _bl_18
+    _val_19 = gensym18.val
+    rt.rawAssertIsFunction (_val_19)
+    _val_20 = $env.gensym46.val
+    _vlbl_21 = $env.gensym46.lev
+    _tlbl_22 = $env.gensym46.tlev
+    <r0_val> <- _val_20
+    <r0_lev> <- _vlbl_21
+    <r0_tlev> <- _tlbl_22
+    _val_23 = gensym18.val
+    tail (_val_23)
+  printWithLabels_arg111 <- $STACK[0]
+  _$reg0_val_51 = <r0_val>
+  _$reg0_vlbl_52 = <pc>
+  _$reg0_tlbl_53 = <pc>
+  group
+    _$reg0_vlbl_52 = <r0_lev>
+    _$reg0_tlbl_53 = <r0_tlev>
+  $decltemp$15 = LVal (_$reg0_val_51 , _$reg0_vlbl_52 , _$reg0_tlbl_53)
+  _raw_24 = fprintlnWithLabels
+  _lbl_28 = <pc>
+  _lbl_30 = <pc>
+  group
+    _pc_25 = <pc>
+    _pc_26 = <pc>
+    _pc_27 = <pc>
+    _lbl_28 = _pc_27 join _pc_25
+    _pc_29 = <pc>
+    _lbl_30 = _pc_29 join _pc_26
+  gensym16 = LVal (_raw_24 , _lbl_28 , _lbl_30)
+  _raw_31 = ($decltemp$15, printWithLabels_arg111)
+  _lbl_35 = <pc>
+  _lbl_37 = <pc>
+  group
+    _pc_32 = <pc>
+    _pc_33 = <pc>
+    _pc_34 = <pc>
+    _lbl_35 = _pc_34 join _pc_32
+    _pc_36 = <pc>
+    _lbl_37 = _pc_36 join _pc_33
+  gensym17 = LVal (_raw_31 , _lbl_35 , _lbl_37)
+  _vlbl_38 = gensym16.lev
+  group
+    _pc_39 = <pc>
+    _pc_40 = _pc_39 join _vlbl_38
+    <pc> <- _pc_40
+    _bl_41 = <block>
+    _bl_42 = _bl_41 join _vlbl_38
+    <block> <- _bl_42
+  _tlbl_43 = gensym16.tlev
+  group
+    _bl_44 = <block>
+    _bl_45 = _bl_44 join _tlbl_43
+    <block> <- _bl_45
+  _val_46 = gensym16.val
+  rt.rawAssertIsFunction (_val_46)
+  _val_47 = gensym17.val
+  _vlbl_48 = gensym17.lev
+  _tlbl_49 = gensym17.tlev
+  <r0_val> <- _val_47
+  <r0_lev> <- _vlbl_48
+  <r0_tlev> <- _tlbl_49
+  _val_50 = gensym16.val
+  tail (_val_50)
+}
+func printString4 () {
+  gensym32$$$const = "\n"
+  _$reg0_val_0 = <r0_val>
+  _$reg0_vlbl_1 = <pc>
+  _$reg0_tlbl_2 = <pc>
+  group
+    _$reg0_vlbl_1 = <r0_lev>
+    _$reg0_tlbl_2 = <r0_tlev>
+  printString_arg117 = LVal (_$reg0_val_0 , _$reg0_vlbl_1 , _$reg0_tlbl_2)
+  $STACK[1] =  printString_arg117
+  _pc_3 = <pc>
+  group
+    _pc_3 = <pc>
+  gensym32 = LVal (gensym32$$$const , _pc_3 , _pc_3)
+  $STACK[0] =  gensym32
+  = call
+    _raw_4 = getStdout
+    _lbl_8 = <pc>
+    _lbl_10 = <pc>
+    group
+      _pc_5 = <pc>
+      _pc_6 = <pc>
+      _pc_7 = <pc>
+      _lbl_8 = _pc_7 join _pc_5
+      _pc_9 = <pc>
+      _lbl_10 = _pc_9 join _pc_6
+    gensym33 = LVal (_raw_4 , _lbl_8 , _lbl_10)
+    _vlbl_11 = gensym33.lev
+    group
+      _pc_12 = <pc>
+      _pc_13 = _pc_12 join _vlbl_11
+      <pc> <- _pc_13
+      _bl_14 = <block>
+      _bl_15 = _bl_14 join _vlbl_11
+      <block> <- _bl_15
+    _tlbl_16 = gensym33.tlev
+    group
+      _bl_17 = <block>
+      _bl_18 = _bl_17 join _tlbl_16
+      <block> <- _bl_18
+    _val_19 = gensym33.val
+    rt.rawAssertIsFunction (_val_19)
+    _val_20 = $env.gensym46.val
+    _vlbl_21 = $env.gensym46.lev
+    _tlbl_22 = $env.gensym46.tlev
+    <r0_val> <- _val_20
+    <r0_lev> <- _vlbl_21
+    <r0_tlev> <- _tlbl_22
+    _val_23 = gensym33.val
+    tail (_val_23)
+  gensym32 <- $STACK[0]
+  printString_arg117 <- $STACK[1]
+  _$reg0_val_72 = <r0_val>
+  _$reg0_vlbl_73 = <pc>
+  _$reg0_tlbl_74 = <pc>
+  group
+    _$reg0_vlbl_73 = <r0_lev>
+    _$reg0_tlbl_74 = <r0_tlev>
+  $decltemp$21 = LVal (_$reg0_val_72 , _$reg0_vlbl_73 , _$reg0_tlbl_74)
+  _raw_24 = fwrite
+  _lbl_28 = <pc>
+  _lbl_30 = <pc>
+  group
+    _pc_25 = <pc>
+    _pc_26 = <pc>
+    _pc_27 = <pc>
+    _lbl_28 = _pc_27 join _pc_25
+    _pc_29 = <pc>
+    _lbl_30 = _pc_29 join _pc_26
+  gensym29 = LVal (_raw_24 , _lbl_28 , _lbl_30)
+  _tlbl_31 = printString_arg117.tlev
+  group
+    _bl_32 = <block>
+    _bl_33 = _bl_32 join _tlbl_31
+    <block> <- _bl_33
+  _val_34 = printString_arg117.val
+  rt.rawAssertIsString (_val_34)
+  _tlbl_35 = gensym32.tlev
+  group
+    _bl_36 = <block>
+    _bl_37 = _bl_36 join _tlbl_35
+    <block> <- _bl_37
+  _val_38 = gensym32.val
+  rt.rawAssertIsString (_val_38)
+  _val_39 = printString_arg117.val
+  _val_40 = gensym32.val
+  _raw_41 = _val_39 ^ _val_40
+  _pc_42 = <pc>
+  group
+    _pc_42 = <pc>
+  _vlbl_43 = printString_arg117.lev
+  _vlbl_44 = gensym32.lev
+  _lbl_49 = <pc>
+  _lbl_51 = <pc>
+  group
+    _lbl_45 = _pc_42 join _vlbl_43
+    _lbl_46 = _lbl_45 join _vlbl_44
+    _pc_47 = <pc>
+    _pc_48 = <pc>
+    _lbl_49 = _pc_48 join _lbl_46
+    _pc_50 = <pc>
+    _lbl_51 = _pc_50 join _pc_47
+  gensym30 = LVal (_raw_41 , _lbl_49 , _lbl_51)
+  _raw_52 = ($decltemp$21, gensym30)
+  _lbl_56 = <pc>
+  _lbl_58 = <pc>
+  group
+    _pc_53 = <pc>
+    _pc_54 = <pc>
+    _pc_55 = <pc>
+    _lbl_56 = _pc_55 join _pc_53
+    _pc_57 = <pc>
+    _lbl_58 = _pc_57 join _pc_54
+  gensym31 = LVal (_raw_52 , _lbl_56 , _lbl_58)
+  _vlbl_59 = gensym29.lev
+  group
+    _pc_60 = <pc>
+    _pc_61 = _pc_60 join _vlbl_59
+    <pc> <- _pc_61
+    _bl_62 = <block>
+    _bl_63 = _bl_62 join _vlbl_59
+    <block> <- _bl_63
+  _tlbl_64 = gensym29.tlev
+  group
+    _bl_65 = <block>
+    _bl_66 = _bl_65 join _tlbl_64
+    <block> <- _bl_66
+  _val_67 = gensym29.val
+  rt.rawAssertIsFunction (_val_67)
+  _val_68 = gensym31.val
+  _vlbl_69 = gensym31.lev
+  _tlbl_70 = gensym31.tlev
+  <r0_val> <- _val_68
+  <r0_lev> <- _vlbl_69
+  <r0_tlev> <- _tlbl_70
+  _val_71 = gensym29.val
+  tail (_val_71)
+}
+func main () {
+  gensym43$$$const = 100
+  _$reg0_val_0 = <r0_val>
+  _$reg0_vlbl_1 = <pc>
+  _$reg0_tlbl_2 = <pc>
+  group
+    _$reg0_vlbl_1 = <r0_lev>
+    _$reg0_tlbl_2 = <r0_tlev>
+  $$authorityarg = LVal (_$reg0_val_0 , _$reg0_vlbl_1 , _$reg0_tlbl_2)
+  _pc_3 = <pc>
+  group
+    _pc_3 = <pc>
+  gensym43 = LVal (gensym43$$$const , _pc_3 , _pc_3)
+  _val_4 = $$authorityarg.val
+  _vlbl_5 = $$authorityarg.lev
+  _tlbl_6 = $$authorityarg.tlev
+  _lbl_8 = <pc>
+  _lbl_10 = <pc>
+  group
+    _pc_7 = <pc>
+    _lbl_8 = _pc_7 join _vlbl_5
+    _pc_9 = <pc>
+    _lbl_10 = _pc_9 join _tlbl_6
+  gensym46 = LVal (_val_4 , _lbl_8 , _lbl_10)
+  with env:= [gensym46 -> gensym46]
+    print2 = mkClos print2
+    printWithLabels3 = mkClos printWithLabels3
+    printString4 = mkClos printString4
+  _val_11 = gensym43.val
+  _pc_12 = <pc>
+  group
+    _pc_12 = <pc>
+  _vlbl_13 = gensym43.lev
+  _lbl_14 = <pc>
+  _pc_15 = <pc>
+  group
+    _lbl_14 = _pc_12 join _vlbl_13
+    _pc_15 = <pc>
+  _tlbl_16 = gensym43.tlev
+  _lbl_17 = <pc>
+  group
+    _lbl_17 = _pc_15 join _tlbl_16
+  lval18 = LVal (_val_11 , _lbl_14 , _lbl_17)
+  _val_19 = lval18.val
+  _vlbl_20 = lval18.lev
+  _tlbl_21 = lval18.tlev
+  <r0_val> <- _val_19
+  <r0_lev> <- _vlbl_20
+  <r0_tlev> <- _tlbl_21
+  ret ()
+}
