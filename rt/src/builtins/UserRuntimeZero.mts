@@ -178,6 +178,11 @@ export class UserRuntimeZero {
         return x.length
     }
 
+    // SimpleRT
+    raw_recordSize(x: Record): number {
+        return x.__obj.size
+    }
+
     // ComplexRT
     head(x: RawList): LVal {
         return x.head;

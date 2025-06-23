@@ -99,6 +99,7 @@ import Control.Monad.Except
     '['   { L _ TokenLBracket }
     ']'   { L _ TokenRBracket }
     '.'   { L _ TokenDot }
+    '..'  { L _ TokenDotDot }
     '{'   { L _ TokenLBrace }
     '}'   { L _ TokenRBrace }
 
@@ -272,14 +273,23 @@ Pattern : VAR                               { VarPattern (varTok $1) }
     | '_'                                   { Wildcard }
     | Lit                                   { ValPattern $1 }
     | '(' CSPattern Pattern ')'             { TuplePattern (reverse ($3:$2)) }
-    | '{' '}'                               { RecordPattern [] }
-    | '{' FieldPatterns '}'                 { RecordPattern $2 }
+    | FieldPattern                          { $1 }
     | ListPattern   { $1}
 
 
+FieldPattern :
+      '{' '}'                                        { RecordPattern [] ExactMatch }
+    | '{' '..' '}'                                   { RecordPattern [] WildcardMatch }
+    | '{' FieldPat '}'                               { RecordPattern [$2] ExactMatch }
+    | '{' FieldPat ',' '..' '}'                      { RecordPattern [$2] WildcardMatch }     
+    | '{' FieldPatterns FieldPat '}'                 { RecordPattern (reverse ($3:$2)) ExactMatch }
+    | '{' FieldPatterns FieldPat ',' '..' '}'        { RecordPattern (reverse ($3:$2)) WildcardMatch }
+
+
 FieldPatterns
-    : FieldPat                         { [$1] }
-    | FieldPat ',' FieldPatterns       { $1: $3 } 
+    : FieldPat ','                  { [$1]    } 
+    | FieldPatterns FieldPat ','    { ($2:$1 )} 
+
 
 FieldPat 
     : VAR              {(varTok $1, Nothing) }

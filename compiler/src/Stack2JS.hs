@@ -315,6 +315,7 @@ unaryOpToJS = \case
     -- Note: Currently lists and tuples are both using the same RT length function.
     ListLength -> "rt.raw_listLength"
     TupleLength -> "rt.raw_tupleLength"
+    RecordSize -> "rt.raw_recordSize"
     Head -> "rt.head"
     Tail -> "rt.tail"
     UnMinus -> "-"

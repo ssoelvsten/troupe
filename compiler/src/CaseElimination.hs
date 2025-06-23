@@ -8,11 +8,13 @@ where
 
 import Basics
 import qualified Direct as S
+import Direct (RecordPatternMode(..))
 import DirectWOPats as T
 import CompileMode
 import TroupePositionInfo
 
 import Control.Monad.Reader
+import Data.List (nub, (\\))
 
 trans :: CompileMode -> S.Prog -> T.Prog
 trans mode (S.Prog imports atms tm) =
@@ -143,10 +145,25 @@ compilePattern succ (v, S.ConsPattern p1 p2) = do
   succ'' <- compilePattern succ' (Un Tail v, p2)
   -- TODO Avoid list length (potentially expensive). Implement similarly to the improved list pattern (see above).
   return $ ifpat (Bin And (Un IsList v) (Bin Gt (Un ListLength v) (Lit (LInt 0 _srcRT) ))) succ'' fail
-compilePattern succ (v, S.RecordPattern fieldPatterns) = do
-  fail <- ask  
-  succ' <- foldM compileField succ  (reverse fieldPatterns)
-  return $ ifpat (Un IsRecord v) succ' fail
+compilePattern succ (v, S.RecordPattern fieldPatterns mode) = do
+  fail <- ask
+  -- Check for duplicate field names
+  let fieldNames = map fst fieldPatterns
+  let duplicates = fieldNames \\ nub fieldNames
+  if not (null duplicates)
+    then error $ "Duplicate field names in record pattern: " ++ show duplicates
+    else do
+      succ' <- foldM compileField succ (reverse fieldPatterns)
+      case mode of
+        WildcardMatch -> 
+          -- Current behavior - just check it's a record and has the specified fields
+          return $ ifpat (Un IsRecord v) succ' fail
+        ExactMatch ->
+          -- Check that the record has exactly the specified number of fields
+          let expectedSize = length fieldPatterns
+              sizeCheck = Bin Eq (Un RecordSize v) (Lit (LInt (fromIntegral expectedSize) _srcRT))
+              recordCheck = Bin And (Un IsRecord v) sizeCheck
+          in return $ ifpat recordCheck succ' fail
     where ifHasField f k = do 
               succ' <- k 
               fail <- ask 

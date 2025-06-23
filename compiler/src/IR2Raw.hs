@@ -592,6 +592,9 @@ expr2rawComp = \case
       Basics.TupleLength -> do
         assertTypeAndRaise v RawTuple
         basicUnOpComp
+      Basics.RecordSize -> do
+        assertTypeAndRaise v RawRecord
+        basicUnOpComp
       -- Revision 2023-08: Equivalent.
       Basics.Tail -> do
         assertTypeAndRaise v RawList

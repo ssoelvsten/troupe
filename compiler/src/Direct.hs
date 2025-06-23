@@ -4,6 +4,7 @@ module Direct ( Lambda (..)
               , FunDecl (..)
               , Lit(..)
               , DeclPattern(..)
+              , RecordPatternMode(..)
               , AtomName
               , Atoms(..)
               , Prog(..)
@@ -56,8 +57,11 @@ data DeclPattern
     | TuplePattern [DeclPattern] --SrcPosInf
     | ConsPattern DeclPattern DeclPattern --SrcPosInf
     | ListPattern [DeclPattern] --SrcPosInf
-    | RecordPattern [(FieldName, Maybe DeclPattern)]
+    | RecordPattern [(FieldName, Maybe DeclPattern)] RecordPatternMode
       deriving (Eq)
+
+data RecordPatternMode = ExactMatch | WildcardMatch
+  deriving (Eq, Show)
 
 data Decl
     = ValDecl DeclPattern Term PosInf
@@ -324,12 +328,15 @@ ppDeclPattern (ListPattern pats ) =
 ppDeclPattern (ConsPattern headPattern tailPattern ) =
   PP.parens $
   ppDeclPattern headPattern PP.<> text "::" PP.<> ppDeclPattern tailPattern
-ppDeclPattern (RecordPattern fields) = 
+ppDeclPattern (RecordPattern fields mode) = 
   PP.braces $ 
     PP.hsep $ 
-      PP.punctuate  (text ",") (map ppField fields)
+      PP.punctuate (text ",") (map ppField fields ++ wildcard)
         where ppField (f, Nothing) = text f 
               ppField (f, Just pat) = PP.hsep[text f, text "=", ppDeclPattern pat]
+              wildcard = case mode of
+                ExactMatch -> []
+                WildcardMatch -> [text ".."]
 
 ppLit :: Lit -> PP.Doc
 ppLit (LInt i _ )      = PP.integer i

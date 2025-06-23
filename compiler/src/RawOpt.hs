@@ -221,6 +221,7 @@ guessType = \case
   Un op x -> case op of
     Basics.ListLength -> Just RawNumber
     Basics.TupleLength -> Just RawNumber
+    Basics.RecordSize -> Just RawNumber
     Basics.UnMinus -> Just RawNumber
     Basics.IsTuple -> Just RawBoolean
     Basics.IsList -> Just RawBoolean

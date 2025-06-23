@@ -74,7 +74,7 @@ visitPattern _ pat@Wildcard = pat
 visitPattern atms (TuplePattern pats) = TuplePattern (map (visitPattern atms) pats)
 visitPattern atms (ConsPattern p1 p2) = ConsPattern (visitPattern atms p1) (visitPattern atms p2)
 visitPattern atms (ListPattern pats) = ListPattern (map (visitPattern atms) pats)
-visitPattern atms (RecordPattern fields) = RecordPattern $ map visitField fields
+visitPattern atms (RecordPattern fields mode) = RecordPattern (map visitField fields) mode
       where visitField pat@(_, Nothing) = pat 
             visitField (f, Just p) = (f, Just (visitPattern atms p))
 

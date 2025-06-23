@@ -131,6 +131,7 @@ tokens:-
 <0>   [\>]                           { mkL TokenGt }
 <0, state_dclabel>   \(              { mkL TokenLParen }
 <0, state_dclabel>   \)              { mkL TokenRParen }
+<0>   [\.][\.]                       { mkL TokenDotDot }
 <0>   [\.]                           { mkL TokenDot }
 <0>   [\{]                           { mkL TokenLBrace }
 <0>   [\}]                           { mkL TokenRBrace }
@@ -243,6 +244,7 @@ data Token
   | TokenBinShiftRight 
   | TokenBinZeroShiftRight 
   | TokenDot 
+  | TokenDotDot
   | TokenLBrace
   | TokenRBrace
   | TokenDCLabelLeft 
