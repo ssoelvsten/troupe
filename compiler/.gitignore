@@ -3,3 +3,4 @@ Troupe-compiler.cabal
 ir2raw-out
 stack.yaml.lock
 *~
+out
