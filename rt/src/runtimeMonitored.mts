@@ -64,11 +64,15 @@ async function spawnAtNode(nodeid, f) {
   let { data, level } = serialize(f, lub($t().pc, nodeid.lev));
 
   let trustLevel = nodeTrustLevel(node.nodeId);
+  let theThread = $t();
 
   if (!flowsTo(level, trustLevel)) {
-    threadError("Illegal trust flow when spawning on a remote node\n" +
+    theThread.throwInSuspended("Illegal trust flow when spawning on a remote node\n" +
       ` | the trust level of the recepient node: ${trustLevel.stringRep()}\n` +
       ` | the level of the information in spawn: ${level.stringRep()}`)
+     __sched.scheduleThread(theThread);
+     __sched.resumeLoopAsync();  
+     return;
   }
 
 
@@ -82,7 +86,6 @@ async function spawnAtNode(nodeid, f) {
   //--------------------------------------------------
 
 
-  let theThread = $t();
 
   try {
     let body1 = await p2p.spawnp2p(node.nodeId, data);

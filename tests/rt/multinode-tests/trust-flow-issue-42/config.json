@@ -1,0 +1,30 @@
+{
+  "test_name": "trust-flow-issue-42",
+  "timeout": 15,
+  "coordination": "parallel",
+  "network": {
+    "relay_port": 5558,
+    "use_relay": true
+  },
+  "nodes": [
+    {
+      "id": "node1",
+      "script": "node1.trp",
+      "port": 6796,
+      "start_delay": 1,
+      "expected_exit_code": 1,
+      "extra_argv": "--rspawn --trustmap=/Users/aslan/Prime/Troupe/tests/rt/multinode-tests/trust-flow-issue-42/trustmap.json"
+    },
+    {
+      "id": "node2", 
+      "script": "node2.trp",
+      "port": 6797,
+      "expected_exit_code": 0,
+      "extra_argv": "--rspawn"
+    }
+  ],
+  "output": {
+    "merge_strategy": "timestamp",
+    "filter_patterns": ["uuid", "timestamp", "peer_id"]
+  }
+}

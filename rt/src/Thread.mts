@@ -477,6 +477,12 @@ export class Thread {
         }
     }
 
+    throwInSuspended (arg) {
+        this.next = () => {
+            this.threadError (arg);
+        }
+    }
+
     setR0ToLValue (arg:LVal) {
         this.r0_val = arg.val
         this.r0_lev = arg.lev

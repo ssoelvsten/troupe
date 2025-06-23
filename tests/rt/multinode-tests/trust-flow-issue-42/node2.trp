@@ -1,0 +1,12 @@
+(* Node 2: Target node that would receive the spawn request *)
+(* This node should just wait and exit cleanly *)
+
+let val _ = print "Node2 started and waiting"
+    val pid = self ()
+    val timeout_pid = spawn(fn () => 
+        let val _ = sleep 5000
+        in print "Node2 timeout, exiting cleanly"; exit(authority, 0)
+        end)
+in
+    receive [ hn x => print ("Node2 received: " ^ x) ]
+end

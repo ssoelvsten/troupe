@@ -1,0 +1,12 @@
+(* Node 1: Spawner node that tries to spawn on node2 with secret information *)
+(* This should trigger the trust flow error *)
+
+let fun foo () = receive [ hn x => x ]
+    val pid =
+        if true raisedTo `{secret}` then
+          spawn ("node2", fn () => foo ()) (* node1 only trusts node2 up to {} *)
+        else
+          spawn ("node2", fn () => foo ())
+in
+  receive [ hn x => x ]
+end
