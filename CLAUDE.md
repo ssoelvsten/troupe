@@ -185,6 +185,65 @@ Troupe language user guide is available at https://troupelang.github.io/troupe-u
 5. VSCode with Haskell and TypeScript extensions provides good IDE support
 6. Set `TROUPE` environment variable to the repository root
 
+### Adding New Built-in Functions
+
+To add a new built-in function to Troupe, you need to make changes in both the compiler and runtime:
+
+#### 1. Compiler Registration
+Add the function name to the built-in list in `/compiler/src/IR.hs` (around lines 262-337):
+```haskell
+wfir (Base fname) =
+    if  fname `elem`[ 
+        -- existing built-ins...
+        , "yourNewFunction"  -- Add your function name here
+        ]
+```
+
+#### 2. Runtime Implementation
+Create a new file `/rt/src/builtins/yourFunction.mts`:
+```typescript
+'use strict'
+import { UserRuntimeZero, Constructor, mkBase } from './UserRuntimeZero.mjs'
+import { LVal } from '../Lval.mjs';
+
+export function BuiltinYourFunction<TBase extends Constructor<UserRuntimeZero>>(Base: TBase) {
+    return class extends Base {
+        yourNewFunction = mkBase((larg) => {
+            // Your implementation here
+            // Use assertIsX functions for type checking
+            // Use lub() for security level calculations
+            return this.runtime.ret(new LVal(result, resultLevel));
+        }, "yourNewFunction")
+    }
+}
+```
+
+#### 3. Runtime Registration
+Update `/rt/src/UserRuntime.mts`:
+1. Import your new built-in:
+   ```typescript
+   import { BuiltinYourFunction } from './builtins/yourFunction.mjs'
+   ```
+2. Add it to the composition chain (order matters for dependencies):
+   ```typescript
+   export const UserRuntime =
+       BuiltinYourFunction (
+       // ... rest of the existing chain
+   ```
+
+#### 4. Build and Test
+```bash
+make stack      # Rebuild compiler
+make rt         # Rebuild runtime
+make test       # Run tests
+```
+
+#### Notes:
+- Built-in functions must handle Troupe's information flow control using `lub()` for security levels
+- Use appropriate `assertIsX` functions from `Asserts.mjs` for type safety
+- The function name in IR.hs must exactly match the runtime function name
+- Consider adding tests in `/tests/rt/pos/core/` for your new built-in
+
 
 
 
