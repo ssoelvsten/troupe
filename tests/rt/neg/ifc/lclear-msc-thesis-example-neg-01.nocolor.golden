@@ -1,0 +1,11 @@
+2025-06-24T21:28:38.870Z [RTM] info: Skipping network creation. Observe that all external IO operations will yield a runtime error.
+>>> Main thread finished with value: (b6bc618a-6134-4017-a97d-5c8b47a92319@{}%{}, c1774a76-ede9-4eea-88d5-185eee5ec6b2@{}%{})@{}%{}
+PID:b6bc618a-6134-4017-a97d-5c8b47a92319@{}%{}     PC:{}                BL:<alice&bob;#root-integrity> HNNORMAL             _sp:21               
+PID:b6bc618a-6134-4017-a97d-5c8b47a92319@{}%{}     PC:{}                BL:<alice;#root-integrity> HNNORMAL             _sp:21               
+PID:b6bc618a-6134-4017-a97d-5c8b47a92319@{}%{}     PC:{}                BL:<alice&bob;#root-integrity> HNNORMAL             _sp:21               
+Runtime error in thread b6bc618a-6134-4017-a97d-5c8b47a92319@{}%{}
+>> Illegal flow in adv function:
+ |    pc: {}
+ | block: <alice&bob;#root-integrity>
+ | l_adv: <alice;#root-integrity>@{}%{} 
+ | value: ()@{}%{}

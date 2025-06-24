@@ -1,0 +1,5 @@
+2025-06-24T21:28:36.910Z [RTM] info: Skipping network creation. Observe that all external IO operations will yield a runtime error.
+"Hello"
+"World"
+Runtime error in thread 8ea22e5b-1c79-447b-8885-4727df2c18d6@{}%{}
+>> value () is not a number

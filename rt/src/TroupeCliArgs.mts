@@ -18,6 +18,7 @@ export enum TroupeCliArg {
     File = 'file',
     RSpawn = 'rspawn',
     Relay = 'relay',
+    NoColor = 'no-color',
 }
 
 export interface ParsedArgs {
@@ -37,6 +38,7 @@ export interface ParsedArgs {
     [TroupeCliArg.File]?: string;
     [TroupeCliArg.RSpawn]?: boolean;
     [TroupeCliArg.Relay]?: string | string[];
+    [TroupeCliArg.NoColor]?: boolean;
     [key: string]: any;
 }
 
@@ -61,6 +63,17 @@ export function getCliArgs(): ParsedArgs {
             .option(TroupeCliArg.File, { alias: 'f', type: 'string', describe: 'Path to the main troupe program file to execute' })
             .option(TroupeCliArg.RSpawn, { type: 'boolean', default: false, describe: 'Allow remote spawning of troupe processes' })
             .option(TroupeCliArg.Relay, { type: 'array', describe: 'Relay server multiaddress(es) for P2P connectivity' })
+            .option(TroupeCliArg.NoColor, { 
+                type: 'boolean', 
+                default: false, 
+                describe: 'Disable colored output (also respects NO_COLOR env var)',
+                coerce: (arg) => {
+                    // Handle the case where yargs interprets --no-color as negation
+                    // When --no-color is passed, arg will be false (negation of color)
+                    // We want to return true when --no-color is present
+                    return process.argv.includes('--no-color');
+                }
+            })
             .parseSync();
 
         if (rawArgs.f && !rawArgs.file) {

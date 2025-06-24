@@ -1,0 +1,7 @@
+2025-06-24T21:28:39.366Z [RTM] info: Skipping network creation. Observe that all external IO operations will yield a runtime error.
+Runtime error in thread f26182d9-672c-4bcf-8659-012aff68b754@{}%{}
+>> Not enough mailbox clearance for this receive
+ | receive lower bound: {}
+ | receive upper bound: {alice}
+ | pc level           : {}
+ | mailbox clearance  : {}

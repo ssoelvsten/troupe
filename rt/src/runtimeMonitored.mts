@@ -27,14 +27,17 @@ import { Console } from 'node:console'
 
 const { flowsTo, lub, glb } = levels
 import { getCliArgs, TroupeCliArg } from './TroupeCliArgs.mjs';
+import { configureColors, isColorEnabled } from './colorConfig.mjs';
+import { mkLogger } from './logger.mjs'
 
 const readFile = fs.promises.readFile
 const rt_uuid = runId
 const argv = getCliArgs();
 
+// Configure colors before any chalk or logger usage
+configureColors();
 
 let logLevel = argv[TroupeCliArg.Debug] ? 'debug': 'info'
-import { mkLogger } from './logger.mjs'
 const logger = mkLogger('RTM', logLevel);
 
 const info = x => logger.info(x)
@@ -47,7 +50,7 @@ let __p2pRunning = false;
 let rt_xconsole = 
       new Console({ stdout: process.stdout
                   , stderr: process.stderr
-                  , colorMode:true
+                  , colorMode: isColorEnabled()
                  });
 
 function $t():Thread { return __sched.__currentThread }; // returns the current thread

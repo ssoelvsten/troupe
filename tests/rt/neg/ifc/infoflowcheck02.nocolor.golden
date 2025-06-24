@@ -1,0 +1,7 @@
+2025-06-24T21:28:38.983Z [RTM] info: Skipping network creation. Observe that all external IO operations will yield a runtime error.
+>>> Main thread finished with value: ()@{secret}%{secret}
+Runtime error in thread fede042f-5a7a-4667-8b3c-0008d5cde3cd@{}%{}
+>> Illegal flow in adv function:
+ |    pc: {}
+ | block: {secret}
+ | value: 22@{}%{}

@@ -38,6 +38,8 @@ dependencies:
 - strict
 - aeson
 - MissingH
+- tagged
+- optparse-applicative
 
 build-tools:
 - alex

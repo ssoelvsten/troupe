@@ -1,0 +1,3 @@
+2025-06-24T21:28:37.668Z [RTM] info: Skipping network creation. Observe that all external IO operations will yield a runtime error.
+Runtime error in thread 9ee63518-0d2f-422d-83f2-23b066062d71@{}%{}
+>> value (1@{}%{}, 2@{}%{}, 3@{}%{}) is not a list

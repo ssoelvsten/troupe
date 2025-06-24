@@ -1,7 +1,13 @@
 {-# LANGUAGE RecordWildCards #-}
+{-# LANGUAGE DeriveDataTypeable #-}
 
-import Test.Tasty (defaultMain, TestTree, testGroup)
+import Test.Tasty (defaultMain, TestTree, testGroup, defaultMainWithIngredients, defaultIngredients, askOption, includingOptions)
 import Test.Tasty.Golden (goldenVsStringDiff,  goldenVsString, findByExtension)
+import Test.Tasty.Options (IsOption(..), OptionDescription(..), safeRead, flagCLParser)
+import Data.Typeable (Typeable)
+import Data.Tagged
+import Data.Proxy
+import Options.Applicative
 import System.Directory
 import System.Process
 import System.Exit 
@@ -9,18 +15,32 @@ import System.FilePath (takeBaseName, replaceExtension)
 import qualified Data.ByteString.Lazy as LBS 
 import qualified Data.ByteString.Char8
 import System.Info 
-import System.Environment 
+import System.Environment (getEnv, getArgs)
 -- import qualified System.IO.Strict
 
 -- When having multiple optimizations / optional compiler stages or
 -- other flags changing the output, probably want to generate all combinations
 -- and run the tests on them.
-newtype TestConfig = TestConfig { tcRawOpt :: Bool }
+data TestConfig = TestConfig 
+    { tcRawOpt :: Bool
+    , tcNoColor :: Bool 
+    }
+
+-- Custom option for no-color mode
+newtype NoColorOption = NoColorOption Bool
+  deriving (Eq, Ord, Typeable)
+
+instance IsOption NoColorOption where
+  defaultValue = NoColorOption False
+  parseValue = fmap NoColorOption . safeRead
+  optionName = return "no-color"
+  optionHelp = return "Disable colored output (generates .nocolor.golden files)"
+  optionCLParser = flagCLParser Nothing (NoColorOption True)
+
 
 ppTestConfig TestConfig{..} =
-    if tcRawOpt
-    then "Raw optimized"
-    else "Raw NOT optimized"
+    (if tcRawOpt then "Raw optimized" else "Raw NOT optimized") ++
+    (if tcNoColor then ", No color" else ", With color")
 
 
 getOptionalInput :: String -> IO String 
@@ -33,11 +53,16 @@ getOptionalInput testfile = do
         return ""        
 
 
+goldenFileName :: String -> TestConfig -> String
+goldenFileName troupeFile TestConfig{..} = 
+    if tcNoColor 
+    then replaceExtension troupeFile ".nocolor.golden"
+    else replaceExtension troupeFile ".golden"
+
 mkRunArgs :: TestConfig -> [String]
 mkRunArgs TestConfig{..} =
-  if tcRawOpt
-  then []
-  else ["--no-rawopt"]
+    (if tcRawOpt then [] else ["--no-rawopt"]) ++
+    (if tcNoColor then ["--no-color"] else [])
 
 runLocal :: String -> TestConfig -> IO (ExitCode, String, String)
 runLocal testname tc = do
@@ -80,15 +105,25 @@ runNegative testname tc = do
 
 main :: IO () 
 main = do
-         troupeDir <- getEnv "TROUPE"
-         setCurrentDirectory troupeDir
-         -- Create tests
-         tests <- mapM goldenTests
-           [ TestConfig { tcRawOpt = True }
-           , TestConfig { tcRawOpt = False }
-           ]
-         -- Run tests
-         defaultMain $ testGroup "Troupe golden tests" tests
+    troupeDir <- getEnv "TROUPE"
+    setCurrentDirectory troupeDir
+    
+    -- Pre-generate all test configurations
+    testsWithColor <- sequence
+      [ goldenTests (TestConfig True False)   -- Raw opt, with color
+      , goldenTests (TestConfig False False)  -- No raw opt, with color  
+      ]
+    testsNoColor <- sequence
+      [ goldenTests (TestConfig True True)    -- Raw opt, no color
+      , goldenTests (TestConfig False True)   -- No raw opt, no color
+      ]
+    
+    defaultMainWithIngredients ings $
+      askOption $ \(NoColorOption noColor) ->
+        testGroup "Troupe golden tests" $
+          if noColor then testsNoColor else testsWithColor
+  where
+    ings = includingOptions [Option (Proxy :: Proxy NoColorOption)] : defaultIngredients
 
 
 goldenTests :: TestConfig -> IO TestTree
@@ -112,10 +147,9 @@ compilerTests testFiles tc =
     testGroup "Compiler (negative) tests"
         [goldenVsString 
             troupeFile 
-            goldenFile 
+            (goldenFileName troupeFile tc)
             (runNegative troupeFile tc)
         | troupeFile <- testFiles 
-        , let goldenFile = replaceExtension troupeFile ".golden"
         ]
 
 -- OBS: 2019-03-02: we are using a diff wrapper because the library used by
@@ -135,10 +169,9 @@ runtimeTests testFiles tc =
         [ goldenVsStringDiff  
             troupeFile
             diff 
-            goldenFile 
+            (goldenFileName troupeFile tc)
             (runPositive troupeFile tc)
         | troupeFile <- testFiles 
-        , let goldenFile = replaceExtension troupeFile ".golden"
         ] 
 
 
@@ -147,10 +180,9 @@ timeoutTests testFiles tc =
         [ goldenVsStringDiff  
             troupeFile            
             diff 
-            goldenFile 
+            (goldenFileName troupeFile tc)
             (runPositiveTimeout 8 troupeFile tc)
         | troupeFile <- testFiles 
-        , let goldenFile = replaceExtension troupeFile ".golden"
         ] 
 
 
@@ -159,9 +191,8 @@ divergingTests testFiles tc =
         [ goldenVsStringDiff  
             troupeFile            
             diff_n
-            goldenFile 
+            (goldenFileName troupeFile tc)
             (runPositiveTimeout 8 troupeFile tc)
         | troupeFile <- testFiles 
-        , let goldenFile = replaceExtension troupeFile ".golden"
         ]
 

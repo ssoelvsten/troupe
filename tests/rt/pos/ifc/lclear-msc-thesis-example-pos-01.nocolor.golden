@@ -1,0 +1,5 @@
+2025-06-24T21:28:31.066Z [RTM] info: Skipping network creation. Observe that all external IO operations will yield a runtime error.
+>>> Main thread finished with value: (bcd1535e-ba3f-4924-aa01-e5547dbc616d@{}%{}, bc7d8da1-a3fd-4b5d-a34e-f5d95c6f0758@{}%{})@{}%{}
+PID:bcd1535e-ba3f-4924-aa01-e5547dbc616d@{}%{}     PC:{}                BL:<alice&bob;#root-integrity> HNNORMAL             _sp:22               
+PID:bcd1535e-ba3f-4924-aa01-e5547dbc616d@{}%{}     PC:{}                BL:<alice;#root-integrity> HNNORMAL             _sp:22               
+PID:bcd1535e-ba3f-4924-aa01-e5547dbc616d@{}%{}     PC:{}                BL:<alice;#root-integrity> HNNORMAL             _sp:22               

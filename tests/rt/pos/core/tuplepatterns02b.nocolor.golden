@@ -1,0 +1,3 @@
+2025-06-24T21:28:23.282Z [RTM] info: Skipping network creation. Observe that all external IO operations will yield a runtime error.
+Runtime error in thread 72effeb7-ceb9-468b-a335-8a387719608e@{}%{}
+>> pattern match failure in case expression at :2:3

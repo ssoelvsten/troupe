@@ -1,0 +1,2 @@
+2025-06-24T21:28:27.231Z [RTM] info: Skipping network creation. Observe that all external IO operations will yield a runtime error.
+>>> Main thread finished with value: (42@{}%{}, "hello"@{}%{}, true@{}%{}, fn => ..@{}%{}, {alice}@{}%{}, !{#ROOT}@{}%{}, e89f0692-2f99-4d95-8dec-4821f2219e5c@{}%{}, (1@{}%{}, 2@{}%{})@{}%{}, [3@{}%{}, 4@{}%{}]@{}%{})@{}%{}

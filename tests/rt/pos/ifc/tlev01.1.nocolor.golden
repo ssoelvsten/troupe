@@ -1,0 +1,4 @@
+2025-06-24T21:28:31.052Z [RTM] info: Skipping network creation. Observe that all external IO operations will yield a runtime error.
+52@{alice,bob,charlie}%{charlie}
+PID:9f574e64-7771-4608-a661-16dbc3cc89f1@{}%{}     PC:{}                BL:{charlie}         HNNORMAL             _sp:13               
+>>> Main thread finished with value: ()@{charlie}%{charlie}

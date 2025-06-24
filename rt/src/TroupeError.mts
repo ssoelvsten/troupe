@@ -2,6 +2,10 @@ import { Thread } from "./Thread.mjs";
 // import colors = require('colors/safe');
 import chalk from 'chalk'
 import { SchedulerInterface } from "./SchedulerInterface.mjs";
+import { configureColors } from './colorConfig.mjs';
+
+// Ensure colors are configured when this module is loaded
+configureColors();
 
 export abstract class TroupeError extends Error {
     abstract handleError (sched: SchedulerInterface) : void 

@@ -1,0 +1,3 @@
+2025-06-24T21:28:21.741Z [RTM] info: Skipping network creation. Observe that all external IO operations will yield a runtime error.
+Runtime error in thread 0d0e5d79-b010-427b-8a0d-b15681d9c5ef@{}%{}
+>> value 0 is not a tuple

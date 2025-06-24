@@ -1,0 +1,2 @@
+2025-06-24T21:28:32.751Z [RTM] info: Skipping network creation. Observe that all external IO operations will yield a runtime error.
+>>> Main thread finished with value: c50da987-c63f-4023-aeb0-994d3480b2b0@{}%{}
