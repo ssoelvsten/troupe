@@ -292,6 +292,7 @@ instance WellFormedIRCheck IRExpr where
                      , "guard"
                      , "inputLine"
                      , "intToString"                     
+                     , "listToTuple"
                      , "lowermbox"                    
                      , "levelOf"
                      , "mkuuid"

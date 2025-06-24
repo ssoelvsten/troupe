@@ -1,0 +1,1 @@
+listToTuple [fn x => x + 1, fn y => y * 2, fn z => z - 1]
