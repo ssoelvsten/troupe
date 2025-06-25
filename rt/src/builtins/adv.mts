@@ -6,6 +6,39 @@ import { __unit } from '../UnitVal.mjs';
 
 const {lub, flowsTo} = levels
 
+/* 
+
+       ┌────────┐       
+       │  TOP   │       
+       └────────┘       
+            Λ           
+           ╱ ╲          
+          ╱   ╲         
+         ╱     ╲        
+        ╱       ╲       
+       ╱         ╲      
+      ╱           ╲     
+     ╱             ╲    
+┌────────┐    ┌────────┐
+│  NULL  │    │  ROOT  │
+└────────┘    └────────┘
+     ╲             ╱    
+      ╲           ╱     
+       ╲         ╱      
+        ╲       ╱       
+         ╲     ╱        
+          ╲   ╱         
+           ╲ ╱          
+            V           
+       ┌────────┐       
+       │  BOT   │       
+       └────────┘       
+
+
+*/ 
+
+
+
 export function BuiltinAdv <TBase extends Constructor<UserRuntimeZero>>(Base: TBase) {
     return class extends Base {
         mkSecret = mkBase((x) => {
@@ -18,9 +51,8 @@ export function BuiltinAdv <TBase extends Constructor<UserRuntimeZero>>(Base: TB
             assertNormalState("baseDisclose");
             // assert that
             // pc ⊔ x.lev ⊑ LOW
-            let __sched = this.runtime.__sched
 
-            if (!flowsTo(lub(this.runtime.$t.bl, x.lev), levels.BOT)) {
+            if (!flowsTo(lub(this.runtime.$t.bl, x.lev), levels.NULL)) {
                 this.runtime.$t.
                 threadError("Illegal flow in adv function:\n" +
                     ` |    pc: ${this.runtime.$t.pc.stringRep()}\n` +
@@ -34,7 +66,6 @@ export function BuiltinAdv <TBase extends Constructor<UserRuntimeZero>>(Base: TB
             assertNormalState("baseCertify");
             // assert that
             // pc ⊔ x.lev ⊑ ROOT
-            let __sched = this.runtime.__sched
 
             if (!flowsTo(lub(this.runtime.$t.bl, x.lev), levels.ROOT)) {
                 this.runtime.$t.
