@@ -3,8 +3,10 @@ import { LVal } from '../Lval.mjs';
 import * as levels from '../Level.mjs'
 import { assertIsNTuple, assertNormalState } from '../Asserts.mjs';
 import { __unit } from '../UnitVal.mjs';
+import { getCliArgs, TroupeCliArg } from '../TroupeCliArgs.mjs';
 
 const {lub, flowsTo} = levels
+const argv = getCliArgs();
 
 /* 
 
@@ -49,8 +51,14 @@ export function BuiltinAdv <TBase extends Constructor<UserRuntimeZero>>(Base: TB
 
         adv = mkBase((x) => {
             assertNormalState("baseDisclose");
+            
+            // Check if running in network mode (i.e., NOT local-only)
+            if (!argv[TroupeCliArg.LocalOnly]) {
+                this.runtime.$t.threadError("adv function is disabled in network mode.");
+            }
+            
             // assert that
-            // pc ⊔ x.lev ⊑ LOW
+            // pc ⊔ x.lev ⊑ NULL
 
             if (!flowsTo(lub(this.runtime.$t.bl, x.lev), levels.NULL)) {
                 this.runtime.$t.
@@ -64,6 +72,12 @@ export function BuiltinAdv <TBase extends Constructor<UserRuntimeZero>>(Base: TB
 
         cert = mkBase ((x) =>{
             assertNormalState("baseCertify");
+            
+            // Check if running in network mode (i.e., NOT local-only)
+            if (!argv[TroupeCliArg.LocalOnly]) {
+                this.runtime.$t.threadError("cert function is disabled in network mode.");
+            }
+            
             // assert that
             // pc ⊔ x.lev ⊑ ROOT
 
