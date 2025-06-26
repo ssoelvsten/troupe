@@ -1,11 +1,11 @@
 (* scheduler-independent leak via blocking behavior *)
 (* this is a nasty, nasty leak *)
 
-let val secret = false raisedTo `<secret;>`
+let val secret = false raisedTo `<secret;#root-integrity>`
     
     fun wait () =
-         let val t = raisembox ( `<secret;>`)
-             val _ =  rcv (`{}`, `<secret;>`, [ hn x => () ])
+         let val t = raisembox ( `<secret;#root-integrity>`)
+             val _ =  rcv (`{}`, `<secret;#root-integrity>`, [ hn x => () ])
          in lowermbox (t, authority)
          end
     fun signal p = send (p, ())

@@ -1,8 +1,8 @@
 import declassifyutil 
 import lists
 
-let val x = 42 raisedTo `<alice&bob;>`
-    val y = 100 raisedTo `<alice&bob;>`
+let val x = 42 raisedTo `<alice&bob;#root-integrity>`
+    val y = 100 raisedTo `<alice&bob;#root-integrity>`
 
     val t = x
 in case declassify (t, authority, `{}`) of

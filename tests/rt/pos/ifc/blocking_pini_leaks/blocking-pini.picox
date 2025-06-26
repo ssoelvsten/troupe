@@ -2,10 +2,10 @@
 (* this is a nasty, nasty leak *)
 
 let (* set secret to true or false *)
-    val secret = false raisedTo `<secret;>`
+    val secret = false raisedTo `<secret;#root-integrity>`
     
-    fun wait () = let val c = raisembox ( `<secret;>`)
-                  in rcv (`{}`, `<secret;>`, [ hn x => () ]); 
+    fun wait () = let val c = raisembox ( `<secret;#root-integrity>`)
+                  in rcv (`{}`, `<secret;#root-integrity>`, [ hn x => () ]); 
                      lowermbox (c, authority)
                   end
     fun signal p = send (p, ())

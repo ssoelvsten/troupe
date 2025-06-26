@@ -1,17 +1,17 @@
 datatype Atoms = WRITE | READ | VALUE
 
 let val receive = fn h =>                
-            let val t = raisembox (`<secret;>`) 
-                val x = rcv (`{}`, `<secret;>`, h) 
+            let val t = raisembox (`<secret;#root-integrity>`) 
+                val x = rcv (`{}`, `<secret;#root-integrity>`, h) 
                 val _ = lowermbox (t, authority)
             in x 
             end 
 
     fun cell content = 
-    let val _ = raisembox (`<secret;>`) (* we never lower the mbox clearance here *)
+    let val _ = raisembox (`<secret;#root-integrity>`) (* we never lower the mbox clearance here *)
         fun loop content =
             rcv (`{}`
-                ,`<secret;>`
+                ,`<secret;#root-integrity>`
                 ,[ hn ( WRITE, newcontent ) => loop newcontent 
                     , hn ( READ, reader) =>  
                             let val _ = send (reader, (VALUE, content))
@@ -36,7 +36,7 @@ let val receive = fn h =>
     (* prints 42@`{secret}`%`{secret}` *)
 
     val c = pinipush authority
-    val _ = if (100 raisedTo `<secret;>` > 0) then write x 2 else ()
+    val _ = if (100 raisedTo `<secret;#root-integrity>` > 0) then write x 2 else ()
 
     (* The above line taints the PC of the cell process *)
     (* It also taints the PC of the current process but we lower it later via pinpop *)

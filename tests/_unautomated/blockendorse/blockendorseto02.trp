@@ -1,11 +1,11 @@
 (* Test 2: blockendorseto with multiple labels - positive test *)
 let val labeled = true raisedTo `<; alice | bob>`
-    val aliceAuth = attenuate (authority, `<alice;>`)
-    val bobAuth = attenuate (authority, `<bob;>`)
+    val aliceAuth = attenuate (authority, `<alice;#root-integrity>`)
+    val bobAuth = attenuate (authority, `<bob;#root-integrity>`)
     val _ = if labeled then () else print "tainted" 
     val _ = debugpc ()
     val _ = blockendorseto (aliceAuth, `<;alice>`)
     (* Endorsement to alice should be blocked, but bob should work *)
-    (* val endorsed = endorse (labeled, bobAuth, `<bob;>`) *)
+    (* val endorsed = endorse (labeled, bobAuth, `<bob;#root-integrity>`) *)
 in ()
 end

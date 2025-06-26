@@ -1,9 +1,9 @@
 import declassifyutil 
 (* testing various corner cases of declassification *)
-let val secretAlice = 1 raisedTo `<alice;>`
-    val secretBob = 1 raisedTo `<bob;>`
-    val aliceAuth = attenuate (authority, `<alice;>`)
-    val bobAuth = attenuate (authority, `<bob;>`)
+let val secretAlice = 1 raisedTo `<alice;#root-integrity>`
+    val secretBob = 1 raisedTo `<bob;#root-integrity>`
+    val aliceAuth = attenuate (authority, `<alice;#root-integrity>`)
+    val bobAuth = attenuate (authority, `<bob;#root-integrity>`)
 
 
     val (a,b) = if secretAlice > 0 then (1,2) else (3,4)

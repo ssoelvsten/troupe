@@ -1,5 +1,5 @@
 (* negative test; should fail *)
-let val c = raisembox (`<alice;>`)
-    val () = lowermbox (c, attenuate (authority, `<bob;>`))    
+let val c = raisembox (`<alice;#root-integrity>`)
+    val () = lowermbox (c, attenuate (authority, `<bob;#root-integrity>`))    
 in c
 end 

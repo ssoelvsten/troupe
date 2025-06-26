@@ -1,9 +1,9 @@
 (* Test 4: blockendorseto negative test - should fail *)
 let val public = 100
-    val labeled = public raisedTo `<alice;>`
-    val auth = attenuate (authority, `<alice;>`)
-    val _ = blockendorseto (authority, `<alice;>`)
+    val labeled = public raisedTo `<alice;#root-integrity>`
+    val auth = attenuate (authority, `<alice;#root-integrity>`)
+    val _ = blockendorseto (authority, `<alice;#root-integrity>`)
     (* This should fail because endorsement to alice is blocked *)
-    val endorsed = endorse (labeled, auth, `<alice;>`)
+    val endorsed = endorse (labeled, auth, `<alice;#root-integrity>`)
 in adv endorsed
 end

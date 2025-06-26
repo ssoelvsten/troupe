@@ -1,11 +1,11 @@
 (* Test 5: blockendorseto with partial blocking - positive test *)
 let val data = "sensitive"
-    val aliceData = data raisedTo `<alice;>`
-    val bobData = data raisedTo `<bob;>`
-    val _ = blockendorseto (authority, `<alice;>`)
-    val bobAuth = attenuate (authority, `<bob;>`)
+    val aliceData = data raisedTo `<alice;#root-integrity>`
+    val bobData = data raisedTo `<bob;#root-integrity>`
+    val _ = blockendorseto (authority, `<alice;#root-integrity>`)
+    val bobAuth = attenuate (authority, `<bob;#root-integrity>`)
     (* Endorsing bob data should still work *)
-    val endorsedBob = endorse (bobData, bobAuth, `<bob;>`)
+    val endorsedBob = endorse (bobData, bobAuth, `<bob;#root-integrity>`)
     val _ = printWithLabels endorsedBob
     (* But operations involving alice should be restricted *)
     val _ = if aliceData == "sensitive" then () else ()
