@@ -14,20 +14,26 @@ import CompileMode
 import TroupePositionInfo
 
 import Control.Monad.Reader
+import Control.Monad.Except
 import Data.List (nub, (\\))
 
-trans :: CompileMode -> S.Prog -> T.Prog
-trans mode (S.Prog imports atms tm) =
+type Trans = Except String
+
+trans :: CompileMode -> S.Prog -> Trans T.Prog
+trans mode (S.Prog imports atms tm) = do
   let tm' = case mode of
               Normal ->
                   S.Let [ S.ValDecl (S.VarPattern "authority") (S.Var "$$authorityarg") _srcRT ]
                         tm
               Export -> tm
-  in
-    T.Prog imports (transAtoms atms) (transTerm tm')
+  atms' <- transAtoms atms
+  tm'' <- transTerm tm'
+  return (T.Prog imports atms' tm'')
 
-transAtoms (S.Atoms atms) = T.Atoms atms
+transAtoms :: S.Atoms -> Trans T.Atoms
+transAtoms (S.Atoms atms) = return (T.Atoms atms)
 
+transLit :: S.Lit -> T.Lit
 transLit (S.LInt n pi)    = T.LInt n pi
 transLit (S.LString s) = T.LString s
 transLit (S.LLabel s)  = T.LLabel s
@@ -37,15 +43,21 @@ transLit (S.LBool b)   = T.LBool b
 transLit (S.LAtom a)   = T.LAtom a
 
 
-transLambda_aux (S.Lambda pats t) =
+transLambda_aux :: S.Lambda -> ReaderT T.Term Trans Lambda
+transLambda_aux (S.Lambda pats t) = do
   let args = map (("$arg" ++) . show) [1..(length pats)]
       argPat = zip (map Var args) pats
-      t' = foldM compilePattern (transTerm t) (reverse argPat)
-  in Lambda args <$> t'
+  t' <- lift (transTerm t)
+  result <- foldM compilePattern t' (reverse argPat)
+  return (Lambda args result)
 
-transLambda :: S.Lambda -> Lambda
-transLambda lam = do
-  runReader (transLambda_aux lam)  (Error (Lit (LString "pattern match failed") )  NoPos )
+transLambdaWithError :: S.Lambda -> T.Term -> Trans Lambda
+transLambdaWithError lam errorTerm = 
+  runReaderT (transLambda_aux lam) errorTerm
+
+transLambda :: S.Lambda -> Trans Lambda
+transLambda lam = 
+  transLambdaWithError lam (Error (Lit (LString "pattern match failed") ) NoPos)
 
 
 {-- 2019-01-31 desugaring handlers; AA
@@ -75,8 +87,8 @@ Calling PATSUCC will bring the thread back to normal mode.
 
 _srcRT = RTGen "CaseElimination"
 
-transHandler :: S.Handler -> Lambda
-transHandler (S.Handler pat1 mbpat2 guard body) =
+transHandler :: S.Handler -> Trans Lambda
+transHandler (S.Handler pat1 mbpat2 guard body) = do
   let argInput  = "$input"
       pat2 = case mbpat2 of
               Just pat2 -> pat2
@@ -89,7 +101,7 @@ transHandler (S.Handler pat1 mbpat2 guard body) =
          Just g -> S.If g body' callFailure
       lamBody = S.Case (S.Var argInput) [( S.TuplePattern [pat1, pat2], guardCheck), (S.Wildcard, callFailure)] _srcRT
       lambda = S.Lambda lambdaPats lamBody
-  in transLambda lambda
+  transLambda lambda
   
 
 -- 2018-09-28: AA: a bit of a hack: making sure that the last pattern is
@@ -106,7 +118,7 @@ ifpat t1 t2 t3 =
 -- succ: term corresponding to a successful match
 -- v: the term to be assigned to the pattern
 -- The Reader monad stores the error term.
-compilePattern :: T.Term -> (T.Term, S.DeclPattern) -> Reader T.Term T.Term
+compilePattern :: T.Term -> (T.Term, S.DeclPattern) -> ReaderT T.Term Trans T.Term
 compilePattern succ (v, (S.AtPattern p l))  = do
   fail <- ask
   succ' <- compilePattern succ (v, p)
@@ -151,7 +163,7 @@ compilePattern succ (v, S.RecordPattern fieldPatterns mode) = do
   let fieldNames = map fst fieldPatterns
   let duplicates = fieldNames \\ nub fieldNames
   if not (null duplicates)
-    then error $ "Duplicate field names in record pattern: " ++ show duplicates
+    then lift $ throwError $ "Duplicate field names in record pattern: " ++ show duplicates
     else do
       succ' <- foldM compileField succ (reverse fieldPatterns)
       case mode of
@@ -182,62 +194,111 @@ compilePattern succ (v, S.RecordPattern fieldPatterns mode) = do
 -- When there are multiple patterns like in functions or a case expression,
 -- they are folded into a nested term, with an error expression innermost (after the last check).
 -- The error expression is therefore passed as state of a Reader monad.
-transDecl :: S.Decl -> Term -> Term
+transDecl :: S.Decl -> Term -> Trans Term
 transDecl (S.ValDecl pat t pos) succ = do
   let temp = "$decltemp$"
-  Let [ValDecl temp (transTerm t)]
-    $ runReader (compilePattern succ ((Var temp ), pat)) (Error (Lit (LString "pattern match failure in let declaration")) pos)
-transDecl (S.FunDecs fundecs) succ =
-  Let [FunDecs (map transFunDecl fundecs)] succ
+  t' <- transTerm t
+  result <- runReaderT (compilePattern succ ((Var temp ), pat)) (Error (Lit (LString "pattern match failure in let declaration")) pos)
+  return $ Let [ValDecl temp t'] result
+transDecl (S.FunDecs fundecs) succ = do
+  fundecs' <- mapM transFunDecl fundecs
+  return (Let [FunDecs fundecs'] succ)
   where
     argLength ((S.Lambda args _):_) = length args
     argLength [] = 0
-    transFunDecl (S.FunDecl f lams pos) =
+    transFunDecl (S.FunDecl f lams pos) = do
       let lams' = map (transLambda_aux . (\(S.Lambda args e) -> S.Lambda [S.TuplePattern args] e)) lams
           names = map (((f ++ "_pat") ++) . show) [1..(length lams)]
           args =  map (((f ++ "_arg") ++) . show) [1..(argLength lams)]
           args' =  Tuple (map Var args)
-          zipped = zip names lams'
-          (fst, decls) = foldr (\(n, l) (fail, decls) -> 
-                ( (App (Var n) [args'])
-                , (ValDecl n (Abs (runReader l fail))) 
-                  :decls))                  
-                        (Error (Lit (LString $ "pattern match failure in function " ++ f)) pos
-                        , []) zipped
-      in FunDecl f (Lambda args (Let (reverse decls) fst))
+          errorMsg = Error (Lit (LString $ "pattern match failure in function " ++ f)) pos
+      (fst, decls) <- foldr (\(n, l) acc -> do
+            (fail, decls) <- acc
+            lam <- runReaderT l fail
+            return ( (App (Var n) [args'])
+                   , (ValDecl n (Abs lam)) : decls)
+          ) (return (errorMsg, [])) (zip names lams')
+      return (FunDecl f (Lambda args (Let (reverse decls) fst)))
 
-transTerm :: S.Term -> Term
-transTerm (S.Lit lit) = T.Lit $ transLit lit
-transTerm (S.Var v) = T.Var v
-transTerm (S.Abs l) = T.Abs $ transLambda l
-transTerm (S.Hnd h) = T.Abs $ transHandler h
-transTerm (S.App t1 args) = T.App (transTerm t1) (map transTerm args)
-transTerm (S.Let decls t) =
-  foldr transDecl (transTerm t) decls
+transTerm :: S.Term -> Trans Term
+transTerm (S.Lit lit) = return (T.Lit (transLit lit))
+transTerm (S.Var v) = return (T.Var v)
+transTerm (S.Abs l) = do
+  l' <- transLambda l
+  return (T.Abs l')
+transTerm (S.Hnd h) = do
+  h' <- transHandler h
+  return (T.Abs h')
+transTerm (S.App t1 args) = do
+  t1' <- transTerm t1
+  args' <- mapM transTerm args
+  return (T.App t1' args')
+transTerm (S.Let decls t) = do
+  t' <- transTerm t
+  foldr (\decl acc -> do
+          acc' <- acc
+          transDecl decl acc'
+        ) (return t') decls
 transTerm (S.Case t cases pos) = do
-  let e = foldr (\(pat, succ) fail -> runReader (compilePattern (transTerm succ) (Var "casevar", pat)) fail) (Error (Lit (LString "pattern match failure in case expression")) pos) cases
-  Let [ValDecl "casevar" (transTerm t)] e
-transTerm (S.If t1 t2 t3) =
-  If (transTerm t1) (transTerm t2) (transTerm t3)
-transTerm (S.Tuple tms) = T.Tuple (map transTerm tms)
-transTerm (S.Record fields) = T.Record (transFields fields)
-transTerm (S.WithRecord e fields) = T.WithRecord (transTerm e) (transFields fields)
-transTerm (S.ProjField t f) = T.ProjField (transTerm t) f
-transTerm (S.ProjIdx t idx) = T.ProjIdx (transTerm t) idx
-transTerm (S.List tms) = T.List (map transTerm tms)
-transTerm (S.ListCons t1 t2) = T.ListCons (transTerm t1) (transTerm t2)
-transTerm (S.Bin op t1 t2) = Bin op (transTerm t1) (transTerm t2)
-transTerm (S.Un op t) = Un op (transTerm t)
-transTerm (S.Seq ts) = transTerm $
+  t' <- transTerm t
+  cases' <- mapM (\(pat, succ) -> do
+                    succ' <- transTerm succ
+                    return (pat, succ')
+                  ) cases
+  let e = foldr (\(pat, succ') fail ->
+            case runExcept (runReaderT (compilePattern succ' (Var "casevar", pat)) fail) of
+              Right result -> result
+              Left err -> error err
+          ) (Error (Lit (LString "pattern match failure in case expression")) pos) cases'
+  return (Let [ValDecl "casevar" t'] e)
+transTerm (S.If t1 t2 t3) = do
+  t1' <- transTerm t1
+  t2' <- transTerm t2
+  t3' <- transTerm t3
+  return (If t1' t2' t3')
+transTerm (S.Tuple tms) = do
+  tms' <- mapM transTerm tms
+  return (T.Tuple tms')
+transTerm (S.Record fields) = do
+  fields' <- transFields fields
+  return (T.Record fields')
+transTerm (S.WithRecord e fields) = do
+  e' <- transTerm e
+  fields' <- transFields fields
+  return (T.WithRecord e' fields')
+transTerm (S.ProjField t f) = do
+  t' <- transTerm t
+  return (T.ProjField t' f)
+transTerm (S.ProjIdx t idx) = do
+  t' <- transTerm t
+  return (T.ProjIdx t' idx)
+transTerm (S.List tms) = do
+  tms' <- mapM transTerm tms
+  return (T.List tms')
+transTerm (S.ListCons t1 t2) = do
+  t1' <- transTerm t1
+  t2' <- transTerm t2
+  return (T.ListCons t1' t2')
+transTerm (S.Bin op t1 t2) = do
+  t1' <- transTerm t1
+  t2' <- transTerm t2
+  return (Bin op t1' t2')
+transTerm (S.Un op t) = do
+  t' <- transTerm t
+  return (Un op t')
+transTerm (S.Seq ts) = 
     case reverse ts of
-        [t] -> t
-        body:ts_rev ->
+        [t] -> transTerm t
+        body:ts_rev -> do
           let decls = map (\t -> S.ValDecl S.Wildcard t NoPos) (reverse ts_rev)
-          in  S.Let decls body
-        []  -> error "impossible case: sequence of empty terms"
+          transTerm (S.Let decls body)
+        []  -> throwError "impossible case: sequence of empty terms"
 
-transTerm (S.Error _) = error "impossible case: error"
+transTerm (S.Error _) = throwError "impossible case: error"
 
-transFields = map $ \case
-  (f, Nothing) -> (f, T.Var f)
-  (f, Just t) -> (f, transTerm t)
+transFields :: [(String, Maybe S.Term)] -> Trans [(String, T.Term)]
+transFields = mapM $ \case
+  (f, Nothing) -> return (f, T.Var f)
+  (f, Just t) -> do
+    t' <- transTerm t
+    return (f, t')

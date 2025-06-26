@@ -1,3 +1,0 @@
-troupec: Duplicate field names in record pattern: ["a"]
-CallStack (from HasCallStack):
-  error, called at src/CaseElimination.hs:154:10 in Troupe-compiler-0.2.0.0-1KJDmjTBgTTHcyInM3qSlj:CaseElimination

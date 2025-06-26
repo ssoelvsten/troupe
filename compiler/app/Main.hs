@@ -106,7 +106,9 @@ process flags fname input = do
                         putStrLn (showIndent 2 prog)
 
       --------------------------------------------------
-      let prog' = ((C.trans compileMode) . AF.visitProg) prog
+      prog' <- case runExcept (C.trans compileMode (AF.visitProg prog)) of
+        Right p -> return p
+        Left s -> die s
       when verbose $ do printSep "PATTERN MATCH ELIMINATION"
                         writeFileD "out/out.nopats" (showIndent 2 prog')
       --------------------------------------------------
