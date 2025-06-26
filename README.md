@@ -50,7 +50,28 @@ Type
 
 #### Utilities for testing
 
-On OS X, make sure to have `gtimeout` and `greadlink` utilities. These can be installed via `brew install coreutils`.
+On OS X, make sure to have `gtimeout`, `greadlink`, and GNU `diff` utilities. 
+
+- `gtimeout` and `greadlink` can be installed via `brew install coreutils`
+- GNU `diff` can be installed via `brew install diffutils`
+
+The GNU diff is required because Troupe's test suite relies on specific diff features not available in the default macOS diff. After installation, verify that GNU diff is available:
+
+```bash
+diff --version
+```
+
+Expected output:
+```
+diff (GNU diffutils) 3.10
+Copyright (C) 2023 Free Software Foundation, Inc.
+License GPLv3+: GNU GPL version 3 or later <https://gnu.org/licenses/gpl.html>.
+This is free software: you are free to change and redistribute it.
+There is NO WARRANTY, to the extent permitted by law.
+
+Written by Paul Eggert, Mike Haertel, David Hayes,
+Richard Stallman, and Len Tower.
+```
 
 #### Checking the installation
 

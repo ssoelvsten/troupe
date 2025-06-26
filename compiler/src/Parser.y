@@ -212,7 +212,7 @@ ConfLabelExp :                     { Right LabelTrue }
      | '#null-confidentiality'     { Right LabelTrue }
      | LabelExp                    { Left $1 }
 
-IntLabelExp :                      { Right LabelFalse }
+IntLabelExp :                      { Right LabelTrue }
      | '#root-integrity'           { Right LabelFalse }
      | '#null-integrity'           { Right LabelTrue }
      | LabelExp                    { Left $1 }     
