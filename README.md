@@ -48,7 +48,7 @@ Type
 
 ### Step 5. Running the test suite
 
-#### Utilities for testing
+#### OS X specific utilities for testing
 
 On OS X, make sure to have `gtimeout`, `greadlink`, and GNU `diff` utilities. 
 
