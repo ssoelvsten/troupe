@@ -670,7 +670,7 @@ export class Thread {
             downgradeKind: DowngradeKind.BLOCKING,
             downgradeDimension: DowngradeDimension.INTEGRITY,
             blockLevel: current_bl,
-            operationDescription: "blocking level declassification"
+            operationDescription: "blocking level integrity"
         });
 
         this.bl = bl_to; // the actual downgrade

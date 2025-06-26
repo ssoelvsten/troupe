@@ -7,9 +7,8 @@
 ## Integrity 
  
 - [ ] Integrity of blocking and mailboxes
-      - [ ] Blocking
-        - [x | 2025-06-18 ] Add a primitive `blockendorseto` for endorsement of the blocking label
-        - [  | see _unautomated/blocking for wip ] Create simple examples showcasing why it is needed. 
+      - [x] First implementation of the blocking labels done?
+
       - Mailboxes 
         - [ ] What is the integrity interpretation of the mailbox clearances?
         - [ ] Investigate the syntax to use for mailbox declassification and endorsement. 
@@ -118,6 +117,12 @@
 - [ ] Using efficient serialization engine, e.g., protobufs
 
 # DONE
+
+
+## 2025-06-25
+
+- [x | 2025-06-18 ] Add a primitive `blockendorseto` for endorsement of the blocking label
+- [x | see _unautomated/blocking for wip ] Create simple examples showcasing why it is needed. 
 
 ## 2025-06-17
 

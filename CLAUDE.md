@@ -276,7 +276,7 @@ Some bugs may be further caught by turning off the raw ouptimizations. There is 
 
 #### Troupe parser implementation.
 
-There should be no shift/reduce or reduce/reduce coflicts in the Troupe parser.
+There should be no shift/reduce or reduce/reduce conflicts in the Troupe parser.
 
 
 ### Troupe programs
