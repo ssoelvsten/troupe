@@ -7,15 +7,14 @@
 ## Integrity 
  
 - [ ] Integrity of blocking and mailboxes
-      - [x] First implementation of the blocking labels done?
+    - [x] First implementation of the blocking labels done?
+    - Mailboxes 
+      - [ ] What is the integrity interpretation of the mailbox clearances?
+      - [ ] Investigate the syntax to use for mailbox declassification and endorsement. 
+            Do we need to rename `lowermbox` to `declassifyMbox` `endorseMbox`. In principle, we can do that, creating some backward compatible code for transition
+      - [ ] Create examples showcasing the usage of these primitives
 
-      - Mailboxes 
-        - [ ] What is the integrity interpretation of the mailbox clearances?
-        - [ ] Investigate the syntax to use for mailbox declassification and endorsement. 
-              Do we need to rename `lowermbox` to `declassifyMbox` `endorseMbox`. In principle, we can do that, creating some backward compatible code for transition
-        - [ ] Create examples showcasing the usage of these primitives
-  
-      - [ ] Recall checked endorsements of my paper with Andrew; are they relevant here? 
+    - [ ] Recall checked endorsements of my paper with Andrew; are they relevant here? 
 
 ## Quarantining 
 
@@ -26,17 +25,17 @@
 
 - [ ] NMIFC
 
-      Add internal methods
-      - [ ] okToDeclassifyNMIFC and okToEndorseNMIFC
+    Add internal methods
+    - [ ] okToDeclassifyNMIFC and okToEndorseNMIFC
 
-      Make downgrades NMIFC-enforcing in the following order 
+    Make downgrades NMIFC-enforcing in the following order 
 
-      - [ ] Value downgrades
-      - [ ] Blocking label 
-      - [ ] Mailboxes 
+    - [ ] Value downgrades
+    - [ ] Blocking label 
+    - [ ] Mailboxes 
 
-      Can we have NMIFC enforced by default? If no, what does it mean for the meta-theory?
-      
+    Can we have NMIFC enforced by default? If no, what does it mean for the meta-theory?
+    
         
 - [ ] Capability checks in the runtime should check for the ROOT 
     authority, e.g., for privileged operations such as register.
@@ -78,14 +77,12 @@
 
 ## Refactoring
 
-- [ ] We should rename all tests extensions to .trp
 
 ### Runtime 
 
 - [+ongoing+] Consolidate error handling of downgrading
 
-- [ ] Get rid of lubs in the runtime codebase, because it is redundant, now that 
-  we have a multi-arg lub
+- [ ] Get rid of lubs in the runtime codebase, because it is redundant, now that we have a multi-arg lub
 
 - [ ] DCLabel caching
 
@@ -117,6 +114,10 @@
 - [ ] Using efficient serialization engine, e.g., protobufs
 
 # DONE
+
+## 2025-06-30
+
+- [x] Rename all tests extensions to .trp
 
 
 ## 2025-06-25
