@@ -1,18 +1,24 @@
 .PHONY: test
+
 all:
-	stack build $(STACK_OPTS)
+	stack -v build $(STACK_OPTS)
 	mkdir  -p ./../bin
-	stack install $(STACK_OPTS) --local-bin-path ./../bin/
+	stack -v install $(STACK_OPTS) --local-bin-path ./../bin/
+
 clear:
-	rm *.cabal 
-	stack clean
+	rm *.cabal
+	stack clean --full
+	rm -rf ../bin
+# If problems still persist after this, remove all GHC compilers in ~/.stack/programs/**/
 
 ghci-irtester:
 	stack ghci --main-is Troupe-compiler:exe:irtester --no-load
 
 ghci-troupec:
 	stack ghci --main-is Troupe-compiler:exe:troupec --no-load
-test: 
+
+test:
 	stack test $(STACK_OPTS)
+
 parser-info:
 	stack exec happy -- -i src/Parser.y
