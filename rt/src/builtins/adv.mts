@@ -60,7 +60,7 @@ export function BuiltinAdv <TBase extends Constructor<UserRuntimeZero>>(Base: TB
             // assert that
             // pc ⊔ x.lev ⊑ NULL
 
-            if (!flowsTo(lub(this.runtime.$t.bl, x.lev), levels.NULL)) {
+            if (!flowsTo(lub(this.runtime.$t.bl, x.dlev), levels.NULL)) {
                 this.runtime.$t.
                 threadError("Illegal flow in adv function:\n" +
                     ` |    pc: ${this.runtime.$t.pc.stringRep()}\n` +
@@ -81,7 +81,7 @@ export function BuiltinAdv <TBase extends Constructor<UserRuntimeZero>>(Base: TB
             // assert that
             // pc ⊔ x.lev ⊑ ROOT
 
-            if (!flowsTo(lub(this.runtime.$t.bl, x.lev), levels.ROOT)) {
+            if (!flowsTo(lub(this.runtime.$t.bl, x.dlev), levels.ROOT)) {
                 this.runtime.$t.
                 threadError("Illegal flow in cert function:\n" +
                     ` |    pc: ${this.runtime.$t.pc.stringRep()}\n` +
