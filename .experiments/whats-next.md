@@ -64,8 +64,6 @@
   not be okay; we can talk about implementing context-depending parsing as part
   of the frontend
 
-- [ ] Add support for context-depending #null, #root - style parsing in the
-  LabelExp parsing and lexing
 
 ### Other improvements
 
