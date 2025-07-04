@@ -1,39 +1,52 @@
-.PHONY: rt
+.PHONY: rt compiler
 
-
-
-COMPILER=./bin/troupec
-# run the make of the compiler itself
-stack:
-	$(MAKE) -C compiler 
+# TODO: Rename to 'build/*' ?
+all: npm rt compiler p2p-tools libs service
 
 npm:
 	npm install
+	npm install -g typescript
+
 rt:
-	cd rt; tsc 
+	cd rt; $(MAKE) all
+
+COMPILER=./bin/troupec
+compiler:
+	cd compiler; $(MAKE) all
+
 p2p-tools:
 	cd p2p-tools; tsc
-service:
-	$(COMPILER) ./trp-rt/service.trp -l	
+
 libs:
 	$(COMPILER) ./lib/nsuref.trp -l
 	$(COMPILER) ./lib/string.trp -l
 	$(COMPILER) ./lib/printService.trp -l
 	$(COMPILER) ./lib/lists.trp -l
-	$(COMPILER) ./lib/declassifyutil.trp -l 
-	$(COMPILER) ./lib/stdio.trp -l 
+	$(COMPILER) ./lib/declassifyutil.trp -l
+	$(COMPILER) ./lib/stdio.trp -l
 	$(COMPILER) ./lib/timeout.trp -l
 	$(COMPILER) ./lib/raft.trp -l
 	$(COMPILER) ./lib/raft_debug.trp -l
-	$(COMPILER) ./lib/bst.trp -l	
-	$(COMPILER) ./lib/localregistry.trp -l	
+	$(COMPILER) ./lib/bst.trp -l
+	$(COMPILER) ./lib/localregistry.trp -l
 
-test:
+service:
+	$(COMPILER) ./trp-rt/service.trp -l
+
+# TODO: Rename to 'clean/*' ?
+clear: clear/stack clear/rt
+clear/compiler:
+	cd compiler; $(MAKE) clear
+clear/rt:
+	cd rt; $(MAKE) clear
+clear/p2p-tools:
+	cd p2p-tools; $(MAKE) clear
+
+test: test/local test/multinode
+test/local:
 	mkdir -p out
 	cd compiler && $(MAKE) test
-	./scripts/run-multinode-tests.sh
-
-test-multinode:
+test/multinode:
 	./scripts/run-multinode-tests.sh
 
 dist: stack npm rt p2p-tools libs
@@ -51,19 +64,9 @@ dist: stack npm rt p2p-tools libs
 	cp local.sh ./build/Troupe/bin/local.sh
 	cp network.sh ./build/Troupe/bin/network.sh
 	cp -RL tests ./build/Troupe/
-all:
-	make stack 
-	npm i
-	make rt 
-	make p2p-tools
-	make libs 
-	make service
-clear-built-rt:
-	rm -rf rt/built
 
-build-and-push-docker:
+build-and-push/docker:
 	docker build -t jbay/troupe . && docker push jbay/troupe
 
-build-and-push-repo:
+build-and-push/repo:
 	docker build -t jbay/troupe git@github.com:aslanix/Troupe.git\#devraft && docker push jbay/troupe
-
