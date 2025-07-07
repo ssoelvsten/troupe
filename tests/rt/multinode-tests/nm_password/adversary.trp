@@ -1,0 +1,5 @@
+(* Example of non-malleable information flow in §2.1 in Cecchetti et al. CCS'17 *)
+let val pws = whereis ("@password_service", "checker")
+    val _   = send (pws, ("PRED", self()))
+in receive [hn ("PRED", response) => printWithLabels response]
+end

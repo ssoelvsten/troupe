@@ -1,0 +1,27 @@
+{
+    "test_name": "nm_password",
+    "timeout": 90,
+    "coordination": "parallel",
+    "network": {
+        "relay_port": 5555,
+        "use_relay": true
+    },
+    "nodes": [
+        {
+            "id": "adversary",
+            "script": "adversary.trp",
+            "port": 6789,
+            "expected_exit_code": 0
+        },
+        {
+            "id": "password_service",
+            "script": "secret.trp",
+            "port": 6790,
+            "expected_exit_code": 0
+        }
+    ],
+    "output": {
+        "merge_strategy": "timestamp",
+        "filter_patterns": ["uuid", "timestamp", "peer_id"]
+    }
+}
