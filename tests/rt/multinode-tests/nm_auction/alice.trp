@@ -1,0 +1,34 @@
+(* Example of non-malleable information flow in §2.1 in Cecchetti et al. CCS'17 *)
+let (* Time out with a non-zero exit code after 60 seconds *)
+    val timeout_pid = spawn(fn () => 
+        let val _ = sleep 60000
+        in exit(authority, 124)
+        end)
+
+    (* Register and find Auctioneer, T *)
+    val _ = register("A", self(), authority)
+    val _ = sleep 2 (* Give the other nodes time to register *)
+
+    val TStr = "@auctioneer"
+    val _ = print ("ALICE: Looking for '" ^ TStr ^ "'")
+    val _ = raiseTrust (TStr, authority, `{alice, bob}`)
+    val T = whereis(TStr, "T")
+
+    (* Send bid to Auctioneer *)
+    val _ = print "ALICE: Sending bid"
+    val a_bid = 42 raisedTo `<alice & bob; alice>`
+    val _ = send(T, ("BID", a_bid, self()))
+
+    (* Listen to the rest of the auction *)
+    val _ = print "ALICE: Waiting for bid results"
+    fun listen () = receive [
+        hn ("BID", value, peer)  =>
+            let val _ = print "ALICE: Bid was broadcast"
+            in listen () end,
+        hn ("SOLD", value, peer) =>
+            let val _ = print "ALICE: Bid was closed"
+                val _ = print ("ALICE: " ^ (if peer = self() then "I won!" else "Oh no!"))
+            in exit (authority, 0) end
+     ]
+in listen()
+end

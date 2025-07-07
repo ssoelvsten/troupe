@@ -1,0 +1,80 @@
+(* Example of non-malleable information flow in §2.1 in Cecchetti et al. CCS'17 *)
+(* TODO:
+    - How can I make Bob not able to claim to be Alice?
+ *)
+let (* Time out with a non-zero exit code after 60 seconds *)
+    val timeout_pid = spawn(fn () =>
+        let val _ = sleep 60000
+        in exit(authority, 124)
+        end)
+
+    (* Register and find Alice and Bob *)
+    val _ = register("T", self(), authority)
+    val _ = sleep 2 (* Give the other nodes time to register *)
+
+    val AStr = "@alice"
+    val _ = print ("AUCTIONEER: Looking for '" ^ AStr ^ "'")
+    val _ = raiseTrust (AStr, authority, `{alice}`)
+    val A = whereis(AStr, "A")
+
+    val BStr = "@bob"
+    val _ = print ("AUCTIONEER: Looking for '" ^ BStr ^ "'")
+    val _ = raiseTrust (BStr, authority, `{bob}`)
+    val B = whereis(BStr, "B")
+
+    (* Send a message both to @alice and @bob *)
+    fun sendAB msg = let
+        val _ = send (A, msg)
+        val _ = send (B, msg)
+        in () end
+
+    (* Initially empty map *)
+    val mempty = (0, 0)
+
+    (* Sets one of the two entries in the map for the keys @alice or @bob *)
+    fun mset (k,v) (ABid, BBid) = if k = A then (v, BBid) else
+                                  if k = B then (ABid, v) else exit(42)
+
+    (* The number on non-zero entries; this value is fully declassified, including the blocking
+       label, to not raise the 'pc' when branching on this value. *)
+    fun msize (ABid, BBid) = let val a  = if ABid > 0 then 1 else 0
+                                 val b  = if BBid > 0 then 1 else 0
+                                 val ab = a + b
+                                 val _ = blockdeclto (authority, `<; alice&bob>`)
+                                 val _ = blockendorseto (authority, `{}`)
+                             in endorse (declassify(ab, authority, `<; alice&bob>`), authority, `{}`) end
+
+    (* The currently winning bid in the map. The declassifications below ensure the blocking nor the
+       type labels are raised. *)
+    fun mmax (ABid, BBid) = let val Amax  = ABid >= BBid
+                                val _ = blockdeclto (authority, `<; alice&bob>`)
+                                val _ = blockendorseto (authority, `{}`)
+                                val Amax' = endorse (declassify(Amax, authority, `<; alice&bob>`), authority, `{}`)
+                            in if Amax' then (A, ABid) else (B, BBid) end
+
+    (* Auction Protocol *)
+    fun auction bids = receive [
+        hn ("BID", bid, origin) =>
+            let (* Update state *)
+                val _ = print ("AUCTIONEER: Got a bid from '" ^ (if origin = A then AStr else BStr) ^ "'")
+
+                (* Endorse bid as described in Cecchetti et al. *)
+                val bid' = endorse(bid raisedTo `<alice&bob; alice&bob>`, authority, `<alice&bob; alice&bob>`)
+                val bids' = mset (origin, bid') bids
+
+                (* Broadcast bid. This needs to be declassified to not block the send. *)
+                val _ = print ("AUCTIONEER: Broadcasting (declassified) bid to both '" ^ AStr ^ "' and '" ^ BStr ^ "'")
+                val _ = sendAB ("BID", declassify (bid', authority, `<; alice&bob>`), origin)
+            in (* Broadcast final result if #bids is two *)
+               if msize bids' = 2
+               then let val (W, WBid) = mmax bids'
+                        val _ = print ("AUCTIONEER: The winner is '" ^ (if W = A then AStr else BStr) ^ "'!")
+                        val _ = print ("AUCTIONEER: Broadcasting winner to both '" ^ AStr ^ "' and '" ^ BStr ^ "'")
+                        val _ = sendAB ("SOLD", declassify (WBid, authority, `<; alice&bob>`), W)
+                    in sleep 1000; exit (authority, 0) end
+               else let val _ = print "AUCTIONEER: Waiting for more bids"
+                    in auction bids' end
+            end
+    ]
+in auction mempty
+end

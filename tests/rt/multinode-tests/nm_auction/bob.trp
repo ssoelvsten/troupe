@@ -1,0 +1,43 @@
+(* Example of non-malleable information flow in §2.1 in Cecchetti et al. CCS'17 *)
+let (* Time out with a non-zero exit code after 60 seconds *)
+    val timeout_pid = spawn(fn () => 
+        let val _ = sleep 60000
+        in exit(authority, 124)
+        end)
+
+    (* Register and find Auctioneer, T *)
+    val _ = register("B", self(), authority)
+    val _ = sleep 2 (* Give the other nodes time to register *)
+
+    val TStr = "@auctioneer"
+    val _ = print ("BOB: Looking for '" ^ TStr ^ "'")
+    val _ = raiseTrust (TStr, authority, `{alice, bob}`)
+    val T = whereis(TStr, "T")
+
+    (* Wait for auctioneer to broadcast Alice's bid *)
+    val a_bid = receive [
+       hn ("BID", bid, peer) =>
+            let val _ = print "BOB: Got a broadcast bid!"
+            in bid end
+    ]
+
+    (* Maul Alice's bid to win the auction. To get around the type label suddenly including `bob`,
+       we first need to fully declassify/endorse it. *)
+    val _ = print "BOB: Mauling bid by adding 1 to the bid from '@alice'"
+    val b_bid = endorse(a_bid, authority, `{}`)
+    val b_bid' = (b_bid + 1) raisedTo `<alice & bob; bob>`
+    val _ = send(T, ("BID", b_bid', self()))
+
+    (* Listen to the rest of the auction *)
+    val _ = print "BOB: Waiting for bid results"
+    fun listen () = receive [
+        hn ("BID", value, peer)  =>
+            let val _ = print "BOB: Bid was broadcast"
+            in listen () end,
+        hn ("SOLD", value, peer) =>
+            let val _ = print "BOB: Bid was closed"
+                val _ = print ("BOB: " ^ (if peer = self() then "I won!" else "Oh no!"))
+            in exit (authority, 0) end
+    ]
+in listen()
+end

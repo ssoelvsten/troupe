@@ -74,6 +74,9 @@ scripts/run-multinode-tests.sh -v
 - **service-discovery** - Multiple services across nodes
 - **fault-tolerance** - Network partition recovery
 
+### (Non)malleable IFC
+- **nm_auction** - Auctioneering example by Cecchetti et al.
+
 ## Key Design Principles
 
 ### Finite Execution
