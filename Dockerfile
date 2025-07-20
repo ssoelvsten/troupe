@@ -1,45 +1,46 @@
-FROM fpco/stack-build:lts-21.25
-ENV TROUPE /Troupe
-ENV STACK_OPTS --system-ghc
+FROM node:slim AS base
+ENV TROUPE=/Troupe
 WORKDIR $TROUPE
-COPY compiler compiler
-COPY Makefile .
-RUN make stack
+RUN npm install -g typescript
 
-FROM ubuntu:bionic
-ENV TROUPE /Troupe
-RUN apt-get update \
-  && apt-get install -y curl gnupg build-essential \
-  && curl --silent --location https://deb.nodesource.com/setup_14.x | bash - \
-  && curl -sS https://dl.yarnpkg.com/debian/pubkey.gpg | apt-key add - \
-  && echo "deb https://dl.yarnpkg.com/debian/ stable main" | tee /etc/apt/sources.list.d/yarn.list \
-  && apt-get remove -y --purge cmdtest \
-  && apt-get update \
-  && apt-get install -y nodejs yarn
-RUN apt-get install -y curl python3.7 python3.7-dev python3.7-distutils
-RUN update-alternatives --install /usr/bin/python python /usr/bin/python3.7 1
-RUN update-alternatives --set python /usr/bin/python3.7
-RUN curl -s https://bootstrap.pypa.io/get-pip.py -o get-pip.py && \
-    python get-pip.py --force-reinstall && \
-    rm get-pip.py
-RUN npm install -g typescript    
-COPY package.json .
-RUN yarn install
-WORKDIR /Troupe/
-COPY --from=0 /Troupe/bin bin
-COPY rt rt
-COPY trp-rt trp-rt
-COPY patches patches
-COPY relay relay
-COPY lib lib
-COPY Makefile .
-COPY local.sh .
-COPY network.sh .
-COPY examples examples
-COPY tests tests
-COPY pini.sh .
-RUN yarn
-RUN make rt 
-RUN make libs 
+# Image for building everything.
+FROM base AS builder
+ENV TROUPE=/Troupe
+WORKDIR $TROUPE
+
+# Copy the files to the container.
+COPY . .
+
+# Install packages for building the image.
+RUN apt-get update && apt-get install -qy haskell-stack g++
+
+# Build Troupe.
+RUN npm install
+RUN make rt
+RUN make compiler
+RUN make p2p-tools
+RUN make libs
 RUN make service
 
+# Create runner image.
+FROM base
+ENV TROUPE=/Troupe
+WORKDIR $TROUPE
+
+# Copy files from builder image.
+COPY --from=builder $TROUPE/bin $TROUPE/bin
+COPY --from=builder $TROUPE/examples $TROUPE/examples
+COPY --from=builder $TROUPE/lib $TROUPE/lib
+COPY --from=builder $TROUPE/p2p-tools $TROUPE/p2p-tools
+COPY --from=builder $TROUPE/rt $TROUPE/rt
+COPY --from=builder $TROUPE/tests $TROUPE/tests
+COPY --from=builder $TROUPE/trp-rt $TROUPE/trp-rt
+COPY --from=builder $TROUPE/node_modules $TROUPE/node_modules
+COPY --from=builder $TROUPE/local.sh $TROUPE/local.sh
+COPY --from=builder $TROUPE/network.sh $TROUPE/network.sh
+COPY --from=builder $TROUPE/pini.sh $TROUPE/pini.sh
+COPY --from=builder $TROUPE/rollup.config.js $TROUPE/rollup.config.js
+COPY --from=builder $TROUPE/trustmap.json $TROUPE/trustmap.json
+
+# Command to overwrite the node image command, that starts in node.
+CMD ["sh"]
