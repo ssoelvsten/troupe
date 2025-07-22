@@ -1,0 +1,45 @@
+let val timeout_pid = spawn(fn () =>
+        let val _ = sleep 10000
+        in exit(authority, 124)
+        end)
+
+    (* Modulo 2 for integers *)
+    fun odd x   = (( x mod 2 ) = 1)
+
+    (* Exclusive or for numbers 0 and 1 *)
+    fun xor  x y = let val xy = if x = y then false else true
+                       val _  = blockdeclto(authority, `<; secret>`)
+                       val _  = blockendorseto(authority, `{}`)
+                   in xy end
+
+    (* Convert a Boolean to strings "0" or "1" depending on it being zero or not. *)
+    fun bitstr x = let val x' = if x then "1" else "0"
+                       val _  = blockdeclto(authority, `<; secret>`)
+                       val _  = blockendorseto(authority, `{}`)
+                   in x' end
+
+    (* Register and find padder *)
+    val _ = register("H", self(), authority)
+    val _ = sleep 2 (* Give the other nodes time to register *)
+
+    val PStr = "@pad"
+    val _ = print("HIGH: Looking for '" ^ PStr ^ "'")
+    val _ = raiseTrust(PStr, authority, `{secret}`)
+    val P = whereis(PStr, "P")
+
+    (* Secret bit to reveal *)
+    val z = odd (getTime()) raisedTo `{secret}`
+    val _ = print("HIGH: Created secret 'z' = '" ^ (bitstr z) ^ "'")
+
+    val _ = blockdeclto(authority, `<; secret>`)
+    val _ = blockendorseto(authority, `{}`)
+
+    val _ = receive [ hn x =>
+        let val _ = print("HIGH: Got secret 'x' = '" ^ (bitstr x) ^ "' from '" ^ PStr ^ "'")
+            val _ = blockdeclto(authority, `<; secret>`)
+            val _ = blockendorseto(authority, `{}`)
+        in  print("HIGH: Sending 'xor z x' back to '" ^ PStr ^ "'");
+            send(P, xor z x)
+        end
+    ]
+in sleep 1; exit (authority, 0) end

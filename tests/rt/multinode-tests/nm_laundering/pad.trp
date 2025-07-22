@@ -1,0 +1,57 @@
+let val timeout_pid = spawn(fn () =>
+        let val _ = sleep 10000
+        in exit(authority, 124)
+        end)
+
+    (* Modulo 2 for integers *)
+    fun odd x    = (( x mod 2 ) = 1)
+
+    (* Exclusive or for numbers 0 and 1 *)
+    fun xor  x y = let val xy = if x = y then false else true
+                       val _  = blockdeclto(authority, `<; secret>`)
+                       val _  = blockendorseto(authority, `{}`)
+                   in xy end
+
+    (* Convert a Boolean to strings "0" or "1" depending on it being zero or not. *)
+    fun bitstr x = let val x' = if x then "1" else "0"
+                       val _  = blockdeclto(authority, `<; secret>`)
+                       val _  = blockendorseto(authority, `{}`)
+                   in x' end
+
+    (* Register and find others *)
+    val _ = register("P", self(), authority)
+    val _ = sleep 2 (* Give the other nodes time to register *)
+
+    val HStr = "@high"
+    val _ = print("PAD: Looking for '" ^ HStr ^ "'")
+    val _ = raiseTrust(HStr, authority, `<secret; #null-integrity>`)
+    val H = whereis(HStr, "H")
+
+    val LStr = "@low"
+    val _ = print("PAD: Looking for '" ^ LStr ^ "'")
+    val L = whereis(LStr, "L")
+
+    (* Create secret bit 'x' *)
+    val x = odd (getTime()) raisedTo `{secret}`
+    val _ = print("PAD: Created secret 'x' = '" ^ (bitstr x) ^ "'")
+    val _ = blockdeclto(authority, `<; secret>`)
+    val _ = blockendorseto(authority, `{}`)
+
+    (* and send it to '@high' *)
+    val _ = print("PAD: Sending secret 'x' to '" ^ HStr ^ "'")
+    val _ = send(H, x)
+
+    (* Get secret value 'y' from '@high' *)
+    val _ = print("PAD: waiting for 'y' from '" ^ HStr ^ "'")
+    val y = receive [hn y => y]
+
+    (* Send the secret 'y' to '@low' via a one-time padding of 'x' *)
+    val y' = xor x y
+    val _  = print ("PAD: sending declassified 'xor x y' = '" ^ (bitstr y') ^ "' to '" ^ LStr ^ "'")
+    val _  = blockdeclto(authority, `<; secret>`)
+    val _  = blockendorseto(authority, `{}`)
+
+    (* TODO : The below 'endorse' is not be necessary for it to be a legal flow of information? *)
+    val _ = send(L, endorse( declassify(y', authority, `<; secret>`) , authority, `{}`) )
+
+in sleep 1; exit (authority, 0) end

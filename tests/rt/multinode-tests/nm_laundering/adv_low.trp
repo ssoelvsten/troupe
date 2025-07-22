@@ -1,0 +1,15 @@
+let val timeout_pid = spawn(fn () =>
+        let val _ = sleep 10000
+        in exit(authority, 124)
+        end)
+
+    (* Convert a Boolean to strings "0" or "1" depending on it being zero or not. *)
+    fun bitstr x = if x then "1" else "0"
+
+    (* Register *)
+    val _ = register("L", self(), authority)
+    val _ = sleep 2 (* Give the other nodes time to register *)
+
+in receive [ hn x => print("LOW: Got bit 'z' = '" ^ (bitstr x) ^"'") ];
+   exit(authority, 0)
+end

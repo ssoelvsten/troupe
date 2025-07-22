@@ -1,0 +1,33 @@
+{
+    "test_name": "nm_laundering",
+    "timeout": 90,
+    "coordination": "parallel",
+    "network": {
+        "relay_port": 5555,
+        "use_relay": true
+    },
+    "nodes": [
+        {
+            "id": "low",
+            "script": "adv_low.trp",
+            "port": 6788,
+            "expected_exit_code": 0
+        },
+        {
+            "id": "high",
+            "script": "adv_high.trp",
+            "port": 6789,
+            "expected_exit_code": 0
+        },
+        {
+            "id": "pad",
+            "script": "pad.trp",
+            "port": 6790,
+            "expected_exit_code": 0
+        }
+    ],
+    "output": {
+        "merge_strategy": "timestamp",
+        "filter_patterns": ["uuid", "timestamp", "peer_id"]
+    }
+}
