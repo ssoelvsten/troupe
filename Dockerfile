@@ -2,6 +2,10 @@ FROM node:slim AS base
 ENV TROUPE=/Troupe
 WORKDIR $TROUPE
 RUN npm install -g typescript
+# Install runtime dependencies for multinode tests.
+RUN apt-get update &&\
+    apt-get install -qy procps jq &&\
+    rm -rf /var/lib/apt/lists/*
 
 # Image for building everything.
 FROM base AS builder
@@ -12,7 +16,8 @@ WORKDIR $TROUPE
 COPY . .
 
 # Install packages for building the image.
-RUN apt-get update && apt-get install -qy haskell-stack g++
+RUN apt-get update && \
+    apt-get install -qy haskell-stack g++
 
 # Build Troupe.
 RUN npm install
@@ -41,6 +46,10 @@ COPY --from=builder $TROUPE/network.sh $TROUPE/network.sh
 COPY --from=builder $TROUPE/pini.sh $TROUPE/pini.sh
 COPY --from=builder $TROUPE/rollup.config.js $TROUPE/rollup.config.js
 COPY --from=builder $TROUPE/trustmap.json $TROUPE/trustmap.json
+COPY --from=builder $TROUPE/scripts $TROUPE/scripts
+
+# Create necessary directories.
+RUN mkdir -p $TROUPE/out
 
 # Command to overwrite the node image command, that starts in node.
-CMD ["sh"]
+CMD ["bash"]
