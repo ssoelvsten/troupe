@@ -28,12 +28,12 @@ jobs:
       - name: compile the compiler
         run: make compiler
       - uses: actions/setup-node@v4
-      - run: yarn install
+      - run: npm install
       - name: compile the runtime
         run: make rt
       - name: compile libs
         run: make libs
       - name: compile service
         run: make service
-      - name: unit tests
-        run: make test
+      - name: golden tests
+        run: make ci-test-golden-no-color

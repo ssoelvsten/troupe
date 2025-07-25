@@ -42,6 +42,10 @@ clear/rt:
 clear/p2p-tools:
 	cd p2p-tools; $(MAKE) clear
 
+ci-test-golden-no-color:
+	mkdir -p out 
+	./bin/golden --no-color
+
 test: test/local test/multinode
 test/local:
 	mkdir -p out
