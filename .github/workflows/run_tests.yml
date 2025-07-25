@@ -83,5 +83,5 @@ jobs:
         run: make libs
       - name: compile service
         run: make service      
-      # - name: golden tests
-      #   run: make ci-test-golden-no-color
+      - name: golden tests, sample
+        run: make ci-test-golden-no-color
