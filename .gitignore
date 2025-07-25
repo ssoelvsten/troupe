@@ -21,7 +21,6 @@ cabal.project.local
 .HTF/
 TAGS
 *.vscode 
-package-lock.json
 /out
 *.o
 *.hi
