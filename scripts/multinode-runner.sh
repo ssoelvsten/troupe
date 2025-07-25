@@ -34,16 +34,19 @@ cleanup() {
     log "Cleaning up test processes..."
     
     # Kill relay first if it exists
-    if [[ -n "$RELAY_PID" ]] && kill -0 "$RELAY_PID" 2>/dev/null; then
+    if [[ -n "$RELAY_PID" ]] && [[ "$RELAY_PID" =~ ^[0-9]+$ ]] && kill -0 "$RELAY_PID" 2>/dev/null; then
         kill "$RELAY_PID" 2>/dev/null || true
         sleep 0.5
         kill -9 "$RELAY_PID" 2>/dev/null || true
+    else
+        # Fallback: kill by process name if PID not available
+        pkill -f "relay.mjs" || true
     fi
     
     # Kill all spawned node processes
     if [[ ${#CLEANUP_PIDS[@]} -gt 0 ]]; then
         for pid in "${CLEANUP_PIDS[@]}"; do
-            if kill -0 "$pid" 2>/dev/null; then
+            if [[ "$pid" =~ ^[0-9]+$ ]] && kill -0 "$pid" 2>/dev/null; then
                 kill "$pid" 2>/dev/null || true
             fi
         done
@@ -53,7 +56,7 @@ cleanup() {
         
         # Force kill remaining processes
         for pid in "${CLEANUP_PIDS[@]}"; do
-            if kill -0 "$pid" 2>/dev/null; then
+            if [[ "$pid" =~ ^[0-9]+$ ]] && kill -0 "$pid" 2>/dev/null; then
                 kill -9 "$pid" 2>/dev/null || true
             fi
         done
@@ -197,6 +200,7 @@ start_relay() {
     
     # Create a temporary file for relay output
     local relay_output="$TEMP_DIR/relay.out"
+    touch "$relay_output"  # Ensure file exists before grep
     
     # Start relay in background
     DEBUG=libp2p:circuit-relay:server node "$TROUPE_ROOT/p2p-tools/relay/relay.mjs" \
@@ -207,10 +211,17 @@ start_relay() {
     
     RELAY_PID=$!
     
+    # Docker compatibility: Check if PID capture worked
+    if [[ "$RELAY_PID" == "\$!" ]] || ! [[ "$RELAY_PID" =~ ^[0-9]+$ ]]; then
+        log "Warning: PID capture failed (Docker issue), using alternative method"
+        RELAY_PID=""
+    fi
+    
     # Wait for relay to be ready
     local wait_count=0
     while [[ $wait_count -lt 30 ]]; do
-        if ! kill -0 "$RELAY_PID" 2>/dev/null; then
+        # Check process status only if we have a valid PID
+        if [[ -n "$RELAY_PID" ]] && ! kill -0 "$RELAY_PID" 2>/dev/null; then
             cat "$relay_output" >&2
             error "Relay server failed to start"
         fi
@@ -223,7 +234,11 @@ start_relay() {
                 sed 's/.*\(\/ip4\/.*\)/\1/' | xargs)
             
             if [[ -n "$RELAY_MULTIADDR" ]]; then
-                log "Relay server started (PID: $RELAY_PID)"
+                # Find relay PID if we don't have it (Docker workaround)
+                if [[ -z "$RELAY_PID" ]] || [[ "$RELAY_PID" == "\$!" ]]; then
+                    RELAY_PID=$(pgrep -f "relay.mjs.*--port=$relay_port" | head -1)
+                fi
+                log "Relay server started (PID: ${RELAY_PID:-unknown})"
                 log "Relay multiaddr: $RELAY_MULTIADDR"
                 return 0
             fi
@@ -313,13 +328,32 @@ run_node() {
     fi
     
     local node_pid=$!
-    CLEANUP_PIDS+=("$node_pid")
+    
+    # Docker compatibility: Check if PID capture worked
+    if [[ "$node_pid" == "\$!" ]] || ! [[ "$node_pid" =~ ^[0-9]+$ ]]; then
+        log "Warning: PID capture failed for node $node_id (Docker issue)"
+        # Try to find the process using pgrep
+        sleep 0.5
+        node_pid=$(pgrep -f "timeout.*$script" | head -1)
+        if [[ -z "$node_pid" ]]; then
+            node_pid="unknown"
+        fi
+    fi
+    
+    if [[ "$node_pid" != "unknown" ]]; then
+        CLEANUP_PIDS+=("$node_pid")
+    fi
     
     log "Node $node_id started (PID: $node_pid)"
     
     # Wait for node completion
     local actual_exit_code=0
-    wait "$node_pid" || actual_exit_code=$?
+    if [[ "$node_pid" != "unknown" ]] && [[ "$node_pid" =~ ^[0-9]+$ ]]; then
+        wait "$node_pid" || actual_exit_code=$?
+    else
+        # If we don't have a PID, just wait for any background job
+        wait || actual_exit_code=$?
+    fi
     
     # Handle timeout exit code (124)
     if [[ "$actual_exit_code" == "124" ]]; then
