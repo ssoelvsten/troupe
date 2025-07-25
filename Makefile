@@ -44,7 +44,7 @@ clear/p2p-tools:
 
 ci-test-golden-no-color:
 	mkdir -p out 
-	./bin/golden --no-color
+	./bin/golden --no-color -p fib28
 
 test: test/local test/multinode
 test/local:

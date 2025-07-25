@@ -41,11 +41,13 @@ jobs:
       - uses: actions/setup-node@v4
       
       - run: make npm
+      - name: make p2p-tools 
+        run: make p2p-tools
       - name: compile the runtime
         run: make rt
       - name: compile libs
         run: make libs
       - name: compile service
-        run: make service
+        run: make service      
       - name: golden tests
         run: make ci-test-golden-no-color
