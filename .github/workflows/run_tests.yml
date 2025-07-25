@@ -109,6 +109,8 @@ jobs:
         run: make libs
       - name: compile service
         run: make service      
+      - name: run basic test
+        run: ./local.sh tests/rt/pos/core/fib10.trp
       - name: golden tests, sample
         run: |
           echo "Running golden tests..."
