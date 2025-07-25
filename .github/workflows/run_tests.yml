@@ -9,13 +9,31 @@ jobs:
         TROUPE: ${{github.workspace}}
         TERM: "xterm-color"
     steps:
-      - name: install missing dependency for ghc
-        # https://gitlab.haskell.org/ghc/ghc/-/issues/15444
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y libnuma-dev diffutils
-      
       - uses: actions/checkout@v4
+      
+      # Cache apt packages
+      - name: Cache apt packages
+        uses: actions/cache@v3
+        id: apt-cache
+        with:
+          path: ~/apt-cache
+          key: ${{ runner.os }}-apt-${{ hashFiles('.github/workflows/run_tests.yml') }}
+          restore-keys: |
+            ${{ runner.os }}-apt-
+      
+      - name: Install apt packages
+        run: |
+          if [ "${{ steps.apt-cache.outputs.cache-hit }}" != "true" ]; then
+            sudo apt-get update
+            sudo apt-get install -y libnuma-dev diffutils
+            mkdir -p ~/apt-cache
+            for pkg in libnuma-dev diffutils; do
+              apt-get download $(apt-cache depends --recurse --no-recommends --no-suggests --no-conflicts --no-breaks --no-replaces --no-enhances $pkg | grep "^\w" | sort -u)
+            done
+            mv *.deb ~/apt-cache/
+          else
+            sudo dpkg -i ~/apt-cache/*.deb
+          fi
       
       # Cache Stack dependencies
       - name: Cache Stack
@@ -28,6 +46,27 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-stack-
       
+      # Cache npm dependencies
+      - name: Cache npm dependencies
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.npm
+            node_modules
+            rt/node_modules
+            p2p-tools/node_modules
+            p2p-tools/relay/node_modules
+          key: ${{ runner.os }}-npm-${{ hashFiles('**/package-lock.json', '**/package.json') }}
+          restore-keys: |
+            ${{ runner.os }}-npm-
+      
+      # Cache global npm packages (TypeScript)
+      - name: Cache global npm packages
+        uses: actions/cache@v3
+        with:
+          path: ~/.npm-global
+          key: ${{ runner.os }}-npm-global-typescript
+      
       - uses: haskell-actions/setup@v2
         with:
           ghc-version: '9.4.8' # Exact version of ghc to use
@@ -35,10 +74,33 @@ jobs:
           enable-stack: true
           # stack-version: 'latest'
       
+      - uses: actions/setup-node@v4
+        with:
+          cache: 'npm'
+      
+      # Set up global npm directory
+      - name: Setup npm global directory
+        run: |
+          mkdir -p ~/.npm-global
+          npm config set prefix '~/.npm-global'
+          echo "$HOME/.npm-global/bin" >> $GITHUB_PATH
+      
+      # Cache compiled artifacts
+      - name: Cache build artifacts
+        uses: actions/cache@v3
+        with:
+          path: |
+            bin/troupec
+            rt/built
+            p2p-tools/built
+            lib/*.js
+            trp-rt/*.js
+          key: ${{ runner.os }}-build-${{ hashFiles('compiler/**/*.hs', 'rt/src/**/*.mts', 'p2p-tools/**/*.ts', 'lib/**/*.trp', 'trp-rt/**/*.trp') }}
+          restore-keys: |
+            ${{ runner.os }}-build-
+      
       - name: compile the compiler
         run: make compiler
-      
-      - uses: actions/setup-node@v4
       
       - run: make npm
       - name: make p2p-tools 
