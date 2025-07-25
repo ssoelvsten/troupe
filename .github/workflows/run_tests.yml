@@ -17,24 +17,15 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y libnuma-dev diffutils
       
-      # Cache Stack dependencies
-      - name: Cache Stack
+      # Cache GHC installation
+      - name: Cache GHC
         uses: actions/cache@v3
         with:
           path: |
-            ~/.stack
-            compiler/.stack-work
-          key: ${{ runner.os }}-stack-${{ hashFiles('compiler/stack.yaml', 'compiler/package.yaml', 'compiler/*.cabal') }}
-          restore-keys: |
-            ${{ runner.os }}-stack-
-      
-      
-      # Cache global npm packages (TypeScript)
-      - name: Cache global npm packages
-        uses: actions/cache@v3
-        with:
-          path: ~/.npm-global
-          key: ${{ runner.os }}-npm-global-typescript
+            ~/.ghcup
+            /opt/ghc
+            /usr/local/.ghcup
+          key: ${{ runner.os }}-ghc-9.4.8
       
       - uses: haskell-actions/setup@v2
         with:
@@ -43,16 +34,36 @@ jobs:
           enable-stack: true
           # stack-version: 'latest'
       
+      # Cache Stack dependencies (after GHC setup)
+      - name: Cache Stack
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.stack
+            compiler/.stack-work
+            .stack-work
+          key: ${{ runner.os }}-stack-${{ hashFiles('compiler/stack.yaml', 'compiler/package.yaml', 'compiler/stack.yaml.lock', 'compiler/*.cabal') }}
+          restore-keys: |
+            ${{ runner.os }}-stack-
+      
+      # Cache global npm packages (TypeScript)
+      - name: Cache global npm packages
+        uses: actions/cache@v3
+        with:
+          path: ~/.npm-global
+          key: ${{ runner.os }}-npm-global-typescript
+      
       - uses: actions/setup-node@v4
         with:
           cache: 'npm'
       
-      # Set up global npm directory
+      # Set up global npm directory BEFORE installing packages
       - name: Setup npm global directory
         run: |
           mkdir -p ~/.npm-global
           npm config set prefix '~/.npm-global'
           echo "$HOME/.npm-global/bin" >> $GITHUB_PATH
+          export PATH="$HOME/.npm-global/bin:$PATH"
       
       # Cache compiled artifacts
       - name: Cache build artifacts
@@ -69,7 +80,13 @@ jobs:
             ${{ runner.os }}-build-
       
       - name: compile the compiler
-        run: make compiler
+        run: |
+          make compiler
+          # Build and install the golden test runner
+          cd compiler
+          stack build :golden $(STACK_OPTS)
+          stack install :golden $(STACK_OPTS) --local-bin-path ../bin/
+          cd ..
       
       - name: Install npm dependencies
         run: |
@@ -78,10 +95,28 @@ jobs:
       - name: make p2p-tools 
         run: make p2p-tools
       - name: compile the runtime
-        run: make rt
+        run: |
+          make rt
+          # Verify runtime was built successfully
+          if [ ! -f rt/built/troupe.mjs ]; then
+            echo "ERROR: Runtime build failed - rt/built/troupe.mjs not found"
+            echo "Checking rt/built directory:"
+            ls -la rt/built/ || echo "rt/built directory does not exist"
+            exit 1
+          fi
+          echo "Runtime built successfully, troupe.mjs found"
       - name: compile libs
         run: make libs
       - name: compile service
         run: make service      
       - name: golden tests, sample
-        run: make ci-test-golden-no-color
+        run: |
+          echo "Running golden tests..."
+          make ci-test-golden-no-color || {
+            echo "Golden tests failed with exit code: $?"
+            echo "Checking test output directory:"
+            ls -la tests/rt/pos/core/
+            echo "Checking if fib28 test exists:"
+            ls -la tests/rt/pos/core/fib28*
+            exit 1
+          }
