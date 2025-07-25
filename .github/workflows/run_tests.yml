@@ -11,29 +11,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       
-      # Cache apt packages
-      - name: Cache apt packages
-        uses: actions/cache@v3
-        id: apt-cache
-        with:
-          path: ~/apt-cache
-          key: ${{ runner.os }}-apt-${{ hashFiles('.github/workflows/run_tests.yml') }}
-          restore-keys: |
-            ${{ runner.os }}-apt-
-      
+      # Install apt packages
       - name: Install apt packages
         run: |
-          if [ "${{ steps.apt-cache.outputs.cache-hit }}" != "true" ]; then
-            sudo apt-get update
-            sudo apt-get install -y libnuma-dev diffutils
-            mkdir -p ~/apt-cache
-            for pkg in libnuma-dev diffutils; do
-              apt-get download $(apt-cache depends --recurse --no-recommends --no-suggests --no-conflicts --no-breaks --no-replaces --no-enhances $pkg | grep "^\w" | sort -u)
-            done
-            mv *.deb ~/apt-cache/
-          else
-            sudo dpkg -i ~/apt-cache/*.deb
-          fi
+          sudo apt-get update
+          sudo apt-get install -y libnuma-dev diffutils
       
       # Cache Stack dependencies
       - name: Cache Stack
@@ -46,19 +28,6 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-stack-
       
-      # Cache npm dependencies
-      - name: Cache npm dependencies
-        uses: actions/cache@v3
-        with:
-          path: |
-            ~/.npm
-            node_modules
-            rt/node_modules
-            p2p-tools/node_modules
-            p2p-tools/relay/node_modules
-          key: ${{ runner.os }}-npm-${{ hashFiles('**/package-lock.json', '**/package.json') }}
-          restore-keys: |
-            ${{ runner.os }}-npm-
       
       # Cache global npm packages (TypeScript)
       - name: Cache global npm packages
@@ -102,7 +71,10 @@ jobs:
       - name: compile the compiler
         run: make compiler
       
-      - run: make npm
+      - name: Install npm dependencies
+        run: |
+          npm ci
+          npm install -g typescript
       - name: make p2p-tools 
         run: make p2p-tools
       - name: compile the runtime
