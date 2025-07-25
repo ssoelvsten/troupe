@@ -3,6 +3,9 @@ ENV TROUPE=/Troupe
 WORKDIR $TROUPE
 RUN npm install -g typescript
 
+# Install runtime dependencies for multinode tests
+RUN apt-get update && apt-get install -qy procps jq && rm -rf /var/lib/apt/lists/*
+
 # Image for building everything.
 FROM base AS builder
 ENV TROUPE=/Troupe
@@ -41,6 +44,12 @@ COPY --from=builder $TROUPE/network.sh $TROUPE/network.sh
 COPY --from=builder $TROUPE/pini.sh $TROUPE/pini.sh
 COPY --from=builder $TROUPE/rollup.config.js $TROUPE/rollup.config.js
 COPY --from=builder $TROUPE/trustmap.json $TROUPE/trustmap.json
+COPY --from=builder $TROUPE/scripts $TROUPE/scripts
+COPY --from=builder $TROUPE/Makefile $TROUPE/Makefile
+
+# Create necessary directories
+RUN mkdir -p $TROUPE/out
 
 # Command to overwrite the node image command, that starts in node.
-CMD ["sh"]
+CMD ["bash"]
+
