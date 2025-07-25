@@ -14,10 +14,10 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y libnuma-dev diffutils
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - uses: haskell/actions/setup@v2
         with:
-          ghc-version: '9.2.7' # Exact version of ghc to use
+          ghc-version: '9.4.8' # Exact version of ghc to use
           # cabal-version: 'latest'. Omitted, but defaults to 'latest'
           enable-stack: true
           # stack-version: 'latest'
@@ -26,8 +26,8 @@ jobs:
 #          echo "TROUPE=$GITHUB_WORKSPACE" >> $GITHUB_ENV
 #          echo "TERM=xterm-color" >> $GITHUB_ENV
       - name: compile the compiler
-        run: make stack
-      - uses: actions/setup-node@v2
+        run: make compiler
+      - uses: actions/setup-node@v4
       - run: yarn install
       - name: compile the runtime
         run: make rt
