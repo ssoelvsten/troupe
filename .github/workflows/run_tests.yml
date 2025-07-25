@@ -14,21 +14,35 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y libnuma-dev diffutils
+      
       - uses: actions/checkout@v4
+      
+      # Cache Stack dependencies
+      - name: Cache Stack
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.stack
+            compiler/.stack-work
+          key: ${{ runner.os }}-stack-${{ hashFiles('compiler/stack.yaml', 'compiler/package.yaml', 'compiler/*.cabal') }}
+          restore-keys: |
+            ${{ runner.os }}-stack-
+      
       - uses: haskell/actions/setup@v2
         with:
           ghc-version: '9.4.8' # Exact version of ghc to use
           # cabal-version: 'latest'. Omitted, but defaults to 'latest'
           enable-stack: true
           # stack-version: 'latest'
-#      - run: |
-#          echo "STACK_OPTS=--system-ghc" >> $GITHUB_ENV
-#          echo "TROUPE=$GITHUB_WORKSPACE" >> $GITHUB_ENV
-#          echo "TERM=xterm-color" >> $GITHUB_ENV
+      
       - name: compile the compiler
         run: make compiler
+      
       - uses: actions/setup-node@v4
-      - run: npm install
+        with:
+          cache: 'npm'
+      
+      - run: make npm
       - name: compile the runtime
         run: make rt
       - name: compile libs
