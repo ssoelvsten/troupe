@@ -114,6 +114,8 @@ jobs:
         run: ./local.sh tests/rt/pos/core/fib10.trp
       - name: run ci network test
         run: make test/ci-network
+      - name: run ci relay test
+        run: make test/ci-relay
       - name: run single multinode test with debug
         run: |
           echo "Running basic-echo multinode test with verbose output..."

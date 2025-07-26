@@ -55,6 +55,9 @@ test/multinode:
 test/ci-network: rt p2p-tools
 	@echo "Running CI network test..."
 	./tests/ci-network-test.sh
+test/ci-relay: p2p-tools
+	@echo "Running CI relay test..."
+	./tests/ci-relay-test.sh
 
 dist: stack npm rt p2p-tools libs
 	rm -rf ./build/
