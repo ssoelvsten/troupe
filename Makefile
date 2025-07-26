@@ -52,6 +52,9 @@ test/local:
 	cd compiler && $(MAKE) test
 test/multinode:
 	./scripts/run-multinode-tests.sh
+test/ci-network: rt p2p-tools
+	@echo "Running CI network test..."
+	./tests/ci-network-test.sh
 
 dist: stack npm rt p2p-tools libs
 	rm -rf ./build/

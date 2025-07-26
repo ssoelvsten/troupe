@@ -112,5 +112,7 @@ jobs:
         run: make service      
       - name: run basic test
         run: ./local.sh tests/rt/pos/core/fib10.trp
+      - name: run ci network test
+        run: make test/ci-network
       - name: unit tests
         run: make test
