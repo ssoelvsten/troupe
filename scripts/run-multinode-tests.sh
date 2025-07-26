@@ -8,6 +8,10 @@ TROUPE_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 MULTINODE_TESTS_DIR="$TROUPE_ROOT/tests/rt/multinode-tests"
 VERBOSE=false
 PATTERN=""
+TEMP_DIR=$(mktemp -d)
+
+# Cleanup on exit
+trap "rm -rf $TEMP_DIR" EXIT
 
 usage() {
     cat << EOF
@@ -46,17 +50,19 @@ run_test() {
     local start_time
     start_time=$(date +%s)
     
-    if "$SCRIPT_DIR/multinode-runner.sh" ${VERBOSE:+-v} "$test_config"; then
+    if "$SCRIPT_DIR/multinode-runner.sh" ${VERBOSE:+-v} "$test_config" 2>&1 | tee "$TEMP_DIR/${test_name}.log"; then
         local end_time
         end_time=$(date +%s)
         local duration=$((end_time - start_time))
-        echo "  ✓ PASSED (${duration}s)"
+        echo "  [PASS] Test completed successfully (${duration}s)"
         return 0
     else
+        local exit_code=$?
         local end_time
         end_time=$(date +%s)
         local duration=$((end_time - start_time))
-        echo "  ✗ FAILED (${duration}s)"
+        echo "  [FAIL] Test failed with exit code $exit_code (${duration}s)"
+        echo "  See log: $TEMP_DIR/${test_name}.log"
         return 1
     fi
 }
@@ -121,10 +127,14 @@ main() {
     echo
     
     # Run each test
+    local failed_test_names=()
     for config in "${test_configs[@]}"; do
         total_tests=$((total_tests + 1))
         if ! run_test "$config"; then
             failed_tests=$((failed_tests + 1))
+            local test_name
+            test_name=$(basename "$(dirname "$config")")
+            failed_test_names+=("$test_name")
         fi
         echo
     done
@@ -143,6 +153,14 @@ main() {
     echo "Duration:     ${total_duration}s"
     
     if [[ $failed_tests -gt 0 ]]; then
+        echo
+        echo "Failed tests:"
+        for test_name in "${failed_test_names[@]}"; do
+            echo "  - $test_name (log: $TEMP_DIR/${test_name}.log)"
+        done
+        echo
+        echo "To view logs, run:"
+        echo "  cat $TEMP_DIR/<test-name>.log"
         echo
         echo "Some tests failed!"
         exit 1

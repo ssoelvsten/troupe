@@ -119,16 +119,26 @@ setup_network_identities() {
         
         if [[ ! -f "$id_file" ]]; then
             log "Generating identity for node $node_id"
-            node "$TROUPE_ROOT/p2p-tools/built/mkid.mjs" --outfile="$id_file"
+            if [[ ! -f "$TROUPE_ROOT/p2p-tools/built/mkid.mjs" ]]; then
+                error "mkid.mjs not found. Run 'make p2p-tools' first."
+            fi
+            if ! node "$TROUPE_ROOT/p2p-tools/built/mkid.mjs" --outfile="$id_file"; then
+                error "Failed to generate identity for node $node_id"
+            fi
         fi
     done
     
     # Generate aliases file
     local aliases_file="$test_dir/aliases.json"
     log "Generating aliases file"
-    node "$TROUPE_ROOT/p2p-tools/built/mkaliases.js" \
+    if [[ ! -f "$TROUPE_ROOT/p2p-tools/built/mkaliases.js" ]]; then
+        error "mkaliases.js not found. Run 'make p2p-tools' first."
+    fi
+    if ! node "$TROUPE_ROOT/p2p-tools/built/mkaliases.js" \
         --include "$test_dir/ids"/*.json \
-        --outfile "$aliases_file"
+        --outfile "$aliases_file"; then
+        error "Failed to generate aliases file"
+    fi
 }
 
 ensure_relay_built() {
@@ -145,7 +155,10 @@ ensure_relay_built() {
     
     # Build the relay
     cd "$relay_dir"
-    if ! make build/relay; then
+    echo "Building relay in $relay_dir..."
+    if ! make build/relay 2>&1; then
+        echo "ERROR: Relay build failed. Make sure TypeScript is installed globally." >&2
+        echo "Try: npm install -g typescript" >&2
         error "Failed to build relay server"
     fi
     
@@ -188,10 +201,12 @@ start_relay() {
     mkdir -p "$relay_keys_dir"
     
     log "Generating temporary relay keys..."
-    node "$TROUPE_ROOT/p2p-tools/built/mkid.mjs" \
+    if ! node "$TROUPE_ROOT/p2p-tools/built/mkid.mjs" \
         --privkeyfile="$relay_keys_dir/relay.priv" \
         --idfile="$relay_keys_dir/relay.id" \
-         >&2
+         >&2; then
+        error "Failed to generate relay keys"
+    fi
     
     local relay_port
     relay_port=$(jq -r '.network.relay_port // 5555' "$config_file")
@@ -202,7 +217,17 @@ start_relay() {
     local relay_output="$TEMP_DIR/relay.out"
     touch "$relay_output"  # Ensure file exists before grep
     
+    # Verify relay executable exists
+    if [[ ! -f "$TROUPE_ROOT/p2p-tools/relay/relay.mjs" ]]; then
+        echo "ERROR: Relay executable not found at $TROUPE_ROOT/p2p-tools/relay/relay.mjs" >&2
+        echo "The relay needs to be built. This should have been done by ensure_relay_built()" >&2
+        error "Relay executable missing"
+    fi
+    
     # Start relay in background
+    echo "Starting relay with command:" >&2
+    echo "DEBUG=libp2p:circuit-relay:server node $TROUPE_ROOT/p2p-tools/relay/relay.mjs --port=$relay_port --id-file=$relay_keys_dir/relay.id --priv-file=$relay_keys_dir/relay.priv" >&2
+    
     DEBUG=libp2p:circuit-relay:server node "$TROUPE_ROOT/p2p-tools/relay/relay.mjs" \
         --port="$relay_port" \
         --id-file="$relay_keys_dir/relay.id" \
@@ -248,7 +273,14 @@ start_relay() {
         ((wait_count++))
     done
     
+    echo "ERROR: Relay failed to start properly after 15 seconds" >&2
+    echo "Relay output:" >&2
     cat "$relay_output" >&2
+    echo "" >&2
+    echo "Possible issues:" >&2
+    echo "- Port $relay_port might be in use" >&2
+    echo "- Missing npm dependencies" >&2
+    echo "- TypeScript compilation errors" >&2
     error "Failed to get relay multiaddr"
 }
 
@@ -286,6 +318,19 @@ run_node() {
     local aliases_file="$test_dir/aliases.json"
     local output_file="$output_dir/$node_id.out"
     local error_file="$output_dir/$node_id.err"
+    
+    # Verify network.sh exists
+    if [[ ! -x "./network.sh" ]]; then
+        error "network.sh not found or not executable in $TROUPE_ROOT"
+    fi
+    
+    # Verify required files exist
+    if [[ ! -f "$id_file" ]]; then
+        error "Identity file not found for node $node_id: $id_file"
+    fi
+    if [[ ! -f "$aliases_file" ]]; then
+        error "Aliases file not found: $aliases_file"
+    fi
     
     # Build command
     local cmd_args=(
