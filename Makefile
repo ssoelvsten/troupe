@@ -1,4 +1,4 @@
-.PHONY: rt compiler
+.PHONY: rt compiler p2p-tools
 
 # TODO: Rename to 'build/*' ?
 all: npm rt compiler p2p-tools libs service
