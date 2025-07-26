@@ -62,7 +62,9 @@ run_test() {
         end_time=$(date +%s)
         local duration=$((end_time - start_time))
         echo "  [FAIL] Test failed with exit code $exit_code (${duration}s)"
-        echo "  See log: $TEMP_DIR/${test_name}.log"
+        echo "  === BEGIN LOG: $test_name ==="
+        cat "$TEMP_DIR/${test_name}.log" || echo "  (no log file found)"
+        echo "  === END LOG: $test_name ==="
         return 1
     fi
 }

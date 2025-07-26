@@ -114,5 +114,25 @@ jobs:
         run: ./local.sh tests/rt/pos/core/fib10.trp
       - name: run ci network test
         run: make test/ci-network
-      - name: unit tests
-        run: make test
+      - name: run single multinode test with debug
+        run: |
+          echo "Running basic-echo multinode test with verbose output..."
+          ./scripts/multinode-runner.sh -v tests/rt/multinode-tests/basic-echo/config.json || {
+            echo "Test failed with exit code: $?"
+            echo "Checking for common issues..."
+            ls -la p2p-tools/built/ || echo "p2p-tools/built not found"
+            ls -la p2p-tools/relay/ || echo "relay directory not found"
+            which tsc || echo "TypeScript compiler not found"
+            exit 1
+          }
+      - name: run golden tests
+        run: make test/local
+      - name: Upload test logs on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-logs
+          path: |
+            /tmp/troupe-multinode-*/
+            /tmp/tmp.*/
+          retention-days: 7

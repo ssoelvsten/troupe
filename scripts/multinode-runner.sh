@@ -31,6 +31,8 @@ EOF
 }
 
 cleanup() {
+    # Capture exit code before any other commands
+    exit_code=$?
     log "Cleaning up test processes..."
     
     # Kill relay first if it exists
@@ -62,9 +64,21 @@ cleanup() {
         done
     fi
     
-    # Clean up temporary directory
+    # Clean up temporary directory (preserve on failure for debugging)
     if [[ -n "$TEMP_DIR" && -d "$TEMP_DIR" ]]; then
-        rm -rf "$TEMP_DIR"
+        if [[ $exit_code -ne 0 ]]; then
+            echo "Test failed. Preserving logs in: $TEMP_DIR" >&2
+            echo "Node outputs:" >&2
+            for f in "$TEMP_DIR"/output/*.out "$TEMP_DIR"/output/*.err; do
+                if [[ -f "$f" ]]; then
+                    echo "=== $f ===" >&2
+                    cat "$f" >&2
+                    echo "" >&2
+                fi
+            done
+        else
+            rm -rf "$TEMP_DIR"
+        fi
     fi
     
     # Kill any remaining troupe processes
