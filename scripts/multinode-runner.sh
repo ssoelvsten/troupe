@@ -238,9 +238,17 @@ start_relay() {
         error "Relay executable missing"
     fi
     
+    # Verify node is available
+    if ! which node >/dev/null 2>&1; then
+        error "Node.js not found in PATH"
+    fi
+    
     # Start relay in background
     echo "Starting relay with command:" >&2
     echo "DEBUG=libp2p:circuit-relay:server node $TROUPE_ROOT/p2p-tools/relay/relay.mjs --port=$relay_port --id-file=$relay_keys_dir/relay.id --priv-file=$relay_keys_dir/relay.priv" >&2
+    
+    # Temporarily disable exit on error for relay startup
+    set +e
     
     DEBUG=libp2p:circuit-relay:server node "$TROUPE_ROOT/p2p-tools/relay/relay.mjs" \
         --port="$relay_port" \
@@ -250,6 +258,9 @@ start_relay() {
     
     RELAY_PID=$!
     
+    # Give the process a moment to start
+    sleep 0.5
+    
     # Docker compatibility: Check if PID capture worked
     if [[ "$RELAY_PID" == "\$!" ]] || ! [[ "$RELAY_PID" =~ ^[0-9]+$ ]]; then
         log "Warning: PID capture failed (Docker issue), using alternative method"
@@ -258,9 +269,12 @@ start_relay() {
     
     # Wait for relay to be ready
     local wait_count=0
+    echo "Waiting for relay to be ready..." >&2
     while [[ $wait_count -lt 30 ]]; do
         # Check process status only if we have a valid PID
         if [[ -n "$RELAY_PID" ]] && ! kill -0 "$RELAY_PID" 2>/dev/null; then
+            echo "ERROR: Relay process died unexpectedly" >&2
+            echo "Relay output file size: $(wc -c < "$relay_output" 2>/dev/null || echo "0") bytes" >&2
             cat "$relay_output" >&2
             error "Relay server failed to start"
         fi
@@ -279,13 +293,24 @@ start_relay() {
                 fi
                 log "Relay server started (PID: ${RELAY_PID:-unknown})"
                 log "Relay multiaddr: $RELAY_MULTIADDR"
+                # Re-enable exit on error
+                set -e
                 return 0
             fi
+        fi
+        
+        # Log progress every 2 seconds
+        if [[ $((wait_count % 4)) -eq 0 ]]; then
+            echo "Still waiting for relay... (${wait_count}s elapsed)" >&2
+            echo "Relay output size: $(wc -c < "$relay_output" 2>/dev/null || echo "0") bytes" >&2
         fi
         
         sleep 0.5
         ((wait_count++))
     done
+    
+    # Re-enable exit on error before erroring out
+    set -e
     
     echo "ERROR: Relay failed to start properly after 15 seconds" >&2
     echo "Relay output:" >&2
