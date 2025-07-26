@@ -17,6 +17,7 @@ import Data.Char (isSpace, toLower)
 import Data.List (dropWhileEnd)
 import Data.Char ( chr )
 import Numeric ( readDec )
+import Control.Monad (when)
 }
 
 %wrapper "monadUserState"

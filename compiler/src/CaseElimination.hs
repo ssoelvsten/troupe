@@ -15,6 +15,7 @@ import TroupePositionInfo
 
 import Control.Monad.Reader
 import Control.Monad.Except
+import Control.Monad (foldM)
 import Data.List (nub, (\\))
 
 type Trans = Except String

@@ -33,6 +33,7 @@ import ShowIndent
 import Exports
 import CompileMode
 import Control.Monad.Except
+import Control.Monad (when)
 import System.Console.GetOpt
 import Data.List as List
 import Data.Maybe (fromJust)
