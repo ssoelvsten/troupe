@@ -25,11 +25,11 @@ jobs:
             ~/.ghcup
             /opt/ghc
             /usr/local/.ghcup
-          key: ${{ runner.os }}-ghc-9.4.8
+          key: ${{ runner.os }}-ghc-9.12.2
       
       - uses: haskell-actions/setup@v2
         with:
-          ghc-version: '9.4.8' # Exact version of ghc to use
+          ghc-version: '9.12.2' # Exact version of ghc to use
           # cabal-version: 'latest'. Omitted, but defaults to 'latest'
           enable-stack: true
           # stack-version: 'latest'
