@@ -112,14 +112,5 @@ jobs:
         run: make service      
       - name: run basic test
         run: ./local.sh tests/rt/pos/core/fib10.trp
-      - name: golden tests, sample
-        run: |
-          echo "Running golden tests..."
-          make ci-test-golden-no-color || {
-            echo "Golden tests failed with exit code: $?"
-            echo "Checking test output directory:"
-            ls -la tests/rt/pos/core/
-            echo "Checking if fib28 test exists:"
-            ls -la tests/rt/pos/core/fib28*
-            exit 1
-          }
+      - name: unit tests
+        run: make test
