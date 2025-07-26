@@ -278,7 +278,7 @@ pevalInst i = do
         else do
           case Map.lookup (x,y) (stateJoins pstate) of 
             Just r' -> _omit $ addSubst r r'
-            Nothing -> case Map.lookup (x,y) (stateJoins pstate) of
+            Nothing -> case Map.lookup (y,x) (stateJoins pstate) of
               Just r' -> _omit $ addSubst r r'
               Nothing -> _keep $ do 
                 markUsed [x,y] 
