@@ -1,0 +1,78 @@
+(* Whereis Blocking Test - Client *)
+(* Tests that whereis blocks until the service is available *)
+
+let 
+    val timeout_pid = spawn(fn () => 
+        let val _ = sleep 40000
+        in print "RETRY-CLIENT: Timeout"; exit(authority, 124)
+        end)
+    
+    (* whereis blocks indefinitely with NO timeout *)
+    (* This test demonstrates that whereis will wait forever for a service *)
+    fun waitForConnection() =
+        let val _ = print "RETRY-CLIENT: WARNING - whereis has no built-in timeout!"
+            val _ = print "RETRY-CLIENT: Calling whereis (will block indefinitely until service found)"
+            val _ = print "RETRY-CLIENT: The delayed server should start in ~10 seconds"
+            val start_whereis = getTime()
+            
+            (* This will block FOREVER until the service is registered *)
+            (* There is NO timeout - it will wait indefinitely *)
+            val service = whereis("@delayed-server", "retry-test")
+            
+            val whereis_time = getTime() - start_whereis
+            val _ = print ("RETRY-CLIENT: whereis finally returned after " ^ 
+                          intToString(whereis_time) ^ "ms")
+            val _ = print "RETRY-CLIENT: This demonstrates whereis blocks indefinitely"
+        in (service, whereis_time)
+        end 
+    
+    fun retry_client() =
+        let val _ = print "RETRY-CLIENT: Starting connection retry test"
+            
+            (* Track timing *)
+            val start_time = getTime()
+            
+            (* Wait for connection - whereis will block *)
+            val (service, whereis_time) = waitForConnection()
+            
+            val total_time = getTime() - start_time
+            val _ = print ("RETRY-CLIENT: Total time from start: " ^ 
+                          intToString(total_time) ^ "ms")
+            
+            (* Verify connection succeeded *)
+            val _ = print "RETRY-CLIENT: Connection established"
+            
+            (* Send test message with attempt count *)
+            val final_attempt = 5  (* Approximate based on server delay *)
+            val _ = print "RETRY-CLIENT: Sending RETRY_TEST message"
+            val _ = send(service, ("RETRY_TEST", final_attempt, self()))
+            val _ = print "RETRY-CLIENT: Waiting for RETRY_SUCCESS response"
+            
+            (* Wait for response *)
+            val result = receive [
+                hn ("RETRY_SUCCESS", attempt) =>
+                    let val _ = print ("RETRY-CLIENT: Received success confirmation for attempt #" ^ 
+                                      intToString(attempt))
+                    in "success"
+                    end
+            ]
+            val _ = print ("RETRY-CLIENT: Result = " ^ result)
+            
+            (* Log connection statistics *)
+            val _ = print "RETRY-CLIENT: Connection blocking test statistics:"
+            val _ = print ("  - whereis blocking time: " ^ intToString(whereis_time) ^ "ms")
+            val _ = print ("  - Expected server delay: ~10 seconds")
+            val _ = print ("  - Blocking behavior: INDEFINITE (no timeout)")
+            val _ = print ("  - Test shows whereis waited " ^ intToString(whereis_time) ^ 
+                          "ms for service")
+            
+        in if result = "success" then
+            (print "RETRY-CLIENT: Connection retry test completed successfully"; 
+             exit(authority, 0))
+           else
+            (print "RETRY-CLIENT: Connection retry test failed"; 
+             exit(authority, 1))
+        end
+
+in retry_client()
+end

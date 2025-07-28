@@ -35,15 +35,16 @@ cleanup() {
     exit_code=$?
     log "Cleaning up test processes..."
     
-    # Kill relay first if it exists
+    # Kill relay first with multiple attempts
     if [[ -n "$RELAY_PID" ]] && [[ "$RELAY_PID" =~ ^[0-9]+$ ]] && kill -0 "$RELAY_PID" 2>/dev/null; then
         kill "$RELAY_PID" 2>/dev/null || true
-        sleep 0.5
+        sleep 1
         kill -9 "$RELAY_PID" 2>/dev/null || true
-    else
-        # Fallback: kill by process name if PID not available
-        pkill -f "relay.mjs" || true
     fi
+    
+    # Kill by process name as fallback
+    pkill -f "relay.mjs" || true
+    pkill -f "node.*network.sh" || true
     
     # Kill all spawned node processes
     if [[ ${#CLEANUP_PIDS[@]} -gt 0 ]]; then
@@ -53,8 +54,8 @@ cleanup() {
             fi
         done
         
-        # Give processes time to clean up
-        sleep 1
+        # Give processes more time to clean up
+        sleep 2
         
         # Force kill remaining processes
         for pid in "${CLEANUP_PIDS[@]}"; do
@@ -63,6 +64,30 @@ cleanup() {
             fi
         done
     fi
+    
+    # Clean up ports used by the test
+    if [[ -n "$TEST_CONFIG" ]]; then
+        local ports=($(jq -r '.nodes[].port' "$TEST_CONFIG" 2>/dev/null))
+        local relay_port=$(jq -r '.network.relay_port // 5555' "$TEST_CONFIG" 2>/dev/null)
+        ports+=("$relay_port")
+        
+        for port in "${ports[@]}"; do
+            if [[ "$port" =~ ^[0-9]+$ ]]; then
+                # Kill any process listening on this port
+                if command -v lsof >/dev/null 2>&1; then
+                    # macOS doesn't support -r flag for xargs
+                    if [[ "$(uname)" == "Darwin" ]]; then
+                        lsof -ti ":$port" | xargs kill -9 2>/dev/null || true
+                    else
+                        lsof -ti ":$port" | xargs -r kill -9 2>/dev/null || true
+                    fi
+                fi
+            fi
+        done
+    fi
+    
+    # Final cleanup of any troupe processes
+    pkill -9 -f "node.*troupe" || true
     
     # Clean up temporary directory (preserve on failure for debugging)
     if [[ -n "$TEMP_DIR" && -d "$TEMP_DIR" ]]; then
@@ -81,8 +106,8 @@ cleanup() {
         fi
     fi
     
-    # Kill any remaining troupe processes
-    pkill -f "node.*troupe" || true
+    # Additional delay to ensure OS releases sockets
+    sleep 2
 }
 
 trap cleanup EXIT INT TERM
@@ -96,6 +121,74 @@ log() {
 error() {
     echo "Error: $*" >&2
     exit 1
+}
+
+check_port_available() {
+    local port="$1"
+    if command -v lsof >/dev/null 2>&1; then
+        if lsof -Pi ":$port" -sTCP:LISTEN -t >/dev/null 2>&1; then
+            return 1  # Port is in use
+        fi
+    fi
+    return 0  # Port is available or lsof not available
+}
+
+wait_for_port_release() {
+    local port="$1"
+    local max_wait=10
+    local wait_count=0
+    
+    while [[ $wait_count -lt $max_wait ]]; do
+        if check_port_available "$port"; then
+            log "Port $port is now available"
+            return 0
+        fi
+        log "Port $port still in use, waiting... ($((max_wait - wait_count))s remaining)"
+        sleep 1
+        ((wait_count++))
+    done
+    
+    # Force kill processes using the port
+    log "Force killing processes on port $port"
+    if command -v lsof >/dev/null 2>&1; then
+        # macOS doesn't support -r flag for xargs
+        if [[ "$(uname)" == "Darwin" ]]; then
+            lsof -ti ":$port" | xargs kill -9 2>/dev/null || true
+        else
+            lsof -ti ":$port" | xargs -r kill -9 2>/dev/null || true
+        fi
+    fi
+    sleep 1
+    return 0
+}
+
+validate_ports() {
+    local config_file="$1"
+    log "Validating port availability..."
+    
+    local ports=($(jq -r '.nodes[].port' "$config_file" 2>/dev/null))
+    local relay_port=$(jq -r '.network.relay_port // 5555' "$config_file" 2>/dev/null)
+    ports+=("$relay_port")
+    
+    local port_conflict=false
+    for port in "${ports[@]}"; do
+        if [[ "$port" =~ ^[0-9]+$ ]]; then
+            if ! check_port_available "$port"; then
+                echo "Warning: Port $port is in use, attempting cleanup..." >&2
+                wait_for_port_release "$port"
+                if ! check_port_available "$port"; then
+                    echo "Error: Unable to free port $port" >&2
+                    port_conflict=true
+                fi
+            fi
+        fi
+    done
+    
+    if [[ "$port_conflict" == "true" ]]; then
+        error "Unable to free required ports. Please check for lingering processes."
+    fi
+    
+    log "All required ports are available"
 }
 
 parse_config() {
@@ -226,6 +319,12 @@ start_relay() {
     relay_port=$(jq -r '.network.relay_port // 5555' "$config_file")
     
     log "Starting relay server on port $relay_port"
+    
+    # Check if relay port is available first
+    if ! check_port_available "$relay_port"; then
+        log "Relay port $relay_port is in use, attempting cleanup..."
+        wait_for_port_release "$relay_port"
+    fi
     
     # Create a temporary file for relay output
     local relay_output="$TEMP_DIR/relay.out"
@@ -524,6 +623,9 @@ run_test() {
     log "Running multi-node test: $test_name"
     log "Test directory: $test_dir"
     log "Output directory: $output_dir"
+    
+    # Validate ports are available before starting
+    validate_ports "$config_file"
     
     # Setup phase
     setup_network_identities "$test_dir" "$config_file"

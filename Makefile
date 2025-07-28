@@ -52,6 +52,10 @@ test/local:
 	cd compiler && $(MAKE) test
 test/multinode:
 	./scripts/run-multinode-tests.sh
+test/libp2p-migration:
+	./scripts/run-libp2p-migration-tests.sh
+test/libp2p-migration-verbose:
+	./scripts/run-libp2p-migration-tests.sh -v
 test/ci-network: rt p2p-tools
 	@echo "Running CI network test..."
 	./tests/ci-network-test.sh

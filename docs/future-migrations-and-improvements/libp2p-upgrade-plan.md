@@ -3,6 +3,8 @@
 ## Executive Summary
 Troupe currently uses libp2p v0.45.3, which is significantly outdated. The latest version is v2.8.9 (as of June 2025). This upgrade involves major architectural changes including TypeScript rewrite, ESM modules, interface consolidation, and extracted services.
 
+**Testing Readiness Assessment**: The existing multinode testing framework provides good coverage of high-level P2P operations (messaging, service discovery, remote spawn) but lacks critical low-level P2P tests needed for a safe upgrade. Significant test development is required, particularly for connection management, stream operations, and migration scenarios.
+
 ## Current State Analysis
 
 ### Current Implementation
@@ -339,20 +341,28 @@ const obj = {
 
 ### Phase 3: Testing
 1. **Unit Tests**:
-   - Test peer ID generation
-   - Test connection establishment
-   - Test message sending/receiving
+   - PeerId generation with new crypto APIs
+   - Private key serialization/deserialization
+   - Connection establishment with new configuration
+   - Async stream operations
+   - Error type conversions (.code → .name)
+   - Stats property access (stream.stat.X → stream.X)
 
 2. **Integration Tests**:
-   - Test remote spawn operations
-   - Test whereis functionality
-   - Test relay connectivity
-   - Test peer discovery
+   - All existing multinode tests must pass
+   - Remote spawn operations with new PeerId handling
+   - Service discovery (whereis) with updated peer resolution
+   - Circuit relay v2 connectivity
+   - Peer discovery with new DHT configuration
+   - Connection retry and failure scenarios
+   - Multiple concurrent connections
 
 3. **Performance Tests**:
-   - Compare connection establishment times
-   - Test message throughput
-   - Monitor resource usage
+   - Connection establishment latency comparison
+   - Message throughput benchmarks
+   - Memory usage profiling
+   - P2P node startup time
+   - Relay performance impact
 
 ### Phase 4: Rollout
 1. Deploy to test environment
@@ -390,6 +400,192 @@ const obj = {
 - **Phase 4 (Rollout)**: 2-3 days
 
 **Total estimate**: 2-3 weeks for complete migration
+
+## Testing Infrastructure Analysis
+
+### Current Multinode Testing Capabilities
+
+The Troupe multinode testing framework provides a solid foundation for P2P testing:
+
+**Infrastructure:**
+- Test orchestrator (`scripts/multinode-runner.sh`) manages node coordination
+- Automatic relay setup and management
+- P2P identity generation using `mkid.mts`
+- Alias file generation for node discovery
+- Output synchronization and filtering
+- Configurable timeouts and exit code validation
+
+**Existing Test Coverage:**
+1. **basic-echo** - Simple client-server message exchange
+2. **multi-client** - Multiple clients connecting to one server
+3. **cross-spawn** - Remote process spawning across nodes
+4. **ring-echo** (3 variants) - Multi-hop message routing
+5. **trust-flow-issue-42** - Security constraint validation
+
+**P2P Operations Currently Tested:**
+- Service registration (`register`)
+- Service discovery (`whereis`)
+- Message passing (`send`/`receive`)
+- Remote spawning (`spawn` with node targets)
+- Relay-based connectivity
+- Trust and security constraints
+
+### Testing Gaps for libp2p v2 Upgrade
+
+**Critical Missing Tests:**
+
+1. **P2P Connection Layer:**
+   - Direct peer connections (without relay)
+   - Connection failure and retry scenarios
+   - Connection lifecycle (establishment, maintenance, teardown)
+   - Multiple transport fallback (TCP → WebSocket → Relay)
+   - NAT traversal without relay
+
+2. **Stream Management:**
+   - Async stream operations (critical for v0.46+)
+   - Stream multiplexing with yamux/mplex
+   - Stream error handling and recovery
+   - Concurrent stream limits
+   - Stream timeout behavior
+
+3. **PeerId and Crypto:**
+   - PeerId generation and serialization
+   - Private key import/export
+   - Key format compatibility
+   - Identity persistence across restarts
+
+4. **Error Handling:**
+   - New error types and names
+   - Network-specific errors
+   - Graceful degradation scenarios
+
+5. **Performance Characteristics:**
+   - Connection establishment benchmarks
+   - Message latency measurements
+   - Memory usage under load
+   - DHT query performance
+
+6. **Backward Compatibility:**
+   - No tests for gradual migration
+   - No version interoperability tests
+   - No rollback scenario validation
+
+## Required Test Enhancements
+
+### New Test Suites Needed
+
+1. **p2p-connection-tests/**
+   ```json
+   {
+     "test_name": "p2p-direct-connection",
+     "nodes": [
+       {
+         "id": "node1",
+         "script": "direct-connect-initiator.trp",
+         "test_scenarios": [
+           "successful_direct_connection",
+           "connection_timeout",
+           "connection_refused",
+           "transport_fallback"
+         ]
+       }
+     ]
+   }
+   ```
+
+2. **p2p-stream-tests/**
+   - Test async stream operations
+   - Validate proper stream closing
+   - Test concurrent stream limits
+   - Verify stream error propagation
+
+3. **p2p-identity-tests/**
+   - Test PeerId generation with new APIs
+   - Validate key serialization formats
+   - Test identity persistence
+   - Verify peer discovery with new IDs
+
+4. **p2p-migration-tests/**
+   - Side-by-side version testing
+   - Gradual rollout scenarios
+   - Feature flag validation
+   - Rollback procedures
+
+### Enhanced Existing Tests
+
+1. **Update all tests to validate:**
+   - New error formats
+   - Async operation completion
+   - Stats property access
+   - Connection metadata
+
+2. **Add performance metrics collection:**
+   - Connection establishment time
+   - Message round-trip time
+   - Memory usage snapshots
+   - CPU utilization
+
+## Test Development Strategy
+
+### Phase 1: Test Infrastructure Enhancement
+1. Add performance metric collection to multinode-runner.sh
+2. Create test utilities for:
+   - PeerId validation
+   - Connection state inspection
+   - Stream lifecycle tracking
+   - Error type mapping
+
+### Phase 2: Unit Test Development
+1. Create standalone tests for each libp2p component
+2. Focus on API changes and edge cases
+3. Validate all configuration options
+
+### Phase 3: Integration Test Expansion
+1. Extend existing tests with new validation
+2. Add new test suites for missing coverage
+3. Create migration-specific tests
+
+### Phase 4: Performance Benchmarking
+1. Establish baseline metrics with v0.45.3
+2. Create automated performance comparison
+3. Set acceptable performance thresholds
+
+### Test Execution Strategy
+```bash
+# Run all P2P tests
+make test-p2p
+
+# Run specific test suite
+scripts/multinode-runner.sh tests/rt/multinode-tests/p2p-connection-tests/config.json
+
+# Run with performance profiling
+scripts/multinode-runner.sh -v --profile tests/rt/multinode-tests/basic-echo/config.json
+
+# Run migration tests
+make test-p2p-migration
+```
+
+## Testing Priorities and Recommendations
+
+### High Priority (Must Have Before Migration)
+1. **Stream Async Operations** - Critical for v0.46+ compatibility
+2. **PeerId/Key Handling** - Core identity system changes
+3. **Error Type Mapping** - Prevents runtime failures
+4. **Basic Connection Tests** - Validate fundamental P2P operations
+
+### Medium Priority (Should Have)
+1. **Performance Benchmarks** - Detect regressions early
+2. **Circuit Relay v2** - Validate new relay protocol
+3. **Multi-transport Tests** - Ensure fallback mechanisms work
+4. **DHT Operations** - Service discovery reliability
+
+### Low Priority (Nice to Have)
+1. **Load Tests** - Stress testing under high load
+2. **Network Simulation** - Latency and packet loss scenarios
+3. **Extended Migration Tests** - Complex rollout scenarios
+
+### Recommendation
+Before starting the migration, invest 3-5 days in developing the high-priority tests. This will significantly reduce the risk of issues during the upgrade and provide confidence in the migration process.
 
 ## Additional Notes
 

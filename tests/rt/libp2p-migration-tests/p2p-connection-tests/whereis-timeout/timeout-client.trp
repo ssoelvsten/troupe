@@ -1,0 +1,82 @@
+(* Whereis Timeout Test - Demonstrates safe whereis usage *)
+(* Shows how to implement timeout for whereis since it blocks forever *)
+
+let 
+    val timeout_pid = spawn(fn () => 
+        let val _ = sleep 25000
+        in print "TEST: Global timeout"; exit(authority, 124)
+        end)
+    
+    (* Safe whereis with timeout - spawn it in a separate process *)
+    fun whereisWithTimeout(node, service, timeoutMs) =
+        let val parent = self()
+            
+            (* Spawn a process to do the whereis *)
+            val whereis_pid = spawn(fn () =>
+                let val _ = print ("WHEREIS-PROC: Looking for " ^ service ^ " on " ^ node)
+                    val pid = whereis(node, service)
+                    val _ = print "WHEREIS-PROC: whereis returned!"
+                in send(parent, ("WHEREIS_RESULT", pid))
+                end)
+            
+            (* Spawn a timeout process *)
+            val timeout_proc = spawn(fn () =>
+                let val _ = sleep timeoutMs
+                in send(parent, ("WHEREIS_TIMEOUT", ()))
+                end)
+            
+            (* Wait for either result or timeout *)
+            val result = receive [
+                hn ("WHEREIS_RESULT", pid) => ("found", pid),
+                hn ("WHEREIS_TIMEOUT", ()) => ("timeout", self())  (* dummy pid *)
+            ]
+        in result
+        end
+    
+    fun test_whereis_timeout() =
+        let val _ = print "TIMEOUT-CLIENT: Testing safe whereis with timeout"
+            
+            (* Test 1: Look for non-existent service with 5 second timeout *)
+            val _ = print "\nTEST 1: Looking for non-existent service with 5s timeout"
+            val start1 = getTime()
+            val (status1, pid1) = whereisWithTimeout("@nonexistent", "noservice", 5000)
+            val elapsed1 = getTime() - start1
+            val _ = print ("TEST 1 Result: " ^ status1 ^ " after " ^ intToString(elapsed1) ^ "ms")
+            val _ = if status1 = "timeout" then
+                        print "TEST 1: PASSED - Timeout worked correctly"
+                    else
+                        print "TEST 1: FAILED - Should have timed out"
+            
+            (* Test 2: Look for ourselves (should succeed quickly) *)
+            val _ = print "\nTEST 2: Looking for local service with 5s timeout"
+            val _ = register("test-service", self(), authority)
+            val start2 = getTime()
+            val (status2, pid2) = whereisWithTimeout("@timeout-client", "test-service", 5000)
+            val elapsed2 = getTime() - start2
+            val _ = print ("TEST 2 Result: " ^ status2 ^ " after " ^ intToString(elapsed2) ^ "ms")
+            val _ = if status2 = "found" andalso elapsed2 < 1000 then
+                        print "TEST 2: PASSED - Found service quickly"
+                    else
+                        print "TEST 2: FAILED - Should have found service"
+            
+            (* Summary *)
+            val _ = print "\nSUMMARY: Safe whereis implementation"
+            val _ = print "- whereis blocks forever without timeout"
+            val _ = print "- Spawn whereis in separate process"
+            val _ = print "- Use receive with timeout pattern"
+            val _ = print "- Protects against hanging on non-existent services"
+            
+            val all_passed = (status1 = "timeout") andalso (status2 = "found")
+            
+        in if all_passed then
+            let val _ = print "\nTIMEOUT-CLIENT: All timeout tests PASSED"
+                val _ = sleep 1000  (* Allow P2P connections to close gracefully *)
+            in exit(authority, 0)
+            end
+           else
+            (print "\nTIMEOUT-CLIENT: Some timeout tests FAILED"; 
+             exit(authority, 1))
+        end
+
+in test_whereis_timeout()
+end

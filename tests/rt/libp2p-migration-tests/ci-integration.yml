@@ -1,0 +1,63 @@
+# GitHub Actions workflow for libp2p migration tests
+# This file can be added to .github/workflows/ for CI integration
+
+name: libp2p Migration Tests
+
+on:
+  pull_request:
+    paths:
+      - 'rt/src/p2p/**'
+      - 'p2p-tools/**'
+      - 'tests/rt/libp2p-migration-tests/**'
+      - 'scripts/run-libp2p-migration-tests.sh'
+  push:
+    branches:
+      - 'feature/libp2p-v2-upgrade'
+      - 'dev-*'
+
+jobs:
+  libp2p-migration-tests:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Set up Node.js
+      uses: actions/setup-node@v3
+      with:
+        node-version: '18'
+        
+    - name: Install dependencies
+      run: |
+        npm install
+        npm install -g typescript
+        
+    - name: Build Troupe
+      run: |
+        make rt
+        make p2p-tools
+        make libs
+        
+    - name: Run libp2p migration tests
+      run: |
+        make test/libp2p-migration
+        
+    - name: Upload test results
+      if: always()
+      uses: actions/upload-artifact@v3
+      with:
+        name: libp2p-test-results
+        path: |
+          /tmp/troupe-multinode-*/
+          
+    - name: Run specific test categories
+      if: always()
+      run: |
+        echo "Running connection tests..."
+        ./scripts/run-libp2p-migration-tests.sh -c p2p-connection-tests
+        
+        echo "Running stream tests..."
+        ./scripts/run-libp2p-migration-tests.sh -c p2p-stream-tests
+        
+        echo "Running identity tests..."
+        ./scripts/run-libp2p-migration-tests.sh -c p2p-identity-tests
