@@ -1,11 +1,11 @@
 (* Async Stream Operations Test - Server *)
 (* Tests async stream handling critical for libp2p v0.46+ *)
 
+import NetHealth
+
 let 
-    val timeout_pid = spawn(fn () => 
-        let val _ = sleep 30000
-        in print "STREAM-SERVER: Timeout"; exit(authority, 124)
-        end)
+    val config = {print = print, auth = authority}
+    val timeout_pid = spawnTestTimeout(config, 30000, "STREAM-SERVER")
     
     fun generate_large_data(size) =
         (* Generate data that will require chunking *)
@@ -60,13 +60,9 @@ let
             val test_result = handle_messages(0)
             
         in if test_result = "complete" then
-            let val _ = print "STREAM-SERVER: Async stream operations test completed successfully"
-                val _ = sleep 1000  (* Give time for message delivery *)
-            in exit(authority, 0)
-            end
+            exitSuccess(config, "STREAM-SERVER", "Async stream operations test completed successfully", 1000)
            else
-            (print "STREAM-SERVER: Async stream operations test failed"; 
-             exit(authority, 1))
+            exitFailure(config, "STREAM-SERVER", "Async stream operations test failed")
         end
 
 in stream_server()

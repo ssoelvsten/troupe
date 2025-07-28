@@ -1,31 +1,25 @@
 (* Async Stream Operations Test - Client *)
 (* Tests async stream handling critical for libp2p v0.46+ *)
 
+import NetHealth
+
 let 
-    val timeout_pid = spawn(fn () => 
-        let val _ = sleep 25000
-        in print "STREAM-CLIENT: Timeout"; exit(authority, 124)
-        end)
-    
-    fun measure_transfer_time(operation) =
-        let val start = getTime()
-            val result = operation()
-            val elapsed = getTime() - start
-        in (result, elapsed)
-        end
+    val config = {print = print, auth = authority}
+    val timeout_pid = spawnTestTimeout(config, 25000, "STREAM-CLIENT")
     
     fun stream_client() =
         let val _ = print "STREAM-CLIENT: Starting async stream test client"
             
             (* Find stream server *)
             val _ = sleep 1000  (* Give server time to register *)
-            val server = whereis("@stream-server", "stream-test")
+            val (server, connect_time) = measureConnectionTime("@stream-server", "stream-test")
             val _ = print "STREAM-CLIENT: Found stream server"
+            val _ = reportPerformanceMetric(config, "STREAM-CLIENT", "Service lookup time", connect_time, "ms")
             
             (* Test 1: Small message (tests basic async operation) *)
             val _ = print "\nSTREAM-CLIENT: Test 1 - Small message async operation"
             val small_msg = "Hello Stream"
-            val (small_result, small_time) = measure_transfer_time(fn () =>
+            val (small_result, small_time) = measureTime(fn () =>
                 let val _ = send(server, ("SMALL_MSG", small_msg, self()))
                 in receive [
                     hn ("SMALL_ACK", ack) => 
@@ -33,13 +27,12 @@ let
                 ]
                 end
             )
-            val _ = print ("STREAM-CLIENT: Small message round-trip: " ^ 
-                          intToString(small_time) ^ "ms")
+            val _ = reportPerformanceMetric(config, "STREAM-CLIENT", "Small message RTT", small_time, "ms")
             
             (* Test 2: Large message (tests chunked/async transfer) *)
             val _ = print "\nSTREAM-CLIENT: Test 2 - Large message async transfer"
             val large_size = 1000  (* Request 1KB of data *)
-            val (large_result, large_time) = measure_transfer_time(fn () =>
+            val (large_result, large_time) = measureTime(fn () =>
                 let val _ = send(server, ("LARGE_MSG", large_size, self()))
                 in receive [
                     hn ("LARGE_DATA", data) => 
@@ -51,8 +44,7 @@ let
                 ]
                 end
             )
-            val _ = print ("STREAM-CLIENT: Large message transfer time: " ^ 
-                          intToString(large_time) ^ "ms")
+            val _ = reportPerformanceMetric(config, "STREAM-CLIENT", "Large message transfer time", large_time, "ms")
             
             (* Test 3: Concurrent streams (tests multiplexing) *)
             val _ = print "\nSTREAM-CLIENT: Test 3 - Concurrent stream operations"
@@ -83,30 +75,24 @@ let
             val _ = print ("STREAM-CLIENT: Concurrent test: " ^ 
                           (if concurrent_success then "PASSED" else "FAILED"))
             
-            (* Summary *)
-            val _ = print "\nSTREAM-CLIENT: Async stream test summary:"
-            val _ = print ("  - Small message async: " ^ 
-                          (if small_result then "PASSED" else "FAILED"))
-            val _ = print ("  - Large message transfer: " ^ 
-                          (if large_result then "PASSED" else "FAILED"))
-            val _ = print ("  - Concurrent streams: " ^ 
-                          (if concurrent_success then "PASSED" else "FAILED"))
-            val _ = print "\nSTREAM-CLIENT: Performance metrics:"
-            val _ = print ("  - Small message RTT: " ^ intToString(small_time) ^ "ms")
-            val _ = print ("  - Large transfer time: " ^ intToString(large_time) ^ "ms")
+            (* Calculate throughput *)
             val throughput = if large_time > 0 then 
                                 large_size * 1000 div large_time
                              else 0
-            val _ = print ("  - Throughput: ~" ^ intToString(throughput) ^ " bytes/sec")
+            val _ = reportPerformanceMetric(config, "STREAM-CLIENT", "Throughput", throughput, "bytes/sec")
             
-            val all_passed = small_result andalso large_result andalso concurrent_success
+            (* Test results *)
+            val test_results = [
+                ("Small message async", small_result),
+                ("Large message transfer", large_result),
+                ("Concurrent streams", concurrent_success),
+                ("Connection established quickly", connect_time < 5000)
+            ]
             
-        in if all_passed then
-            (print "\nSTREAM-CLIENT: All async stream operations tests PASSED"; 
-             exit(authority, 0))
-           else
-            (print "\nSTREAM-CLIENT: Some async stream operations tests FAILED"; 
-             exit(authority, 1))
+            (* Report test summary *)
+            val _ = reportTestSummary(config, "STREAM-CLIENT", test_results)
+            
+        in exitOnTestResults(config, "STREAM-CLIENT", test_results, 1000)
         end
 
 in stream_client()

@@ -1,11 +1,11 @@
 (* Whereis Blocking Test - Delayed Server *)
 (* This server starts late to test whereis blocking behavior *)
 
+import NetHealth
+
 let 
-    val timeout_pid = spawn(fn () => 
-        let val _ = sleep 30000
-        in print "DELAYED-SERVER: Timeout"; exit(authority, 124)
-        end)
+    val config = {print = print, auth = authority}
+    val timeout_pid = spawnTestTimeout(config, 30000, "DELAYED-SERVER")
     
     fun delayed_server() =
         let val _ = print "DELAYED-SERVER: Starting after delay"
@@ -26,13 +26,9 @@ let
             ]
             
         in if result = "success" then
-            let val _ = print "DELAYED-SERVER: Connection retry test completed successfully"
-                val _ = sleep 1000  (* Give time for message delivery *)
-            in exit(authority, 0)
-            end
+            exitSuccess(config, "DELAYED-SERVER", "Connection retry test completed successfully", 1000)
            else
-            (print "DELAYED-SERVER: Connection retry test failed"; 
-             exit(authority, 1))
+            exitFailure(config, "DELAYED-SERVER", "Connection retry test failed")
         end
 
 in delayed_server()

@@ -1,11 +1,11 @@
 (* Direct P2P Connection Test - Server *)
 (* Tests direct peer-to-peer connection without relay *)
 
+import NetHealth
+
 let 
-    val timeout_pid = spawn(fn () => 
-        let val _ = sleep 25000
-        in print "SERVER: Timeout waiting for connection"; exit(authority, 124)
-        end)
+    val config = {print = print, auth = authority}
+    val timeout_pid = spawnTestTimeout(config, 25000, "SERVER")
     
     fun connection_test_server() =
         let val _ = print "SERVER: Starting direct connection test server"
@@ -35,13 +35,9 @@ let
             ]
             
         in if result = "success" then
-            let val _ = print "SERVER: Direct connection test completed successfully"
-                val _ = sleep 1000  (* Give time for message delivery *)
-            in exit(authority, 0)
-            end
+            exitSuccess(config, "SERVER", "Direct connection test completed successfully", 1000)
            else
-            (print "SERVER: Direct connection test failed"; 
-             exit(authority, 1))
+            exitFailure(config, "SERVER", "Direct connection test failed")
         end
 
 in connection_test_server()
