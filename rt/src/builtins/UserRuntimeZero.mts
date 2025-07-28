@@ -89,6 +89,10 @@ export class UserRuntimeZero {
     }
 
 
+    debug (x) {
+        this.runtime.debug(x);
+    }
+
     ret (x) {
         this.runtime.ret (x)
     }

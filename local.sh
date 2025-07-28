@@ -35,11 +35,15 @@ tmp=`mktemp`.js
 # Separate compiler and runtime arguments
 compiler_args=""
 runtime_args=""
+keep_temp=false
 
 for arg in "$@"; do
     case "$arg" in
         --no-color)
             runtime_args="$runtime_args $arg"
+            ;;
+        --keep-temp)
+            keep_temp=true
             ;;
         *)
             compiler_args="$compiler_args $arg"
@@ -51,7 +55,11 @@ done
 
 if [ $? -eq 0 ]; then
     eval "node --stack-trace-limit=1000 \"$TROUPE/rt/built/troupe.mjs\" -f=\"$tmp\" --localonly $runtime_args"
-    rm "$tmp"
+    if [ "$keep_temp" = false ]; then
+        rm "$tmp"
+    else
+        echo "Temporary file kept at: $tmp"
+    fi
 else 
     exit $?
 fi    
