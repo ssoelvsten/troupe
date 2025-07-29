@@ -124,6 +124,7 @@ The runtime implements:
 
 ## Testing Strategy
 
+
 Tests are organized in `/tests/`, with the following subfolders
 
 - `cmp` - Negative compiler tests.
@@ -136,6 +137,11 @@ Tests are organized in `/tests/`, with the following subfolders
    - `timeout/` - Tests with timeouts
    - `warn/` - Tests that should produce warnings
    - `multinode/` - Multinode (networking) tests
+
+
+## Creating new tests
+
+Do not put tests into the folders with existing .golden files, without explicit permission! 
 
 ### Testing non-networking functionality
 

@@ -1,8 +1,6 @@
-(* Hash Array Mapped Trie (HAMT) library for Troupe *)
+(* Hash Array Mapped Trie (HAMT) library for Troupe - Optimized with native bit operations *)
 
-(* 2025-07-29: Note; AA -- this is currently very slow -- 
-   so it is a good target for driving the performance tuning
- *)
+(* 2025-07-29: Updated to use native bit operations instead of arithmetic simulation *)
 
 import lists
 
@@ -15,20 +13,6 @@ let
   val BRANCH_FACTOR = 32  (* 2^5 branches *)
   val MASK = 31  (* 0b11111 *)
   
-  (* Integer power function *)
-  fun intPow base exp = 
-    if exp = 0 then 1
-    else base * intPow base (exp - 1)
-    
-  (* String length helper *)
-  (* fun strLen s = 
-    let fun len s idx = 
-          case (substring (s, idx, 1)) of
-            "" => idx
-          | _ => len s (idx + 1)
-    in len s 0
-    end
-     *)
   (* Character code at index - extended character set *)
   fun charCode s idx = charCodeAtWithDefault (s, idx, 63)
 
@@ -53,29 +37,26 @@ let
         end
     end
              
-  (* Get the index at a given level from hash *)
-  fun getIndex hashval level = (hashval div (intPow BRANCH_FACTOR level)) mod BRANCH_FACTOR
+  (* Get the index at a given level from hash - using bit operations *)
+  fun getIndex hashval level = (hashval >> (level * SHIFT)) andb MASK
     
-  (* Bitmap operations simulated with arithmetic *)
-  fun setBit bitmap pos = bitmap + intPow 2 pos
-  fun testBit bitmap pos = ((bitmap div (intPow 2 pos)) mod 2) = 1
-  fun clearBit bitmap pos = 
-    if testBit bitmap pos 
-    then bitmap - intPow 2 pos 
-    else bitmap
+  (* Bitmap operations using native bit operations *)
+  fun setBit bitmap pos = bitmap orb (1 << pos)
+  fun testBit bitmap pos = ((bitmap >> pos) andb 1) = 1
+  fun clearBit bitmap pos = bitmap andb ((-1) xorb (1 << pos))
     
   fun popcount bitmap = 
     let fun count bm acc =
           if bm = 0 then acc
-          else count (bm div 2) (acc + (bm mod 2))
+          else count (bm >> 1) (acc + (bm andb 1))
     in count bitmap 0
     end
     
   fun positionInBitmap bitmap pos =
-    let fun countBits bm p acc =
-          if p = 0 then acc
-          else countBits (bm div 2) (p - 1) (acc + (bm mod 2))
-    in countBits bitmap pos 0
+    (* Count the number of 1 bits before position pos *)
+    let val mask = (1 << pos) - 1
+        val masked = bitmap andb mask
+    in popcount masked
     end
     
   (* Array operations using lists *)
