@@ -33,6 +33,7 @@ libs:
 	$(COMPILER) ./lib/hamt.trp -l
 
 service:
+	mkdir -p ./trp-rt/out
 	$(COMPILER) ./trp-rt/service.trp -l
 
 # TODO: Rename to 'clean/*' ?

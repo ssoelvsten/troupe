@@ -578,6 +578,14 @@ expr2rawComp = \case
         assertTypeAndRaise v1 RawRecord
         assertTypeAndRaise v2 RawString
         basicBinOpComp
+      
+      -- Bit operations
+      Basics.BinAnd -> numBinOpComp
+      Basics.BinOr -> numBinOpComp
+      Basics.BinXor -> numBinOpComp
+      Basics.BinShiftLeft -> numBinOpComp
+      Basics.BinShiftRight -> numBinOpComp
+      Basics.BinZeroShiftRight -> numBinOpComp
 
       -- TODO Implement remaining operations
       _ -> error $ "Binary operation not yet implemented: " ++ show op
