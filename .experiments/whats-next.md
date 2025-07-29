@@ -1,8 +1,18 @@
 # What's next 
 
 
+
+
 ## Infra
 
+
+[ ] Implement spawn as the top level primitive that does all 
+    the pattern matching and then calls into local_spawn when needed.
+
+[ ] Look into making HAMT faster 
+
+[ ] Inline one-time declared joins (maybe? | this needs profiling)
+    
 
 ## Integrity 
  

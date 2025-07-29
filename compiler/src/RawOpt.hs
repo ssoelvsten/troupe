@@ -22,6 +22,7 @@ import           IR ( Identifier(..)
 import qualified Data.List
 import qualified Data.Ord
 
+import Debug.Trace
 --------------------------------------------------
 --  substitutions for Raw 
 --------------------------------------------------
@@ -300,7 +301,7 @@ pevalInst i = do
             markUsed v
             let m0 = stateLVals pstate 
             let m1 = Map.insert (v, field) r m0 
-            put $ pstate { stateLVals = m1 }            
+            put $ pstate { stateLVals = m1 }
       AssignRaw r rexpr -> _keep $ do
         markUsed rexpr 
         case guessType rexpr of 
@@ -489,7 +490,23 @@ instance PEval RawBBTree where
 funopt :: FunDef -> FunDef 
 funopt (FunDef hfn consts bb ir) =  
   
-  let constTypes = foldl (\m (x, lit)  -> 
+  let 
+      (m_consts, m_subst) = foldl (\(m1, m2) (x,lit) -> 
+            case Map.lookup lit m1 of 
+                Just r -> (m1, Map.insert x r m2 )
+                Nothing -> (Map.insert lit x m1, m2 )
+            ) (Map.empty, Map.empty) consts
+
+      (consts', constTypes) = Map.foldrWithKey (\lit x (acc,m) ->
+              let new_acc = (x, lit) : acc
+                  new_m = case typeOfLit lit of 
+                            Just t -> Map.insert x t m 
+                            Nothing -> m   
+              in (new_acc, new_m))
+              ([],Map.empty)
+              m_consts
+
+      constTypes_obs = foldl (\m (x, lit)  -> 
                               case typeOfLit lit of 
                                  Just t -> Map.insert x t m
                                  Nothing -> m 
@@ -498,12 +515,12 @@ funopt (FunDef hfn consts bb ir) =
       pstate = PState {stateMon = Map.empty, 
                        stateLVals = Map.empty,
                        stateJoins = Map.empty,
-                       stateSubst = Subst (Map.empty),
+                       stateSubst = Subst (m_subst),
                        stateChange = False,
                        stateTypes = constTypes
                        }
       (bb', _, _) = runRWS (peval bb) () pstate
-      new = FunDef hfn consts bb' ir  
+      new = FunDef hfn consts' bb' ir  
   in if bb /= bb' then funopt new else new
 
 

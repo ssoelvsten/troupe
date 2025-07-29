@@ -29,6 +29,8 @@ const { flowsTo, lub, glb } = levels
 import { getCliArgs, TroupeCliArg } from './TroupeCliArgs.mjs';
 import { configureColors, isColorEnabled } from './colorConfig.mjs';
 import { mkLogger } from './logger.mjs'
+import { Record } from './Record.mjs';
+import { level } from 'winston';
 
 const readFile = fs.promises.readFile
 const rt_uuid = runId
@@ -504,6 +506,20 @@ export async function start(f) {
   await loadServiceCode()
   await __userRuntime.linkLibs(f)
   let mainAuthority = new LVal(new Authority(levels.ROOT), levels.BOT);
+
+  if (__p2pRunning) {
+    let service_arg = 
+      new LVal ( new Record([ ["authority", mainAuthority], 
+                              ["options", __unit]]), 
+              levels.BOT);
+    __sched.scheduleNewThreadAtLevel(__service['service']
+          , service_arg
+          , levels.TOP
+          , levels.BOT
+          , false
+          , null
+          , true);
+  }
 
   __sched.scheduleNewThreadAtLevel(
     () => f.main ({__dataLevel:levels.BOT})

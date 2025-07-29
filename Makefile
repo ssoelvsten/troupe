@@ -30,6 +30,7 @@ libs:
 	$(COMPILER) ./lib/raft_debug.trp -l
 	$(COMPILER) ./lib/bst.trp -l
 	$(COMPILER) ./lib/localregistry.trp -l
+	$(COMPILER) ./lib/hamt.trp -l
 
 service:
 	$(COMPILER) ./trp-rt/service.trp -l

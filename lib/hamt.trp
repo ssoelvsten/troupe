@@ -1,0 +1,309 @@
+(* Hash Array Mapped Trie (HAMT) library for Troupe *)
+
+(* 2025-07-29: Note; AA -- this is currently very slow -- 
+   so it is a good target for driving the performance tuning
+ *)
+
+import lists
+
+(* Option type for error handling *)
+datatype Atoms = NONE | SOME
+
+let 
+  (* Constants *)
+  val SHIFT = 5  (* 5 bits per level *)
+  val BRANCH_FACTOR = 32  (* 2^5 branches *)
+  val MASK = 31  (* 0b11111 *)
+  
+  (* Integer power function *)
+  fun intPow base exp = 
+    if exp = 0 then 1
+    else base * intPow base (exp - 1)
+    
+  (* String length helper *)
+  (* fun strLen s = 
+    let fun len s idx = 
+          case (substring (s, idx, 1)) of
+            "" => idx
+          | _ => len s (idx + 1)
+    in len s 0
+    end
+     *)
+  (* Character code at index - extended character set *)
+  fun charCode s idx = charCodeAtWithDefault (s, idx, 63)
+
+  
+  (* Hash function for integers and strings *)
+  fun hash x = 
+    let val typ = getType x
+    in
+      if typ = "number" 
+      then 
+        (* Knuth's multiplicative hash - ensure positive result *)
+        let val h = x * 2654435761 mod 1073741824
+        in if h < 0 then h + 1073741824 else h
+        end  
+      else 
+        (* Polynomial rolling hash for strings *)
+        let fun hashStr s idx acc =
+              if idx >= (strlen s) 
+              then acc
+              else hashStr s (idx + 1) ((acc * 31 + charCode s idx) mod 1073741824)
+        in hashStr (toString x) 0 0
+        end
+    end
+             
+  (* Get the index at a given level from hash *)
+  fun getIndex hashval level = (hashval div (intPow BRANCH_FACTOR level)) mod BRANCH_FACTOR
+    
+  (* Bitmap operations simulated with arithmetic *)
+  fun setBit bitmap pos = bitmap + intPow 2 pos
+  fun testBit bitmap pos = ((bitmap div (intPow 2 pos)) mod 2) = 1
+  fun clearBit bitmap pos = 
+    if testBit bitmap pos 
+    then bitmap - intPow 2 pos 
+    else bitmap
+    
+  fun popcount bitmap = 
+    let fun count bm acc =
+          if bm = 0 then acc
+          else count (bm div 2) (acc + (bm mod 2))
+    in count bitmap 0
+    end
+    
+  fun positionInBitmap bitmap pos =
+    let fun countBits bm p acc =
+          if p = 0 then acc
+          else countBits (bm div 2) (p - 1) (acc + (bm mod 2))
+    in countBits bitmap pos 0
+    end
+    
+  (* Array operations using lists *)
+  fun arrayGet arr idx = 
+    case (idx, arr) of
+      (0, x::xs) => x
+    | (n, x::xs) => arrayGet xs (n - 1)
+    | _ => {}  (* Return empty record for out of bounds *)
+    
+  fun arraySet arr idx value =
+    mapi (fn (i, x) => if i = idx then value else x) arr
+    
+  fun arrayInsert arr idx value =
+    insert_at_index arr [value] idx
+    
+  fun arrayRemove arr idx =
+    let val len = length arr
+    in append (slice 0 idx arr) (slice (idx + 1) len arr)
+    end
+    
+  (* Node types represented as tagged records *)
+  (* Empty: {} *)
+  (* Leaf: {tag = "leaf", key, value, hash} *)
+  (* BitmapNode: {tag = "bitmap", bitmap, children} *)
+  (* CollisionNode: {tag = "collision", hash, entries} *)
+    
+  (* Create empty HAMT *)
+  fun empty () = {}
+  
+  (* Insert a key-value pair *)
+  fun insert trie key value =
+    let val h = hash key
+        fun insertNode node h key value level =
+          case node of
+            {} => {tag = "leaf", key = key, value = value, hash = h}
+          | {tag = "leaf", key = k, value = v, hash = oldHash, ..} =>
+              if h = oldHash then
+                if key = k then
+                  {tag = "leaf", key = key, value = value, hash = h}
+                else
+                  {tag = "collision", hash = h, entries = [(k, v), (key, value)]}
+              else
+                let val idx1 = getIndex oldHash level
+                    val idx2 = getIndex h level
+                    val child1 = {tag = "leaf", key = k, value = v, hash = oldHash}
+                    val child2 = {tag = "leaf", key = key, value = value, hash = h}
+                in if idx1 = idx2 then
+                     let val subNode = insertNode child1 h key value (level + 1)
+                     in {tag = "bitmap", bitmap = setBit 0 idx1, children = [subNode]}
+                     end
+                   else
+                     let val bitmap = setBit (setBit 0 idx1) idx2
+                         val children = if idx1 < idx2 then [child1, child2] else [child2, child1]
+                     in {tag = "bitmap", bitmap = bitmap, children = children}
+                     end
+                end
+          | {tag = "bitmap", bitmap = bm, children = ch, ..} =>
+              let val idx = getIndex h level
+              in if testBit bm idx then
+                   let val pos = positionInBitmap bm idx
+                       val child = arrayGet ch pos
+                       val newChild = insertNode child h key value (level + 1)
+                   in {tag = "bitmap", bitmap = bm, children = arraySet ch pos newChild}
+                   end
+                 else
+                   let val pos = positionInBitmap bm idx
+                       val newChild = {tag = "leaf", key = key, value = value, hash = h}
+                       val newBitmap = setBit bm idx
+                       val newChildren = arrayInsert ch pos newChild
+                   in {tag = "bitmap", bitmap = newBitmap, children = newChildren}
+                   end
+              end
+          | {tag = "collision", hash = collHash, entries = entries, ..} =>
+              if h = collHash then
+                let val newEntries = 
+                      case lookup entries key NONE of
+                        NONE => append entries [(key, value)]
+                      | _ => map (fn (k, v) => if k = key then (key, value) else (k, v)) entries
+                in {tag = "collision", hash = collHash, entries = newEntries}
+                end
+              else
+                (* Convert collision node to bitmap node and retry *)
+                let val idx = getIndex collHash level
+                    val startNode = {tag = "bitmap", bitmap = setBit 0 idx, 
+                                   children = [{tag = "collision", hash = collHash, entries = entries}]}
+                in insertNode startNode h key value level
+                end
+          | _ => node  (* Invalid node type - return unchanged *)
+    in insertNode trie h key value 0
+    end
+    
+  (* Lookup a key *)
+  fun lookup trie key =
+    let val h = hash key
+        fun lookupNode node h key level =
+          case node of
+            {} => NONE
+          | {tag = "leaf", key = k, value = v, ..} =>
+              if k = key then (SOME, v) else NONE
+          | {tag = "bitmap", bitmap = bm, children = ch, ..} =>
+              let val idx = getIndex h level
+              in if testBit bm idx then
+                   let val pos = positionInBitmap bm idx
+                       val child = arrayGet ch pos
+                   in lookupNode child h key (level + 1)
+                   end
+                 else NONE
+              end
+          | {tag = "collision", hash = _, entries = entries, ..} =>
+              let fun findInEntries [] = NONE
+                    | findInEntries ((k, v)::es) =
+                        if k = key then (SOME, v) else findInEntries es
+              in findInEntries entries
+              end
+          | _ => NONE  (* Invalid node type *)
+    in lookupNode trie h key 0
+    end
+    
+  (* Remove a key *)
+  fun remove trie key =
+    let val h = hash key
+        fun removeNode node h key level =
+          case node of
+            {} => {}
+          | {tag = "leaf", key = k, ..} =>
+              if k = key then {} else node
+          | {tag = "bitmap", bitmap = bm, children = ch, ..} =>
+              let val idx = getIndex h level
+              in if testBit bm idx then
+                   let val pos = positionInBitmap bm idx
+                       val child = arrayGet ch pos
+                       val newChild = removeNode child h key (level + 1)
+                   in case newChild of
+                        {} => (* Child was removed *)
+                          let val newBitmap = clearBit bm idx
+                              val newChildren = arrayRemove ch pos
+                              val childCount = length newChildren
+                          in if childCount = 1 andalso level > 0 then
+                               (* Collapse to single child if only one remains *)
+                               first newChildren
+                             else if newBitmap = 0 then {}
+                             else {tag = "bitmap", bitmap = newBitmap, children = newChildren}
+                          end
+                      | _ => {tag = "bitmap", bitmap = bm, children = arraySet ch pos newChild}
+                   end
+                 else node  (* Key not in this branch *)
+              end
+          | {tag = "collision", hash = collHash, entries = entries, ..} =>
+              let val newEntries = filter (fn (k, v) => k <> key) entries
+                  val entryCount = length newEntries
+              in case entryCount of
+                   0 => {}
+                 | 1 => let val (k, v) = first newEntries
+                        in {tag = "leaf", key = k, value = v, hash = collHash}
+                        end
+                 | _ => {tag = "collision", hash = collHash, entries = newEntries}
+              end
+          | _ => node  (* Invalid node type - return unchanged *)
+    in removeNode trie h key 0
+    end
+    
+  (* Check if a key exists *)
+  fun contains trie key =
+    case lookup trie key of
+      NONE => false
+    | _ => true
+    
+  (* Get all keys in the trie *)
+  fun keys trie =
+    let fun collectKeys node acc =
+          case node of
+            {} => acc
+          | {tag = "leaf", key = k, ..} => k :: acc
+          | {tag = "bitmap", children = ch, ..} =>
+              foldl (fn (child, a) => collectKeys child a) acc ch
+          | {tag = "collision", entries = entries, ..} =>
+              foldl (fn ((k, v), a) => k :: a) acc entries
+          | _ => acc
+    in collectKeys trie []
+    end
+    
+  (* Get all values in the trie *)
+  fun values trie =
+    let fun collectValues node acc =
+          case node of
+            {} => acc
+          | {tag = "leaf", value = v, ..} => v :: acc
+          | {tag = "bitmap", children = ch, ..} =>
+              foldl (fn (child, a) => collectValues child a) acc ch
+          | {tag = "collision", entries = entries, ..} =>
+              foldl (fn ((k, v), a) => v :: a) acc entries
+          | _ => acc
+    in collectValues trie []
+    end
+    
+  (* Get all key-value pairs *)
+  fun toList trie =
+    let fun collectPairs node acc =
+          case node of
+            {} => acc
+          | {tag = "leaf", key = k, value = v, ..} => (k, v) :: acc
+          | {tag = "bitmap", children = ch, ..} =>
+              foldl (fn (child, a) => collectPairs child a) acc ch
+          | {tag = "collision", entries = entries, ..} =>
+              append entries acc
+          | _ => acc
+    in collectPairs trie []
+    end
+    
+  (* Get the size (number of entries) *)
+  fun size trie = length (keys trie)
+    
+  (* Create a trie from a list of key-value pairs *)
+  fun fromList pairs =
+    foldl (fn ((k, v), t) => insert t k v) (empty ()) pairs
+
+in
+  (* Export public functions *)
+  [ ("empty", empty)
+  , ("insert", insert)
+  , ("lookup", lookup)
+  , ("remove", remove)
+  , ("contains", contains)
+  , ("keys", keys)
+  , ("values", values)
+  , ("toList", toList)
+  , ("size", size)
+  , ("fromList", fromList)
+  , ("hash", hash)  (* Export for testing/debugging *)
+  ]
+end

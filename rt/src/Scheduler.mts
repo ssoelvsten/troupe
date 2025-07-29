@@ -12,6 +12,8 @@ import SandboxStatus from './SandboxStatus.mjs'
 import  {ThreadError, TroupeError} from './TroupeError.mjs'
 import  {lub} from './Level.mjs'
 import { getCliArgs, TroupeCliArg } from './TroupeCliArgs.mjs';
+
+import {SYSTEM_PROCESS_STRING} from './Constants.mjs'
 const argv = getCliArgs();
 
 const showStack = argv[TroupeCliArg.ShowStack]
@@ -178,14 +180,16 @@ export class Scheduler implements SchedulerInterface {
     }
 
 
-    createNewProcessIDAtLevel(pcArg) {
-        let pid = uuidv4();
+    createNewProcessIDAtLevel(pcArg, isSystem = false) {
+        let pid = isSystem ? SYSTEM_PROCESS_STRING : uuidv4();
         let pidObj = new ProcessID(this.rt_uuid, pid, this.__node);
         return new LVal(pidObj, pcArg);
     }
 
-    scheduleNewThreadAtLevel (thefun, arg, levpc, levblock, ismain = false, persist=null) {
-        let newPid = this.createNewProcessIDAtLevel(levpc);
+
+
+    scheduleNewThreadAtLevel (thefun, arg, levpc, levblock, ismain = false, persist=null, isSystem = false) {
+        let newPid = this.createNewProcessIDAtLevel(levpc, isSystem);
 
         let halt = ismain ?  ()=> { this.halt (persist) } : 
                              () => { this.done () };

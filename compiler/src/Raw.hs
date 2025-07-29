@@ -309,9 +309,9 @@ qqFields fields =
 
 ppIR :: RawInst -> PP.Doc
 ppIR SetBranchFlag = text "<setbranchflag>"
-ppIR (AssignRaw vn st) = ppId vn <+> text "=" <+> ppRawExpr st
+ppIR (AssignRaw vn st) = ppId vn <+> text "=(raw)" <+> ppRawExpr st
 ppIR (AssignLVal vn expr) = 
-  ppId vn <+> text "=" <+> ppRawExpr expr
+  ppId vn <+> text "=(lval)" <+> ppRawExpr expr
 -- ppIR (ConstructLVal x v lv lt) = 
 --   ppId x <+> text 
 ppIR (RTAssertion a) = ppRTAssertion a
