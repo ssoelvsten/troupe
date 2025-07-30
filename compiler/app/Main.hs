@@ -11,7 +11,7 @@ import System.Environment
 import Util.FileUtil
 import qualified ClosureConv as CC
 import qualified IR as CCIR
--- import qualified IROpt
+import qualified IROpt
 -- import qualified RetRewrite as Rewrite
 import qualified CPSOpt as CPSOpt
 import qualified IR2JS
@@ -138,9 +138,8 @@ process flags fname input = do
 
       when verbose $ writeFileD "out/out.ir" (show ir)
 
-      -- let iropt = IROpt.iropt ir 
-      let iropt = ir 
-      --when verbose $ writeFileD "out/out.iropt" (show iropt)
+      let iropt = IROpt.iropt ir 
+      when verbose $ writeFileD "out/out.iropt" (show iropt)
       
 
       --------------------------------------------------

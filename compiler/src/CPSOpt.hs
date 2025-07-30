@@ -406,18 +406,18 @@ state_info = do
 
 failFree :: SimpleTerm -> Bool -- 2021-05-19; AA; hack  
 failFree st = case st of 
-  Bin op _ _ ->  op `elem` [Basics.Eq, Basics.Neq] 
-  Un _ _ -> False 
+  Bin op _ _ ->  op `elem` [Basics.Eq, Basics.Neq] -- Equality comparisons are safe (return boolean)
+  Un _ _ -> False  -- Unary operations can fail (e.g., head on empty list, arithmetic on non-numbers)
   ValSimpleTerm _ -> True 
   Tuple _ -> True 
   Record _ -> True 
   WithRecord _ _ -> True 
-  ProjField _ _ -> False 
-  ProjIdx _ _ -> False 
+  ProjField _ _ -> False  -- Field projection can fail if field doesn't exist
+  ProjIdx _ _ -> False    -- Index projection can fail if index out of bounds
   List _ -> True 
-  ListCons _ _ -> False 
-  Base _ -> True 
-  Lib _ _ -> True 
+  ListCons _ _ -> False   -- List cons can fail if second arg is not a list
+  Base _ -> False         -- Base function calls can have side effects or fail
+  Lib _ _ -> False        -- Library function calls can have side effects or fail 
 
 instance Simplifiable KTerm where 
   simpl k = do 

@@ -118,7 +118,84 @@ class PEval a where
 
 markUsed x = tell $ Set.singleton x -- collect the use of the local
 markUsed' (VarEnv _) = return ()
-markUsed' (VarLocal x) = markUsed x 
+markUsed' (VarLocal x) = markUsed x
+
+-- | Check if an expression can fail at runtime or has side effects
+-- This is used to prevent unsound dead code elimination
+canFailOrHasEffects :: IRExpr -> Bool
+canFailOrHasEffects expr = case expr of
+    -- Binary operations that can fail due to type errors
+    Bin op _ _ -> case op of
+        -- Arithmetic operations can fail if operands are not numbers
+        Basics.Plus -> True
+        Basics.Minus -> True
+        Basics.Mult -> True
+        Basics.Div -> True  -- Also division by zero
+        Basics.IntDiv -> True
+        Basics.Mod -> True
+        -- Bitwise operations require numbers
+        Basics.BinAnd -> True
+        Basics.BinOr -> True
+        Basics.BinXor -> True
+        Basics.BinShiftLeft -> True
+        Basics.BinShiftRight -> True
+        Basics.BinZeroShiftRight -> True
+        -- String concatenation can fail if operands are not strings
+        Basics.Concat -> True
+        -- Comparisons that require numbers
+        Basics.Le -> True
+        Basics.Lt -> True
+        Basics.Ge -> True
+        Basics.Gt -> True
+        -- These are generally safe
+        Basics.Eq -> False
+        Basics.Neq -> False
+        Basics.And -> False
+        Basics.Or -> False
+        Basics.HasField -> False
+        -- Level operations might be safe but conservative
+        Basics.FlowsTo -> True
+        Basics.LatticeJoin -> True
+        Basics.LatticeMeet -> True
+        Basics.RaisedTo -> True
+    
+    -- Unary operations
+    Un op _ -> case op of
+        -- List/tuple operations can fail
+        Basics.Head -> True
+        Basics.Tail -> True
+        Basics.Fst -> True
+        Basics.Snd -> True
+        -- Arithmetic
+        Basics.UnMinus -> True
+        -- Length operations are safe if the value is the right type
+        Basics.ListLength -> True
+        Basics.TupleLength -> True
+        Basics.RecordSize -> True
+        -- Type tests are safe
+        Basics.IsTuple -> False
+        Basics.IsList -> False
+        Basics.IsRecord -> False
+        -- Level operations
+        Basics.LevelOf -> False
+    
+    -- Field/index projections can fail
+    ProjField _ _ -> True
+    ProjIdx _ _ -> True
+    
+    -- List operations
+    ListCons _ _ -> True  -- Second argument must be a list
+    
+    -- Function calls can have side effects
+    Base _ -> True
+    Lib _ _ -> True
+    
+    -- These are generally safe
+    Tuple _ -> False
+    Record _ -> False
+    WithRecord _ _ -> False  -- Assuming the base is a record
+    List _ -> False
+    Const _ -> False 
 
 -- | Get evaluation of a variable.
 varPEval :: VarAccess -> Opt PValue 
@@ -239,7 +316,9 @@ irExprPeval e =
                         Nothing -> def_ 
                 _ -> def_ 
         -- TODO Implement optimization for ProjIdx
-        ProjIdx x idx -> def_
+        ProjIdx x idx -> do
+            markUsed' x  -- Mark the tuple variable as used
+            def_
         -- ProjIdx x idx -> do 
         --     v <- varPEval x 
         --     case v of 
@@ -432,7 +511,8 @@ instance PEval IRBBTree where
         
         (BB insts_ tr_, used) <- listen $ bbPeval bb
 
-        let isNotDeadAssign (Assign x _) = Set.member x used 
+        let isNotDeadAssign (Assign x e) = 
+                Set.member x used || canFailOrHasEffects e
             isNotDeadAssign _   = True
 
             instsFiltered = filter isNotDeadAssign insts_
