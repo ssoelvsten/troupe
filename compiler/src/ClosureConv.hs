@@ -45,7 +45,7 @@ type CC = RWS
             FreshCounter                  -- state:  the counter for fresh name generation
 
 
-type CCEnv   = (CompileMode, C.Atoms, NestingLevel, Map VarName VarLevel)
+type CCEnv   = (CompileMode, C.Atoms, NestingLevel, Map VarName VarLevel, Maybe VarName)
 type Frees   = [(VarName, NestingLevel)]
 type FunDefs = [CCIR.FunDef]
 type ConstEntry = (VarName, C.Lit)
@@ -59,11 +59,12 @@ consBB:: CCIR.IRInst -> CCIR.IRBBTree -> CCIR.IRBBTree
 consBB i (BB insts t) = BB (i:insts) t
 
 insVar :: VarName -> CCEnv -> CCEnv
-insVar vn (compileMode, atms, lev, vmap) =
+insVar vn (compileMode, atms, lev, vmap, fname) =
     ( compileMode
     , atms
     , lev
     , Map.insert vn (VarNested lev) vmap
+    , fname
     )
 
 insVars :: [VarName] -> CCEnv -> CCEnv
@@ -72,12 +73,12 @@ insVars vars ccenv =
 
 
 askLev = do
-  (_, _, lev, _) <- ask
+  (_, _, lev, _, _) <- ask
   return lev
 
 
-incLev (compileMode, atms, lev, vmap) =
-    (compileMode, atms, lev + 1, vmap)
+incLev fname (compileMode, atms, lev, vmap, _) =
+    (compileMode, atms, lev + 1, vmap, (Just fname))
 
 
 -- this helper function looks up the variable name 
@@ -86,32 +87,35 @@ incLev (compileMode, atms, lev, vmap) =
 
 transVar :: VarName -> CC VarAccess
 transVar v@(VN vname) = do 
-  (_, C.Atoms atms, lev, vmap) <- ask
-  case Map.lookup v vmap of 
-    Just (VarNested lev') -> 
-      if lev' < lev 
-      then do 
-        tell $ ([], [(v, lev')], []) -- collecting info about free vars 
-        return $ VarEnv v 
-      else 
-        return $ VarLocal v 
-    Nothing -> 
-      if vname `elem` atms
-         then return $ VarLocal v 
-         else error $ "undeclared variable: " ++ (show v)
+  (_, C.Atoms atms, lev, vmap, maybe_fname) <- ask
+  case maybe_fname of 
+    Just fname | fname == v  -> return $ VarFunSelfRef
+    _ -> 
+      case Map.lookup v vmap of 
+        Just (VarNested lev') -> 
+          if lev' < lev 
+          then do 
+            tell $ ([], [(v, lev')], []) -- collecting info about free vars 
+            return $ VarEnv v 
+          else 
+            return $ VarLocal v 
+        Nothing -> 
+          if vname `elem` atms
+            then return $ VarLocal v 
+            else error $ "undeclared variable: " ++ (show v)
 
 
 transVars = mapM transVar         
 
 isDeclaredEarlierThan lev (_, l)  = l < lev
 
-transFunDec (VN fname) (CPS.Unary var kt) = do   
+transFunDec f@(VN fname) (CPS.Unary var kt) = do   
   lev <- askLev
   let filt = isDeclaredEarlierThan lev
   (bb, (_, frees, consts_wo_levs)) <- 
       censor (\(a,b,c ) -> (a, filter filt b, filter (\(_, l) -> l == lev ) c))
      $ listen 
-        $ local ((insVar var) . incLev)
+        $ local ((insVar var) . (incLev f))
            $ cpsToIR kt
   let consts = (fst.unzip) consts_wo_levs
   tell ([FunDef (HFN fname) var consts bb], [], [])
@@ -217,7 +221,7 @@ cpsToIR (CPS.LetFun fdefs kt) = do
 -- Special Halt continuation, for exiting program
 cpsToIR (CPS.Halt v) = do 
     v' <- transVar v
-    (compileMode,_ , _ , _ ) <- ask 
+    (compileMode,_ , _ , _, _ ) <- ask 
     let constructor =
           case compileMode of
               Normal -> CCIR.Ret
@@ -265,6 +269,7 @@ closureConvert compileMode (CPS.Prog (C.Atoms atms) t) =
                 , atms'
                 , 0 -- initial nesting counter
                 , Map.empty
+                , Nothing -- top level code has no function name 
                 )
       initState = 0
       (bb, (fdefs, _, consts_wo_levs)) = evalRWS (cpsToIR t) initEnv initState

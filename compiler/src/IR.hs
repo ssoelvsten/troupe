@@ -40,6 +40,8 @@ data VarAccess
   = VarLocal VarName
   -- | Variable defined in the closure.
   | VarEnv VarName
+  -- | Variable refering to the very function being declared.
+  | VarFunSelfRef
   deriving (Eq, Show, Generic)
 
 type Ident = String
@@ -478,7 +480,7 @@ ppVarName (VN vn) = text vn
 ppVarAccess :: VarAccess -> PP.Doc
 ppVarAccess (VarLocal vn) = ppVarName vn
 ppVarAccess (VarEnv vn) = text "$env." PP.<> (ppVarName vn)
-
+ppVarAccess (VarFunSelfRef) = text "<fun-self-ref>"
 
 class Identifier a where
   ppId :: a ->  PP.Doc

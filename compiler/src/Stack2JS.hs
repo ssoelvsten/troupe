@@ -8,7 +8,8 @@ TODO
 
 --}
 
-
+{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE TypeSynonymInstances #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE LambdaCase #-}
@@ -16,7 +17,7 @@ module Stack2JS where
 -- import qualified IR2JS 
 
 import IR (SerializationUnit(..), HFN(..)
-          , ppId, ppFunCall, ppArgs, Fields (..), Ident
+          , ppFunCall, ppArgs, Fields (..), Ident
           , serializeFunDef
           , serializeAtoms )
 import qualified Data.ByteString.Lazy.Char8 as BL
@@ -115,6 +116,35 @@ initState = TheState { freshCounter = 0
 
 a $$+ b  = a $$ (nest 2 b)
 
+
+
+class Identifier a where
+  ppId :: a ->  PP.Doc
+
+
+instance Identifier VarName where
+  ppId = IR.ppVarName
+
+-- instance Identifier IR.VarAccess where
+--   ppId = IR.ppVarAccess
+
+instance Identifier HFN where
+  ppId (HFN n) = text n
+
+instance Identifier Basics.LibName where 
+  ppId (Basics.LibName s) = text s
+
+instance Identifier Basics.AtomName where 
+  ppId = text
+
+instance Identifier RawVar where 
+  ppId (RawVar x) = text x
+
+instance Identifier Raw.Assignable where 
+  ppId (Raw.AssignableRaw x) = ppId x 
+  ppId (Raw.AssignableLVal x) = ppId x 
+  ppId (Raw.Env) = text "$env"
+
 -- | Translation monad collecting the generated JS parts when passing through the 'StackProgram' tree.
 class ToJS a where
    toJS :: a -> W PP.Doc
@@ -165,7 +195,16 @@ instance ToJS StackUnit where
   toJS (AtomStackUnit ca) = toJS ca
   toJS (ProgramStackUnit p) = error "not implemented"
 
+instance ToJS IR.VarAccess where 
+  toJS (IR.VarLocal vn) = return $ IR.ppVarName vn 
+  toJS (IR.VarEnv vn) = return $ text "$env." PP.<> (IR.ppVarName vn)
+  toJS (IR.VarFunSelfRef) = do 
+    HFN (fname) <- gets stHFN 
+    return $ text fname 
 
+
+-- instance (Identifier a) => ToJS a where 
+--   toJS x = return $ ppId x
 
 ppNamespaceName = text "Top"  -- should be generating a new namespace per received blob
 
@@ -356,18 +395,28 @@ ir2js (StoreStack x i) = return $
 ir2js (MkFunClosures envBindings funBindings) = do
     -- Create new environment
     env <- freshEnvVar
+    dd_env_ids <- ppEnvIds env envBindings
     let ppEnv = vcat [ semi $ hsep [ ppLet env
                                    , text "new rt.Env()"]
-                     , ppEnvIds env envBindings]
+                     , dd_env_ids]
     let ppFF = map (\(v, f) -> jsClosure v env f) funBindings
     return $ vcat (ppEnv : ppFF)
 
-       where ppEnvIds env ls =
-                vcat (
-                      (map (\(a,b) -> semi $ (ppId env) PP.<> text "." PP.<> (ppId a) <+> text "=" <+> ppId b ) ls)
-                      ++
-                      [ppId env PP.<> text ".__dataLevel = " <+> jsFunCall (text $ binOpToJS Basics.LatticeJoin) (map (\(_, b) -> ppId b <> text ".dataLevel") ls ) ]
-                )
+       where ppEnvIds :: VarName ->  [(VarName, IR.VarAccess)] -> W PP.Doc
+             ppEnvIds env ls = do 
+               let penv = ppId env 
+               d1 <- mapM (\(a,b) -> do 
+                                  d_b <- toJS b
+                                  return $ semi $ penv PP.<> text "." PP.<> (ppId a) <+> text "=" <+> d_b
+                          ) 
+                          ls
+               d3 <- mapM (\(_, b) -> do 
+                              d_b <- toJS b 
+                              return $ d_b <> text ".dataLevel") ls
+               let d2 = penv PP.<> text ".__dataLevel = " 
+                        <+> jsFunCall (text $ binOpToJS Basics.LatticeJoin) d3
+                                
+               return $ vcat ( d1 ++ [d2])
              hsepc ls = semi $ PP.hsep (PP.punctuate (text ",") ls)
 
 
@@ -480,8 +529,9 @@ tr2js (Error va pos) = return $
 tr2js (TailCall va1 ) = return $
     "return" <+> ppId va1 
 
-tr2js (LibExport va) = return $
-  jsFunCall (text "return") [ppId va]
+tr2js (LibExport va) = do
+  d <- toJS va 
+  return $ jsFunCall (text "return") [d]
 
 
 monStateToJs c = 
@@ -507,52 +557,72 @@ ppSparseSlot = do
 -----------------------------------------------------------
 
 
-ppField :: IR.Identifier a => (String, a) -> PP.Doc
-ppField (f, v) = PP.brackets $ PP.quotes (text f) <> text "," <> ppId v
+fieldToJS :: ToJS a => (String, a) -> W PP.Doc
+fieldToJS (f, v) = do 
+    d <- toJS v 
+    return $ PP.brackets $ PP.quotes (text f) <> text "," <> d
 
-ppFields :: IR.Identifier a => [(String, a)] -> [PP.Doc]
-ppFields fs = PP.punctuate (text ",") (map ppField fs)
+fieldsToJS :: ToJS a => [(String, a)] -> W [PP.Doc]
+fieldsToJS fs = do 
+    dd <- mapM fieldToJS fs 
+    return $ PP.punctuate (text ",") dd
 
 instance ToJS RawExpr where
-  toJS = \case
-    ProjectState c -> return $ monStateToJs c
-    e@(ProjectLVal _ _) -> return $ ppRawExpr e
-    Bin binop va1 va2 -> return $
-      let text' = (text . binOpToJS) binop in
-        if isInfixBinop binop
-        then hsep [ ppId va1, text', ppId va2 ]
-        else jsFunCall text' [ppId va1, ppId va2]
-    Un op v -> return $ text (unaryOpToJS op) <> PP.parens (ppId v)
-    Tuple vars -> return $
-     text "rt.mkTuple" <> PP.parens (PP.brackets $ PP.hsep $ PP.punctuate (text ",") (map ppId vars))
-    Record fields -> return $
-      PP.parens $ text "rt.mkRecord" <> PP.parens (PP.brackets $ PP.hsep $ ppFields fields)
-    WithRecord r fields -> return $
-      text "rt.withRecord" <> PP.parens (
-        PP.hsep [ppId r, text ",", PP.brackets $ PP.hsep $ ppFields fields ])
-    ProjField x f -> return $
-      text "rt.getField" <> PP.parens (ppId x <> text "," <>  PP.quotes (text f ) )
-    ProjIdx x idx -> return $
-      text "rt.raw_indexTuple" <> PP.parens (ppId x <> text "," <>  text (show idx) )
-    List vars -> return $
-      PP.parens $   text "rt.mkList" <> PP.parens (PP.brackets $ PP.hsep $ PP.punctuate (text ",") (map ppId vars))
-    ListCons v1 v2 -> return $
-      text "rt.cons" <>  PP.parens (ppId v1 <> text "," <> ppId v2)
-    Const C.LUnit -> return $ text "rt.__unitbase"
-    Const (C.LLabel s) -> return $
-      text "rt.mkV1Label" <> (PP.parens . PP.doubleQuotes) (text s)
-    Const lit -> do
-      case lit of
-        C.LAtom atom -> tell ([], [atom], [])
-        _ -> return ()
-      return $ ppLit lit
-    Lib lib'@(Basics.LibName libname) varname -> do
-      tell ([LibAccess lib' varname], [], [])
-      return $
-        text "rt.loadLib" <> PP.parens ((PP.quotes.text) libname <> text ", " <> (PP.quotes.text) varname <> text ", this")
-    ConstructLVal r1 r2 r3 -> return $
-      ppFunCall  (text "rt.constructLVal")  (map ppId [r1,r2,r3])
-    Base b -> return $ text "rt." <+> text b -- Note: The "$$authorityarg" case is handled in IR2Raw
+  toJS x = do 
+    HFN (fname) <- gets stHFN
+    let ppFunSelfRef = text "$env." PP.<> ppId fname 
+    let ppVarName IR.VarFunSelfRef = ppFunSelfRef
+        ppVarName x = IR.ppVarAccess x
+        
+    case x of 
+      ProjectState c -> return $ monStateToJs c
+      ProjectLVal IR.VarFunSelfRef lf -> return (
+        case lf of 
+           Raw.FieldValue ->  ppFunSelfRef PP.<> 
+                                text "." PP.<> PP.text (show Raw.FieldValue)
+           Raw.FieldValLev -> monStateToJs MonPC
+           Raw.FieldTypLev -> monStateToJs MonPC)
+      e@(ProjectLVal _ _) -> return $ ppRawExpr e
+      Bin binop va1 va2 -> return $
+        let text' = (text . binOpToJS) binop in
+          if isInfixBinop binop
+          then hsep [ ppId va1, text', ppId va2 ]
+          else jsFunCall text' [ppId va1, ppId va2]
+      Un op v -> return $ text (unaryOpToJS op) <> PP.parens (ppId v)
+      Tuple vars -> return $
+        text "rt.mkTuple" <> PP.parens (PP.brackets $ PP.hsep $ PP.punctuate (text ",") (map ppVarName vars))
+      Record fields -> do
+        jsFields <- fieldsToJS fields 
+        return $
+          PP.parens $ text "rt.mkRecord" <> PP.parens (PP.brackets $ PP.hsep $ jsFields )
+      WithRecord r fields -> do 
+        jsFields <- fieldsToJS fields 
+        return $
+          text "rt.withRecord" <> PP.parens (
+            PP.hsep [ppId r, text ",", PP.brackets $ PP.hsep $ jsFields ])
+      ProjField x f -> return $
+        text "rt.getField" <> PP.parens (ppId x <> text "," <>  PP.quotes (text f ) )
+      ProjIdx x idx -> return $
+        text "rt.raw_indexTuple" <> PP.parens (ppId x <> text "," <>  text (show idx) )
+      List vars -> return $
+        PP.parens $   text "rt.mkList" <> PP.parens (PP.brackets $ PP.hsep $ PP.punctuate (text ",") (map ppVarName vars))
+      ListCons v1 v2 -> return $
+        text "rt.cons" <>  PP.parens (ppVarName v1 <> text "," <> ppId v2)
+      Const C.LUnit -> return $ text "rt.__unitbase"
+      Const (C.LLabel s) -> return $
+        text "rt.mkV1Label" <> (PP.parens . PP.doubleQuotes) (text s)
+      Const lit -> do
+        case lit of
+          C.LAtom atom -> tell ([], [atom], [])
+          _ -> return ()
+        return $ ppLit lit
+      Lib lib'@(Basics.LibName libname) varname -> do
+        tell ([LibAccess lib' varname], [], [])
+        return $
+          text "rt.loadLib" <> PP.parens ((PP.quotes.text) libname <> text ", " <> (PP.quotes.text) varname <> text ", this")
+      ConstructLVal r1 r2 r3 -> return $
+        ppFunCall  (text "rt.constructLVal")  (map ppId [r1,r2,r3])
+      Base b -> return $ text "rt." <+> text b -- Note: The "$$authorityarg" case is handled in IR2Raw
 
 
 

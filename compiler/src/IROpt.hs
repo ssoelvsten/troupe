@@ -28,6 +28,7 @@ idSubst = Subst (Map.empty)
 
 instance Substitutable VarAccess where 
     apply _ x@(VarEnv _) = x 
+    apply _ x@(VarFunSelfRef) = x 
     apply subst@(Subst varmap) (VarLocal x) = 
         Map.findWithDefault (VarLocal x) x varmap
 
@@ -118,6 +119,7 @@ class PEval a where
 
 markUsed x = tell $ Set.singleton x -- collect the use of the local
 markUsed' (VarEnv _) = return ()
+markUsed' (VarFunSelfRef) = return ()
 markUsed' (VarLocal x) = markUsed x
 
 -- | Check if an expression can fail at runtime or has side effects
@@ -200,6 +202,7 @@ canFailOrHasEffects expr = case expr of
 -- | Get evaluation of a variable.
 varPEval :: VarAccess -> Opt PValue 
 varPEval (VarEnv _) = return Unknown
+varPEval (VarFunSelfRef) = return Unknown
 varPEval (VarLocal x) = do 
     env <- getEnv 
     markUsed x
