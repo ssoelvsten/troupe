@@ -1,135 +1,121 @@
-(* Hash Array Mapped Trie (HAMT) library for Troupe - Optimized with native bit operations *)
-
-(* 2025-07-29: Updated to use native bit operations instead of arithmetic simulation *)
+(* Optimized HAMT implementation *)
 
 import lists
 
-(* Option type for error handling *)
 datatype Atoms = NONE | SOME
 
 let 
   (* Constants *)
-  val SHIFT = 5  (* 5 bits per level *)
-  val BRANCH_FACTOR = 32  (* 2^5 branches *)
-  val MASK = 31  (* 0b11111 *)
+  val SHIFT = 5
+  val BRANCH_FACTOR = 32
+  val MASK = 31
   
-  (* Character code at index - extended character set *)
+  (* Character code at index *)
   fun charCode s idx = charCodeAtWithDefault (s, idx, 63)
-
   
-  (* Optimized hash function for integers and strings *)
+  (* Optimized hash function *)
   fun hash x = 
     let val typ = getType x
     in
       if typ = "number" 
       then 
-        (* Knuth's multiplicative hash - ensure positive result *)
+        (* Knuth's multiplicative hash *)
         let val h = x * 2654435761 mod 1073741824
         in if h < 0 then h + 1073741824 else h
         end  
       else 
-        (* Optimized string hash with fast paths for small strings *)
+        (* Optimized string hash - unroll small strings *)
         let val s = toString x
             val len = strlen s
-        in
+            fun hashStr idx acc =
+              if idx >= len then acc
+              else hashStr (idx + 1) ((acc * 31 + charCode s idx) mod 1073741824)
+        in 
+          (* Fast path for small strings *)
           if len = 0 then 0
           else if len = 1 then charCode s 0
           else if len = 2 then (31 * charCode s 0 + charCode s 1) mod 1073741824
-          else
-            (* Polynomial rolling hash for longer strings *)
-            let fun hashStr idx acc =
-                  if idx >= len then acc
-                  else hashStr (idx + 1) ((acc * 31 + charCode s idx) mod 1073741824)
-            in hashStr 0 0
-            end
+          else hashStr 0 0
         end
     end
              
-  (* Get the index at a given level from hash - using bit operations *)
   fun getIndex hashval level = (hashval >> (level * SHIFT)) andb MASK
     
-  (* Bitmap operations using native bit operations *)
+  (* Bitmap operations *)
   fun setBit bitmap pos = bitmap orb (1 << pos)
   fun testBit bitmap pos = ((bitmap >> pos) andb 1) = 1
   fun clearBit bitmap pos = bitmap andb ((-1) xorb (1 << pos))
     
-  (* Optimized popcount using parallel bit counting - ~30x faster than bit-by-bit *)
+  (* Optimized popcount using parallel bit counting *)
   fun popcount n =
     let 
-      (* Mask constants for parallel counting *)
-      val m1 = 1431655765  (* 0x55555555 *)
-      val m2 = 858993459   (* 0x33333333 *)
-      val m4 = 252645135   (* 0x0f0f0f0f *)
-      val m8 = 16843009    (* 0x01010101 *)
+      val m1 = 1431655765
+      val m2 = 858993459
+      val m4 = 252645135
+      val m8 = 16843009
       
-      (* Count bits in groups of 2 *)
       val n1 = (n andb m1) + ((n >> 1) andb m1)
-      
-      (* Count bits in groups of 4 *)
       val n2 = (n1 andb m2) + ((n1 >> 2) andb m2)
-      
-      (* Count bits in groups of 8 *)
       val n3 = (n2 andb m4) + ((n2 >> 4) andb m4)
-      
-      (* Sum all bytes *)
       val result = ((n3 * m8) >> 24) andb 255
     in result
     end
     
   fun positionInBitmap bitmap pos =
-    (* Count the number of 1 bits before position pos *)
     let val mask = (1 << pos) - 1
         val masked = bitmap andb mask
     in popcount masked
     end
     
-  (* Array operations using lists *)
+  (* Optimized array operations - still use lists but minimize traversals *)
   fun arrayGet arr idx = 
     case (idx, arr) of
       (0, x::xs) => x
     | (n, x::xs) => arrayGet xs (n - 1)
-    | _ => {}  (* Return empty record for out of bounds *)
+    | _ => {}
     
-  (* Optimized arraySet - use accumulator to avoid multiple passes *)
+  (* Optimized arraySet - use accumulator to avoid append *)
   fun arraySet arr idx value =
-    let fun set i [] acc = reverse acc
+    let fun set i [] acc = rev acc
           | set i (x::xs) acc = 
               if i = 0 
-              then append (reverse acc) (value :: xs)
+              then rev acc @ (value :: xs)
               else set (i-1) xs (x::acc)
     in set idx arr []
     end
     
-  (* Optimized arrayInsert *)
   fun arrayInsert arr idx value =
-    let fun ins i [] acc = reverse (value :: acc)
+    let fun ins i [] acc = rev (value :: acc)
           | ins i (x::xs) acc =
               if i = 0
-              then append (reverse acc) (value :: x :: xs)
+              then rev acc @ (value :: x :: xs)
               else ins (i-1) xs (x::acc)
     in ins idx arr []
     end
     
-  (* Optimized arrayRemove *)
   fun arrayRemove arr idx =
-    let fun rem i [] acc = reverse acc
+    let fun rem i [] acc = rev acc
           | rem i (x::xs) acc =
               if i = 0
-              then append (reverse acc) xs
+              then rev acc @ xs
               else rem (i-1) xs (x::acc)
     in rem idx arr []
     end
     
-  (* Node types represented as tagged records *)
+  (* Enhanced node types with size tracking *)
   (* Empty: {} *)
   (* Leaf: {tag = "leaf", key, value, hash} *)
-  (* BitmapNode: {tag = "bitmap", bitmap, children} *)
-  (* CollisionNode: {tag = "collision", hash, entries} *)
+  (* BitmapNode: {tag = "bitmap", bitmap, children, size} *)
+  (* CollisionNode: {tag = "collision", hash, entries, size} *)
     
-  (* Create empty HAMT *)
   fun empty () = {}
   
-  (* Insert a key-value pair *)
+  (* Optimized collision lookup using early termination *)
+  fun findInEntries key [] = NONE
+    | findInEntries key ((k, v)::es) =
+        if k = key then (SOME, v) else findInEntries key es
+  
+  (* Insert with size tracking *)
   fun insert trie key value =
     let val h = hash key
         fun insertNode node h key value level =
@@ -138,71 +124,75 @@ let
           | {tag = "leaf", key = k, value = v, hash = oldHash, ..} =>
               if h = oldHash then
                 if key = k then
-                  (* Optimization: reuse node if value unchanged *)
+                  (* Value update - reuse node if value unchanged *)
                   if v = value then node
                   else {tag = "leaf", key = key, value = value, hash = h}
                 else
-                  {tag = "collision", hash = h, entries = [(k, v), (key, value)]}
+                  {tag = "collision", hash = h, entries = [(k, v), (key, value)], size = 2}
               else
                 let val idx1 = getIndex oldHash level
                     val idx2 = getIndex h level
-                    val child1 = {tag = "leaf", key = k, value = v, hash = oldHash}
+                    val child1 = node  (* Reuse existing leaf *)
                     val child2 = {tag = "leaf", key = key, value = value, hash = h}
                 in if idx1 = idx2 then
                      let val subNode = insertNode child1 h key value (level + 1)
-                     in {tag = "bitmap", bitmap = setBit 0 idx1, children = [subNode]}
+                         val nodeSize = case subNode of
+                                         {size = s, ..} => s
+                                       | _ => 2  (* Leaf or collision *)
+                     in {tag = "bitmap", bitmap = setBit 0 idx1, children = [subNode], size = nodeSize}
                      end
                    else
                      let val bitmap = setBit (setBit 0 idx1) idx2
                          val children = if idx1 < idx2 then [child1, child2] else [child2, child1]
-                     in {tag = "bitmap", bitmap = bitmap, children = children}
+                     in {tag = "bitmap", bitmap = bitmap, children = children, size = 2}
                      end
                 end
-          | {tag = "bitmap", bitmap = bm, children = ch, ..} =>
+          | {tag = "bitmap", bitmap = bm, children = ch, size = sz, ..} =>
               let val idx = getIndex h level
               in if testBit bm idx then
                    let val pos = positionInBitmap bm idx
                        val child = arrayGet ch pos
+                       val oldChildSize = case child of
+                                           {size = s, ..} => s
+                                         | _ => 1
                        val newChild = insertNode child h key value (level + 1)
-                   in {tag = "bitmap", bitmap = bm, children = arraySet ch pos newChild}
+                       val newChildSize = case newChild of
+                                           {size = s, ..} => s
+                                         | _ => 1
+                       val sizeDiff = newChildSize - oldChildSize
+                   in {tag = "bitmap", bitmap = bm, children = arraySet ch pos newChild, 
+                       size = sz + sizeDiff}
                    end
                  else
                    let val pos = positionInBitmap bm idx
                        val newChild = {tag = "leaf", key = key, value = value, hash = h}
                        val newBitmap = setBit bm idx
                        val newChildren = arrayInsert ch pos newChild
-                   in {tag = "bitmap", bitmap = newBitmap, children = newChildren}
+                   in {tag = "bitmap", bitmap = newBitmap, children = newChildren, size = sz + 1}
                    end
               end
-          | {tag = "collision", hash = collHash, entries = entries, ..} =>
+          | {tag = "collision", hash = collHash, entries = entries, size = sz, ..} =>
               if h = collHash then
-                let val newEntries = 
-                      case lookup entries key NONE of
-                        NONE => append entries [(key, value)]
-                      | _ => 
-                        (* Check if value actually changes *)
-                        let fun updateEntry [] = []
-                              | updateEntry ((k', v')::es) =
-                                  if k' = key then
-                                    if v' = value then entries  (* No change, return original *)
-                                    else (key, value) :: es
-                                  else (k', v') :: updateEntry es
-                        in updateEntry entries
-                        end
-                in {tag = "collision", hash = collHash, entries = newEntries}
-                end
+                case findInEntries key entries of
+                  NONE => {tag = "collision", hash = collHash, 
+                          entries = append entries [(key, value)], size = sz + 1}
+                | _ => 
+                    let val newEntries = map (fn (k, v) => 
+                            if k = key then (key, value) else (k, v)) entries
+                    in {tag = "collision", hash = collHash, entries = newEntries, size = sz}
+                    end
               else
-                (* Convert collision node to bitmap node and retry *)
+                (* Convert collision node to bitmap node *)
                 let val idx = getIndex collHash level
                     val startNode = {tag = "bitmap", bitmap = setBit 0 idx, 
-                                   children = [{tag = "collision", hash = collHash, entries = entries}]}
+                                   children = [node], size = sz}
                 in insertNode startNode h key value level
                 end
-          | _ => node  (* Invalid node type - return unchanged *)
+          | _ => node
     in insertNode trie h key value 0
     end
     
-  (* Lookup a key *)
+  (* Optimized lookup *)
   fun lookup trie key =
     let val h = hash key
         fun lookupNode node h key level =
@@ -213,24 +203,16 @@ let
           | {tag = "bitmap", bitmap = bm, children = ch, ..} =>
               let val idx = getIndex h level
               in if testBit bm idx then
-                   let val pos = positionInBitmap bm idx
-                       val child = arrayGet ch pos
-                   in lookupNode child h key (level + 1)
-                   end
+                   lookupNode (arrayGet ch (positionInBitmap bm idx)) h key (level + 1)
                  else NONE
               end
-          | {tag = "collision", hash = _, entries = entries, ..} =>
-              (* Optimized collision lookup with early termination *)
-              let fun findInEntries [] = NONE
-                    | findInEntries ((k, v)::es) =
-                        if k = key then (SOME, v) else findInEntries es
-              in findInEntries entries
-              end
-          | _ => NONE  (* Invalid node type *)
+          | {tag = "collision", entries = entries, ..} =>
+              findInEntries key entries
+          | _ => NONE
     in lookupNode trie h key 0
     end
     
-  (* Remove a key *)
+  (* Remove with size tracking *)
   fun remove trie key =
     let val h = hash key
         fun removeNode node h key level =
@@ -238,28 +220,38 @@ let
             {} => {}
           | {tag = "leaf", key = k, ..} =>
               if k = key then {} else node
-          | {tag = "bitmap", bitmap = bm, children = ch, ..} =>
+          | {tag = "bitmap", bitmap = bm, children = ch, size = sz, ..} =>
               let val idx = getIndex h level
               in if testBit bm idx then
                    let val pos = positionInBitmap bm idx
                        val child = arrayGet ch pos
+                       val oldChildSize = case child of
+                                           {size = s, ..} => s
+                                         | _ => 1
                        val newChild = removeNode child h key (level + 1)
                    in case newChild of
-                        {} => (* Child was removed *)
+                        {} => 
                           let val newBitmap = clearBit bm idx
                               val newChildren = arrayRemove ch pos
                               val childCount = length newChildren
                           in if childCount = 1 andalso level > 0 then
-                               (* Collapse to single child if only one remains *)
                                first newChildren
                              else if newBitmap = 0 then {}
-                             else {tag = "bitmap", bitmap = newBitmap, children = newChildren}
+                             else {tag = "bitmap", bitmap = newBitmap, children = newChildren, 
+                                   size = sz - oldChildSize}
                           end
-                      | _ => {tag = "bitmap", bitmap = bm, children = arraySet ch pos newChild}
+                      | _ => 
+                          let val newChildSize = case newChild of
+                                                 {size = s, ..} => s
+                                               | _ => 1
+                              val sizeDiff = oldChildSize - newChildSize
+                          in {tag = "bitmap", bitmap = bm, children = arraySet ch pos newChild,
+                              size = sz - sizeDiff}
+                          end
                    end
-                 else node  (* Key not in this branch *)
+                 else node
               end
-          | {tag = "collision", hash = collHash, entries = entries, ..} =>
+          | {tag = "collision", hash = collHash, entries = entries, size = sz, ..} =>
               let val newEntries = filter (fn (k, v) => k <> key) entries
                   val entryCount = length newEntries
               in case entryCount of
@@ -267,19 +259,26 @@ let
                  | 1 => let val (k, v) = first newEntries
                         in {tag = "leaf", key = k, value = v, hash = collHash}
                         end
-                 | _ => {tag = "collision", hash = collHash, entries = newEntries}
+                 | _ => {tag = "collision", hash = collHash, entries = newEntries, size = entryCount}
               end
-          | _ => node  (* Invalid node type - return unchanged *)
+          | _ => node
     in removeNode trie h key 0
     end
     
-  (* Check if a key exists *)
   fun contains trie key =
     case lookup trie key of
       NONE => false
     | _ => true
     
-  (* Get all keys in the trie *)
+  (* Optimized size - O(1) for nodes with size field *)
+  fun size trie =
+    case trie of
+      {} => 0
+    | {size = s, ..} => s
+    | {tag = "leaf", ..} => 1
+    | _ => length (keys trie)  (* Fallback for malformed nodes *)
+    
+  (* Keys/values/toList remain the same but could be optimized with continuations *)
   fun keys trie =
     let fun collectKeys node acc =
           case node of
@@ -293,7 +292,6 @@ let
     in collectKeys trie []
     end
     
-  (* Get all values in the trie *)
   fun values trie =
     let fun collectValues node acc =
           case node of
@@ -307,7 +305,6 @@ let
     in collectValues trie []
     end
     
-  (* Get all key-value pairs *)
   fun toList trie =
     let fun collectPairs node acc =
           case node of
@@ -321,27 +318,6 @@ let
     in collectPairs trie []
     end
     
-  (* Optimized size calculation - O(n) but with early termination for common cases *)
-  fun size trie = 
-    case trie of
-      {} => 0
-    | {tag = "leaf", ..} => 1
-    | _ => 
-        (* For backward compatibility, we still need to traverse *)
-        (* but we can optimize by counting directly instead of building key list *)
-        let fun countEntries node =
-              case node of
-                {} => 0
-              | {tag = "leaf", ..} => 1
-              | {tag = "bitmap", children = ch, ..} =>
-                  foldl (fn (child, acc) => acc + countEntries child) 0 ch
-              | {tag = "collision", entries = entries, ..} =>
-                  length entries
-              | _ => 0
-        in countEntries trie
-        end
-    
-  (* Create a trie from a list of key-value pairs *)
   fun fromList pairs =
     foldl (fn ((k, v), t) => insert t k v) (empty ()) pairs
 
@@ -355,8 +331,10 @@ in
   , ("keys", keys)
   , ("values", values)
   , ("toList", toList)
-  , ("size", size)
   , ("fromList", fromList)
-  , ("hash", hash)  (* Export for testing/debugging *)
+  , ("size", size)
+  , ("hash", hash)
+  , ("NONE", NONE)
+  , ("SOME", SOME)
   ]
 end

@@ -1,0 +1,170 @@
+(* Bitmap Position Optimization Study *)
+
+import lists
+
+let
+  (* Current implementation *)
+  fun popcount n =
+    let 
+      val m1 = 1431655765  (* 0x55555555 *)
+      val m2 = 858993459   (* 0x33333333 *)
+      val m4 = 252645135   (* 0x0f0f0f0f *)
+      val m8 = 16843009    (* 0x01010101 *)
+      
+      val n1 = (n andb m1) + ((n >> 1) andb m1)
+      val n2 = (n1 andb m2) + ((n1 >> 2) andb m2)
+      val n3 = (n2 andb m4) + ((n2 >> 4) andb m4)
+      val result = ((n3 * m8) >> 24) andb 255
+    in result
+    end
+    
+  fun positionInBitmap_current bitmap pos =
+    let val mask = (1 << pos) - 1
+        val masked = bitmap andb mask
+    in popcount masked
+    end
+    
+  (* Alternative 1: Using a lookup table for small bitmaps *)
+  (* For 8-bit chunks, precompute popcount *)
+  fun makePopcountTable () =
+    let fun computePopcount n =
+          let fun count n acc = if n = 0 then acc else count (n >> 1) (acc + (n andb 1))
+          in count n 0
+          end
+        fun buildTable i acc =
+          if i >= 256 then acc
+          else buildTable (i + 1) (append acc [computePopcount i])
+    in buildTable 0 []
+    end
+    
+  val popcount8Table = makePopcountTable()
+  
+  fun popcount_table n =
+    let val b0 = n andb 255
+        val b1 = (n >> 8) andb 255
+        val b2 = (n >> 16) andb 255
+        val b3 = (n >> 24) andb 255
+        fun nth lst n = 
+          case (lst, n) of
+            (x::xs, 0) => x
+          | (_::xs, n) => nth xs (n-1)
+          | _ => 0
+    in nth popcount8Table b0 + nth popcount8Table b1 + 
+       nth popcount8Table b2 + nth popcount8Table b3
+    end
+    
+  fun positionInBitmap_table bitmap pos =
+    let val mask = (1 << pos) - 1
+        val masked = bitmap andb mask
+    in popcount_table masked
+    end
+    
+  (* Alternative 2: Count trailing zeros approach *)
+  (* If we could count trailing zeros (ctz), we could iterate differently *)
+  (* Simulate ctz using bit twiddling *)
+  fun ctz n =
+    if n = 0 then 32
+    else
+      let (* Isolate lowest set bit *)
+          val isolated = n andb (0 - n)
+          (* Count position using popcount on (isolated - 1) *)
+          val pos = popcount (isolated - 1)
+      in pos
+      end
+      
+  (* Alternative 3: Using de Bruijn sequence for finding bit position *)
+  (* This is a clever bit hack for finding the position of a single bit *)
+  val deBruijnSeq = 125613361
+  val deBruijnTable = [
+    0, 1, 28, 2, 29, 14, 24, 3, 30, 22, 20, 15, 25, 17, 4, 8,
+    31, 27, 13, 23, 21, 19, 16, 7, 26, 12, 18, 6, 11, 5, 10, 9
+  ]
+  
+  fun bitPosition_deBruijn n =
+    if n = 0 then 32
+    else
+      let val isolated = n andb (0 - n)  (* Isolate lowest bit *)
+          val index = ((isolated * deBruijnSeq) >> 27) andb 31
+          fun nth lst n = 
+            case (lst, n) of
+              (x::xs, 0) => x
+            | (_::xs, n) => nth xs (n-1)
+            | _ => 0
+      in nth deBruijnTable index
+      end
+      
+  (* Alternative 4: Optimized for sparse bitmaps *)
+  (* When bitmap has few bits set, iterate through set bits *)
+  fun positionInBitmap_sparse bitmap pos =
+    if bitmap = 0 orelse pos >= 32 then 0
+    else
+      let fun countBits bm p count =
+            if bm = 0 orelse p = 0 then count
+            else
+              let val lowestBit = bm andb (0 - bm)
+                  val bitPos = ctz bm
+              in
+                if bitPos >= pos then count
+                else countBits (bm xorb lowestBit) p (count + 1)
+              end
+      in countBits bitmap pos 0
+      end
+      
+  (* Test and benchmark *)
+  val testCases = [
+    (2863311530, 15),  (* 0xAAAAAAAA - alternating bits *)
+    (1431655765, 16),  (* 0x55555555 - alternating bits *)
+    (4294967295, 31),  (* 0xFFFFFFFF - all bits set *)
+    (1, 0),            (* Single bit at position 0 *)
+    (2147483648, 31),  (* Single bit at position 31 *)
+    (255, 7),          (* First byte all set *)
+    (16711680, 23),    (* Third byte all set *)
+    (0, 15)            (* Empty bitmap *)
+  ]
+  
+  fun testAll () =
+    let fun test (bitmap, pos) =
+          let val r1 = positionInBitmap_current bitmap pos
+              val r2 = positionInBitmap_table bitmap pos
+              val r3 = positionInBitmap_sparse bitmap pos
+              val _ = printWithLabels ("Bitmap:", bitmap, "Pos:", pos, 
+                                      "Current:", r1, "Table:", r2, "Sparse:", r3)
+          in
+            if r1 = r2 andalso r1 = r3 then ()
+            else printWithLabels "MISMATCH!"
+          end
+    in map test testCases
+    end
+    
+  val _ = printWithLabels "=== Bitmap Position Optimization Study ==="
+  val _ = testAll()
+  
+  (* Benchmark different approaches *)
+  fun benchmark name f n =
+    let fun run 0 = ()
+          | run i = 
+            let val _ = map (fn (bm, p) => f bm p) testCases
+            in run (i - 1)
+            end
+        val start = getTime()
+        val _ = run n
+        val elapsed = getTime() - start
+    in printWithLabels (name, "- Time:", elapsed, "ms for", n, "iterations")
+    end
+    
+  val iterations = 10000
+  val _ = printWithLabels ""
+  val _ = printWithLabels "=== Benchmarks ==="
+  val _ = benchmark "Current (full popcount)" positionInBitmap_current iterations
+  val _ = benchmark "Table lookup" positionInBitmap_table iterations
+  val _ = benchmark "Sparse bitmap" positionInBitmap_sparse iterations
+  
+  (* Special test: count trailing zeros *)
+  val _ = printWithLabels ""
+  val _ = printWithLabels "=== Count Trailing Zeros Tests ==="
+  val ctzTests = [1, 2, 4, 8, 16, 32, 64, 128, 256, 512, 1024, 12, 48, 192]
+  val _ = map (fn n => printWithLabels ("ctz(", n, ") =", ctz n)) ctzTests
+  
+in
+  printWithLabels "Study completed!"
+end

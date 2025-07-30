@@ -1,0 +1,180 @@
+(* Popcount comparison and benchmarking test *)
+
+let
+  (* Original popcount from hamt.trp *)
+  fun popcount_original bitmap = 
+    let fun count bm acc =
+          if bm = 0 then acc
+          else count (bm >> 1) (acc + (bm andb 1))
+    in count bitmap 0
+    end
+    
+  (* 32-bit optimized popcount using bit twiddling *)
+  (* Brian Kernighan's algorithm - counts set bits by repeatedly clearing the rightmost set bit *)
+  fun popcount_kernighan bitmap =
+    let fun count bm acc =
+          if bm = 0 then acc
+          else count (bm andb (bm - 1)) (acc + 1)
+    in count bitmap 0
+    end
+    
+  (* Alternative bit-twiddling approach: parallel bit counting *)
+  (* This works by partitioning bits and counting in parallel *)
+  fun popcount_parallel n =
+    let 
+      (* Mask constants for parallel counting *)
+      val m1 = 1431655765  (* 0x55555555 = 0b01010101010101010101010101010101 *)
+      val m2 = 858993459   (* 0x33333333 = 0b00110011001100110011001100110011 *)
+      val m4 = 252645135   (* 0x0f0f0f0f = 0b00001111000011110000111100001111 *)
+      val m8 = 16843009    (* 0x01010101 = 0b00000001000000010000000100000001 *)
+      
+      (* Step 1: Count bits in groups of 2 *)
+      val n1 = (n andb m1) + ((n >> 1) andb m1)
+      
+      (* Step 2: Count bits in groups of 4 *)
+      val n2 = (n1 andb m2) + ((n1 >> 2) andb m2)
+      
+      (* Step 3: Count bits in groups of 8 *)
+      val n3 = (n2 andb m4) + ((n2 >> 4) andb m4)
+      
+      (* Step 4: Sum all bytes *)
+      val result = ((n3 * m8) >> 24) andb 255
+    in result
+    end
+    
+  (* Generate test numbers - mix of patterns and pseudo-random *)
+  fun generateTestNumbers n acc =
+    if n = 0 then acc
+    else 
+      let 
+        (* Use a simple linear congruential generator for predictable "random" numbers *)
+        val seed = case acc of
+                     [] => 12345
+                   | x::xs => (x * 1103515245 + 12345) mod 2147483648
+        (* Also include some special patterns *)
+        val num = 
+          if n mod 10 = 0 then
+            (* Every 10th number is a power of 2 minus 1 (all bits set in lower positions) *)
+            let val shift = n mod 32
+            in (1 << shift) - 1
+            end
+          else if n mod 10 = 5 then
+            (* Alternating bit patterns *)
+            if n mod 20 = 5 then 1431655765 (* 0x55555555 *)
+            else 2863311530 mod 2147483648  (* 0xAAAAAAAA mod 2^31 *)
+          else
+            (* Use our pseudo-random seed *)
+            seed
+      in generateTestNumbers (n - 1) (num :: acc)
+      end
+      
+  val testNumbers = generateTestNumbers 1000 []
+  
+  (* Verify that all implementations produce the same results *)
+  val _ = printWithLabels "Popcount Implementation Comparison"
+  val _ = printWithLabels ""
+  
+  (* Test on some known values first *)
+  val _ = printWithLabels "Testing known values:"
+  val testCases = [(0, 0), (1, 1), (3, 2), (7, 3), (15, 4), (255, 8), 
+                   (65535, 16), (131071, 17), (1431655765, 16)]
+  
+  fun testKnown lst =
+    case lst of
+      [] => ()
+    | (num, expected) :: rest =>
+        let val orig = popcount_original num
+            val kern = popcount_kernighan num
+            val para = popcount_parallel num
+            val _ = printWithLabels ("Number:", num, 
+                                    "Expected:", expected,
+                                    "Original:", orig,
+                                    "Kernighan:", kern, 
+                                    "Parallel:", para,
+                                    "All match:", (orig = expected) andalso (kern = expected) andalso (para = expected))
+        in testKnown rest
+        end
+        
+  val _ = testKnown testCases
+  
+  val _ = printWithLabels ""
+  val _ = printWithLabels "Comparing implementations on 1000 random numbers..."
+  
+  (* Compare all three implementations *)
+  fun compareAll lst mismatches =
+    case lst of
+      [] => mismatches
+    | num :: rest =>
+        let val orig = popcount_original num
+            val kern = popcount_kernighan num
+            val para = popcount_parallel num
+        in
+          if (orig = kern) andalso (kern = para)
+          then compareAll rest mismatches
+          else 
+            let val _ = printWithLabels ("MISMATCH! Number:", num, 
+                                        "Original:", orig,
+                                        "Kernighan:", kern,
+                                        "Parallel:", para)
+            in compareAll rest (mismatches + 1)
+            end
+        end
+        
+  val mismatches = compareAll testNumbers 0
+  val _ = printWithLabels ("Total mismatches:", mismatches)
+  
+  (* If all implementations agree, run benchmarks *)
+  val _ = 
+    if mismatches = 0 then
+      let 
+        val _ = printWithLabels ""
+        val _ = printWithLabels "All implementations agree! Running benchmarks..."
+        val _ = printWithLabels ""
+        
+        (* Helper to get current time in milliseconds *)
+        fun getCurrentTime () = getTime()
+        
+        (* Benchmark a popcount function *)
+        fun benchmark name f lst iterations =
+          let 
+            fun runIterations 0 = ()
+              | runIterations n = 
+                  let fun applyToAll [] = ()
+                        | applyToAll (x::xs) = let val _ = f x in applyToAll xs end
+                      val _ = applyToAll lst
+                  in runIterations (n - 1)
+                  end
+                  
+            val startTime = getCurrentTime()
+            val _ = runIterations iterations
+            val endTime = getCurrentTime()
+            val elapsed = endTime - startTime
+            val opsPerSec = if elapsed > 0 
+                            then (1000 * iterations * 1000) / elapsed
+                            else 0  (* Avoid division by zero *)
+          in
+            printWithLabels (name, "- Time:", elapsed, "ms",
+                            "Ops/sec:", opsPerSec)
+          end
+        
+        (* Run benchmarks *)
+        val iterations = 10  (* Run each test 10 times *)
+        val _ = printWithLabels ("Running each implementation", iterations, "times on 1000 numbers...")
+        val _ = printWithLabels ""
+        
+        val _ = benchmark "Original (bit-by-bit)" popcount_original testNumbers iterations
+        val _ = benchmark "Kernighan's algorithm" popcount_kernighan testNumbers iterations  
+        val _ = benchmark "Parallel bit counting" popcount_parallel testNumbers iterations
+        
+        val _ = printWithLabels ""
+        val _ = printWithLabels "Benchmark notes:"
+        val _ = printWithLabels "- Original: Checks each bit individually (O(32) worst case)"
+        val _ = printWithLabels "- Kernighan: Only loops for each set bit (O(k) where k = popcount)"
+        val _ = printWithLabels "- Parallel: Fixed time, processes bits in groups (O(1))"
+      in ()
+      end
+    else 
+      printWithLabels "Cannot run benchmarks due to implementation mismatches!"
+      
+in printWithLabels "Popcount test completed!"
+end
