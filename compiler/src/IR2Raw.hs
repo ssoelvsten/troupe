@@ -246,9 +246,11 @@ _raisePC :: RawVar -> TM ()
 _raisePC raiseBy = do
   pc <- getPC
   pc' <- freshRawVarWith "_pc_"
-  tell [ AssignRaw pc' (Bin Basics.LatticeJoin pc raiseBy)
+  tell [ AssignRaw pc' (_default_bin Basics.LatticeJoin pc raiseBy)
        , SetState MonPC pc'
        ]
+
+_default_bin op r1 r2 = Bin op (UseNativeBinop False) r1 r2 
 
 -- | Generate instructions raising the blocking label with the label in the given variable.
 -- Not to be used directly, see functions below instead.
@@ -256,7 +258,7 @@ _raiseBlock :: RawVar -> TM ()
 _raiseBlock raiseBy = do
   bl  <- getBlock
   bl' <- freshRawVarWith "_bl_"
-  tell [ AssignRaw bl' (Bin Basics.LatticeJoin bl raiseBy)
+  tell [ AssignRaw bl' (_default_bin Basics.LatticeJoin bl raiseBy)
        , SetState MonBlock bl'
        ]
 
@@ -351,7 +353,7 @@ compLabel = \case
     then return r
     else foldM (\(r1 :: RawVar) (r2 :: RawVar) -> do
                    r' :: RawVar <- freshRawVarWith "_lbl_"
-                   tell [ AssignRaw r' $ Bin Basics.LatticeJoin r1 r2 ]
+                   tell [ AssignRaw r' $ _default_bin Basics.LatticeJoin r1 r2 ]
                    return r'
                ) r rs
   PC -> getPC
@@ -500,7 +502,7 @@ expr2rawComp = \case
     -- (for operations where the result type is fixed).
     let basicBinOpComp =
          return SimpleRawComp
-          { cVal = RBin v1 v2 $ Bin op
+          { cVal = RBin v1 v2 $ Bin op (UseNativeBinop True)
           , cValLbl = Join PC (ValLbl v1) [ValLbl v2]
           , cTyLbl = PC
           }
@@ -558,12 +560,12 @@ expr2rawComp = \case
       -- Note: Even though the result depends on the types of the parameters, it is sufficient to join their
       -- value labels into the result's value label, due to the invariant tyLbl ⊑ valLbl.
       Basics.Eq -> return ComplexRawComp
-        { ccVal = RBin v1 v2 $ Bin op
+        { ccVal = RBin v1 v2 $ Bin op (UseNativeBinop False)
         , ccValLbl = \resValLbl -> Join PC (ValLbl v1) [ValLbl v2, resValLbl]
         , ccTyLbl = const PC -- The result type is always boolean
         }
       Basics.Neq -> return ComplexRawComp
-        { ccVal = RBin v1 v2 $ Bin op
+        { ccVal = RBin v1 v2 $ Bin op (UseNativeBinop False)
         , ccValLbl = \resValLbl -> Join PC (ValLbl v1) [ValLbl v2, resValLbl]
         , ccTyLbl = const PC -- The result type is always boolean
         }

@@ -192,7 +192,7 @@ instance Trav a => Trav [a]
 instance Usable RawExpr b where 
   use e =     
       case e of 
-        Raw.Bin _ x y -> use [x,y] 
+        Raw.Bin _ _ x y -> use [x,y] 
         Raw.Un _ x -> use x
         Raw.ProjectLVal x _ -> use x
         Raw.ProjectState _ -> return ()

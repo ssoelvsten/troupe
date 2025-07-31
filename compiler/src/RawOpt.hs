@@ -44,7 +44,7 @@ instance Substitutable RawVar where
 instance Substitutable RawExpr where 
   apply subst e = 
     case e of 
-      Bin op x y -> Bin op (apply subst x) (apply subst y)
+      Bin op use_native x y -> Bin op use_native  (apply subst x) (apply subst y)
       Un op x -> Un op (apply subst x)
       ListCons x y -> ListCons x (apply subst y)
       WithRecord x fs -> WithRecord (apply subst x) fs 
@@ -95,7 +95,8 @@ data PState =
              stateJoins :: Map (RawVar, RawVar) RawVar,           -- computed joins
              stateSubst :: Subst,
              stateChange:: ChangeFlag,
-             stateTypes :: Map RawVar RawType                     -- for assertions optimizations
+             stateRawVarTypes :: Map RawVar RawType,              -- for assertions optimizations
+             stateLValTypes :: Map VarName RawType                -- for assertions optimizations
            }
 
 -- 2021-02-28; AA 
@@ -136,7 +137,7 @@ instance MarkUsed a => MarkUsed [a] where
 
 instance MarkUsed RawExpr where 
   markUsed e = case e of 
-    Bin _ x y -> markUsed [x,y]
+    Bin _ _ x y -> markUsed [x,y]
     Un _ x -> markUsed x
     ProjectLVal x _ -> markUsed x
     ProjectState _ -> return ()
@@ -191,7 +192,7 @@ guessType :: RawExpr -> Maybe RawType
 guessType = \case
   Const lit -> typeOfLit lit
 
-  Bin op _ _ -> case op of
+  Bin op _ _ _ -> case op of
     Basics.Plus -> Just RawNumber
     Basics.Minus -> Just RawNumber
     Basics.Div -> Just RawNumber
@@ -256,8 +257,11 @@ guessType = \case
   Base _ -> Nothing
   ConstructLVal _ _ _ -> Nothing
 
-_setType x t = modify (\pstate -> 
-          pstate { stateTypes = Map.insert x t (stateTypes pstate)})
+_setRawType x t = modify (\pstate -> 
+          pstate { stateRawVarTypes = Map.insert x t (stateRawVarTypes pstate)})
+
+_setLValType x t = modify (\pstate -> 
+          pstate { stateLValTypes = Map.insert x t (stateLValTypes pstate)})
 
 -- Partially evaluate instruction. This is called multiple times in the optimization sequence.
 -- First pass: partially evaluate functions (instructions).
@@ -275,7 +279,7 @@ pevalInst i = do
         case monLookup p pstate of -- lookup the known state of the monitor component
           Just r' -> _omit $ addSubst r r' -- The state can already be found in r', therefore the assignment to r can be omitted, and we have to remember to substitute r with r'.
           Nothing -> _keep $ monInsert p r -- remember that PC/block can be found in variable r
-      AssignRaw r (Bin Basics.LatticeJoin x y) -> do 
+      AssignRaw r (Bin Basics.LatticeJoin (UseNativeBinop False) x y) -> do 
         if x == y then _omit (addSubst r x) -- trivial join
         else do
           case Map.lookup (x,y) (stateJoins pstate) of 
@@ -303,21 +307,34 @@ pevalInst i = do
             let m0 = stateLVals pstate 
             let m1 = Map.insert (v, field) r m0 
             put $ pstate { stateLVals = m1 }
+
+            -- 2025-07-31; now also examine the type information 
+            -- which is useful for booleans 
+            case (Map.lookup v (stateLValTypes pstate)) of 
+              Nothing -> return ()
+              Just t  -> _setRawType r t
+
       AssignRaw r rexpr -> _keep $ do
         markUsed rexpr 
         case guessType rexpr of 
             Nothing -> return ()
-            Just ty -> _setType r ty 
+            Just ty -> _setRawType r ty 
         
 
-      AssignLVal v complexExpr -> _keep $ markUsed complexExpr
+      AssignLVal v complexExpr -> _keep $ do
+        case complexExpr of 
+            Bin op (UseNativeBinop False) r1 r2 | op `elem` [Basics.Eq, Basics.Neq]  -> 
+              _setLValType v RawBoolean
+            _ -> return ()
+        _keep $ markUsed complexExpr
+
       SetState p r -> _keep $ do 
         markUsed r
         monInsert p r        
       RTAssertion (AssertType r rt) -> do 
-        case Map.lookup r (stateTypes pstate) of 
+        case Map.lookup r (stateRawVarTypes pstate) of 
           Just rt' | rt' == rt -> return Nothing
-          _ -> _keep $ _setType r rt >> markUsed r        
+          _ -> _keep $ _setRawType r rt >> markUsed r        
       -- RTAssertion (AssertEqTypes opt_ls x y) -> do
       --   let _m = stateTypes pstate
       --   let keep = _keep $ markUsed [x,y]
@@ -331,7 +348,7 @@ pevalInst i = do
       --           else keep
       --     _ -> keep
       RTAssertion (AssertTypesBothStringsOrBothNumbers x y) -> do 
-        let _m = stateTypes pstate 
+        let _m = stateRawVarTypes pstate 
         let keep = _keep $ markUsed [x,y]
         case (Map.lookup x _m, Map.lookup y _m) of 
           (Just t1 , Just t2) | t1 == t2 -> 
@@ -518,7 +535,8 @@ funopt (FunDef hfn consts bb ir) =
                        stateJoins = Map.empty,
                        stateSubst = Subst (m_subst),
                        stateChange = False,
-                       stateTypes = constTypes
+                       stateRawVarTypes = constTypes,
+                       stateLValTypes = Map.empty
                        }
       (bb', _, _) = runRWS (peval bb) () pstate
       new = FunDef hfn consts' bb' ir  

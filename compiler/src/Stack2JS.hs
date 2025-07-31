@@ -583,7 +583,7 @@ instance ToJS RawExpr where
            Raw.FieldValLev -> monStateToJs MonPC
            Raw.FieldTypLev -> monStateToJs MonPC)
       e@(ProjectLVal _ _) -> return $ ppRawExpr e
-      Bin binop va1 va2 -> return $
+      Bin binop _ va1 va2 -> return $
         let text' = (text . binOpToJS) binop in
           if isInfixBinop binop
           then hsep [ ppId va1, text', ppId va2 ]

@@ -99,7 +99,7 @@ data RTAssertion
 -- What would be possible is to introduce a pre-processing which translates IR expressions into
 -- categorized expressions, which could then slightly simplify handling at IR2Raw.
 data RawExpr
-  = Bin Basics.BinOp RawVar RawVar
+  = Bin Basics.BinOp UseNativeBinop RawVar RawVar
   | Un Basics.UnaryOp RawVar
   | ProjectLVal VarAccess LValField
   | ProjectState MonComponent
@@ -119,6 +119,12 @@ data RawExpr
   | ConstructLVal RawVar RawVar RawVar
   deriving (Eq, Show)
 
+-- | For equality and inequality, we generally defer to the runtime. However 
+-- when we know that the operation involves simple types we can generate 
+-- faster code, avoiding calling the runtime functions
+-- 
+newtype UseNativeBinop = UseNativeBinop Bool
+  deriving (Eq, Show)
 
 data RawInst
   -- | Assign the result of the given simple expression (an unlabelled value) to the given raw variable.
@@ -229,7 +235,7 @@ data InstructionType
 
 instructionType :: RawInst -> InstructionType
 instructionType i = case i of 
-  AssignRaw _ (Bin Basics.LatticeJoin _ _) -> LabelSpecificInstruction
+  AssignRaw _ (Bin Basics.LatticeJoin _ _ _) -> LabelSpecificInstruction
   AssignRaw _ (ProjectState MonPC) -> LabelSpecificInstruction
   AssignRaw _ (ProjectState MonBlock) -> LabelSpecificInstruction
   AssignRaw _ (ProjectState R0_Lev)  -> LabelSpecificInstruction
@@ -268,7 +274,7 @@ ppFunDef ( FunDef hfn consts insts  _ )
 
 
 ppRawExpr :: RawExpr -> PP.Doc
-ppRawExpr (Bin binop va1 va2) =
+ppRawExpr (Bin binop _ va1 va2) = -- TODO: 2025-07-31; also print the fast flag 
   ppId va1 <+> text (show binop) <+> ppId va2
 ppRawExpr (Un op v) =
   text (show op) <> PP.parens (ppId v)
