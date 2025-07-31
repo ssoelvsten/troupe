@@ -205,20 +205,25 @@ getVal va = do
     tell [AssignRaw rVal (ProjectLVal va FieldValue)]
     return rVal
 
+-- | Special case projection for self-references
+projectLVal VarFunSelfRef FieldTypLev = ProjectState MonPC
+projectLVal VarFunSelfRef FieldValLev = ProjectState MonPC
+projectLVal va field = ProjectLVal va field
+
 -- | Generate instructions assigning the value label of the given runtime LVal
 -- to a new Raw variable.
 getValLbl :: VarAccess -> TM RawVar
 getValLbl va = do
     rValLbl <- freshRawVarWith "_vlbl_"
-    tell [AssignRaw rValLbl (ProjectLVal va FieldValLev)]
+    tell [AssignRaw rValLbl (projectLVal va FieldValLev)]
     return rValLbl
 
 -- | Generate instructions assigning the type label of the given runtime LVal
 -- to a new Raw variable.
 getTyLbl :: VarAccess -> TM RawVar
 getTyLbl va = do
-    rTyLbl <- freshRawVarWith "_tlbl_"
-    tell [AssignRaw rTyLbl (ProjectLVal va FieldTypLev)]
+    rTyLbl <- freshRawVarWith "_tlbl_"    
+    tell [AssignRaw rTyLbl (projectLVal va FieldTypLev)]
     return rTyLbl
 
 -- | Generate instructions assigning the current PC label to a new Raw variable.

@@ -243,6 +243,7 @@ guessType = \case
   -- Revision 2023-08: Added missing cases
   ProjField _ _ -> Nothing
   ProjIdx _ _ -> Nothing
+  ProjectLVal VarFunSelfRef FieldValue -> Just RawFunction
   ProjectLVal _ FieldValLev -> Just RawLevel
   ProjectLVal _ FieldTypLev -> Just RawLevel
   ProjectLVal _ FieldValue -> Nothing
