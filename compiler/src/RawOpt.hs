@@ -96,8 +96,13 @@ data PState =
              stateSubst :: Subst,
              stateChange:: ChangeFlag,
              stateRawVarTypes :: Map RawVar RawType,              -- for assertions optimizations
-             stateLValTypes :: Map VarName RawType                -- for assertions optimizations
+             stateLValTypes :: Map VarName RawType                -- for assertions optimizations             
            }
+
+
+data ReadEnv = 
+    ReadEnv { readConsts :: Map RawVar Core.Lit }
+           
 
 -- 2021-02-28; AA 
 -- As we traverse the AST we collect information about how 
@@ -113,7 +118,7 @@ type Used = (Set VarName, Set RawVar)
 type ChangeFlag = Bool
 
 -- Optimization monad: keep track of used variables, to be able to eliminate unused variables.
-type Opt = RWS () Used PState
+type Opt = RWS ReadEnv Used PState
 
 class PEval a where 
     peval :: a -> Opt a 
@@ -266,13 +271,13 @@ _setLValType x t = modify (\pstate ->
 -- Partially evaluate instruction. This is called multiple times in the optimization sequence.
 -- First pass: partially evaluate functions (instructions).
 -- Removes e.g. redundant state projections state (e.g. if multiple in same block).
--- Returns 'Nothing' if the instruction is to be ommitted.
-pevalInst:: RawInst -> Opt (Maybe RawInst)
+-- 
+pevalInst:: RawInst -> Opt [RawInst]
 pevalInst i = do 
     pstate <- get
     i' <- subst i -- apply the collected substitutions
-    let _omit x = x >> (return Nothing)
-    let _keep x = x >> (return $ Just i')
+    let _omit x = x >> return []
+    let _keep x = x >> return [i']
              
     case i' of 
       AssignRaw r (ProjectState p) -> do
@@ -319,13 +324,31 @@ pevalInst i = do
         case guessType rexpr of 
             Nothing -> return ()
             Just ty -> _setRawType r ty 
-        
 
-      AssignLVal v complexExpr -> _keep $ do
-        case complexExpr of 
-            Bin op (UseNativeBinop False) r1 r2 | op `elem` [Basics.Eq, Basics.Neq]  -> 
-              _setLValType v RawBoolean
-            _ -> return ()
+      AssignLVal v complexExpr@(Bin op (UseNativeBinop False) r1 r2) 
+          | op `elem` [Basics.Eq, Basics.Neq] -> do
+                _setLValType v RawBoolean
+                a <- isSuitableForNativeEq r1
+                b <- isSuitableForNativeEq r2
+                if  a || b 
+                  then do 
+                    let VN s = v 
+                        r3 = RawVar $ s ++ "$val_opt"
+                        r4 = RawVar $ s ++ "$vlev_opt"
+                        r5 = RawVar $ s ++ "$tlev_opt"
+                    markUsed v 
+                    markUsed [r1, r2, r3, r4, r5]
+                    return $
+                      [ AssignRaw r3 (Bin op (UseNativeBinop True) r1 r2)
+                      , AssignRaw r4 (ProjectState MonPC)
+                      , AssignRaw r5 (ProjectState MonPC)
+                      , AssignLVal v (ConstructLVal r3 r4 r5)
+                      ]
+                  else 
+                    _keep $ markUsed complexExpr
+
+
+      AssignLVal v complexExpr -> 
         _keep $ markUsed complexExpr
 
       SetState p r -> _keep $ do 
@@ -333,7 +356,7 @@ pevalInst i = do
         monInsert p r        
       RTAssertion (AssertType r rt) -> do 
         case Map.lookup r (stateRawVarTypes pstate) of 
-          Just rt' | rt' == rt -> return Nothing
+          Just rt' | rt' == rt -> return []
           _ -> _keep $ _setRawType r rt >> markUsed r        
       -- RTAssertion (AssertEqTypes opt_ls x y) -> do
       --   let _m = stateTypes pstate
@@ -353,19 +376,34 @@ pevalInst i = do
         case (Map.lookup x _m, Map.lookup y _m) of 
           (Just t1 , Just t2) | t1 == t2 -> 
             if t1 `elem` [RawNumber, RawString]
-            then return Nothing
+            then return []
             else keep
           _ -> keep
       -- TODO track tuple length
       RTAssertion (AssertTupleLengthGreaterThan r n) -> _keep $ markUsed r
       -- TODO track record fields
       RTAssertion (AssertRecordHasField r f) -> _keep $ markUsed r
-      RTAssertion (AssertNotZero r) -> _keep $ markUsed r
+      RTAssertion (AssertNotZero r) -> do
+         renv <- ask 
+         case Map.lookup r (readConsts renv) of 
+           Just (Core.LInt x _) | x /= 0 -> return []
+           _ -> _keep $ markUsed r
       MkFunClosures ee _ -> _keep $ markUsed (snd (unzip ee)) 
       -- No applicable optimizations.
-      SetBranchFlag -> return $ Just i'
-      InvalidateSparseBit -> return $ Just i'
-                          
+      SetBranchFlag -> return [i']
+      InvalidateSparseBit -> return [i']
+
+
+isSuitableForNativeEq r = do 
+  pstate <- get
+  return $ 
+    case Map.lookup r (stateRawVarTypes pstate) of 
+      Nothing -> False 
+      Just t -> case t of 
+          RawNumber -> True 
+          RawString -> True 
+          _ -> False 
+
 
 instance PEval RawTerminator where
   peval tr = do 
@@ -488,7 +526,7 @@ instOrder ii = work [] ii
 instance PEval RawBBTree where
   peval bb@(BB insts tr) = do 
     (BB jj tr'', used) <- listen $ do 
-        ii <- Data.Maybe.catMaybes <$> mapM pevalInst insts
+        ii <- concat <$> mapM pevalInst insts
         tr' <- peval tr 
         return $ BB ii tr'
     let (insts_no_ret, set_pc_bl) = filterInstBwd (filter (isLiveInstFwd used) jj)
@@ -538,8 +576,11 @@ funopt (FunDef hfn consts bb ir) =
                        stateRawVarTypes = constTypes,
                        stateLValTypes = Map.empty
                        }
-      (bb', _, _) = runRWS (peval bb) () pstate
-      new = FunDef hfn consts' bb' ir  
+      
+      readenv = ReadEnv { readConsts = Map.fromList consts  }
+      (bb', _, (_, used_rvars)) = runRWS (peval bb) readenv pstate
+      const_used = filter (\(x,_) -> Set.member x used_rvars) consts'
+      new = FunDef hfn const_used bb' ir  
   in if bb /= bb' then funopt new else new
 
 

@@ -93,7 +93,7 @@ addOneLib (LibAccess (Basics.LibName libname) varname) =
   let args = (PP.quotes.PP.text) libname <+> text "," <+> (PP.quotes. PP.text) varname
   in text "this.addLib " <+> PP.parens args
 
-addLibs xs = vcat (map addOneLib xs)
+addLibs xs = vcat $ nub (map addOneLib xs)
 
 
 data TheState = TheState { freshCounter :: Integer
@@ -312,8 +312,8 @@ instance ToJS StackInst where
 instance ToJS StackTerminator where 
   toJS = tr2js
 
-binOpToJS :: BinOp -> String
-binOpToJS = \case
+binOpToJS :: BinOp -> Raw.UseNativeBinop ->  String
+binOpToJS op (Raw.UseNativeBinop isNative) = case op of 
     -- JS binary operators (some not implemented in IR2Raw)
     Plus -> "+"
     Minus -> "-"
@@ -334,8 +334,8 @@ binOpToJS = \case
     BinZeroShiftRight -> ">>>"
     -- Functions defined in UserRuntimeZero.ts
     IntDiv -> "rt.intdiv"
-    Eq -> "rt.eq"
-    Neq -> "rt.neq"
+    Eq -> if isNative then "===" else "rt.eq"
+    Neq -> if isNative then "!==" else "rt.neq"
     Concat -> "+"
     HasField -> "rt.hasField"
     LatticeJoin -> "rt.raw_join"
@@ -414,7 +414,7 @@ ir2js (MkFunClosures envBindings funBindings) = do
                               d_b <- toJS b 
                               return $ d_b <> text ".dataLevel") ls
                let d2 = penv PP.<> text ".__dataLevel = " 
-                        <+> jsFunCall (text $ binOpToJS Basics.LatticeJoin) d3
+                        <+> jsFunCall (text $ binOpToJS Basics.LatticeJoin (Raw.UseNativeBinop False)) d3
                                 
                return $ vcat ( d1 ++ [d2])
              hsepc ls = semi $ PP.hsep (PP.punctuate (text ",") ls)
@@ -583,9 +583,9 @@ instance ToJS RawExpr where
            Raw.FieldValLev -> monStateToJs MonPC
            Raw.FieldTypLev -> monStateToJs MonPC)
       e@(ProjectLVal _ _) -> return $ ppRawExpr e
-      Bin binop _ va1 va2 -> return $
-        let text' = (text . binOpToJS) binop in
-          if isInfixBinop binop
+      Bin binop use_native va1 va2 -> return $
+        let text' = text (binOpToJS binop use_native) in
+          if isInfixBinop binop use_native
           then hsep [ ppId va1, text', ppId va2 ]
           else jsFunCall text' [ppId va1, ppId va2]
       Un op v -> return $ text (unaryOpToJS op) <> PP.parens (ppId v)
@@ -663,8 +663,8 @@ freshKontName = do
     return $ VN $  "$$$" ++ s ++ "$$$kont" ++ (show j)
 
 
-isInfixBinop :: Basics.BinOp -> Bool
-isInfixBinop = \case
+isInfixBinop :: Basics.BinOp -> Raw.UseNativeBinop -> Bool
+isInfixBinop op (Raw.UseNativeBinop use_native) = case op of 
   -- Infix
   Plus -> True
   Minus -> True
@@ -684,9 +684,10 @@ isInfixBinop = \case
   BinShiftLeft -> True
   BinShiftRight -> True
   BinZeroShiftRight -> True
+  -- Flag dependent 
+  Eq -> use_native
+  Neq -> use_native 
   -- Not infix
-  Eq -> False
-  Neq -> False
   RaisedTo -> False
   FlowsTo -> False
   IntDiv -> False
