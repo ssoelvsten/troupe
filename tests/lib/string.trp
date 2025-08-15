@@ -1,0 +1,10 @@
+import string
+
+let (* Tests for 'charAt' *)
+    val _ = print ("charAt ''hello'' 0 = '" ^ (charAt "hello" 0) ^ "'")
+    val _ = print ("charAt ''hello'' 1 = '" ^ (charAt "hello" 1) ^ "'")
+    val _ = print ("charAt ''hello'' 2 = '" ^ (charAt "hello" 2) ^ "'")
+    val _ = print ("charAt ''hello'' 3 = '" ^ (charAt "hello" 3) ^ "'")
+    val _ = print ("charAt ''hello'' 4 = '" ^ (charAt "hello" 4) ^ "'")
+    val _ = print ("charAt ''hello'' 5 = '" ^ (charAt "hello" 5) ^ "'")
+in () end

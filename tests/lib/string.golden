@@ -1,0 +1,8 @@
+2025-08-15T11:35:17.761Z [RTM] [32minfo[39m: Skipping network creation. Observe that all external IO operations will yield a runtime error.
+"charAt ''hello'' 0 = 'h'"
+"charAt ''hello'' 1 = 'e'"
+"charAt ''hello'' 2 = 'l'"
+"charAt ''hello'' 3 = 'l'"
+"charAt ''hello'' 4 = 'o'"
+"charAt ''hello'' 5 = ''"
+>>> Main thread finished with value: ()@{}%{}
