@@ -37,13 +37,13 @@ service:
 	$(COMPILER) ./trp-rt/service.trp -l
 
 # TODO: Rename to 'clean/*' ?
-clear: clear/compiler clear/rt
-clear/compiler:
-	cd compiler; $(MAKE) clear
-clear/rt:
-	cd rt; $(MAKE) clear
-clear/p2p-tools:
-	cd p2p-tools; $(MAKE) clear
+clean: clean/compiler clean/rt
+clean/compiler:
+	cd compiler; $(MAKE) clean
+clean/rt:
+	cd rt; $(MAKE) clean
+clean/p2p-tools:
+	cd p2p-tools; $(MAKE) clean
 
 ci-test-golden-no-color:
 	mkdir -p out 
