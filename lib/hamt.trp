@@ -272,12 +272,6 @@ let
     in removeNode trie h key 0
     end
 
-  (* Check if a key exists *)
-  fun contains trie key =
-    case lookup trie key of
-      NONE => false
-    | _ => true
-
   (* Get all keys in the trie *)
   fun keys trie =
     let fun collectKeys node acc =
@@ -306,6 +300,32 @@ let
     in collectValues trie []
     end
 
+  (* Check if a key exists *)
+  fun contains trie key =
+      case lookup trie key of
+          NONE => false
+        | _ => true
+
+  (* Size calculation - O(n) but with early termination for common cases *)
+  fun size trie =
+      case trie of
+          {} => 0
+        | {tag = "leaf", ..} => 1
+        | _ =>
+          (* For backward compatibility, we still need to traverse *)
+          (* but we can optimize by counting directly instead of building key list *)
+          let fun countEntries node =
+                  case node of
+                      {} => 0
+                    | {tag = "leaf", ..} => 1
+                    | {tag = "bitmap", children = ch, ..} =>
+                      foldl (fn (child, acc) => acc + countEntries child) 0 ch
+                    | {tag = "collision", entries = entries, ..} =>
+                      length entries
+                    | _ => 0
+          in countEntries trie
+          end
+
   (* Get all key-value pairs *)
   fun toList trie =
     let fun collectPairs node acc =
@@ -320,26 +340,6 @@ let
     in collectPairs trie []
     end
 
-  (* Size calculation - O(n) but with early termination for common cases *)
-  fun size trie =
-    case trie of
-      {} => 0
-    | {tag = "leaf", ..} => 1
-    | _ =>
-        (* For backward compatibility, we still need to traverse *)
-        (* but we can optimize by counting directly instead of building key list *)
-        let fun countEntries node =
-              case node of
-                {} => 0
-              | {tag = "leaf", ..} => 1
-              | {tag = "bitmap", children = ch, ..} =>
-                  foldl (fn (child, acc) => acc + countEntries child) 0 ch
-              | {tag = "collision", entries = entries, ..} =>
-                  length entries
-              | _ => 0
-        in countEntries trie
-        end
-
   (* Create a trie from a list of key-value pairs *)
   fun fromList pairs =
     foldl (fn ((k, v), t) => insert t k v) (empty ()) pairs
@@ -350,11 +350,11 @@ in
   , ("insert", insert)
   , ("lookup", lookup)
   , ("remove", remove)
-  , ("contains", contains)
   , ("keys", keys)
   , ("values", values)
-  , ("toList", toList)
+  , ("contains", contains)
   , ("size", size)
+  , ("toList", toList)
   , ("fromList", fromList)
   , ("hash", hash)  (* Export for testing/debugging *)
   ]
