@@ -37,7 +37,7 @@ service:
 	$(COMPILER) ./trp-rt/service.trp -l
 
 # TODO: Rename to 'clean/*' ?
-clear: clear/stack clear/rt
+clear: clear/compiler clear/rt
 clear/compiler:
 	cd compiler; $(MAKE) clear
 clear/rt:
