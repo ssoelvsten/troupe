@@ -10,7 +10,7 @@ let (** A mersenne prime which also happens to be the largest possible value for
     fun hashInt i =
         (* Knuth's multiplicative hash - ensure positive result *)
         let val alpha = 2654435769
-            val h = i * alpha mod (maxInt31+1)
+            val h = i * alpha andb maxInt31
         in if h < 0 then h + maxInt31 else h
         end
 
@@ -25,10 +25,10 @@ let (** A mersenne prime which also happens to be the largest possible value for
             fun charCode idx = charCodeAtWithDefault (s, idx, 63)
         in case len of 0 => 0
                      | 1 => charCode 0
-                     | 2 => (31 * charCode 0 + charCode 1) mod (maxInt31+1)
+                     | 2 => (31 * charCode 0 + charCode 1) andb maxInt31
                      | _ => let fun go idx acc =
                                     if idx >= len then acc
-                                    else go (idx + 1) ((acc * 31 + charCode idx) mod (maxInt31+1))
+                                    else go (idx + 1) ((acc * 31 + charCode idx) andb maxInt31)
                             in go 0 0
                             end
         end
