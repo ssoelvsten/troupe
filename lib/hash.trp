@@ -9,7 +9,7 @@ let (** A mersenne prime which also happens to be the largest possible value for
     (** Hash function for integers. *)
     fun hashInt i =
         (* Knuth's multiplicative hash - ensure positive result *)
-        let val alpha = 2654435761
+        let val alpha = 2654435769
             val h = i * alpha mod (maxInt31+1)
         in if h < 0 then h + maxInt31 else h
         end

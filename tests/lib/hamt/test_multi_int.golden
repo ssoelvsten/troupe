@@ -1,10 +1,10 @@
-2025-08-18T10:42:44.921Z [RTM] [32minfo[39m: Skipping network creation. Observe that all external IO operations will yield a runtime error.
+2025-08-18T10:43:43.348Z [RTM] [32minfo[39m: Skipping network creation. Observe that all external IO operations will yield a runtime error.
 "Testing multiple integer keys..."
 "Inserting 42..."
 "Inserting 100..."
 "Inserting 0..."
 "Structure after 3 inserts:"
-"{tag="bitmap", bitmap=1041, children=[{tag="leaf", key=0, value="zero", hash=0}, {tag="leaf", key=100, value="century", hash=229345572}, {tag="leaf", key=42, value="answer", hash=890894090}]}"
+"{tag="bitmap", bitmap=67108881, children=[{tag="leaf", key=0, value="zero", hash=0}, {tag="leaf", key=100, value="century", hash=229346372}, {tag="leaf", key=42, value="answer", hash=890894426}]}"
 "
 Inserting -1..."
 "Done with inserts"
