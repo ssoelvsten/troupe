@@ -1,0 +1,35 @@
+let (** Hash function for integers. *)
+    fun hashInt i =
+        (* Knuth's multiplicative hash - ensure positive result *)
+        let val h = i * 2654435761 mod 1073741824
+        in if h < 0 then h + 1073741824 else h
+        end
+
+    (** Hash function for strings. *)
+    fun hashString s =
+        (* String hash with fast paths for small strings *)
+        let val len = strlen s
+            fun charCode idx = charCodeAtWithDefault (s, idx, 63)
+        in
+            if len = 0 then 0
+            else if len = 1 then charCode 0
+            else if len = 2 then (31 * charCode 0 + charCode 1) mod 1073741824
+            else
+                (* Polynomial rolling hash for longer strings *)
+                let fun go idx acc =
+                        if idx >= len then acc
+                        else go (idx + 1) ((acc * 31 + charCode idx) mod 1073741824)
+                in go 0 0
+                end
+        end
+
+    (** Hash function for any type of value. *)
+    fun hash x = case getType x of "number" => hashInt x
+                                 | "string" => hashString x
+                                 | _ => hashString (toString x)
+
+in [ ("hashInt", hashInt)
+   , ("hashString", hashString)
+   , ("hash", hash)
+   ]
+end

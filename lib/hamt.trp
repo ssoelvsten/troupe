@@ -3,6 +3,7 @@
 (* 2025-07-29: Updated to use native bit operations instead of arithmetic simulation *)
 
 import lists
+import hash
 
 (* Option type for error handling *)
 datatype Atoms = NONE | SOME
@@ -12,37 +13,6 @@ let
   val SHIFT = 5  (* 5 bits per level *)
   val BRANCH_FACTOR = 32  (* 2^5 branches *)
   val MASK = 31  (* 0b11111 *)
-
-  (* Character code at index - extended character set *)
-  fun charCode s idx = charCodeAtWithDefault (s, idx, 63)
-
-  (* Hash function for integers and strings *)
-  fun hash x =
-    let val typ = getType x
-    in
-      if typ = "number"
-      then
-        (* Knuth's multiplicative hash - ensure positive result *)
-        let val h = x * 2654435761 mod 1073741824
-        in if h < 0 then h + 1073741824 else h
-        end
-      else
-        (* String hash with fast paths for small strings *)
-        let val s = toString x
-            val len = strlen s
-        in
-          if len = 0 then 0
-          else if len = 1 then charCode s 0
-          else if len = 2 then (31 * charCode s 0 + charCode s 1) mod 1073741824
-          else
-            (* Polynomial rolling hash for longer strings *)
-            let fun hashStr idx acc =
-                  if idx >= len then acc
-                  else hashStr (idx + 1) ((acc * 31 + charCode s idx) mod 1073741824)
-            in hashStr 0 0
-            end
-        end
-    end
 
   (* Get the index at a given level from hash - using bit operations *)
   fun getIndex hashval level = (hashval >> (level * SHIFT)) andb MASK
