@@ -1,6 +1,22 @@
 import hash
 
-let (* Tests for 'hashInt' *)
+let (* Tests for 'hashKnuth' *)
+    val _ = print ("hashMultiplyShift -42 31   = " ^ (intToString (hashMultiplyShift (-42)  31  )))
+    val _ = print ("hashMultiplyShift -42 16   = " ^ (intToString (hashMultiplyShift (-42)  16  )))
+    val _ = print ("hashMultiplyShift -1  31   = " ^ (intToString (hashMultiplyShift (-1)   31  )))
+    val _ = print ("hashMultiplyShift  0  31   = " ^ (intToString (hashMultiplyShift  0     31  )))
+    val _ = print ("hashMultiplyShift  1  -1   = " ^ (intToString (hashMultiplyShift  1    (-1))))
+    val _ = print ("hashMultiplyShift  1   0   = " ^ (intToString (hashMultiplyShift  1      0  )))
+    val _ = print ("hashMultiplyShift  1   3   = " ^ (intToString (hashMultiplyShift  1      3  )))
+    val _ = print ("hashMultiplyShift  1   8   = " ^ (intToString (hashMultiplyShift  1      8  )))
+    val _ = print ("hashMultiplyShift  1  31   = " ^ (intToString (hashMultiplyShift  1     31  )))
+    val _ = print ("hashMultiplyShift  42  8   = " ^ (intToString (hashMultiplyShift  42     8  )))
+    val _ = print ("hashMultiplyShift  42  8.5 = " ^ (intToString (hashMultiplyShift  42    (17/2))))
+    val _ = print ("hashMultiplyShift  42 12   = " ^ (intToString (hashMultiplyShift  42    12  )))
+    val _ = print ("hashMultiplyShift  42 31   = " ^ (intToString (hashMultiplyShift  42    31  )))
+
+    (* Tests for 'hashInt' *)
+    val _ = print ""
     val _ = print ("hashInt -100 = " ^ (intToString (hashInt (-100))))
     val _ = print ("hashInt -11  = " ^ (intToString (hashInt (-11))))
     val _ = print ("hashInt -10  = " ^ (intToString (hashInt (-10))))

@@ -9,14 +9,18 @@ let (** Maximum value available in a 32 bit unsigned integer *)
     (** Half of 'maxInt32' *)
     val maxInt31 = (1 << 30) - 1
 
-    (** Hash function for integers.
-     *
-     * This uses Knuth's multiplicative hash fixed to an output domain of 31 bits.
-     *)
-    fun hashInt i =
-        let val alpha = 2654435769
-        in (i * alpha andb maxInt32) >> 1
-        end
+    (** The Multiply-Shift as proposed by Dietzfelbinger et al. (also known as
+     * Knuth's Multiplicative Hash) of a value `i` into a domain of `0..2^l`
+     * for `l = 0..31`. *)
+    fun hashMultiplyShift i l =
+        if l < 0 then 0
+        else if 31 < l then hashMultiplyShift i 31
+        else let val alpha = 2654435769
+             in (i * alpha andb maxInt32) >> (32 - (floor l))
+             end
+
+    (** Hash function for integers. *)
+    fun hashInt i = hashMultiplyShift i 31
 
     (** Hash function for strings.
      *
@@ -42,7 +46,8 @@ let (** Maximum value available in a 32 bit unsigned integer *)
                                  | "string" => hashString x
                                  | _ => hashString (toString x)
 
-in [ ("hashInt", hashInt)
+in [ ("hashMultiplyShift", hashMultiplyShift)
+   , ("hashInt", hashInt)
    , ("hashString", hashString)
    , ("hash", hash)
    ]
