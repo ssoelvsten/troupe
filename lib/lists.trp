@@ -37,6 +37,8 @@ let fun map f list =
     fun nth (x::l) 1 = x
       | nth (x::l) n = nth l (n - 1)
 
+    (* TODO: Rename this file to 'List' and move this to 'ListPair' together with
+     *       a definition of 'zip' and 'unzip'. *)
     fun lookup list key default =
       case list of [] => default
                  | ((x, v):: xs) =>
