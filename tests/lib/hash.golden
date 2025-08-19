@@ -1,4 +1,4 @@
-2025-08-19T08:01:47.364Z [RTM] [32minfo[39m: Skipping network creation. Observe that all external IO operations will yield a runtime error.
+2025-08-19T08:02:49.347Z [RTM] [32minfo[39m: Skipping network creation. Observe that all external IO operations will yield a runtime error.
 ""
 "hashString ''   = 0"
 "hashString 'a'  = 97"
@@ -12,9 +12,9 @@
 "hashString 'cb' = 12671"
 "hashString 'ac' = 12418"
 "hashString 'ca' = 12670"
-"hashString 'aslan'  = 775286631"
-"hashString 'ananas' = 501590700"
-"hashString 'banana' = 119729637"
+"hashString 'aslan'  = 1849028455"
+"hashString 'ananas' = 1575332524"
+"hashString 'banana' = 1193471461"
 "hashMultiplyShift -42 31   = 91423699"
 "hashMultiplyShift -42 16   = 2790"
 "hashMultiplyShift -1  31   = 820265763"
