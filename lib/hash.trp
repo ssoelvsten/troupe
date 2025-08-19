@@ -19,7 +19,7 @@ let (** Maximum value available in a 32 bit unsigned integer *)
         (* String hash with fast paths for small strings *)
         let val len = strlen s
             val radix = 31
-            fun charCode idx = charCodeAtWithDefault (s, idx, 63)
+            fun charCode idx = charCodeAtWithDefault (s, idx, 0)
         in case len of 0 => 0
                      | 1 => charCode 0
                      | 2 => (radix * charCode 0 + charCode 1) andb maxInt31
