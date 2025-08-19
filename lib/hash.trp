@@ -21,7 +21,7 @@ let (** Maximum value available in a 32 bit unsigned integer *)
                      | 1 => charCode 0
                      | 2 => (radix * charCode 0 + charCode 1) andb maxInt32
                      | _ => let fun go idx acc =
-                                    if idx >= len then acc
+                                    if len <= idx then acc
                                     else go (idx + 1) ((acc * radix + charCode idx) andb maxInt32)
                             in go 0 0
                             end
