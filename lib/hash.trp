@@ -18,7 +18,7 @@ let (** Maximum value available in a 32 bit unsigned integer *)
     fun hashString s =
         (* String hash with fast paths for small strings *)
         let val len = strlen s
-            val radix = 31
+            val radix = 127
             fun charCode idx = charCodeAtWithDefault (s, idx, 0)
         in case len of 0 => 0
                      | 1 => charCode 0
