@@ -11,19 +11,21 @@ let (** Maximum value available in a 32 bit unsigned integer *)
 
     (** Hash function for strings.
      *
-     * Uses polynomial rolling hash with Mersenne prime, 31; for performance,
-     * strings of length 2 or shorter are evaluated non-recursively.
+     * Uses polynomial rolling hash, i.e. a conversion to a number using a certain
+     * radix; for performance, strings of length 2 or shorter are evaluated
+     * non-recursively.
      *)
     fun hashString s =
         (* String hash with fast paths for small strings *)
         let val len = strlen s
+            val radix = 31
             fun charCode idx = charCodeAtWithDefault (s, idx, 63)
         in case len of 0 => 0
                      | 1 => charCode 0
-                     | 2 => (31 * charCode 0 + charCode 1) andb maxInt31
+                     | 2 => (radix * charCode 0 + charCode 1) andb maxInt31
                      | _ => let fun go idx acc =
                                     if idx >= len then acc
-                                    else go (idx + 1) ((acc * 31 + charCode idx) andb maxInt31)
+                                    else go (idx + 1) ((acc * radix + charCode idx) andb maxInt31)
                             in go 0 0
                             end
         end
