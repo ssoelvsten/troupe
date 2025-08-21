@@ -15,8 +15,8 @@ build:
 	$(COMPILER) ./bst.trp -l
 	$(COMPILER) ./localregistry.trp -l
 	$(COMPILER) ./Hash.trp -l
-	$(COMPILER) ./hamt.trp -l
 	$(COMPILER) ./Unit.trp -l
+	$(COMPILER) ./StencilVector.trp -l
 
 clean:
 	rm -rf out
