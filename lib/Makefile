@@ -14,7 +14,7 @@ build:
 	$(COMPILER) ./raft_debug.trp -l
 	$(COMPILER) ./bst.trp -l
 	$(COMPILER) ./localregistry.trp -l
-	$(COMPILER) ./hash.trp -l
+	$(COMPILER) ./Hash.trp -l
 	$(COMPILER) ./hamt.trp -l
 
 clean:

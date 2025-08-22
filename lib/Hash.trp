@@ -52,10 +52,16 @@ let (** Maximum value available in a 32 bit unsigned integer *)
                               (* | "list"   => ??? *)
                                  | _        => hashString (toString x)
 
-in [ ("hashString", hashString)
-   , ("hashMultiplyShift", hashMultiplyShift)
-   , ("hashInt", hashInt)
-   , ("hashNumber", hashNumber)
+    (*--- Module ---*)
+    val Hash = {
+        hashString        = hashString,
+        hashMultiplyShift = hashMultiplyShift,
+        hashInt           = hashInt,
+        hashNumber        = hashNumber,
+        hash              = hash
+    }
+
+in [ ("Hash", Hash)
    , ("hash", hash)
    ]
 end
