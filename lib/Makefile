@@ -16,6 +16,7 @@ build:
 	$(COMPILER) ./localregistry.trp -l
 	$(COMPILER) ./Hash.trp -l
 	$(COMPILER) ./hamt.trp -l
+	$(COMPILER) ./Unit.trp -l
 
 clean:
 	rm -rf out
