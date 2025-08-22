@@ -1,17 +1,26 @@
-let fun map f list =
+let (* TODO: Sort and document these functions. *)
+
+    (* TODO: isList out of the TCB *)
+
+    fun map f list =
     case list of
        [] => []
       |  (x::xs) => (f x) :: (map f xs)
 
     fun mapi f list =
-    let fun mapj j ls = 
+    let fun mapj j ls =
             case ls of [] => []
             |  (x::xs) => (f (j,x)) :: (mapj (j+1) xs)
     in mapj 0 list
     end
 
+    (* TODO: foldr *)
+
     fun foldl f y [] = y
       | foldl f y (x::xs) = foldl f (f (x,y)) xs
+
+    fun null [] = true
+      | null _  = false
 
     fun length [] = 0
       | length (x::xs) = 1 + length xs
@@ -29,10 +38,8 @@ let fun map f list =
       in reverse (rng n)
      end
 
-    fun append l1 l2 =
-        case l1 of
-            [] => l2
-          | x::l => x::(append l l2)
+    fun append []    ys = ys
+      | append x::xs ys = x::(append xs ys)
 
     fun nth (x::l) 1 = x
       | nth (x::l) n = nth l (n - 1)
@@ -45,18 +52,16 @@ let fun map f list =
                    if x = key then v
                    else lookup xs key default
 
-    fun elem x [] = false 
+    fun elem x [] = false
       | elem x (y::ys) = if x = y then true else elem x ys
 
-    fun partition f ls = 
-      let fun partition_aux  (a,b) [] = (reverse a, reverse b ) 
+    fun partition f ls =
+      let fun partition_aux  (a,b) [] = (reverse a, reverse b )
             | partition_aux  (a,b) (x::xs) =
-                        if f x then partition_aux (x::a, b) xs 
+                        if f x then partition_aux (x::a, b) xs
                                else partition_aux (a, x::b) xs
-            
-      
-      in  partition_aux ([],[]) ls 
-      end   
+      in  partition_aux ([],[]) ls
+      end
 
     fun filter f l = case l of
     [] => []
@@ -73,28 +78,33 @@ let fun map f list =
     | (m, n, h :: t) => slice (m - 1) (n - 1) t
     | (_, _, _) => []
 
-    fun insert_at_index l appended_l index =
+    fun insertAt l appended_l index =
       let val beg_slice = slice 0 index l
           val end_slice = slice index (length l) l
       in append beg_slice (append appended_l end_slice)
     end
-  
 
-in
-    [ ("map",     map)
-    , ("mapi",    mapi)
-    , ("foldl",   foldl)
-    , ("range",   range)
-    , ("reverse", reverse)
-    , ("lookup",  lookup) 
-    , ("elem",    elem)
-    , ("length",  length)
-    , ("append",  append)
-    , ("partition", partition) 
-    , ("nth", nth)
-    , ("filter", filter)
-    , ("first", first)
-    , ("slice", slice)
-    , ("insert_at_index", insert_at_index)
-    ]
+    (*--- Module ---*)
+    val List = {
+        map       = map,
+        mapi      = mapi,
+        foldl     = foldl,
+        range     = range,
+        reverse   = reverse,
+        lookup    = lookup,
+        elem      = elem,
+        null      = null,
+        length    = length,
+        append    = append,
+        partition = partition,
+        nth       = nth,
+        filter    = filter,
+        first     = slice,
+        slice     = slice,
+        insertAt  = insertAt
+    }
+
+in [ ("List", List),
+     ("length", length)
+   ]
 end
