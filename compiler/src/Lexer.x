@@ -16,12 +16,15 @@ import Control.Monad.Except
 import Data.Char (isSpace, toLower)
 import Data.List (dropWhileEnd)
 import Data.Char ( chr )
-import Numeric ( readDec )
+import Numeric ( readDec, readBin )
 import Control.Monad (when)
 }
 
 %wrapper "monadUserState"
 
+$bindigit = [01]
+$octdigit = 0-7
+$hexdigit = [0-9A-Fa-f]
 $digit = 0-9
 $alpha = [a-zA-Z]
 $alpha_ = [$alpha \_]
@@ -110,6 +113,9 @@ tokens:-
 <state_dclabel> "#null-confidentiality" { mkL TokenDCNullConf }
 <state_dclabel> "#null-integrity"       { mkL TokenDCNullInteg }
 <0>   $digit+                        { mkLs (\s -> TokenNum (read s)) }
+<0>   0[bB]$bindigit+		     { mkLs (\s -> TokenNum (fst (head (readBin (drop 2 s))))) }
+<0>   0[oO]$octdigit+		     { mkLs (\s -> TokenNum (fst (head (readOct (drop 2 s))))) }
+<0>   0[xX]$hexdigit+ 		     { mkLs (\s -> TokenNum (fst (head (readHex (drop 2 s))))) }
 <0>   [\<][\<]                       { mkL TokenBinShiftLeft }
 <0>   [\>][\>]                       { mkL TokenBinShiftRight }
 <0>   [\~][\>][\>]                   { mkL TokenBinZeroShiftRight }
