@@ -16,7 +16,7 @@ import Control.Monad.Except
 import Data.Char (isSpace, toLower)
 import Data.List (dropWhileEnd)
 import Data.Char ( chr )
-import Numeric ( readDec, readBin )
+import Numeric ( readDec, readBin, readOct, readHex )
 import Control.Monad (when)
 }
 
