@@ -113,6 +113,7 @@ tokens:-
 <state_dclabel> "#null-confidentiality" { mkL TokenDCNullConf }
 <state_dclabel> "#null-integrity"       { mkL TokenDCNullInteg }
 <0>   $digit[\_$digit]*              { mkLs (\s -> TokenNum (read (filter (/='_') s))) }
+-- TODO: Improve lexing of the below integer literal matches. 2025-08-24; ASL.
 <0>   0[bB]$bindigit[\_$bindigit]*   { mkLs (\s -> TokenNum (fst (head (readBin (filter (/='_') (drop 2 s)))))) }
 <0>   0[oO]$octdigit[\_$octdigit]*   { mkLs (\s -> TokenNum (fst (head (readOct (filter (/='_') (drop 2 s)))))) }
 <0>   0[xX]$hexdigit[\_$hexdigit]*   { mkLs (\s -> TokenNum (fst (head (readHex (filter (/='_') (drop 2 s)))))) }
