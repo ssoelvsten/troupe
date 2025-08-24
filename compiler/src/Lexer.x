@@ -112,10 +112,10 @@ tokens:-
 <state_dclabel> "#root-integrity"       { mkL TokenDCRootInteg }
 <state_dclabel> "#null-confidentiality" { mkL TokenDCNullConf }
 <state_dclabel> "#null-integrity"       { mkL TokenDCNullInteg }
-<0>   $digit+                        { mkLs (\s -> TokenNum (read s)) }
-<0>   0[bB]$bindigit+		     { mkLs (\s -> TokenNum (fst (head (readBin (drop 2 s))))) }
-<0>   0[oO]$octdigit+		     { mkLs (\s -> TokenNum (fst (head (readOct (drop 2 s))))) }
-<0>   0[xX]$hexdigit+ 		     { mkLs (\s -> TokenNum (fst (head (readHex (drop 2 s))))) }
+<0>   $digit[\_$digit]*              { mkLs (\s -> TokenNum (read (filter (/='_') s))) }
+<0>   0[bB]$bindigit[\_$bindigit]*   { mkLs (\s -> TokenNum (fst (head (readBin (filter (/='_') (drop 2 s)))))) }
+<0>   0[oO]$octdigit[\_$octdigit]*   { mkLs (\s -> TokenNum (fst (head (readOct (filter (/='_') (drop 2 s)))))) }
+<0>   0[xX]$hexdigit[\_$hexdigit]*   { mkLs (\s -> TokenNum (fst (head (readHex (filter (/='_') (drop 2 s)))))) }
 <0>   [\<][\<]                       { mkL TokenBinShiftLeft }
 <0>   [\>][\>]                       { mkL TokenBinShiftRight }
 <0>   [\~][\>][\>]                   { mkL TokenBinZeroShiftRight }
@@ -391,8 +391,6 @@ lexerError msg =
        alexError (disp3 ++ " at " ++ showPosn p ++ disp)
   where
     trim = reverse . dropWhile (== ' ') . reverse . dropWhile (== ' ')
-
-
 
 
 -- we use a custom version of monadScan so that we have full
