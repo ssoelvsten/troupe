@@ -4,6 +4,13 @@ Unlike the ones implemented in the runtime, `rt/`, this standard library is impl
 This moves them out of the trusted computing base (TCB), i.e. the parts of Troupe that need to be
 reviewed rigorously rather than depend on the monitor.
 
+## Modules
+
+- `Hash.trp` : Hash functions for values of all types.
+- `List.trp` : Operations for lists, i.e. `[]` and `x::xs`.
+- `StencilVector.trp` : Memory-efficient implementation of small (sparse) arrays.
+- `Unit.trp` : Unit testing.
+
 ## How to add a new file
 
 To compile a module as part of the standard library, add it to the list of files in the `lib`
@@ -16,5 +23,6 @@ target of the *makefile*.
 - To fake namespaced import, e.g. `List.length`, the library should export a struct instead. Only
   certain functions should "pollute" the global namespace.
 - Quite a lot of the standard library is not documented in any way. What is the purpose of each
-  function and each module?
+  function and each module? The [modules](#modules) above are the ones that have been updated and
+  documented.
 - There are a lot of things in here - some of it dead. Can we merge/remove some things?
