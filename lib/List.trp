@@ -83,6 +83,13 @@ let (* TODO: Sort and document these functions. *)
     fun filter f []    = []
       | filter f x::xs = let val xs' = filter f xs in if f x then x::xs' else xs' end
 
+    (** Same as `List.filter` but `f` is applied to the index of the element as first argument
+        (counting from 0), and the element itself as second argument. Not tail-recursive. *)
+    fun filteri f l = let fun go i []    = []
+                            | go i x::xs = let val xs' = go (i+1) xs
+                                           in if f (i,x) then x::xs' else xs' end
+                      in go 0 l end
+
     (** Returns the head of the list, i.e. `nth 0 l`. This results in a runtime error if the list is
         `null`. *)
     fun first x::_ = x
@@ -117,6 +124,7 @@ let (* TODO: Sort and document these functions. *)
         partition = partition,
         nth       = nth,
         filter    = filter,
+        filteri   = filteri,
         first     = slice,
         slice     = slice,
         insertAt  = insertAt
