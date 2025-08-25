@@ -41,7 +41,9 @@ let (* TODO: Sort and document these functions. *)
     fun append []    ys = ys
       | append x::xs ys = x::(append xs ys)
 
-    fun nth (x::l) 1 = x
+    (** Return the n-th element of the given list. The first element (head of the list) is at
+        position 0. Raise Failure "nth" if the list is too short. *)
+    fun nth (x::l) 0 = x
       | nth (x::l) n = nth l (n - 1)
 
     (* TODO: Rename this file to 'List' and move this to 'ListPair' together with
