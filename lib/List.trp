@@ -2,89 +2,105 @@ let (* TODO: Sort and document these functions. *)
 
     (* TODO: isList out of the TCB *)
 
-    fun map f list =
-    case list of
-       [] => []
-      |  (x::xs) => (f x) :: (map f xs)
+    (** Applies function `f` to a list with the results returned by `f`. Not tail-recursive. *)
+    fun map f []    = []
+      | map f x::xs = (f x)::(map f xs)
 
+    (** Same as `List.map` but `f` is applied to the index of the element as first argument
+        (counting from 0), and the element itself as second argument. Not tail-recursive. *)
     fun mapi f list =
-    let fun mapj j ls =
-            case ls of [] => []
-            |  (x::xs) => (f (j,x)) :: (mapj (j+1) xs)
-    in mapj 0 list
-    end
+        let fun mapj j []    = []
+              | mapj j x::xs = (f (j,x)) :: (mapj (j+1) xs)
+        in mapj 0 list
+        end
 
+    (* TODO: revMap *)
     (* TODO: foldr *)
 
-    fun foldl f y [] = y
-      | foldl f y (x::xs) = foldl f (f (x,y)) xs
+    (** Left-fold of `f` with start `y` over a list. *)
+    fun foldl f y []    = y
+      | foldl f y x::xs = foldl f (f (x,y)) xs
 
+    (** Returns `true` if the given list is empty. *)
     fun null [] = true
       | null _  = false
 
-    fun length [] = 0
-      | length (x::xs) = 1 + length xs
+    (** Returns the length of the given list. *)
+    fun length []    = 0
+      | length x::xs = 1 + length xs
 
+    (** List reversal. *)
     fun reverse ls =
-      let fun rev [] a = a
-            | rev (x::xs) a = rev xs (x::a)
+        let fun rev [] a    = a
+              | rev x::xs a = rev xs (x::a)
 
-      in rev ls []
-      end
+        in rev ls []
+        end
 
+    (** Returns the list of elements `[1, .., n]`. *)
+    (* TODO: Generalise to generate based on a function and a seed? *)
     fun range n =
-     let fun rng 0 = []
-          |  rng k = k :: (rng (k-1))
-      in reverse (rng n)
-     end
+        let fun rng 0 = []
+             |  rng k = k::(rng (k-1))
+        in reverse (rng n)
+        end
 
+    (** Catenate two lists. Not tail-recursive (length of the first argument). *)
     fun append []    ys = ys
       | append x::xs ys = x::(append xs ys)
 
+    (* TODO: '@' operator? *)
+    (* TODO: revAppend *)
+
     (** Return the n-th element of the given list. The first element (head of the list) is at
         position 0. Raise Failure "nth" if the list is too short. *)
-    fun nth (x::l) 0 = x
-      | nth (x::l) n = nth l (n - 1)
+    fun nth x::_  0 = x
+      | nth x::xs n = nth xs (n - 1)
 
-    (* TODO: Rename this file to 'List' and move this to 'ListPair' together with
-     *       a definition of 'zip' and 'unzip'. *)
+    (* TODO: Move this to 'ListPair' together with a definition of 'zip' and 'unzip'. *)
     fun lookup list key default =
-      case list of [] => default
-                 | ((x, v):: xs) =>
-                   if x = key then v
-                   else lookup xs key default
+        case list of [] => default
+                   | ((x, v):: xs) =>
+                     if x = key then v
+                     else lookup xs key default
 
-    fun elem x [] = false
-      | elem x (y::ys) = if x = y then true else elem x ys
+    (** Returns `true` if the element `x` exists in the list. *)
+    fun elem x []    = false
+      | elem x y::ys = if x = y then true else elem x ys
 
+    (** Split the list `ls` into two sublists depending on whether each respective element that
+        satisfies `ls`. *)
     fun partition f ls =
-      let fun partition_aux  (a,b) [] = (reverse a, reverse b )
-            | partition_aux  (a,b) (x::xs) =
-                        if f x then partition_aux (x::a, b) xs
-                               else partition_aux (a, x::b) xs
-      in  partition_aux ([],[]) ls
-      end
+        let fun partition_aux  (a,b) [] = (reverse a, reverse b)
+              | partition_aux  (a,b) (x::xs) =
+                if f x
+                then partition_aux (x::a, b) xs
+                else partition_aux (a, x::b) xs
+        in partition_aux ([],[]) ls
+        end
 
-    fun filter f l = case l of
-    [] => []
-    | h :: t => if f h then h :: (filter f t) else filter f t
+    (** Returns the sublist of elements that satisfy `f`. Not tail-recursive. *)
+    fun filter f []    = []
+      | filter f x::xs = let val xs' = filter f xs in if f x then x::xs' else xs' end
 
-    fun first l = case l of
-    [] => []
-    | h :: _ => h
+    (** Returns the head of the list, i.e. `nth 0 l`. This results in a runtime error if the list is
+        `null`. *)
+    fun first x::_ = x
 
-    fun slice beg s_end l = case (beg, s_end, l) of
-      (_, _, []) => []
-    | (0, 0, _) => []
-    | (0, n, h :: t) => h :: (slice beg (n - 1) t)
-    | (m, n, h :: t) => slice (m - 1) (n - 1) t
-    | (_, _, _) => []
+    (** Returns the sublist from `start` to `end`. *)
+    fun slice (_, _, [])    = []
+      | slice (0, 0, _)     = []
+      | slice (0, n, x::xs) = x::(slice 0 (n - 1) xs)
+      | slice (m, n, x::xs) = slice (m - 1) (n - 1) xs
+      | slice (_, _, _)     = []
 
+    (** Inserts list `appended_l` into `l` at the given `index`. This index should be a value
+        between 0 and `length l`. *)
     fun insertAt l appended_l index =
-      let val beg_slice = slice 0 index l
-          val end_slice = slice index (length l) l
-      in append beg_slice (append appended_l end_slice)
-    end
+        let val beg_slice = slice 0 index l
+            val end_slice = slice index (length l) l
+        in append beg_slice (append appended_l end_slice)
+        end
 
     (*--- Module ---*)
     val List = {
