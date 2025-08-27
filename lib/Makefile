@@ -1,6 +1,7 @@
 COMPILER=../bin/troupec
 
 build:
+	mkdir -p out
 	$(COMPILER) ./nsuref.trp -l
 	$(COMPILER) ./string.trp -l
 	$(COMPILER) ./printService.trp -l
