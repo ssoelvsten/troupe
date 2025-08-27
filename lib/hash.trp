@@ -49,7 +49,8 @@ let (** Maximum value available in a 32 bit unsigned integer *)
     (** Hash function for any type of value. *)
     fun hash x = case getType x of "number" => hashNumber x
                                  | "string" => hashString x
-                                 | _ => hashString (toString x)
+                              (* | "list"   => ??? *)
+                                 | _        => hashString (toString x)
 
 in [ ("hashString", hashString)
    , ("hashMultiplyShift", hashMultiplyShift)
