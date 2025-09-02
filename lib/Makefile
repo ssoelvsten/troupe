@@ -11,6 +11,7 @@ build:
 	$(COMPILER) ./List.trp -l
 	$(COMPILER) ./ThreadUtil.trp -l
 	$(COMPILER) ./timeout.trp -l
+	$(COMPILER) ./Ref.trp -l
 	$(COMPILER) ./Result.trp -l
 
   # Dependency on `Number`
