@@ -46,11 +46,29 @@ let (** Maximum value available in a 32 bit unsigned integer *)
      *       better would be just to bitcast it to an integer. *)
     fun hashNumber i = if floor i = i then hashInt i else hashString (toString i)
 
+    (** Hash function for lists of any value. Tail-recursive. *)
+    fun hashList xs =
+        (* Hash the type. For now, this is merely hardcoded as the first few prime numbers. *)
+        let fun hashType x = case getType x of "number"   => 2
+                                             | "string"   => 3
+                                             | "list"     => 5
+                                             | "record"   => 7
+                                             | "function" => 11
+                                             | _          => 13
+            val p = 3
+            fun go i []    acc = acc
+              | go i x::xs acc =
+                let val acc' = (acc + i * ((hash x) xorb (hashType x))) andb maxInt32
+                in go (i*p) xs acc' end
+        in go 1 xs 0 end
+
     (** Hash function for any type of value. *)
-    fun hash x = case getType x of "number" => hashNumber x
-                                 | "string" => hashString x
-                              (* | "list"   => ??? *)
-                                 | _        => hashString (toString x)
+    and hash x = case getType x of "number"   => hashNumber x
+                                 | "string"   => hashString x
+                                 | "list"     => hashList x
+                              (* | "record"   => TODO: Convert to sorted list? *)
+                              (* | "function" => TODO: How to hash the function body? *)
+                                 | _          => hashString (toString x)
 
     (*--- Module ---*)
     val Hash = {
@@ -58,6 +76,7 @@ let (** Maximum value available in a 32 bit unsigned integer *)
         hashMultiplyShift = hashMultiplyShift,
         hashInt           = hashInt,
         hashNumber        = hashNumber,
+        hashList          = hashList,
         hash              = hash
     }
 
