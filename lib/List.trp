@@ -25,15 +25,16 @@ let (* TODO: Sort and document these functions. *)
     fun null [] = true
       | null _  = false
 
-    (** Returns the length of the given list. *)
-    fun length []    = 0
-      | length x::xs = 1 + length xs
+    (** Returns the length of the given list. Tail-recursive. *)
+    fun length xs =
+        let fun go acc []    = acc
+              | go acc x::xs = go (acc+1) xs
+        in go xs end
 
-    (** List reversal. *)
+    (** List reversal. Tail-recursive. *)
     fun reverse ls =
         let fun rev [] a    = a
               | rev x::xs a = rev xs (x::a)
-
         in rev ls []
         end
 
@@ -50,7 +51,10 @@ let (* TODO: Sort and document these functions. *)
       | append x::xs ys = x::(append xs ys)
 
     (* TODO: '@' operator? *)
-    (* TODO: revAppend *)
+
+    (** Catenate two lists, reversing the first. Tail-recursive. *)
+    fun revAppend []    ys = ys
+      | revAppend x::xs ys = revAppend xs (x::ys)
 
     (** Return the n-th element of the given list. The first element (head of the list) is at
         position 0. Raise Failure "nth" if the list is too short. *)
@@ -68,8 +72,8 @@ let (* TODO: Sort and document these functions. *)
     fun elem x []    = false
       | elem x y::ys = if x = y then true else elem x ys
 
-    (** Split the list `ls` into two sublists depending on whether each respective element that
-        satisfies `ls`. *)
+    (** Split the list `ls` into two sublists depending on whether each respective element
+        satisfies the predicate `f`. *)
     fun partition f ls =
         let fun partition_aux  (a,b) [] = (reverse a, reverse b)
               | partition_aux  (a,b) (x::xs) =
@@ -92,7 +96,11 @@ let (* TODO: Sort and document these functions. *)
 
     (** Returns the head of the list, i.e. `nth 0 l`. This results in a runtime error if the list is
         `null`. *)
-    fun first x::_ = x
+    fun head x::_ = x
+
+    (** Returns the tail of the list, i.e. the list without `head xs`. This results in a runtime
+     *  error if the list is `null`. *)
+    fun tail _::xs = xs
 
     (** Returns the sublist from `start` to `end`. *)
     fun slice (_, _, [])    = []
@@ -109,6 +117,54 @@ let (* TODO: Sort and document these functions. *)
         in append beg_slice (append appended_l end_slice)
         end
 
+    (** Returns a list with the same elements as in `l` but sorted based on the less-than predicate,
+     *  `cmp` of type `'a -> 'a -> bool`. *)
+    fun sort cmp xs =
+        let (* List `xs` split into a list of non-empty sorted lists. *)
+            fun split []         acc = acc
+              | split (x::[])    acc = [x]::acc
+              | split (x::y::xs) acc = let val acc' = (if cmp x y then [x,y] else [y,x])::acc
+                                       in split xs acc' end
+
+            (* Merge two sorted lists with `cmp`.
+             *
+             * TODO: Can this be done tail-recursively and also without `reverse`/`revAppend`?
+             *)
+            fun merge2 xs ys =
+                let fun merge2_inner [] [] acc = reverse acc
+                      | merge2_inner xs [] acc = reverse (revAppend xs acc)
+                      | merge2_inner [] ys acc = reverse (revAppend ys acc)
+                      | merge2_inner xs ys acc =
+                        let val x = head xs
+                            val y = head ys
+                        in if cmp x y
+                           then (* x <  y *)
+                               merge2_inner (tail xs) (ys) (x::acc)
+                           else (* y <= x *)
+                               merge2_inner (xs) (tail ys) (y::acc)
+                        end
+                in merge2_inner xs ys []
+                end
+
+            (* Merge three sorted lists with `cmp`. TODO: Implement separately? *)
+            fun merge3 xs ys zs = merge2 xs (merge2 ys zs)
+
+            (* Merge all pairs of lists; if the list is of an odd length, then the last three lists
+             * are merged together. This makes the list of even length with lists of (almost) the
+             * same length.
+             *)
+            fun mergePairs []            acc = acc
+              | mergePairs [xs,ys,zs]    acc = (merge3 xs ys zs)::acc
+              | mergePairs (xs::ys::xss) acc = mergePairs xss ((merge2 xs ys)::acc)
+
+            (* Repeatedly call `mergePairs` until it is a list of length 0 or 1. *)
+            fun sort_inner []   = []
+              | sort_inner [xs] = xs
+              | sort_inner xss  = sort_inner (mergePairs xss [])
+
+        in sort_inner (split xs [])
+        end
+
     (*--- Module ---*)
     val List = {
         map       = map,
@@ -121,13 +177,16 @@ let (* TODO: Sort and document these functions. *)
         null      = null,
         length    = length,
         append    = append,
+        revAppend = revAppend,
         partition = partition,
         nth       = nth,
         filter    = filter,
         filteri   = filteri,
-        first     = slice,
+        head      = head,
+        tail      = tail,
         slice     = slice,
-        insertAt  = insertAt
+        insertAt  = insertAt,
+        sort      = sort
     }
 
 in [ ("List", List),
