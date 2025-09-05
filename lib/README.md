@@ -7,6 +7,8 @@ reviewed rigorously rather than depend on the monitor.
 ## Modules
 
 - `Hash.trp` : Hash functions for values of all types.
+- `HashMap.trp` : Map from keys to values via their hash.
+- `HashSet.trp` : Set of elements via their hash.
 - `List.trp` : Operations for lists, i.e. `[]` and `x::xs`.
 - `StencilVector.trp` : Memory-efficient implementation of small (sparse) arrays.
 - `Unit.trp` : Unit testing.

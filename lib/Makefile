@@ -18,6 +18,7 @@ build:
 	$(COMPILER) ./Unit.trp -l
 	$(COMPILER) ./StencilVector.trp -l
 	$(COMPILER) ./HashMap.trp -l
+	$(COMPILER) ./HashSet.trp -l
 
 clean:
 	rm -rf out
