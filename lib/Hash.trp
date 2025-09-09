@@ -1,3 +1,5 @@
+import String
+
 let (** Maximum value available in a 32 bit unsigned integer *)
     val maxUInt32 = (1 << 32) - 1
 
@@ -16,13 +18,13 @@ let (** Maximum value available in a 32 bit unsigned integer *)
         (* String hash with fast paths for small strings *)
         let val len = strlen s
             val radix = 127
-            fun charCode idx = charCodeAtWithDefault (s, idx, 0)
+            val charCodeAt = String.charCodeAt s
         in case len of 0 => 0
-                     | 1 => charCode 0
-                     | 2 => (radix * charCode 0 + charCode 1) andb maxInt32
+                     | 1 => charCodeAt 0
+                     | 2 => (radix * charCodeAt 0 + charCodeAt 1) andb maxInt32
                      | _ => let fun go idx acc =
                                     if len <= idx then acc
-                                    else go (idx + 1) ((acc * radix + charCode idx) andb maxInt32)
+                                    else go (idx + 1) ((acc * radix + charCodeAt idx) andb maxInt32)
                             in go 0 0
                             end
         end

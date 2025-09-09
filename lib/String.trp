@@ -1,0 +1,17 @@
+(* TODO: Make strings merely lists of characters, similar to Haskell? Then a lot of things can be
+ *       moved out of the TCB? *)
+
+let (** The character at the given index. If `i` is out of bounds, then "" is returned. *)
+    fun charAt s i = substring (s, i, i + 1)
+
+    (** The ASCII character value at the given index. If `i` is out of bounds, then 0, i.e.
+     *  end-of-string is returned. *)
+    fun charCodeAt s i = charCodeAtWithDefault (s, i, 0)
+
+    (*--- Module ---*)
+    val String = {
+        charAt     = charAt,
+        charCodeAt = charCodeAt
+    }
+in [("String", String)]
+end

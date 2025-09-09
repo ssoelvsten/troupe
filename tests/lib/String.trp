@@ -1,0 +1,28 @@
+import Unit
+import String
+
+let val tests = Unit.group "String" [
+            let val s = "Hello"
+            in Unit.group "charAt" [
+                    Unit.it "is 'H' for 0" (Unit.isEq "H" (String.charAt s 0))
+                  , Unit.it "is 'e' for 1" (Unit.isEq "e" (String.charAt s 1))
+                  , Unit.it "is 'l' for 2" (Unit.isEq "l" (String.charAt s 2))
+                  , Unit.it "is 'l' for 3" (Unit.isEq "l" (String.charAt s 3))
+                  , Unit.it "is 'o' for 4" (Unit.isEq "o" (String.charAt s 4))
+                  , Unit.it "is ''  for 5" (Unit.isEq ""  (String.charAt s 5))
+                  , Unit.it "is ''  for 6" (Unit.isEq ""  (String.charAt s 6))
+                ]
+            end,
+            let val s = "World!"
+            in Unit.group "charCodeAt" [
+                    Unit.it "is 87 for 0"  (Unit.isEq 87  (String.charCodeAt s 0))
+                  , Unit.it "is 111 for 1" (Unit.isEq 111 (String.charCodeAt s 1))
+                  , Unit.it "is 114 for 2" (Unit.isEq 114 (String.charCodeAt s 2))
+                  , Unit.it "is 108 for 3" (Unit.isEq 108 (String.charCodeAt s 3))
+                  , Unit.it "is 100 for 4" (Unit.isEq 100 (String.charCodeAt s 4))
+                  , Unit.it "is 33  for 5" (Unit.isEq 33  (String.charCodeAt s 5))
+                  , Unit.it "is 0   for 6" (Unit.isEq 0   (String.charCodeAt s 6))
+                ]
+            end
+        ]
+in Unit.run authority tests end

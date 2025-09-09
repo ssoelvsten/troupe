@@ -3,7 +3,7 @@ COMPILER=../bin/troupec
 build:
 	mkdir -p out
   # Standard Library
-	$(COMPILER) ./string.trp -l
+	$(COMPILER) ./String.trp -l
 	$(COMPILER) ./List.trp -l
 	$(COMPILER) ./ListPair.trp -l
 	$(COMPILER) ./Hash.trp -l
