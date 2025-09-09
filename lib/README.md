@@ -10,6 +10,7 @@ reviewed rigorously rather than depend on the monitor.
 - `HashMap.trp` : Map from keys to values via their hash.
 - `HashSet.trp` : Set of elements via their hash.
 - `List.trp` : Operations for lists, i.e. `[]` and `x::xs`.
+- `ListPair.trp` : Operations for list of pairs, i.e. `(x,y)::xs`.
 - `StencilVector.trp` : Memory-efficient implementation of small (sparse) arrays.
 - `Unit.trp` : Unit testing.
 

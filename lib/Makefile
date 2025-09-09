@@ -6,6 +6,7 @@ build:
 	$(COMPILER) ./string.trp -l
 	$(COMPILER) ./printService.trp -l
 	$(COMPILER) ./List.trp -l
+	$(COMPILER) ./ListPair.trp -l
 	$(COMPILER) ./timeout.trp -l
 	$(COMPILER) ./NetHealth.trp -l
 	$(COMPILER) ./declassifyutil.trp -l
