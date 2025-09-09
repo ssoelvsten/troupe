@@ -2,11 +2,18 @@ COMPILER=../bin/troupec
 
 build:
 	mkdir -p out
-	$(COMPILER) ./nsuref.trp -l
+  # Standard Library
 	$(COMPILER) ./string.trp -l
-	$(COMPILER) ./printService.trp -l
 	$(COMPILER) ./List.trp -l
 	$(COMPILER) ./ListPair.trp -l
+	$(COMPILER) ./Hash.trp -l
+	$(COMPILER) ./Unit.trp -l
+	$(COMPILER) ./StencilVector.trp -l
+	$(COMPILER) ./HashMap.trp -l
+	$(COMPILER) ./HashSet.trp -l
+  # Old stuff, here be dragons...
+	$(COMPILER) ./nsuref.trp -l
+	$(COMPILER) ./printService.trp -l
 	$(COMPILER) ./timeout.trp -l
 	$(COMPILER) ./NetHealth.trp -l
 	$(COMPILER) ./declassifyutil.trp -l
@@ -15,11 +22,6 @@ build:
 	$(COMPILER) ./raft_debug.trp -l
 	$(COMPILER) ./bst.trp -l
 	$(COMPILER) ./localregistry.trp -l
-	$(COMPILER) ./Hash.trp -l
-	$(COMPILER) ./Unit.trp -l
-	$(COMPILER) ./StencilVector.trp -l
-	$(COMPILER) ./HashMap.trp -l
-	$(COMPILER) ./HashSet.trp -l
 
 clean:
 	rm -rf out
