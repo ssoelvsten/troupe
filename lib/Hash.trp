@@ -1,13 +1,7 @@
+import Number
 import String
 
-let (** Maximum value available in a 32 bit unsigned integer *)
-    val maxUInt32 = (1 << 32) - 1
-
-    (** A mersenne prime which also happens to be the largest possible value for
-     *  a signed 32 bit integer using two's complement. All hash functions
-     * should map into the range 0..maxInt32. *)
-    val maxInt32 = (1 << 31) - 1
-
+let
     (** Hash function for strings.
      *
      * Uses polynomial rolling hash, i.e. a conversion to a number using a certain
@@ -18,13 +12,13 @@ let (** Maximum value available in a 32 bit unsigned integer *)
         (* String hash with fast paths for small strings *)
         let val len = strlen s
             val radix = 127
-            val charCodeAt = String.charCodeAt s
+            fun charCodeAt i = String.subCode (s,i)
         in case len of 0 => 0
                      | 1 => charCodeAt 0
-                     | 2 => (radix * charCodeAt 0 + charCodeAt 1) andb maxInt32
+                     | 2 => (radix * charCodeAt 0 + charCodeAt 1) andb Number.maxInt32
                      | _ => let fun go idx acc =
                                     if len <= idx then acc
-                                    else go (idx + 1) ((acc * radix + charCodeAt idx) andb maxInt32)
+                                    else go (idx + 1) ((acc * radix + charCodeAt idx) andb Number.maxInt32)
                             in go 0 0
                             end
         end
@@ -36,7 +30,7 @@ let (** Maximum value available in a 32 bit unsigned integer *)
         if l < 0 then 0
         else if 31 < l then hashMultiplyShift i 31
         else let val alpha = 2654435769
-             in (i * alpha andb maxInt32) >> (32 - (floor l))
+             in (i * alpha andb Number.maxInt32) >> (32 - (floor l))
              end
 
     (** Hash function for integers. *)
@@ -46,7 +40,7 @@ let (** Maximum value available in a 32 bit unsigned integer *)
      *
      * TODO: Currently float hashing is merely done by string hashing. Much
      *       better would be just to bitcast it to an integer. *)
-    fun hashNumber i = if floor i = i then hashInt i else hashString (toString i)
+    fun hashNumber i = if Number.isInt i then hashInt i else hashString (toString i)
 
     (** Hash function for lists of any value. Tail-recursive. *)
     fun hashList xs =
@@ -60,7 +54,7 @@ let (** Maximum value available in a 32 bit unsigned integer *)
             val p = 3
             fun go i []    acc = acc
               | go i x::xs acc =
-                let val acc' = (acc + i * ((hash x) xorb (hashType x))) andb maxInt32
+                let val acc' = (acc + i * ((hash x) xorb (hashType x))) andb Number.maxInt32
                 in go (i*p) xs acc' end
         in go 1 xs 0 end
 
