@@ -115,6 +115,7 @@ tokens:-
 <state_dclabel> "#root-integrity"       { mkL TokenDCRootInteg }
 <state_dclabel> "#null-confidentiality" { mkL TokenDCNullConf }
 <state_dclabel> "#null-integrity"       { mkL TokenDCNullInteg }
+-- Integer literal parsing inspired by https://github.com/ocaml/ocaml/blob/trunk/parsing/lexer.mll
 <0>   @declit                        { mkLs (\s -> TokenNum (read (filter (/='_') s))) }
 <0>   @binlit                        { mkLs (\s -> TokenNum (fst (head (readBin (filter (/='_') (drop 2 s)))))) }
 <0>   @octlit                        { mkLs (\s -> TokenNum (fst (head (readOct (filter (/='_') (drop 2 s)))))) }
