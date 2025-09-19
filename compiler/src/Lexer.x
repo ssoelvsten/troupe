@@ -33,7 +33,10 @@ $graphic    = $printable # $white
 @sym        = $alpha_ [$alpha $digit \_ \']*
 @string     = \" ($printable # \")* \"
 @label      = \`\{ ($printable # \})*  \}\`
-
+@declit     = $digit[\_$digit]*
+@binlit     = 0[bB]$bindigit[\_$bindigit]*
+@octlit     = 0[oO]$octdigit[\_$octdigit]*
+@hexlit     = 0[xX]$hexdigit[\_$hexdigit]*
 
 tokens:-
 -- Whitespace insensitive
@@ -112,11 +115,11 @@ tokens:-
 <state_dclabel> "#root-integrity"       { mkL TokenDCRootInteg }
 <state_dclabel> "#null-confidentiality" { mkL TokenDCNullConf }
 <state_dclabel> "#null-integrity"       { mkL TokenDCNullInteg }
-<0>   $digit[\_$digit]*              { mkLs (\s -> TokenNum (read (filter (/='_') s))) }
--- TODO: Improve lexing of the below integer literal matches. 2025-08-24; ASL.
-<0>   0[bB]$bindigit[\_$bindigit]*   { mkLs (\s -> TokenNum (fst (head (readBin (filter (/='_') (drop 2 s)))))) }
-<0>   0[oO]$octdigit[\_$octdigit]*   { mkLs (\s -> TokenNum (fst (head (readOct (filter (/='_') (drop 2 s)))))) }
-<0>   0[xX]$hexdigit[\_$hexdigit]*   { mkLs (\s -> TokenNum (fst (head (readHex (filter (/='_') (drop 2 s)))))) }
+<0>   @declit                        { mkLs (\s -> TokenNum (read (filter (/='_') s))) }
+<0>   @binlit                        { mkLs (\s -> TokenNum (fst (head (readBin (filter (/='_') (drop 2 s)))))) }
+<0>   @octlit                        { mkLs (\s -> TokenNum (fst (head (readOct (filter (/='_') (drop 2 s)))))) }
+<0>   @hexlit                        { mkLs (\s -> TokenNum (fst (head (readHex (filter (/='_') (drop 2 s)))))) }
+<0>   (@declit|@binlit|@octlit|@hexlit)@sym { \(_, _, _, s) _ -> lexerError ("Invalid literal " ++ s) }
 <0>   [\<][\<]                       { mkL TokenBinShiftLeft }
 <0>   [\>][\>]                       { mkL TokenBinShiftRight }
 <0>   [\~][\>][\>]                   { mkL TokenBinZeroShiftRight }
@@ -392,7 +395,6 @@ lexerError msg =
        alexError (disp3 ++ " at " ++ showPosn p ++ disp)
   where
     trim = reverse . dropWhile (== ' ') . reverse . dropWhile (== ' ')
-
 
 -- we use a custom version of monadScan so that we have full
 -- control over the error reporting; this one is based on 
