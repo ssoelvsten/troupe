@@ -145,7 +145,7 @@ EOF
 cleanup() {
     # CRITICAL: Capture the original exit code immediately
     # This must be the FIRST command in cleanup to preserve test results
-    exit_code=$?
+    local exit_code=$?
     log "Cleaning up test processes (exit code: $exit_code)..."
 
     local cleaned_count=0
@@ -208,7 +208,7 @@ cleanup() {
     fi
 
     # Kill all spawned node processes
-    if [[ ${#CLEANUP_PIDS[@]} -gt 0 ]]; then
+    if [[ -n "${CLEANUP_PIDS[*]:-}" ]]; then
         log "Cleaning up ${#CLEANUP_PIDS[@]} node processes"
         local failed_kills=()
         for pid in "${CLEANUP_PIDS[@]}"; do
@@ -221,7 +221,7 @@ cleanup() {
             fi
         done
 
-        if [[ ${#failed_kills[@]} -gt 0 ]]; then
+        if [[ -n "${failed_kills[*]:-}" ]]; then
             cleanup_failures+=("Failed to send SIGTERM to node PIDs: ${failed_kills[*]}")
         fi
 
@@ -245,10 +245,10 @@ cleanup() {
             fi
         done
 
-        if [[ ${#force_killed[@]} -gt 0 ]]; then
+        if [[ -n "${force_killed[*]:-}" ]]; then
             cleanup_failures+=("Node PIDs required force-kill after ${node_grace_period}s: ${force_killed[*]}")
         fi
-        if [[ ${#still_running[@]} -gt 0 ]]; then
+        if [[ -n "${still_running[*]:-}" ]]; then
             cleanup_failures+=("Failed to kill node PIDs: ${still_running[*]}")
         fi
     fi
@@ -294,7 +294,8 @@ cleanup() {
 
     # Report cleanup issues if any occurred
     # These are informational only and don't affect the test result
-    if [[ ${#cleanup_failures[@]} -gt 0 ]]; then
+    # Check if array has any elements before accessing
+    if [[ -n "${cleanup_failures[*]:-}" ]]; then
         echo "" >&2
         echo "=== Cleanup Issues Report (non-fatal) ===" >&2
         echo "The following cleanup operations had issues:" >&2
