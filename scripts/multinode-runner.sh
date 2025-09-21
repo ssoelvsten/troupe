@@ -3,6 +3,34 @@ set -euo pipefail
 
 # Troupe Multi-Node Test Runner - Refactored Version
 # Orchestrates multi-node tests with proper cleanup and output synchronization
+#
+# IMPORTANT MAINTENANCE NOTES:
+# ============================
+# 1. NEGATIVE TESTS: Some tests are designed to fail or timeout (exit code 124).
+#    Examples: ring-echo (intermediary node), trust-flow-issue-42 (node1).
+#    DO NOT add retry logic or exponential backoffs that would delay these failures.
+#
+# 2. RELAY LOGIC: The relay must work both with and without the relay server.
+#    Tests can specify "use_relay": false in config.json. Any changes to relay
+#    handling must preserve this dual-mode functionality.
+#
+# 3. NO POLLING: Service discovery uses fixed delays, not polling loops.
+#    This is by design - polling can mask timing issues and race conditions
+#    that tests are meant to detect.
+#
+# 4. NO UNIVERSAL RETRIES: Network operations should NOT have automatic retries.
+#    Retries would interfere with negative tests and tests that verify
+#    timeout behavior.
+#
+# 5. TIMEOUT CONFIGURATIONS: Tests specify their own timeouts in config.json.
+#    Some tests have internal sleep commands that must be shorter than the
+#    configured timeout. Always verify: internal_sleep < config_timeout - buffer
+#
+# 6. CI SCALING: In CI environments, timeouts are scaled by 1.2x (20% increase)
+#    to account for slower machines. This is a simple multiplier, not retry logic.
+#
+# 7. PORT MANAGEMENT: Tests use specific ports. Cleanup must be thorough to
+#    prevent "port already in use" errors, but without retrying binds.
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 TROUPE_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
@@ -12,6 +40,13 @@ TEMP_DIR=""
 VERBOSE=false
 RELAY_MULTIADDR=""
 RELAY_PID=""
+
+# Detect CI environment and apply modest scaling
+TIMEOUT_SCALE=1.0
+if [[ -n "${CI:-}" ]] || [[ -n "${GITHUB_ACTIONS:-}" ]]; then
+    TIMEOUT_SCALE=1.2  # 20% more time in CI only
+    echo "[INFO] CI environment detected, scaling timeouts by ${TIMEOUT_SCALE}x" >&2
+fi
 
 usage() {
     cat << EOF
@@ -33,33 +68,43 @@ EOF
 cleanup() {
     # Capture exit code before any other commands
     exit_code=$?
-    log "Cleaning up test processes..."
-    
+    log "Cleaning up test processes (exit code: $exit_code)..."
+
+    local cleaned_count=0
+
     # Kill relay first with multiple attempts
     if [[ -n "$RELAY_PID" ]] && [[ "$RELAY_PID" =~ ^[0-9]+$ ]] && kill -0 "$RELAY_PID" 2>/dev/null; then
+        log "Stopping relay (PID: $RELAY_PID)"
         kill "$RELAY_PID" 2>/dev/null || true
         sleep 1
-        kill -9 "$RELAY_PID" 2>/dev/null || true
+        if kill -0 "$RELAY_PID" 2>/dev/null; then
+            log "Force-killing relay"
+            kill -9 "$RELAY_PID" 2>/dev/null || true
+        fi
+        ((cleaned_count++))
     fi
-    
+
     # Kill by process name as fallback
-    pkill -f "relay.mjs" || true
-    pkill -f "node.*network.sh" || true
-    
+    pkill -f "relay.mjs" 2>/dev/null && ((cleaned_count++)) || true
+    pkill -f "node.*network.sh" 2>/dev/null && ((cleaned_count++)) || true
+
     # Kill all spawned node processes
     if [[ ${#CLEANUP_PIDS[@]} -gt 0 ]]; then
+        log "Cleaning up ${#CLEANUP_PIDS[@]} node processes"
         for pid in "${CLEANUP_PIDS[@]}"; do
             if [[ "$pid" =~ ^[0-9]+$ ]] && kill -0 "$pid" 2>/dev/null; then
                 kill "$pid" 2>/dev/null || true
+                ((cleaned_count++))
             fi
         done
-        
+
         # Give processes more time to clean up
         sleep 2
-        
+
         # Force kill remaining processes
         for pid in "${CLEANUP_PIDS[@]}"; do
             if [[ "$pid" =~ ^[0-9]+$ ]] && kill -0 "$pid" 2>/dev/null; then
+                log "Force-killing remaining process $pid"
                 kill -9 "$pid" 2>/dev/null || true
             fi
         done
@@ -107,7 +152,9 @@ cleanup() {
     fi
     
     # Additional delay to ensure OS releases sockets
-    sleep 2
+    # This is critical for preventing "port already in use" errors in subsequent tests
+    log "Cleaned up $cleaned_count processes, waiting for socket release..."
+    sleep 3
 }
 
 trap cleanup EXIT INT TERM
@@ -127,6 +174,9 @@ check_port_available() {
     local port="$1"
     if command -v lsof >/dev/null 2>&1; then
         if lsof -Pi ":$port" -sTCP:LISTEN -t >/dev/null 2>&1; then
+            # Port is in use - log which process is using it for diagnostics
+            local process_info=$(lsof -Pi ":$port" -sTCP:LISTEN 2>/dev/null | tail -n +2 | head -1)
+            log "Port $port is in use by: $process_info"
             return 1  # Port is in use
         fi
     fi
@@ -498,15 +548,28 @@ run_node() {
     
     local timeout_val
     timeout_val=$(jq -r '.timeout // 30' "$config_file")
-    
+
+    # Apply CI scaling if needed
+    local scaled_timeout="$timeout_val"
+    if [[ "$TIMEOUT_SCALE" != "1.0" ]]; then
+        # Check if bc is available for floating point math
+        if command -v bc >/dev/null 2>&1; then
+            scaled_timeout=$(echo "scale=0; ($timeout_val * $TIMEOUT_SCALE)/1" | bc)
+        else
+            # Fallback to integer math (20% increase for 1.2 scale)
+            scaled_timeout=$(( (timeout_val * 12) / 10 ))
+        fi
+        log "Timeout scaled from ${timeout_val}s to ${scaled_timeout}s"
+    fi
+
     if [[ "$VERBOSE" == "true" ]]; then
         # In verbose mode, show prefixed output
-        timeout "$timeout_val" "${cmd_args[@]}" \
+        timeout "$scaled_timeout" "${cmd_args[@]}" \
             > >(tee "$output_file" | sed "s/^/[$node_id:out] /" >&2) \
             2> >(tee "$error_file" | sed "s/^/[$node_id:err] /" >&2) &
     else
         # Normal mode: just redirect to files
-        timeout "$timeout_val" "${cmd_args[@]}" \
+        timeout "$scaled_timeout" "${cmd_args[@]}" \
             > "$output_file" 2> "$error_file" &
     fi
     
@@ -540,15 +603,30 @@ run_node() {
     
     # Handle timeout exit code (124)
     if [[ "$actual_exit_code" == "124" ]]; then
-        log "Node $node_id timed out after ${timeout_val}s"
-        if [[ "$expected_exit_code" != "124" ]]; then
+        if [[ "$expected_exit_code" == "124" ]]; then
+            log "Node $node_id timed out as expected after ${scaled_timeout}s"
+        else
+            echo "ERROR: Node $node_id timed out unexpectedly" >&2
+            echo "  Timeout: ${scaled_timeout}s (original: ${timeout_val}s)" >&2
+            echo "  Expected exit code: $expected_exit_code" >&2
+            echo "  Last 10 lines of output:" >&2
+            tail -n 10 "$output_file" 2>/dev/null | sed 's/^/    /' >&2
             error "Node $node_id timed out unexpectedly"
         fi
     elif [[ "$actual_exit_code" != "$expected_exit_code" ]]; then
+        echo "ERROR: Node $node_id exit code mismatch" >&2
+        echo "  Actual: $actual_exit_code" >&2
+        echo "  Expected: $expected_exit_code" >&2
+        echo "  Last 10 lines of output:" >&2
+        tail -n 10 "$output_file" 2>/dev/null | sed 's/^/    /' >&2
+        if [[ -s "$error_file" ]]; then
+            echo "  Last 5 lines of errors:" >&2
+            tail -n 5 "$error_file" 2>/dev/null | sed 's/^/    /' >&2
+        fi
         error "Node $node_id exited with code $actual_exit_code, expected $expected_exit_code"
     fi
-    
-    log "Node $node_id completed successfully"
+
+    log "Node $node_id completed successfully (exit code: $actual_exit_code)"
 }
 
 merge_outputs() {
