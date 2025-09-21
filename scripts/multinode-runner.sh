@@ -1,12 +1,6 @@
 #!/bin/bash
 set -euo pipefail
 
-# Debug: Show bash version and options in CI
-if [[ -n "${CI:-}" ]]; then
-    echo "[DEBUG] Bash version: $BASH_VERSION" >&2
-    echo "[DEBUG] Bash options: $-" >&2
-fi
-
 # Troupe Multi-Node Test Runner - Refactored Version
 # Orchestrates multi-node tests with proper cleanup and output synchronization
 #
@@ -152,7 +146,6 @@ cleanup() {
     # CRITICAL: Capture the original exit code immediately
     # This must be the FIRST command in cleanup to preserve test results
     local exit_code=$?
-    echo "[DEBUG] Cleanup called with exit code: $exit_code" >&2
     log "Cleaning up test processes (exit code: $exit_code)..."
 
     local cleaned_count=0
@@ -317,7 +310,6 @@ cleanup() {
     # CRITICAL: Exit with the original exit code from the test, not from cleanup
     # Without this, the script would exit with the status of the last cleanup command
     # This is why tests were "failing" in CI even though they succeeded
-    echo "[DEBUG] Exiting cleanup with code: $exit_code" >&2
     exit $exit_code
 }
 
@@ -632,10 +624,11 @@ run_node() {
     local node_index="$2"
     local test_dir="$3"
     local output_dir="$4"
-    
+    local in_parallel="${5:-false}"  # New parameter to indicate parallel mode
+
     local node_config
     node_config=$(jq -r ".nodes[$node_index]" "$config_file")
-    
+
     local node_id script port start_delay expected_exit_code extra_argv
     node_id=$(echo "$node_config" | jq -r '.id')
     script=$(echo "$node_config" | jq -r '.script')
@@ -762,14 +755,23 @@ run_node() {
             log "Node $node_id timed out as expected after ${scaled_timeout}s"
         else
             display_node_error "$node_id" "timeout" "$scaled_timeout" "$expected_exit_code" "$output_file" "$error_file" "$timeout_val"
-            error "Node $node_id timed out unexpectedly"
+            if [[ "$in_parallel" == "true" ]]; then
+                return 1  # Return error code instead of exiting in parallel mode
+            else
+                error "Node $node_id timed out unexpectedly"
+            fi
         fi
     elif [[ "$actual_exit_code" != "$expected_exit_code" ]]; then
         display_node_error "$node_id" "exit_code" "$actual_exit_code" "$expected_exit_code" "$output_file" "$error_file"
-        error "Node $node_id exited with code $actual_exit_code, expected $expected_exit_code"
+        if [[ "$in_parallel" == "true" ]]; then
+            return 1  # Return error code instead of exiting in parallel mode
+        else
+            error "Node $node_id exited with code $actual_exit_code, expected $expected_exit_code"
+        fi
     fi
 
     log "Node $node_id completed successfully (exit code: $actual_exit_code)"
+    return 0  # Explicitly return success
 }
 
 merge_outputs() {
@@ -864,10 +866,10 @@ run_test() {
             # Start all nodes simultaneously
             local node_pids=()
             for ((i=0; i<node_count; i++)); do
-                run_node "$config_file" "$i" "$test_dir" "$output_dir" &
+                run_node "$config_file" "$i" "$test_dir" "$output_dir" "true" &
                 node_pids+=($!)
             done
-            
+
             # Wait for all nodes
             local failed=false
             for pid in "${node_pids[@]}"; do
@@ -875,7 +877,7 @@ run_test() {
                     failed=true
                 fi
             done
-            
+
             if [[ "$failed" == "true" ]]; then
                 error "One or more nodes failed"
             fi
@@ -883,7 +885,7 @@ run_test() {
         "sequential")
             # Start nodes one after another
             for ((i=0; i<node_count; i++)); do
-                run_node "$config_file" "$i" "$test_dir" "$output_dir"
+                run_node "$config_file" "$i" "$test_dir" "$output_dir" "false"
             done
             ;;
         *)
