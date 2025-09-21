@@ -48,6 +48,72 @@ if [[ -n "${CI:-}" ]] || [[ -n "${GITHUB_ACTIONS:-}" ]]; then
     echo "[INFO] CI environment detected, scaling timeouts by ${TIMEOUT_SCALE}x" >&2
 fi
 
+# ============================================================================
+# Helper Functions - Common operations extracted to reduce duplication
+# ============================================================================
+
+# Check if a PID is valid and the process is running
+is_valid_pid() {
+    local pid="$1"
+    [[ -n "$pid" ]] && [[ "$pid" =~ ^[0-9]+$ ]] && kill -0 "$pid" 2>/dev/null
+}
+
+# Kill all processes listening on a specific port (OS-aware)
+kill_processes_on_port() {
+    local port="$1"
+    if command -v lsof >/dev/null 2>&1; then
+        if [[ "$(uname)" == "Darwin" ]]; then
+            lsof -ti ":$port" | xargs kill -9 2>/dev/null || true
+        else
+            lsof -ti ":$port" | xargs -r kill -9 2>/dev/null || true
+        fi
+    fi
+}
+
+# Get all ports used by the test (nodes + relay)
+get_all_ports() {
+    local config_file="$1"
+    local ports=($(jq -r '.nodes[].port' "$config_file" 2>/dev/null))
+    local relay_port=$(jq -r '.network.relay_port // 5555' "$config_file" 2>/dev/null)
+    ports+=("$relay_port")
+    echo "${ports[@]}"
+}
+
+# Get the number of nodes in the test configuration
+get_node_count() {
+    local config_file="$1"
+    jq -r '.nodes | length' "$config_file"
+}
+
+# Display standardized error message for node failures
+display_node_error() {
+    local node_id="$1"
+    local error_type="$2"  # "timeout" or "exit_code"
+    local actual="$3"
+    local expected="$4"
+    local output_file="$5"
+    local error_file="$6"
+    local timeout_val="${7:-}"  # Optional, only for timeout errors
+
+    if [[ "$error_type" == "timeout" ]]; then
+        echo "ERROR: Node $node_id timed out unexpectedly" >&2
+        echo "  Timeout: ${actual}s (original: ${timeout_val}s)" >&2
+        echo "  Expected exit code: $expected" >&2
+    else
+        echo "ERROR: Node $node_id exit code mismatch" >&2
+        echo "  Actual: $actual" >&2
+        echo "  Expected: $expected" >&2
+    fi
+
+    echo "  Last 10 lines of output:" >&2
+    tail -n 10 "$output_file" 2>/dev/null | sed 's/^/    /' >&2
+
+    if [[ "$error_type" == "exit_code" ]] && [[ -s "$error_file" ]]; then
+        echo "  Last 5 lines of errors:" >&2
+        tail -n 5 "$error_file" 2>/dev/null | sed 's/^/    /' >&2
+    fi
+}
+
 usage() {
     cat << EOF
 Usage: $0 [options] <test-config.json>
@@ -73,7 +139,7 @@ cleanup() {
     local cleaned_count=0
 
     # Kill relay first with multiple attempts
-    if [[ -n "$RELAY_PID" ]] && [[ "$RELAY_PID" =~ ^[0-9]+$ ]] && kill -0 "$RELAY_PID" 2>/dev/null; then
+    if is_valid_pid "$RELAY_PID"; then
         log "Stopping relay (PID: $RELAY_PID)"
         kill "$RELAY_PID" 2>/dev/null || true
         sleep 1
@@ -92,7 +158,7 @@ cleanup() {
     if [[ ${#CLEANUP_PIDS[@]} -gt 0 ]]; then
         log "Cleaning up ${#CLEANUP_PIDS[@]} node processes"
         for pid in "${CLEANUP_PIDS[@]}"; do
-            if [[ "$pid" =~ ^[0-9]+$ ]] && kill -0 "$pid" 2>/dev/null; then
+            if is_valid_pid "$pid"; then
                 kill "$pid" 2>/dev/null || true
                 ((cleaned_count++))
             fi
@@ -103,7 +169,7 @@ cleanup() {
 
         # Force kill remaining processes
         for pid in "${CLEANUP_PIDS[@]}"; do
-            if [[ "$pid" =~ ^[0-9]+$ ]] && kill -0 "$pid" 2>/dev/null; then
+            if is_valid_pid "$pid"; then
                 log "Force-killing remaining process $pid"
                 kill -9 "$pid" 2>/dev/null || true
             fi
@@ -112,21 +178,11 @@ cleanup() {
     
     # Clean up ports used by the test
     if [[ -n "$TEST_CONFIG" ]]; then
-        local ports=($(jq -r '.nodes[].port' "$TEST_CONFIG" 2>/dev/null))
-        local relay_port=$(jq -r '.network.relay_port // 5555' "$TEST_CONFIG" 2>/dev/null)
-        ports+=("$relay_port")
-        
+        local ports=($(get_all_ports "$TEST_CONFIG"))
+
         for port in "${ports[@]}"; do
             if [[ "$port" =~ ^[0-9]+$ ]]; then
-                # Kill any process listening on this port
-                if command -v lsof >/dev/null 2>&1; then
-                    # macOS doesn't support -r flag for xargs
-                    if [[ "$(uname)" == "Darwin" ]]; then
-                        lsof -ti ":$port" | xargs kill -9 2>/dev/null || true
-                    else
-                        lsof -ti ":$port" | xargs -r kill -9 2>/dev/null || true
-                    fi
-                fi
+                kill_processes_on_port "$port"
             fi
         done
     fi
@@ -187,7 +243,7 @@ wait_for_port_release() {
     local port="$1"
     local max_wait=10
     local wait_count=0
-    
+
     while [[ $wait_count -lt $max_wait ]]; do
         if check_port_available "$port"; then
             log "Port $port is now available"
@@ -197,17 +253,10 @@ wait_for_port_release() {
         sleep 1
         ((wait_count++))
     done
-    
+
     # Force kill processes using the port
     log "Force killing processes on port $port"
-    if command -v lsof >/dev/null 2>&1; then
-        # macOS doesn't support -r flag for xargs
-        if [[ "$(uname)" == "Darwin" ]]; then
-            lsof -ti ":$port" | xargs kill -9 2>/dev/null || true
-        else
-            lsof -ti ":$port" | xargs -r kill -9 2>/dev/null || true
-        fi
-    fi
+    kill_processes_on_port "$port"
     sleep 1
     return 0
 }
@@ -215,10 +264,8 @@ wait_for_port_release() {
 validate_ports() {
     local config_file="$1"
     log "Validating port availability..."
-    
-    local ports=($(jq -r '.nodes[].port' "$config_file" 2>/dev/null))
-    local relay_port=$(jq -r '.network.relay_port // 5555' "$config_file" 2>/dev/null)
-    ports+=("$relay_port")
+
+    local ports=($(get_all_ports "$config_file"))
     
     local port_conflict=false
     for port in "${ports[@]}"; do
@@ -267,7 +314,7 @@ setup_network_identities() {
     
     # Generate node identities
     local node_count
-    node_count=$(jq -r '.nodes | length' "$config_file")
+    node_count=$(get_node_count "$config_file")
     
     for ((i=0; i<node_count; i++)); do
         local node_id
@@ -606,23 +653,11 @@ run_node() {
         if [[ "$expected_exit_code" == "124" ]]; then
             log "Node $node_id timed out as expected after ${scaled_timeout}s"
         else
-            echo "ERROR: Node $node_id timed out unexpectedly" >&2
-            echo "  Timeout: ${scaled_timeout}s (original: ${timeout_val}s)" >&2
-            echo "  Expected exit code: $expected_exit_code" >&2
-            echo "  Last 10 lines of output:" >&2
-            tail -n 10 "$output_file" 2>/dev/null | sed 's/^/    /' >&2
+            display_node_error "$node_id" "timeout" "$scaled_timeout" "$expected_exit_code" "$output_file" "$error_file" "$timeout_val"
             error "Node $node_id timed out unexpectedly"
         fi
     elif [[ "$actual_exit_code" != "$expected_exit_code" ]]; then
-        echo "ERROR: Node $node_id exit code mismatch" >&2
-        echo "  Actual: $actual_exit_code" >&2
-        echo "  Expected: $expected_exit_code" >&2
-        echo "  Last 10 lines of output:" >&2
-        tail -n 10 "$output_file" 2>/dev/null | sed 's/^/    /' >&2
-        if [[ -s "$error_file" ]]; then
-            echo "  Last 5 lines of errors:" >&2
-            tail -n 5 "$error_file" 2>/dev/null | sed 's/^/    /' >&2
-        fi
+        display_node_error "$node_id" "exit_code" "$actual_exit_code" "$expected_exit_code" "$output_file" "$error_file"
         error "Node $node_id exited with code $actual_exit_code, expected $expected_exit_code"
     fi
 
@@ -649,7 +684,7 @@ merge_outputs() {
         "sequential")
             # Concatenate outputs in node order
             local node_count
-            node_count=$(jq -r '.nodes | length' "$config_file")
+            node_count=$(get_node_count "$config_file")
             
             for ((i=0; i<node_count; i++)); do
                 local node_id
@@ -665,7 +700,7 @@ merge_outputs() {
         "per_node")
             # Output each node separately without filtering
             local node_count
-            node_count=$(jq -r '.nodes | length' "$config_file")
+            node_count=$(get_node_count "$config_file")
             
             for ((i=0; i<node_count; i++)); do
                 local node_id
@@ -714,7 +749,7 @@ run_test() {
     coordination=$(jq -r '.coordination // "parallel"' "$config_file")
     
     local node_count
-    node_count=$(jq -r '.nodes | length' "$config_file")
+    node_count=$(get_node_count "$config_file")
     
     case "$coordination" in
         "parallel")
