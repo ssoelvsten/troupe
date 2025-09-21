@@ -149,6 +149,7 @@ cleanup() {
     log "Cleaning up test processes (exit code: $exit_code)..."
 
     local cleaned_count=0
+    local cleanup_failures=()  # Track cleanup operations that fail
 
     # Calculate cleanup timeouts with CI scaling
     # In CI environments, processes take longer to terminate gracefully
@@ -167,13 +168,17 @@ cleanup() {
     # Kill relay first with graceful shutdown attempt
     if is_valid_pid "$RELAY_PID"; then
         log "Stopping relay (PID: $RELAY_PID)"
-        kill "$RELAY_PID" 2>/dev/null || true
+        if ! kill "$RELAY_PID" 2>/dev/null; then
+            cleanup_failures+=("Failed to send SIGTERM to relay PID $RELAY_PID")
+        fi
 
         # Wait for graceful shutdown with timeout
         local wait_count=0
+        local relay_terminated=false
         while [[ $wait_count -lt $relay_grace_period ]]; do
             if ! kill -0 "$RELAY_PID" 2>/dev/null; then
                 log "Relay terminated gracefully"
+                relay_terminated=true
                 break
             fi
             sleep 1
@@ -181,39 +186,71 @@ cleanup() {
         done
 
         # Force kill if still running
-        # No race condition: kill -9 will simply fail if process already dead
-        if kill -9 "$RELAY_PID" 2>/dev/null; then
-            log "Force-killed relay after ${relay_grace_period}s timeout"
+        if [[ "$relay_terminated" == "false" ]]; then
+            if kill -9 "$RELAY_PID" 2>/dev/null; then
+                log "Force-killed relay after ${relay_grace_period}s timeout"
+                cleanup_failures+=("Relay PID $RELAY_PID required force-kill after ${relay_grace_period}s")
+            else
+                cleanup_failures+=("Failed to force-kill relay PID $RELAY_PID (may have already exited)")
+            fi
         fi
         ((cleaned_count++)) || true
     fi
 
     # Kill by process name as fallback
-    pkill -f "relay.mjs" 2>/dev/null && ((cleaned_count++)) || true
-    pkill -f "node.*network.sh" 2>/dev/null && ((cleaned_count++)) || true
+    if pkill -f "relay.mjs" 2>/dev/null; then
+        ((cleaned_count++)) || true
+        cleanup_failures+=("Found relay.mjs processes via pkill (PID tracking may have failed)")
+    fi
+    if pkill -f "node.*network.sh" 2>/dev/null; then
+        ((cleaned_count++)) || true
+        cleanup_failures+=("Found network.sh processes via pkill (PID tracking may have failed)")
+    fi
 
     # Kill all spawned node processes
     if [[ ${#CLEANUP_PIDS[@]} -gt 0 ]]; then
         log "Cleaning up ${#CLEANUP_PIDS[@]} node processes"
+        local failed_kills=()
         for pid in "${CLEANUP_PIDS[@]}"; do
             if is_valid_pid "$pid"; then
-                kill "$pid" 2>/dev/null || true
-                ((cleaned_count++)) || true
+                if ! kill "$pid" 2>/dev/null; then
+                    failed_kills+=("$pid")
+                else
+                    ((cleaned_count++)) || true
+                fi
             fi
         done
+
+        if [[ ${#failed_kills[@]} -gt 0 ]]; then
+            cleanup_failures+=("Failed to send SIGTERM to node PIDs: ${failed_kills[*]}")
+        fi
 
         # Give processes time to clean up gracefully
         sleep "$node_grace_period"
 
         # Force kill remaining processes
-        # No race condition: kill -9 will simply fail if process already dead
+        local force_killed=()
+        local still_running=()
         for pid in "${CLEANUP_PIDS[@]}"; do
             if is_valid_pid "$pid"; then
                 if kill -9 "$pid" 2>/dev/null; then
                     log "Force-killed remaining process $pid"
+                    force_killed+=("$pid")
+                else
+                    # Process may have exited between check and kill
+                    if kill -0 "$pid" 2>/dev/null; then
+                        still_running+=("$pid")
+                    fi
                 fi
             fi
         done
+
+        if [[ ${#force_killed[@]} -gt 0 ]]; then
+            cleanup_failures+=("Node PIDs required force-kill after ${node_grace_period}s: ${force_killed[*]}")
+        fi
+        if [[ ${#still_running[@]} -gt 0 ]]; then
+            cleanup_failures+=("Failed to kill node PIDs: ${still_running[*]}")
+        fi
     fi
 
     # Clean up ports used by the test
@@ -228,7 +265,9 @@ cleanup() {
     fi
 
     # Final cleanup of any troupe processes
-    pkill -9 -f "node.*troupe" || true
+    if pkill -9 -f "node.*troupe" 2>/dev/null; then
+        cleanup_failures+=("Found lingering troupe processes requiring pkill -9")
+    fi
 
     # Clean up temporary directory (preserve on failure for debugging)
     if [[ -n "$TEMP_DIR" && -d "$TEMP_DIR" ]]; then
@@ -252,6 +291,20 @@ cleanup() {
     # Critical in CI where socket cleanup can be slower
     log "Cleaned up $cleaned_count processes, waiting ${socket_release_wait}s for socket release..."
     sleep "$socket_release_wait"
+
+    # Report cleanup issues if any occurred
+    # These are informational only and don't affect the test result
+    if [[ ${#cleanup_failures[@]} -gt 0 ]]; then
+        echo "" >&2
+        echo "=== Cleanup Issues Report (non-fatal) ===" >&2
+        echo "The following cleanup operations had issues:" >&2
+        for failure in "${cleanup_failures[@]}"; do
+            echo "  - $failure" >&2
+        done
+        echo "" >&2
+        echo "Note: These cleanup issues did not affect the test result (exit code: $exit_code)" >&2
+        echo "They are reported for diagnostic purposes only." >&2
+    fi
 
     # CRITICAL: Exit with the original exit code from the test, not from cleanup
     # Without this, the script would exit with the status of the last cleanup command
