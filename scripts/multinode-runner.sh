@@ -1,6 +1,12 @@
 #!/bin/bash
 set -euo pipefail
 
+# Debug: Show bash version and options in CI
+if [[ -n "${CI:-}" ]]; then
+    echo "[DEBUG] Bash version: $BASH_VERSION" >&2
+    echo "[DEBUG] Bash options: $-" >&2
+fi
+
 # Troupe Multi-Node Test Runner - Refactored Version
 # Orchestrates multi-node tests with proper cleanup and output synchronization
 #
@@ -146,6 +152,7 @@ cleanup() {
     # CRITICAL: Capture the original exit code immediately
     # This must be the FIRST command in cleanup to preserve test results
     local exit_code=$?
+    echo "[DEBUG] Cleanup called with exit code: $exit_code" >&2
     log "Cleaning up test processes (exit code: $exit_code)..."
 
     local cleaned_count=0
@@ -310,6 +317,7 @@ cleanup() {
     # CRITICAL: Exit with the original exit code from the test, not from cleanup
     # Without this, the script would exit with the status of the last cleanup command
     # This is why tests were "failing" in CI even though they succeeded
+    echo "[DEBUG] Exiting cleanup with code: $exit_code" >&2
     exit $exit_code
 }
 
