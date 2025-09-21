@@ -29,7 +29,18 @@ set -euo pipefail
 # 6. CI SCALING: In CI environments, timeouts are scaled by 1.2x (20% increase)
 #    to account for slower machines. This is a simple multiplier, not retry logic.
 #
-# 7. PORT MANAGEMENT: Tests use specific ports. Cleanup must be thorough to
+# 7. EXIT CODE PRESERVATION: The cleanup function MUST preserve the original test
+#    exit code. Without 'exit $exit_code' at the end of cleanup, the script would
+#    exit with the status of the last cleanup command, causing false test failures.
+#
+# 8. CLEANUP TIMING: Cleanup operations need CI scaling too. Processes take longer
+#    to terminate gracefully in CI. We give relay/nodes 3s base (3.6s in CI) to
+#    shutdown cleanly before force-killing to avoid race conditions.
+#
+# 9. ARITHMETIC SAFETY: Use '|| true' after ((var++)) when set -e is active.
+#    In bash, ((0)) returns exit code 1, which terminates the script with set -e.
+#
+# 10. PORT MANAGEMENT: Tests use specific ports. Cleanup must be thorough to
 #    prevent "port already in use" errors, but without retrying binds.
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -132,22 +143,49 @@ EOF
 }
 
 cleanup() {
-    # Capture exit code before any other commands
+    # CRITICAL: Capture the original exit code immediately
+    # This must be the FIRST command in cleanup to preserve test results
     exit_code=$?
     log "Cleaning up test processes (exit code: $exit_code)..."
 
     local cleaned_count=0
 
-    # Kill relay first with multiple attempts
+    # Calculate cleanup timeouts with CI scaling
+    # In CI environments, processes take longer to terminate gracefully
+    local relay_grace_period=3
+    local node_grace_period=3
+    local socket_release_wait=3
+
+    if [[ -n "${TIMEOUT_SCALE:-}" ]]; then
+        # Apply the same scaling factor used for test timeouts to cleanup
+        relay_grace_period=$(awk "BEGIN {print int($relay_grace_period * $TIMEOUT_SCALE + 0.5)}")
+        node_grace_period=$(awk "BEGIN {print int($node_grace_period * $TIMEOUT_SCALE + 0.5)}")
+        socket_release_wait=$(awk "BEGIN {print int($socket_release_wait * $TIMEOUT_SCALE + 0.5)}")
+        log "CI environment: using scaled cleanup timeouts (relay=${relay_grace_period}s, nodes=${node_grace_period}s, sockets=${socket_release_wait}s)"
+    fi
+
+    # Kill relay first with graceful shutdown attempt
     if is_valid_pid "$RELAY_PID"; then
         log "Stopping relay (PID: $RELAY_PID)"
         kill "$RELAY_PID" 2>/dev/null || true
-        sleep 1
-        if kill -0 "$RELAY_PID" 2>/dev/null; then
-            log "Force-killing relay"
-            kill -9 "$RELAY_PID" 2>/dev/null || true
+
+        # Wait for graceful shutdown with timeout
+        local wait_count=0
+        while [[ $wait_count -lt $relay_grace_period ]]; do
+            if ! kill -0 "$RELAY_PID" 2>/dev/null; then
+                log "Relay terminated gracefully"
+                break
+            fi
+            sleep 1
+            ((wait_count++)) || true
+        done
+
+        # Force kill if still running
+        # No race condition: kill -9 will simply fail if process already dead
+        if kill -9 "$RELAY_PID" 2>/dev/null; then
+            log "Force-killed relay after ${relay_grace_period}s timeout"
         fi
-        ((cleaned_count++))
+        ((cleaned_count++)) || true
     fi
 
     # Kill by process name as fallback
@@ -160,22 +198,24 @@ cleanup() {
         for pid in "${CLEANUP_PIDS[@]}"; do
             if is_valid_pid "$pid"; then
                 kill "$pid" 2>/dev/null || true
-                ((cleaned_count++))
+                ((cleaned_count++)) || true
             fi
         done
 
-        # Give processes more time to clean up
-        sleep 2
+        # Give processes time to clean up gracefully
+        sleep "$node_grace_period"
 
         # Force kill remaining processes
+        # No race condition: kill -9 will simply fail if process already dead
         for pid in "${CLEANUP_PIDS[@]}"; do
             if is_valid_pid "$pid"; then
-                log "Force-killing remaining process $pid"
-                kill -9 "$pid" 2>/dev/null || true
+                if kill -9 "$pid" 2>/dev/null; then
+                    log "Force-killed remaining process $pid"
+                fi
             fi
         done
     fi
-    
+
     # Clean up ports used by the test
     if [[ -n "$TEST_CONFIG" ]]; then
         local ports=($(get_all_ports "$TEST_CONFIG"))
@@ -186,10 +226,10 @@ cleanup() {
             fi
         done
     fi
-    
+
     # Final cleanup of any troupe processes
     pkill -9 -f "node.*troupe" || true
-    
+
     # Clean up temporary directory (preserve on failure for debugging)
     if [[ -n "$TEMP_DIR" && -d "$TEMP_DIR" ]]; then
         if [[ $exit_code -ne 0 ]]; then
@@ -206,11 +246,17 @@ cleanup() {
             rm -rf "$TEMP_DIR"
         fi
     fi
-    
-    # Additional delay to ensure OS releases sockets
-    # This is critical for preventing "port already in use" errors in subsequent tests
-    log "Cleaned up $cleaned_count processes, waiting for socket release..."
-    sleep 3
+
+    # Wait for OS to release sockets
+    # This prevents "port already in use" errors in subsequent tests
+    # Critical in CI where socket cleanup can be slower
+    log "Cleaned up $cleaned_count processes, waiting ${socket_release_wait}s for socket release..."
+    sleep "$socket_release_wait"
+
+    # CRITICAL: Exit with the original exit code from the test, not from cleanup
+    # Without this, the script would exit with the status of the last cleanup command
+    # This is why tests were "failing" in CI even though they succeeded
+    exit $exit_code
 }
 
 trap cleanup EXIT INT TERM
@@ -251,7 +297,7 @@ wait_for_port_release() {
         fi
         log "Port $port still in use, waiting... ($((max_wait - wait_count))s remaining)"
         sleep 1
-        ((wait_count++))
+        ((wait_count++)) || true
     done
 
     # Force kill processes using the port
@@ -502,7 +548,7 @@ start_relay() {
         fi
         
         sleep 0.5
-        ((wait_count++))
+        ((wait_count++)) || true
     done
     
     # Re-enable exit on error before erroring out
