@@ -722,7 +722,7 @@ run_node() {
     fi
     
     local node_pid=$!
-    
+
     # Docker compatibility: Check if PID capture worked
     if [[ "$node_pid" == "\$!" ]] || ! [[ "$node_pid" =~ ^[0-9]+$ ]]; then
         log "Warning: PID capture failed for node $node_id (Docker issue)"
@@ -733,8 +733,10 @@ run_node() {
             node_pid="unknown"
         fi
     fi
-    
-    if [[ "$node_pid" != "unknown" ]]; then
+
+    # Only add to cleanup PIDs if not in parallel mode
+    # In parallel mode, we wait for all processes explicitly
+    if [[ "$node_pid" != "unknown" ]] && [[ "$in_parallel" != "true" ]]; then
         CLEANUP_PIDS+=("$node_pid")
     fi
     
@@ -872,14 +874,21 @@ run_test() {
 
             # Wait for all nodes
             local failed=false
-            for pid in "${node_pids[@]}"; do
+            local failed_nodes=()
+            for ((i=0; i<${#node_pids[@]}; i++)); do
+                local pid="${node_pids[$i]}"
                 if ! wait "$pid"; then
                     failed=true
+                    local node_id=$(jq -r ".nodes[$i].id" "$config_file")
+                    failed_nodes+=("$node_id")
                 fi
             done
 
             if [[ "$failed" == "true" ]]; then
-                error "One or more nodes failed"
+                echo "Error: The following nodes failed: ${failed_nodes[*]}" >&2
+                # Don't call error() here as it triggers cleanup prematurely
+                # Just return failure to the caller
+                return 1
             fi
             ;;
         "sequential")
@@ -930,7 +939,15 @@ main() {
     fi
     
     parse_config "$TEST_CONFIG"
+
+    # Temporarily disable set -e for run_test since it handles its own errors
+    set +e
     run_test "$TEST_CONFIG"
+    local test_result=$?
+    set -e
+
+    # Exit with the test result (cleanup will be triggered by trap)
+    exit $test_result
 }
 
 main "$@"
