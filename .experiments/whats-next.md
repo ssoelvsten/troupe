@@ -1,19 +1,36 @@
 # What's next 
 
 
+## Plan 
+``` 
+             ┌──────────────────────────┐                            
+             │      dev-integrity       │   
+             └──────────────────────────┘                            
+                           │                                         
+                           │                                         
+                           │  Complete integrity                       
+                           │                                         
+                           │                                         
+             ┌─────────────▼────────────┐                            
+             │           dev            │  Deprecate dev-integrity
+             └──────────────────────────┘  and merge the results into the dev branch 
+                           │                                         
+                           │                                         
+             ┌─────────────┴──────────────────────┐                  
+             │                                    │                  
+             ▼                                    │                  
+┌──────────────────────────┐        ┌─────────────▼────────────┐     
+│       dev-modules        │        │       dev-inlining       │     
+└──────────────────────────┘        └──────────────────────────┘     
+              │                                                      
+              │                                                      
+              ▼                                                      
+┌──────────────────────────┐                                         
+│  dev-syntactic-variants  │                                         
+└──────────────────────────┘                                         
+``` 
 
-
-## Infra
-
-
-[ ] Implement spawn as the top level primitive that does all 
-    the pattern matching and then calls into local_spawn when needed.
-
-[ ] Look into making HAMT faster 
-
-[ ] Inline one-time declared joins (maybe? | this needs profiling)
     
-
 ## Integrity 
  
 - [ ] Integrity of blocking and mailboxes
@@ -74,6 +91,15 @@
   not be okay; we can talk about implementing context-depending parsing as part
   of the frontend
 
+## Infra
+
+
+[ ] Implement spawn as the top level primitive that does all 
+    the pattern matching and then calls into local_spawn when needed.
+
+[ ] Look into making HAMT faster 
+
+[ ] Inline one-time declared joins (maybe? | this needs profiling)
 
 ### Other improvements
 
