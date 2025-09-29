@@ -9,29 +9,34 @@
    to ir2raw-out/.
 -}
 
-import Data.Functor
-import Control.Monad
 import Control.Arrow
+import Control.Monad
+import Data.Functor
 
 import Util.FileUtil
 
+import qualified Core
 import IR
 import IR2Raw
-import RetCPS (VarName(..))
-import qualified Core
+import RetCPS (VarName (..))
 
-import qualified TR
 import qualified Expr
 import qualified Inst
-import qualified Tree
 import qualified RawOpt
+import qualified TR
+import qualified Tree
 
 main :: IO ()
 main = do
-    let rawProgs = map (second (\ir ->
-          let raw = prog2raw ir in
-            (raw, RawOpt.rawopt raw)
-          )) (TR.tcs ++ Expr.tcs ++ Inst.tcs ++ Tree.tcs)
-    forM_ rawProgs $ \(n,(raw, rawopt)) -> do
-      writeFileD ("ir2raw-out/" ++ n ++ ".raw") (show raw)
-      writeFileD ("ir2raw-out/" ++ n ++ ".rawopt") (show rawopt)
+    let rawProgs =
+            map
+                ( second
+                    ( \ir ->
+                        let raw = prog2raw ir
+                         in (raw, RawOpt.rawopt raw)
+                    )
+                )
+                (TR.tcs ++ Expr.tcs ++ Inst.tcs ++ Tree.tcs)
+    forM_ rawProgs $ \(n, (raw, rawopt)) -> do
+        writeFileD ("ir2raw-out/" ++ n ++ ".raw") (show raw)
+        writeFileD ("ir2raw-out/" ++ n ++ ".rawopt") (show rawopt)

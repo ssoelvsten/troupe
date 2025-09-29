@@ -1,54 +1,62 @@
-{-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DefaultSignatures #-}
+{-# LANGUAGE DeriveGeneric #-}
 
-
-module Core (   Lambda (..)
-              , Term (..)
-              , Decl (..)
-              , FunDecl (..)
-              , Lit(..)
-              , AtomName
-              , Atoms(..)
-              , Prog(..)
-              , VarAccess(..)
-              , lowerProg
-              , renameProg
-              , ppLit
-              )
+module Core (
+    Lambda (..),
+    Term (..),
+    Decl (..),
+    FunDecl (..),
+    Lit (..),
+    AtomName,
+    Atoms (..),
+    Prog (..),
+    VarAccess (..),
+    lowerProg,
+    renameProg,
+    ppLit,
+)
 where
-import GHC.Generics(Generic)
+
 import Data.Serialize (Serialize)
+import GHC.Generics (Generic)
 
-import qualified Data.Ord 
-import           Basics
-import qualified DirectWOPats as D
+import Basics
+import Control.Monad
+import Control.Monad.RWS
+import Control.Monad.State.Lazy as State
 import qualified Data.Map.Strict as Map
-import           Control.Monad
-import           Control.Monad.State.Lazy as State
-import           Control.Monad.RWS
+import qualified Data.Ord
+import qualified DirectWOPats as D
 
+import ShowIndent
+import Text.PrettyPrint.HughesPJ (
+    hsep,
+    nest,
+    text,
+    vcat,
+    ($$),
+    (<+>),
+ )
 import qualified Text.PrettyPrint.HughesPJ as PP
-import           Text.PrettyPrint.HughesPJ (
-   (<+>), ($$), text, hsep, vcat, nest, nest)
-import           ShowIndent
 
-import           TroupePositionInfo
-import           DCLabels
+import DCLabels
+import TroupePositionInfo
 
 --------------------------------------------------
 -- AST is the same as Direct, but lambda are unary (or nullary)
 
-data Lambda = Unary VarName Term
-            | Nullary Term
-  deriving (Eq)
+data Lambda
+    = Unary VarName Term
+    | Nullary Term
+    deriving (Eq)
 
 data Decl
     = ValDecl VarName Term
     | FunDecs [FunDecl]
-  deriving (Eq )
+    deriving (Eq)
 
 data FunDecl = FunDecl VarName Lambda
-  deriving (Eq)
+    deriving (Eq)
 
 data Lit
     = LInt Integer PosInf
@@ -58,47 +66,47 @@ data Lit
     | LUnit
     | LBool Bool
     | LAtom AtomName
-  deriving (Show, Generic)
+    deriving (Generic, Show)
 instance Serialize Lit
-instance Eq Lit where 
-  (LInt x _) == (LInt y _) = x == y
-  (LString s) == (LString s') = s == s' 
-  (LLabel l) == (LLabel l') = l == l' 
-  LUnit == LUnit = True 
-  (LBool x) == (LBool y) = x == y 
-  (LAtom x) == (LAtom y) = x == y
-  (LDCLabel dc) == (LDCLabel dc') = dc == dc' 
-  _ == _ = False
-instance Ord Lit where 
-  (LInt x _)   <= (LInt y _)   = x <= y
-  (LString x ) <= (LString y)  = x <=y
-  (LLabel x)   <= (LLabel y)   = x <=y
-  (LUnit)      <= (LUnit)      = True 
-  (LBool x)    <= (LBool y)    = x <=y
-  (LAtom x)    <= (LAtom y)    = x <=y
-  (LDCLabel x) <= (LDCLabel y) = x <= y
-  (LInt _ _)   <= (LString _)  = True 
-  (LString _)  <= (LLabel _)   = True 
-  (LLabel _)   <= (LUnit)      = True 
-  (LUnit)      <= (LBool _)    = True 
-  (LBool _)    <= (LAtom _)    = True 
-  (LAtom _)    <= (LDCLabel _) = True
-  _ <= _                       = False 
+instance Eq Lit where
+    (LInt x _) == (LInt y _) = x == y
+    (LString s) == (LString s') = s == s'
+    (LLabel l) == (LLabel l') = l == l'
+    LUnit == LUnit = True
+    (LBool x) == (LBool y) = x == y
+    (LAtom x) == (LAtom y) = x == y
+    (LDCLabel dc) == (LDCLabel dc') = dc == dc'
+    _ == _ = False
+instance Ord Lit where
+    (LInt x _) <= (LInt y _) = x <= y
+    (LString x) <= (LString y) = x <= y
+    (LLabel x) <= (LLabel y) = x <= y
+    (LUnit) <= (LUnit) = True
+    (LBool x) <= (LBool y) = x <= y
+    (LAtom x) <= (LAtom y) = x <= y
+    (LDCLabel x) <= (LDCLabel y) = x <= y
+    (LInt _ _) <= (LString _) = True
+    (LString _) <= (LLabel _) = True
+    (LLabel _) <= (LUnit) = True
+    (LUnit) <= (LBool _) = True
+    (LBool _) <= (LAtom _) = True
+    (LAtom _) <= (LDCLabel _) = True
+    _ <= _ = False
 
 instance GetPosInfo Lit where
-  posInfo (LInt _ p) = p
-  posInfo _ = NoPos
+    posInfo (LInt _ p) = p
+    posInfo _ = NoPos
 
 type Fields = [(FieldName, Term)]
 
 data VarAccess
-    -- | A normal variable
-    = RegVar VarName
-    -- | Referring to a definition from a library
-    | LibVar LibName VarName
-    -- | A predefined name (e.g. send, receive)
-    | BaseName VarName
- deriving (Eq)
+    = -- | A normal variable
+      RegVar VarName
+    | -- | Referring to a definition from a library
+      LibVar LibName VarName
+    | -- | A predefined name (e.g. send, receive)
+      BaseName VarName
+    deriving (Eq)
 data Term
     = Lit Lit
     | Var VarAccess
@@ -108,28 +116,25 @@ data Term
     | If Term Term Term
     | AssertElseError Term Term Term PosInf
     | Tuple [Term]
-    | Record Fields 
+    | Record Fields
     | WithRecord Term Fields
-    | ProjField Term FieldName 
+    | ProjField Term FieldName
     | ProjIdx Term Word
     | List [Term]
     | ListCons Term Term
     | Bin BinOp Term Term
     | Un UnaryOp Term
     | Error Term PosInf
-  deriving (Eq)
-
+    deriving (Eq)
 
 data Atoms = Atoms [AtomName]
-  deriving (Eq, Show, Generic)
+    deriving (Eq, Generic, Show)
 instance Serialize Atoms
 
-
 data Prog = Prog Imports Atoms Term
-  deriving (Eq, Show)
+    deriving (Eq, Show)
 
-
-{-- 
+{--
 
 This module defines the Core front-level intermediate representation,
 and includes two phases of the compilation pipeline that involve that
@@ -143,17 +148,13 @@ representation.
 
 The module also contains pretty printing for the Core representation.
 
-
 --}
 
-
 --------------------------------------------------
--- 1. Lowering 
+-- 1. Lowering
 --------------------------------------------------
 
 lowerProg (D.Prog imports atms term) = Prog imports (trans atms) (lower term)
-
-
 
 -- the rest of the declarations in this part are not exported
 
@@ -161,10 +162,9 @@ trans :: D.Atoms -> Atoms
 trans (D.Atoms atms) = Atoms atms
 
 lowerLam (D.Lambda vs t) =
-  case vs of
-    [] -> Unary "$unit" (lower t)
-    x:xs -> Unary x (foldr (\x b -> (Abs (Unary x b))) (lower t) xs)
-
+    case vs of
+        [] -> Unary "$unit" (lower t)
+        x : xs -> Unary x (foldr (\x b -> (Abs (Unary x b))) (lower t) xs)
 
 lowerLit (D.LInt n pi) = LInt n pi
 lowerLit (D.LString s) = LString s
@@ -178,56 +178,53 @@ lower :: D.Term -> Core.Term
 lower (D.Lit l) = Lit (lowerLit l)
 lower (D.Error t p) = Error (lower t) p
 lower (D.Var v) = Var (RegVar v)
-  -- 2018-07-01: AA: note that we are mapping all vars to RegVar at
-  -- this stage. This is a bit of a hack. A cleaner apporach is to
-  -- have a separate intermediate representation. For now we save on
-  -- the engineering effort and proceed like this, because at the
-  -- subsequent phase (renaming) we resolve which names are base
-  -- names, which are lib names, and which are actually just regular
-  -- variables.
+-- 2018-07-01: AA: note that we are mapping all vars to RegVar at
+-- this stage. This is a bit of a hack. A cleaner apporach is to
+-- have a separate intermediate representation. For now we save on
+-- the engineering effort and proceed like this, because at the
+-- subsequent phase (renaming) we resolve which names are base
+-- names, which are lib names, and which are actually just regular
+-- variables.
 
 lower (D.Abs lam) = Abs (lowerLam lam)
-
 lower (D.App e []) = Core.App (lower e) (Lit LUnit) -- does this form even exist?
 lower (D.App e es) = foldl Core.App (lower e) (map lower es)
 lower (D.Let decls e) =
-  foldr (\ decl t -> Let (lowerDecl decl) t) (lower e) decls
-  where lowerDecl (D.ValDecl vname e) = ValDecl vname (lower e)
-        lowerDecl (D.FunDecs decs) = FunDecs (map lowerFun decs)
-        lowerFun  (D.FunDecl v lam) = FunDecl v (lowerLam lam)
+    foldr (\decl t -> Let (lowerDecl decl) t) (lower e) decls
+  where
+    lowerDecl (D.ValDecl vname e) = ValDecl vname (lower e)
+    lowerDecl (D.FunDecs decs) = FunDecs (map lowerFun decs)
+    lowerFun (D.FunDecl v lam) = FunDecl v (lowerLam lam)
 -- lower (D.Case t patTermLst) = Case (lower t) (map (\(p,t) -> (lowerDeclPat p, lower t)) patTermLst)
 lower (D.If e1 e2 e3) = If (lower e1) (lower e2) (lower e3)
-lower (D.AssertElseError e1 e2 e3 p) = AssertElseError (lower e1 ) (lower e2) (lower e3) p
+lower (D.AssertElseError e1 e2 e3 p) = AssertElseError (lower e1) (lower e2) (lower e3) p
 lower (D.Tuple terms) = Tuple (map lower terms)
 lower (D.Record fields) = Record (map (\(f, t) -> (f, lower t)) fields)
-lower (D.WithRecord  e fields) = WithRecord (lower e) (map (\(f, t) -> (f, lower t)) fields)
+lower (D.WithRecord e fields) = WithRecord (lower e) (map (\(f, t) -> (f, lower t)) fields)
 lower (D.ProjField t f) = ProjField (lower t) f
 lower (D.ProjIdx t idx) = ProjIdx (lower t) idx
 lower (D.List terms) = List (map lower terms)
 lower (D.ListCons t1 t2) = ListCons (lower t1) (lower t2)
-
 -- special casing shortcutting semantics; 2018-03-06;
 lower (D.Bin And e1 e2) = lower (D.If e1 e2 (D.Lit (D.LBool False)))
 lower (D.Bin Or e1 e2) = lower (D.If e1 (D.Lit (D.LBool True)) e2)
 lower (D.Bin op e1 e2) = Bin op (lower e1) (lower e2)
 lower (D.Un op e) = Un op (lower e)
 
-
 --------------------------------------------------
 -- 2. α-RENAMING
 --------------------------------------------------
-
 
 -- This is the only function that is exported here
 
 renameProg :: Prog -> Prog
 renameProg (Prog imports (Atoms atms) term) =
-  let alist = map (\ a -> (a, a)) atms
-      initEnv    = Map.fromList alist
-      initReader = mapFromImports imports
-      initState  = 0
-      (term', _) = evalRWS (rename term initEnv) initReader initState
-  in Prog imports (Atoms atms) term'
+    let alist = map (\a -> (a, a)) atms
+        initEnv = Map.fromList alist
+        initReader = mapFromImports imports
+        initState = 0
+        (term', _) = evalRWS (rename term initEnv) initReader initState
+     in Prog imports (Atoms atms) term'
 
 -- The rest of the declarations here are not exported
 
@@ -235,336 +232,299 @@ renameProg (Prog imports (Atoms atms) term) =
 
 The renaming occurs in RWS monad that is instantiated as follows:
 
-* The reader is the library environment
-* The state is the unique variable counter
-* The output is not used so we instantiate it to a dummy unit type
+\* The reader is the library environment
+\* The state is the unique variable counter
+\* The output is not used so we instantiate it to a dummy unit type
 
 Note that the environment used for tracking α-substitutions is being
 threaded explicitly. That is encoded in the `Env` map.
 
 --}
 
-
 type S = RWS LibEnv () Integer
 
 type LibEnv = Map.Map VarName LibName
-type Env    = Map.Map VarName VarName
-
+type Env = Map.Map VarName VarName
 
 mapFromImports :: Imports -> LibEnv
 mapFromImports (Imports imports) =
-  foldl insLib Map.empty imports
-     where
-       insLib map (lib, Just defs) =
-             foldl (\map def -> Map.insert def lib map) map defs
-       insLib map (lib, Nothing) = error "malformed lib import data structure"
-           -- TODO: 2018-07-02; better error message for the above case
-           -- or even better: a data structure that avoids needing to make a check like that
-           -- (we should be in theory able to do that)
+    foldl insLib Map.empty imports
+  where
+    insLib map (lib, Just defs) =
+        foldl (\map def -> Map.insert def lib map) map defs
+    insLib map (lib, Nothing) = error "malformed lib import data structure"
 
+-- TODO: 2018-07-02; better error message for the above case
+-- or even better: a data structure that avoids needing to make a check like that
+-- (we should be in theory able to do that)
 
 -- | Sanitize variable names to be JavaScript-compatible identifiers
 sanitizeForJS :: VarName -> VarName
 sanitizeForJS = map sanitizeChar
   where
-    sanitizeChar '\'' = '_'  -- Replace single quotes with underscores
-    sanitizeChar c = c        -- Keep other characters as-is
+    sanitizeChar '\'' = '_' -- Replace single quotes with underscores
+    sanitizeChar c = c -- Keep other characters as-is
 
 unique :: VarName -> S VarName
 unique v = do
-  n <- State.get
-  put (n + 1)
-  return $ sanitizeForJS v ++ show n
-
+    n <- State.get
+    put (n + 1)
+    return $ sanitizeForJS v ++ show n
 
 lookforalpha :: VarName -> Env -> VarName
 lookforalpha v m = Map.findWithDefault v v m
 
-
 lookforgen :: VarName -> Env -> S VarAccess
 lookforgen v m =
     case Map.lookup v m of
-       Just v -> return $ RegVar v
-       Nothing -> do
-          libmap <- ask
-          case Map.lookup v libmap of
-            Just lib' -> return $ LibVar lib' v
-            Nothing -> return  $ BaseName v
-
+        Just v -> return $ RegVar v
+        Nothing -> do
+            libmap <- ask
+            case Map.lookup v libmap of
+                Just lib' -> return $ LibVar lib' v
+                Nothing -> return $ BaseName v
 
 extend :: VarName -> VarName -> Env -> Env
 extend v v' m = Map.insert v v' m
 
 rename :: Core.Term -> Env -> S Core.Term
 rename (Lit l) m = return (Lit l)
-rename (Error t p) m = do 
-      t' <- rename t m 
-      return $ Error t' p
+rename (Error t p) m = do
+    t' <- rename t m
+    return $ Error t' p
 rename (Var (RegVar v)) m = do
-  v <- lookforgen v m
-  return $ Var v
-
-
-rename (Var x) m  = return $ Var x
+    v <- lookforgen v m
+    return $ Var v
+rename (Var x) m = return $ Var x
 rename (Abs l) m =
-  liftM Abs $ renameLambda l m
+    liftM Abs $ renameLambda l m
 rename (App t1 t2) m = do
-  t1' <- rename t1 m
-  t2' <- rename t2 m
-  return $ App t1' t2'
+    t1' <- rename t1 m
+    t2' <- rename t2 m
+    return $ App t1' t2'
 rename (Let decl t) m = do
-  (m', decl') <- renameDecl decl m
-  t' <- rename t m'
-  return $ Let decl' t'
-
+    (m', decl') <- renameDecl decl m
+    t' <- rename t m'
+    return $ Let decl' t'
 rename (If t1 t2 t3) m = do
-  t1' <- rename t1 m
-  t2' <- rename t2 m
-  t3' <- rename t3 m
-  return $ If t1' t2' t3'
-
-rename (AssertElseError t1 t2 t3 p) m = do  
-  t1' <- rename t1 m
-  t2' <- rename t2 m
-  t3' <- rename t3 m
-  return $ AssertElseError t1' t2' t3' p
-
-
+    t1' <- rename t1 m
+    t2' <- rename t2 m
+    t3' <- rename t3 m
+    return $ If t1' t2' t3'
+rename (AssertElseError t1 t2 t3 p) m = do
+    t1' <- rename t1 m
+    t2' <- rename t2 m
+    t3' <- rename t3 m
+    return $ AssertElseError t1' t2' t3' p
 rename (Tuple terms) m =
-  Tuple <$> mapM (flip rename m) terms
-
-rename (Record fields) m = 
-  Record <$> mapM renameField fields 
-     where renameField (f, t) = do 
-                   t' <- rename t m 
-                   return (f, t')
-
-rename (WithRecord e fields) m = do 
-  t' <- rename e m 
-  fs <- mapM renameField fields 
-  return $ WithRecord  t' fs
-  where renameField (f, t) = do 
-                   t' <- rename t m 
-                   return (f, t')
-  
+    Tuple <$> mapM (flip rename m) terms
+rename (Record fields) m =
+    Record <$> mapM renameField fields
+  where
+    renameField (f, t) = do
+        t' <- rename t m
+        return (f, t')
+rename (WithRecord e fields) m = do
+    t' <- rename e m
+    fs <- mapM renameField fields
+    return $ WithRecord t' fs
+  where
+    renameField (f, t) = do
+        t' <- rename t m
+        return (f, t')
 rename (ProjField t f) m = do
-  t' <- rename t m
-  return $ ProjField t' f
+    t' <- rename t m
+    return $ ProjField t' f
 rename (ProjIdx t idx) m = do
-  t' <- rename t m
-  return $ ProjIdx t' idx
+    t' <- rename t m
+    return $ ProjIdx t' idx
 rename (List terms) m =
-  List <$> mapM (flip rename m) terms
+    List <$> mapM (flip rename m) terms
 rename (ListCons t1 t2) m = do
-  t1' <- rename t1 m
-  t2' <- rename t2 m
-  return $ ListCons  t1' t2'
+    t1' <- rename t1 m
+    t2' <- rename t2 m
+    return $ ListCons t1' t2'
 rename (Bin op t1 t2) m = do
-  t1' <- rename t1 m
-  t2' <- rename t2 m
-  return $ Bin op t1' t2'
+    t1' <- rename t1 m
+    t2' <- rename t2 m
+    return $ Bin op t1' t2'
 rename (Un op e) m = do
-  e' <- rename e m
-  return $ Un op e'
+    e' <- rename e m
+    return $ Un op e'
 
 renameLambda :: Core.Lambda -> Env -> S Core.Lambda
 renameLambda (Unary v t) m = do
-  v' <- unique v
-  t' <- rename t $ extend v v' m
-  return $ Unary v' t'
+    v' <- unique v
+    t' <- rename t $ extend v v' m
+    return $ Unary v' t'
 renameLambda (Nullary t) m = do
-  t' <- rename t m
-  return $ Nullary t'
+    t' <- rename t m
+    return $ Nullary t'
 
-
-renameDecl :: Decl -> (Map.Map VarName VarName) -> S (Map.Map VarName VarName, Decl)
+renameDecl ::
+    Decl -> (Map.Map VarName VarName) -> S (Map.Map VarName VarName, Decl)
 renameDecl (ValDecl v t) m = do
-  v' <- unique v
-  let m' = extend v v' m
-  t' <- rename t m
-  let decl' = (ValDecl v' t')
-  return (m', decl')
-
+    v' <- unique v
+    let m' = extend v v' m
+    t' <- rename t m
+    let decl' = (ValDecl v' t')
+    return (m', decl')
 renameDecl (FunDecs decs) m = do
-  m' <- foldM ext_funDecl m decs
-  decs' <- mapM (\(FunDecl v l) -> liftM (FunDecl (lookforalpha v m')) (renameLambda l m')) decs
-  let decl' = (FunDecs decs')
-  return (m', decl')
-  where ext_funDecl m (FunDecl v _) = do
-          v' <- unique v
-          return $ extend v v' m
-
-
+    m' <- foldM ext_funDecl m decs
+    decs' <-
+        mapM
+            (\(FunDecl v l) -> liftM (FunDecl (lookforalpha v m')) (renameLambda l m'))
+            decs
+    let decl' = (FunDecs decs')
+    return (m', decl')
+  where
+    ext_funDecl m (FunDecl v _) = do
+        v' <- unique v
+        return $ extend v v' m
 
 --------------------------------------------------
 -- 3. Pretty printing
 --------------------------------------------------
 
-
 -- show is defined via pretty printing
-instance Show Term
-  where show t = PP.render (ppTerm 0 t)
+instance Show Term where
+    show t = PP.render (ppTerm 0 t)
 
 instance ShowIndent Prog where
-  showIndent k t = PP.render (nest k (ppProg t))
+    showIndent k t = PP.render (nest k (ppProg t))
+
 --------------------------------------------------
-
-
-
 
 ppProg :: Prog -> PP.Doc
 ppProg (Prog (Imports imports) (Atoms atoms) term) =
-  let ppAtoms =
-        if null atoms
-          then PP.empty
-          else (text "datatype Atoms = ") <+>
-               (hsep $ PP.punctuate (text " |") (map text atoms))
+    let ppAtoms =
+            if null atoms
+                then PP.empty
+                else
+                    (text "datatype Atoms = ")
+                        <+> (hsep $ PP.punctuate (text " |") (map text atoms))
 
-      ppImports = if null imports then PP.empty else text "<<imports>>\n"
-  in ppImports $$ ppAtoms $$ ppTerm 0 term
-
+        ppImports = if null imports then PP.empty else text "<<imports>>\n"
+     in ppImports $$ ppAtoms $$ ppTerm 0 term
 
 ppTerm :: Precedence -> Term -> PP.Doc
 ppTerm parentPrec t =
-   let thisTermPrec = termPrec t
-   in PP.maybeParens (thisTermPrec < parentPrec )
-      $ ppTerm' t
+    let thisTermPrec = termPrec t
+     in PP.maybeParens (thisTermPrec < parentPrec) $
+            ppTerm' t
 
-   -- uncomment to pretty print explicitly; 2017-10-14: AA
-   -- in PP.maybeParens (thisTermPrec < 10000)  $ ppTerm' t
+-- uncomment to pretty print explicitly; 2017-10-14: AA
+-- in PP.maybeParens (thisTermPrec < 10000)  $ ppTerm' t
 
 ppTerm' :: Term -> PP.Doc
 ppTerm' (Lit literal) = ppLit literal
-
 ppTerm' (Error t _) = text "error " PP.<> ppTerm' t
-
-ppTerm'  (Tuple ts) =
-  PP.parens $
-  PP.hcat $
-  PP.punctuate (text ",") (map (ppTerm 0) ts)
-
-ppTerm'  (List ts) =
-  PP.brackets $
-  PP.hcat $
-  PP.punctuate (text ",") (map (ppTerm 0) ts)
-
+ppTerm' (Tuple ts) =
+    PP.parens $
+        PP.hcat $
+            PP.punctuate (text ",") (map (ppTerm 0) ts)
+ppTerm' (List ts) =
+    PP.brackets $
+        PP.hcat $
+            PP.punctuate (text ",") (map (ppTerm 0) ts)
 ppTerm' (Record fs) = PP.braces $ qqFields fs
-
-ppTerm' (WithRecord e fs) = 
-    PP.braces $ PP.hsep [ ppTerm 0 e, text "with", qqFields fs]
-
+ppTerm' (WithRecord e fs) =
+    PP.braces $ PP.hsep [ppTerm 0 e, text "with", qqFields fs]
 ppTerm' (ProjField t fn) =
-  ppTerm projPrec t PP.<> text "." PP.<> PP.text fn
-
+    ppTerm projPrec t PP.<> text "." PP.<> PP.text fn
 ppTerm' (ProjIdx t idx) =
-  ppTerm projPrec t PP.<> text "." PP.<> PP.text (show idx)
-
-
+    ppTerm projPrec t PP.<> text "." PP.<> PP.text (show idx)
 ppTerm' (ListCons hd tl) =
-   ppTerm consPrec hd PP.<> text "::" PP.<> ppTerm consPrec tl
-
+    ppTerm consPrec hd PP.<> text "::" PP.<> ppTerm consPrec tl
 ppTerm' (Var (RegVar x)) = text x
 ppTerm' (Var (LibVar (LibName lib) var)) = text lib <+> text "." <+> text var
 ppTerm' (Var (BaseName v)) = text v
 ppTerm' (Abs lam) =
-  let (ppArgs, ppBody) = qqLambda lam
-  in text "fn" <+> ppArgs <+> text "=>" <+> ppBody
-
+    let (ppArgs, ppBody) = qqLambda lam
+     in text "fn" <+> ppArgs <+> text "=>" <+> ppBody
 ppTerm' (App t1 t2s) =
     ppTerm appPrec t1
-          <+> (ppTerm argPrec t2s)
-
+        <+> (ppTerm argPrec t2s)
 ppTerm' (Let dec body) =
-  text "let" <+>
-  nest 3 (ppDecl dec) $$
-  text "in" <+>
-  nest 3 (ppTerm 0 body) $$
-  text "end"
-
-
+    text "let"
+        <+> nest 3 (ppDecl dec)
+        $$ text "in"
+            <+> nest 3 (ppTerm 0 body)
+        $$ text "end"
 ppTerm' (If e0 e1 e2) =
-  text "if" <+>
-  ppTerm 0 e0 $$
-  text "then" <+>
-  ppTerm 0 e1 $$
-  text "else" <+>
-  ppTerm 0 e2
-
+    text "if"
+        <+> ppTerm 0 e0
+        $$ text "then"
+            <+> ppTerm 0 e1
+        $$ text "else"
+            <+> ppTerm 0 e2
 ppTerm' (AssertElseError e0 e1 e2 _) =
-  text "assert" <+>
-  ppTerm 0 e0 $$
-  text "then" <+>
-  ppTerm 0 e1 $$
-  text "elseError" <+>
-  ppTerm 0 e2
-
-
-
+    text "assert"
+        <+> ppTerm 0 e0
+        $$ text "then"
+            <+> ppTerm 0 e1
+        $$ text "elseError"
+            <+> ppTerm 0 e2
 ppTerm' (Bin op t1 t2) =
-  let binOpPrec = opPrec op
-  in
-     ppTerm binOpPrec t1 <+>
-     text (show op) <+>
-     ppTerm binOpPrec t2
-
+    let binOpPrec = opPrec op
+     in ppTerm binOpPrec t1
+            <+> text (show op)
+            <+> ppTerm binOpPrec t2
 ppTerm' (Un op t) =
-  let unOpPrec = op1Prec op
-  in
-     text (show op) <+>
-     ppTerm unOpPrec t
+    let unOpPrec = op1Prec op
+     in text (show op)
+            <+> ppTerm unOpPrec t
 
-
-qqFields fs = PP.hcat $
-    PP.punctuate (text ",") (map ppField fs)
-     where ppField (name, t)  = 
-              PP.hcat [PP.text name, PP.text "=", ppTerm 0 t ]
+qqFields fs =
+    PP.hcat $
+        PP.punctuate (text ",") (map ppField fs)
+  where
+    ppField (name, t) =
+        PP.hcat [PP.text name, PP.text "=", ppTerm 0 t]
 
 qqLambda :: Lambda -> (PP.Doc, PP.Doc)
 qqLambda (Unary arg body) =
-  ( text arg, ppTerm 0 body )
+    (text arg, ppTerm 0 body)
 qqLambda (Nullary body) =
-  ( text "()", ppTerm 0 body)
+    (text "()", ppTerm 0 body)
 
 ppDecl :: Decl -> PP.Doc
 ppDecl (ValDecl arg t) =
-  text "val" <+> text arg <+> text "="
-    <+> ppTerm 0 t
+    text "val"
+        <+> text arg
+        <+> text "="
+        <+> ppTerm 0 t
 ppDecl (FunDecs fs) = ppFuns fs
   where
     ppFunDecl prefix (FunDecl fname lam) =
-      ppFunOptions (prefix ++ " " ++ fname) lam
+        ppFunOptions (prefix ++ " " ++ fname) lam
 
     ppFunOptions prefix lam =
-        let (ppArgs, ppBody) = qqLambda lam in
-        text prefix <+> ppArgs <+> text "=" <+> nest 2 ppBody
+        let (ppArgs, ppBody) = qqLambda lam
+         in text prefix <+> ppArgs <+> text "=" <+> nest 2 ppBody
 
-
-    ppFuns (doc:docs) =
-      let ppFirstFun = ppFunDecl "fun"
-          ppOtherFun = ppFunDecl "and"
-      in ppFirstFun doc $$ vcat (map ppOtherFun docs)
-
-
+    ppFuns (doc : docs) =
+        let ppFirstFun = ppFunDecl "fun"
+            ppOtherFun = ppFunDecl "and"
+         in ppFirstFun doc $$ vcat (map ppOtherFun docs)
     ppFuns _ = PP.empty
 
-
 ppLit :: Lit -> PP.Doc
-ppLit (LInt i _)      = PP.integer i
-ppLit (LString s)   = PP.doubleQuotes (text s)
-ppLit (LLabel s)    = PP.braces (text s)
-ppLit LUnit         = text "()"
-ppLit (LBool True)  = text "true"
+ppLit (LInt i _) = PP.integer i
+ppLit (LString s) = PP.doubleQuotes (text s)
+ppLit (LLabel s) = PP.braces (text s)
+ppLit LUnit = text "()"
+ppLit (LBool True) = text "true"
 ppLit (LBool False) = text "false"
 ppLit (LAtom a) = text a
 ppLit (LDCLabel dc) = ppDCLabelExpLit dc
 
-
 termPrec :: Term -> Precedence
-termPrec (Lit _)         = maxPrec
-termPrec (Tuple _)       = maxPrec
-termPrec (List _ )       = maxPrec
-termPrec (Var _)         = maxPrec
-termPrec (App _ _)       = appPrec
-termPrec (Bin op _ _)    = opPrec op
-termPrec (ListCons _ _)  = 200
-termPrec _               = 0
+termPrec (Lit _) = maxPrec
+termPrec (Tuple _) = maxPrec
+termPrec (List _) = maxPrec
+termPrec (Var _) = maxPrec
+termPrec (App _ _) = appPrec
+termPrec (Bin op _ _) = opPrec op
+termPrec (ListCons _ _) = 200
+termPrec _ = 0

@@ -1,4 +1,4 @@
 module CompileMode
-  where
+where
 
 data CompileMode = Normal | Export

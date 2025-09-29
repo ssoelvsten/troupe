@@ -7,10 +7,9 @@ module Exports where
 -- the exports are handled in many places throughout the compilation
 -- pipeline.
 
-
 import Basics
-import Direct
 import Control.Monad.Except
+import Direct
 
 type Exports = [(Basics.VarName, Basics.VarName)]
 
@@ -20,17 +19,14 @@ extractMain x = x
 
 errorMessage = "parse error: libraries need to use restricted syntax for their main body"
 
-
 extractExports :: Prog -> Except String [String]
 extractExports (Prog imports atoms term) = do
-  case extractMain term of
-    List exports -> reify exports
-    _ -> throwError errorMessage
-
+    case extractMain term of
+        List exports -> reify exports
+        _ -> throwError errorMessage
 
 reify :: [Term] -> Except String [String]
-reify = mapM checkOne 
-
+reify = mapM checkOne
 
 checkOne :: Term -> Except String String
 checkOne (Tuple [Lit (LString s), Var vn]) = return s
