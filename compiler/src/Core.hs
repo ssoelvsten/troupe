@@ -9,6 +9,7 @@ module Core (   Lambda (..)
               , Lit(..)
               , AtomName
               , Atoms(..)
+              , Core.Modules(..)
               , Prog(..)
               , VarAccess(..)
               , lowerProg
@@ -20,6 +21,7 @@ import GHC.Generics(Generic)
 import Data.Serialize (Serialize)
 
 import qualified Data.Ord 
+import Data.Maybe (fromJust)
 import           Basics
 import qualified DirectWOPats as D
 import qualified Data.Map.Strict as Map
@@ -96,6 +98,8 @@ data VarAccess
     = RegVar VarName
     -- | Referring to a definition from a library
     | LibVar LibName VarName
+    -- | Referring to the value 'exported' from a module
+    | ModVar ModName
     -- | A predefined name (e.g. send, receive)
     | BaseName VarName
  deriving (Eq)
@@ -124,10 +128,11 @@ data Atoms = Atoms [AtomName]
   deriving (Eq, Show, Generic)
 instance Serialize Atoms
 
-
-data Prog = Prog Imports Atoms Term
+data Modules = Modules [(ModName, ModHash)]
   deriving (Eq, Show)
 
+data Prog = Prog Imports Core.Modules Atoms Term
+  deriving (Eq, Show)
 
 {-- 
 
@@ -151,14 +156,18 @@ The module also contains pretty printing for the Core representation.
 -- 1. Lowering 
 --------------------------------------------------
 
-lowerProg (D.Prog imports atms term) = Prog imports (trans atms) (lower term)
+lowerProg (D.Prog imports modules atms term) =
+  Prog imports (transModules modules) (transAtoms atms) (lower term)
 
 
 
 -- the rest of the declarations in this part are not exported
 
-trans :: D.Atoms -> Atoms
-trans (D.Atoms atms) = Atoms atms
+transAtoms :: D.Atoms -> Atoms
+transAtoms (D.Atoms atms) = Atoms atms
+
+transModules :: Basics.Modules -> Core.Modules
+transModules (Basics.Modules modules) = Core.Modules $ map (\(m,h) -> (m, fromJust h)) modules
 
 lowerLam (D.Lambda vs t) =
   case vs of
@@ -221,13 +230,13 @@ lower (D.Un op e) = Un op (lower e)
 -- This is the only function that is exported here
 
 renameProg :: Prog -> Prog
-renameProg (Prog imports (Atoms atms) term) =
+renameProg (Prog imports modules (Atoms atms) term) =
   let alist = map (\ a -> (a, a)) atms
       initEnv    = Map.fromList alist
-      initReader = mapFromImports imports
+      initReader = (mapFromImports imports, makeModEnv modules)
       initState  = 0
       (term', _) = evalRWS (rename term initEnv) initReader initState
-  in Prog imports (Atoms atms) term'
+  in Prog imports modules (Atoms atms) term'
 
 -- The rest of the declarations here are not exported
 
@@ -235,7 +244,7 @@ renameProg (Prog imports (Atoms atms) term) =
 
 The renaming occurs in RWS monad that is instantiated as follows:
 
-* The reader is the library environment
+* The reader is the library environment / module environment
 * The state is the unique variable counter
 * The output is not used so we instantiate it to a dummy unit type
 
@@ -245,23 +254,25 @@ threaded explicitly. That is encoded in the `Env` map.
 --}
 
 
-type S = RWS LibEnv () Integer
+type S = RWS (LibEnv, ModEnv) () Integer
 
 type LibEnv = Map.Map VarName LibName
+type ModEnv = Map.Map VarName ModName
 type Env    = Map.Map VarName VarName
-
 
 mapFromImports :: Imports -> LibEnv
 mapFromImports (Imports imports) =
   foldl insLib Map.empty imports
      where
-       insLib map (lib, Just defs) =
-             foldl (\map def -> Map.insert def lib map) map defs
+       insLib map (lib, Just defs) = foldl (\map def -> Map.insert def lib map) map defs
        insLib map (lib, Nothing) = error "malformed lib import data structure"
            -- TODO: 2018-07-02; better error message for the above case
            -- or even better: a data structure that avoids needing to make a check like that
            -- (we should be in theory able to do that)
 
+makeModEnv :: Core.Modules -> ModEnv
+makeModEnv (Core.Modules modules) =
+  foldl (\ s (m@(ModName m'), _) -> Map.insert m' m s) Map.empty modules
 
 -- | Sanitize variable names to be JavaScript-compatible identifiers
 sanitizeForJS :: VarName -> VarName
@@ -284,12 +295,17 @@ lookforalpha v m = Map.findWithDefault v v m
 lookforgen :: VarName -> Env -> S VarAccess
 lookforgen v m =
     case Map.lookup v m of
-       Just v -> return $ RegVar v
+       -- Previously defined variable
+       Just v' -> return $ RegVar v'
        Nothing -> do
-          libmap <- ask
-          case Map.lookup v libmap of
-            Just lib' -> return $ LibVar lib' v
-            Nothing -> return  $ BaseName v
+          (libDefs, mods) <- ask
+          case (Map.lookup v mods, Map.lookup v libDefs) of
+            -- Module name
+            (Just v', _)   -> return $ ModVar v'
+            -- Definition by a library
+            (_, Just lib') -> return $ LibVar lib' v
+            -- Otherwise, treat it as a new variable
+            _              -> return $ BaseName v
 
 
 extend :: VarName -> VarName -> Env -> Env
@@ -413,7 +429,7 @@ instance ShowIndent Prog where
 
 
 ppProg :: Prog -> PP.Doc
-ppProg (Prog (Imports imports) (Atoms atoms) term) =
+ppProg (Prog (Imports imports) (Core.Modules modules) (Atoms atoms) term) =
   let ppAtoms =
         if null atoms
           then PP.empty
@@ -421,7 +437,8 @@ ppProg (Prog (Imports imports) (Atoms atoms) term) =
                (hsep $ PP.punctuate (text " |") (map text atoms))
 
       ppImports = if null imports then PP.empty else text "<<imports>>\n"
-  in ppImports $$ ppAtoms $$ ppTerm 0 term
+      ppModules = if null modules then PP.empty else text "<<modules>>\n"
+  in ppImports $$ ppModules $$ ppAtoms $$ ppTerm 0 term
 
 
 ppTerm :: Precedence -> Term -> PP.Doc
@@ -465,6 +482,7 @@ ppTerm' (ListCons hd tl) =
 
 ppTerm' (Var (RegVar x)) = text x
 ppTerm' (Var (LibVar (LibName lib) var)) = text lib <+> text "." <+> text var
+ppTerm' (Var (ModVar (ModName mod))) = text mod
 ppTerm' (Var (BaseName v)) = text v
 ppTerm' (Abs lam) =
   let (ppArgs, ppBody) = qqLambda lam

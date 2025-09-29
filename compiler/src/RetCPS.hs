@@ -69,6 +69,7 @@ data SimpleTerm
    | ListCons VarName VarName
    | Base Basics.VarName
    | Lib Basics.LibName Basics.VarName
+   | Module Basics.ModName
      deriving (Eq, Show, Ord)
 
 data KTerm
@@ -86,7 +87,7 @@ data KTerm
 
       deriving (Eq, Ord)
 
-data Prog = Prog C.Atoms KTerm
+data Prog = Prog C.Modules C.Atoms KTerm
   deriving (Eq, Show)
 
 --------------------------------------------------
@@ -103,13 +104,19 @@ instance ShowIndent Prog where
 --
 
 ppProg :: Prog -> PP.Doc
-ppProg (Prog (C.Atoms atoms) kterm) =
+ppProg (Prog (C.Modules modules) (C.Atoms atoms) kterm) =
   let ppAtoms =
         if null atoms
-          then PP.empty
-          else (text "datatype Atoms = ") <+>
-               (hsep $ PP.punctuate (text " |") (map text atoms))
-  in ppAtoms $$ ppKTerm 0 kterm
+        then PP.empty
+        else (text "datatype Atoms = ") <+>
+             (hsep $ PP.punctuate (text " |") (map text atoms))
+
+      ppModules =
+        if null modules
+        then PP.empty
+        else PP.hang (text "modules:") 3 (vcat $ map (\(Basics.ModName m, _) -> text m) modules)
+
+  in ppAtoms $$ ppModules $$ ppKTerm 0 kterm
 
 ppKTerm :: Precedence -> KTerm -> PP.Doc
 
@@ -149,6 +156,7 @@ ppSimpleTerm (ListCons v1 v2) =
   PP.parens $ textv v1 PP.<> text "::" PP.<> textv v2
 ppSimpleTerm (Base b) = text b PP.<> text "$base"
 ppSimpleTerm (Lib (Basics.LibName lib) v) = text lib <+> text "." <+> text v
+ppSimpleTerm (RetCPS.Module (Basics.ModName mod)) = text mod
 ppSimpleTerm (Record fields) = PP.braces $ qqFields fields 
 ppSimpleTerm (WithRecord x fields) = 
     PP.braces $ PP.hsep [textv x, text "with", qqFields fields]

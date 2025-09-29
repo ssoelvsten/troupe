@@ -93,6 +93,7 @@ tokens:-
 <0>   case                           { mkL TokenCase }
 <0>   of                             { mkL TokenOf }
 <0>   import                         { mkL TokenImport }
+<0>   require                        { mkL TokenRequire }
 <0>   andalso                        { mkL TokenAndAlso }
 <0>   orelse                         { mkL TokenOrElse }
 <0>   raisedTo                       { mkL TokenRaisedTo }
@@ -202,6 +203,7 @@ data Token
   | TokenCase
   | TokenOf
   | TokenImport
+  | TokenRequire
   | TokenReceive
   | TokenPini
   | TokenWhen

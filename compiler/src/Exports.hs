@@ -7,6 +7,7 @@ module Exports where
 -- the exports are handled in many places throughout the compilation
 -- pipeline.
 
+-- TODO: When '--lib' is removed, remove this
 
 import Basics
 import Direct
@@ -22,7 +23,7 @@ errorMessage = "parse error: libraries need to use restricted syntax for their m
 
 
 extractExports :: Prog -> Except String [String]
-extractExports (Prog imports atoms term) = do
+extractExports (Prog _ _ _ term) =
   case extractMain term of
     List exports -> reify exports
     _ -> throwError errorMessage

@@ -47,6 +47,7 @@ instance Substitutable IRExpr where
             Const x -> Const x
             Base name -> Base name 
             Lib name name' -> Lib name name'
+            Module name -> Module name
         where _ff fields = map (\(f,x) -> (f, apply subst x)) fields
 
 instance Substitutable IRInst where 
@@ -191,6 +192,9 @@ canFailOrHasEffects expr = case expr of
     -- Function calls can have side effects
     Base _ -> True
     Lib _ _ -> True
+
+    -- Modules access can fail to obtain its source code (?)
+    Module _ -> True
     
     -- These are generally safe
     Tuple _ -> False
@@ -375,6 +379,9 @@ irExprPeval e =
         (Lib _ _) -> do 
             r_ (Unknown, e)
 
+        (Module _) -> do
+            r_ (Unknown, e)
+
         (Un Basics.TupleLength x) -> do 
             v <- varPEval x 
             case v of 
@@ -524,11 +531,13 @@ instance PEval IRBBTree where
 
 
 funopt :: FunDef -> FunDef
-funopt (FunDef hfn argname consts bb) = 
+funopt (FunDef hfn argname modules consts bb) = 
     let initEnv = (Map.singleton argname Unknown, False)
         (bb', (_, hasChanges), _) = runRWS (peval bb) () initEnv
+        -- TODO: Prune list of modules based on which are accessed
+        --       (_, _, mms, _) = execWriter (IR.dependencies bb')
 
-        new = FunDef hfn argname consts bb'
+        new = FunDef hfn argname modules consts bb'
     in if (bb /= bb')  then funopt new 
                        else new 
 

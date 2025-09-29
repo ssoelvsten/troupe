@@ -5,6 +5,8 @@ import System.Environment
 import System.Exit
 import Data.String.Utils 
 
+-- TODO: When '--lib' is removed, remove this
+
 defaultLibFolder="/lib/out/" 
 defaultBin="/bin/troupec"
 
@@ -40,9 +42,9 @@ processImports' (Imports imports)=
 
 
 processImports :: Prog -> IO Prog
-processImports (Prog imports atoms term) = do
+processImports (Prog imports modules atoms term) = do
   imports' <- processImports' imports
-  return $ Prog imports' atoms term
+  return $ Prog imports' modules atoms term
 
 
 -- TODO: 2018-07-02: AA: proper error handling in case we have errors

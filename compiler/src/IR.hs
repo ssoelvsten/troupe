@@ -68,6 +68,8 @@ data IRExpr
   -- | Returns the definition (variable) with the given name
   -- from the given library.
   | Lib Basics.LibName Basics.VarName
+  -- | Access to the value exported by a (required) module.
+  | Module Basics.ModName
   deriving (Eq, Show, Generic)
 
 -- | A block of instructions followed by a terminator, which can contain further 'IRBBTree's.
@@ -104,14 +106,16 @@ data IRInst
  deriving (Eq, Show, Generic)
 
 
-
+-- | A module together with its associated hash.
+type Modules = [(Basics.ModName, Basics.ModHash)]
 -- | A literal together with the variable name the constant is accessed through.
 type Consts = [(VarName, C.Lit)]
 -- Function definition
 data FunDef = FunDef 
                     HFN         -- name of the function
                     VarName     -- name of the argument
-                    Consts      -- constants used in the function  
+                    Modules     -- modules used in the function
+                    Consts      -- constants used in the function
                     IRBBTree    -- body
                 deriving (Eq,Generic)
 
@@ -126,15 +130,17 @@ data IRProgram = IRProgram C.Atoms [FunDef] deriving (Generic)
 -- For dependencies, we only need the function dependencies
 
 class ComputesDependencies a where
-  dependencies :: a -> Writer ([HFN], [Basics.LibName], [Basics.AtomName])  ()
+  dependencies :: a -> Writer ([HFN], [Basics.LibName], [Basics.ModName], [Basics.AtomName])  ()
 
 instance ComputesDependencies IRInst where 
    dependencies (MkFunClosures _ fdefs) = 
-        mapM_ (\(_, hfn) -> tell ([hfn],[],[])) fdefs
+        mapM_ (\(_, hfn) -> tell ([hfn], [], [], [])) fdefs
    dependencies (Assign _ (Lib libname _)) = 
-        tell ([], [libname],[])
+        tell ([], [libname], [], [])
+   dependencies (Assign _ (Module modName)) =
+        tell ([], [], [modName], [])
    dependencies (Assign _ (Const (C.LAtom a))) = 
-        tell ([], [], [a])
+        tell ([], [], [], [a])
                                        
    dependencies _ = return ()
 
@@ -150,17 +156,17 @@ instance ComputesDependencies IRTerminator where
 
     dependencies _              = return ()
 instance ComputesDependencies FunDef where
-  dependencies (FunDef _ _ _ bb) = dependencies bb
+  dependencies (FunDef _ _ _ _ bb) = dependencies bb
 
 
-ppDepsAsJSON :: ComputesDependencies a => a -> (PP.Doc , PP.Doc, PP.Doc)
-ppDepsAsJSON a = let (ffs_0,lls_0, atoms_0) = execWriter  (dependencies a)
-                     (ffs, lls, aas) = (nub ffs_0, nub lls_0, nub atoms_0)
+ppDepsAsJSON :: ComputesDependencies a => a -> (PP.Doc, PP.Doc, PP.Doc, PP.Doc)
+ppDepsAsJSON a = let (ffs_0, lls_0, mms_0, atoms_0) = execWriter  (dependencies a)
+                     (ffs, lls, mms, aas) = (nub ffs_0, nub lls_0, nub mms_0, nub atoms_0)
 
                      format dd =
                        let tt = map (PP.doubleQuotes . ppId) dd
                        in (PP.brackets.PP.hsep) (PP.punctuate PP.comma tt)
-                 in ( format ffs, format lls , format aas )
+                 in ( format ffs, format lls, format mms, format aas )
 
 ppDeps a = ppDepsAsJSON a
 
@@ -196,6 +202,9 @@ serializeFunDef fdef = Serialize.runPut ( Serialize.put (FunSerialization fdef) 
 serializeAtoms :: C.Atoms -> BS.ByteString
 serializeAtoms atoms = Serialize.runPut (Serialize.put (AtomsSerialization atoms))
 
+serializeProgram :: IRProgram -> BS.ByteString
+serializeProgram prog = Serialize.runPut ( Serialize.put (ProgramSerialization prog) )
+
 deserializeAtoms :: BS.ByteString -> Either String C.Atoms
 deserializeAtoms bs = Serialize.runGet (Serialize.get) bs
 
@@ -209,6 +218,10 @@ deserialize bs =
         Left s -> Left  "ir not well-formed"
       -- if wfFun fdecl then (Right x)
       -- else Left "ir not well-formed"
+    Right x@(ProgramSerialization prog) ->
+      case runExcept (wfIRProg prog) of
+        Right  _ -> Right x
+        Left s -> Left  "ir not well-formed"
     Right x -> Right x
 
 -----------------------------------------------------------
@@ -359,7 +372,7 @@ wfIRProg :: IRProgram -> Except String ()
 wfIRProg (IRProgram _ funs) = mapM_ wfFun funs
 
 wfFun :: FunDef -> Except String () 
-wfFun (FunDef (HFN fn) (VN arg) consts bb) = 
+wfFun (FunDef (HFN fn) (VN arg) modules consts bb) = 
     let initVars =[ fn,arg] ++ [i  | VN i <-  fst (unzip consts)]
         act = do 
             mapM checkId initVars 
@@ -388,12 +401,18 @@ ppProg (IRProgram atoms funs) =
 instance Show IRProgram where
   show = PP.render.ppProg
 
+ppModules modules =
+  vcat $ map ppModule modules
+    where ppModule (Basics.ModName m, Basics.ModHash h) =
+            text "requires: " <+> hsep [text m, text "@", text h]
+
 ppConsts consts = 
   vcat $ map ppConst consts 
     where ppConst (x, lit) = hsep [ ppId x , text "=", ppLit lit ]
 
-ppFunDef (FunDef hfn  arg consts insts)
+ppFunDef (FunDef hfn  arg modules consts insts)
   = vcat [ text "func" <+> ppFunCall (ppId hfn) [ppId arg] <+> text "{"
+         , nest 2 (ppModules modules)
          , nest 2 (ppConsts consts)
          , nest 2 (ppBB insts)
          , text "}"]
@@ -417,6 +436,7 @@ ppIRExpr (Base v) = if v == "$$authorityarg" -- special casing; hack; 2018-10-18
                       then text v 
                       else text v <> text "$base"
 ppIRExpr (Lib (Basics.LibName l) v) = text l <> text "." <> text v
+ppIRExpr (Module (Basics.ModName m)) = text m
 ppIRExpr (Record fields) = PP.braces $ qqFields fields
 ppIRExpr (WithRecord x fields) = PP.braces $ PP.hsep[ ppId x, text "with", qqFields fields]
 ppIRExpr (ProjField x f) = 
@@ -465,7 +485,7 @@ ppTr (If va ir1 ir2)
     text "}"
 ppTr (TailCall va1 va2) = ppFunCall (text "tail") [ppId va1, ppId va2]
 ppTr (Ret va)  = ppFunCall (text "ret") [ppId va]
-ppTr (LibExport va) = ppFunCall (text "export") [ppId va]
+ppTr (LibExport va)  = ppFunCall (text "export") [ppId va]
 ppTr (Error va _)  = (text "error") <> (ppId va)
 
 
@@ -499,6 +519,9 @@ instance Identifier HFN where
 
 instance Identifier Basics.LibName where 
   ppId (Basics.LibName s) = text s
+
+instance Identifier Basics.ModName where
+  ppId (Basics.ModName s) = text s
 
 instance Identifier Basics.AtomName where 
   ppId = text

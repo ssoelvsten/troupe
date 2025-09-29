@@ -4,6 +4,8 @@ module Main (main) where
 
 import qualified AtomFolding as AF
 import Parser
+import qualified Direct
+import qualified Basics as Basics
 import qualified Core as Core
 import RetDFCPS
 import qualified CaseElimination as C
@@ -21,7 +23,7 @@ import qualified Stack2JS
 import qualified RawOpt
 -- import System.IO (isEOF)
 import qualified Data.ByteString.Char8 as BS
-import Data.ByteString.Base64 (decode)
+import Data.ByteString.Base64 (decode, encode)
 import qualified Data.ByteString.Lazy.Char8 as BSLazyChar8
 import System.IO
 import System.Exit
@@ -31,11 +33,15 @@ import ShowIndent
 import Exports
 import CompileMode
 import Control.Monad.Except
-import Control.Monad (when)
+import Control.Monad (when, filterM)
 import System.Console.GetOpt
+import qualified Data.Text as Text
+import qualified Data.Text.Encoding as TextEncoding
 import Data.List as List
 import Data.Maybe (fromJust)
+import System.Directory
 import System.FilePath
+import qualified Crypto.Hash.SHA256 as SHA256
 
 --------------------------------------------------------------------------------
 ----- COMPILER FLAGS -----------------------------------------------------------
@@ -44,6 +50,8 @@ data Flag
   = TextIRMode
   | JSONIRMode
   | LibMode
+  | Include String
+  | Module
   | NoRawOpt
   | OutputFile String
   | Verbose
@@ -59,6 +67,8 @@ options =
   , Option ['v'] ["verbose"]   (NoArg Verbose)            "verbose output"
   , Option ['d'] ["debug"]     (NoArg Debug)              "debugging information in the .js file"
   , Option ['l'] ["lib"]       (NoArg LibMode)            "compiling a library"
+  , Option []    ["add-module-search-dir"] (ReqArg Main.Include "DIR") "directory for required modules"
+  , Option []    ["module"]    (NoArg  Main.Module)       "compile as a module"
   , Option ['h'] ["help"]      (NoArg Help)               "print usage"
   , Option ['o'] ["output"]    (ReqArg OutputFile "FILE") "output FILE"
   ]
@@ -68,9 +78,11 @@ options =
 
 process :: [Flag] -> Maybe String -> String -> IO ExitCode
 process flags fname input = do
-  let ast    = parseProg input
+  let ast = parseProg input
 
-  let compileMode = if LibMode `elem` flags then Library else Normal
+  let compileMode = if Main.LibMode `elem` flags then CompileMode.Library else
+                    if Main.Module  `elem` flags then CompileMode.Module
+                    else CompileMode.Normal
 
   let verbose = Verbose `elem` flags
       noRawOpt = NoRawOpt `elem` flags
@@ -88,10 +100,14 @@ process flags fname input = do
 
       ------------------------------------------------------
       -- TROUPE (FRONTEND) ---------------------------------
-      let prog_without_dependencies = case compileMode of Normal -> addAmbientMethods prog_parsed
-                                                          _      -> prog_parsed
+      let prog_without_dependencies =
+            case compileMode of CompileMode.Normal -> addAmbientMethods prog_parsed
+                                _                  -> prog_parsed
 
-      prog <- (processImports) prog_without_dependencies
+      prog_with_libs          <- processImports prog_without_dependencies
+      prog_with_libs_and_mods <- (processModules $ includeDirs flags) prog_with_libs
+
+      let prog = prog_with_libs_and_mods
 
       exports <- case compileMode of Library -> case runExcept (extractExports prog) of
                                                      Right es -> return (Just (es))
@@ -135,6 +151,12 @@ process flags fname input = do
       let iropt = IROpt.iropt ir 
       when verbose $ writeFileD "out/out.iropt" (show iropt)
 
+      let iroptSerialized = CCIR.serializeProgram iropt
+      let iroptHash       = SHA256.hash (iroptSerialized)
+
+      case compileMode of CompileMode.Module -> writeModule outPath iroptSerialized iroptHash
+                          _                  -> return ()
+
       ------ RAW -------------------------------------------
       let raw = IR2Raw.prog2raw iropt
       when verbose $ printSep  "GENERATING RAW"
@@ -158,6 +180,7 @@ process flags fname input = do
       ----- JAVASCRIPT -------------------------------------
       let stackjs = Stack2JS.stack2JSString compileMode
                                             debugJS
+                                            (iroptSerialized, iroptHash)
                                             (Stack.ProgramStackUnit stack)
       writeFile outPath stackjs
 
@@ -170,20 +193,62 @@ process flags fname input = do
       exitSuccess
 
 -- TODO: 'where' for all helper functions below?
+
+-- Obtain the name of the output file
 outFile :: [Flag] -> String -> String
 outFile flags fname = case List.find isOutFlag flags of
                           Just (OutputFile s) -> s
-                          _ -> if LibMode `elem` flags
-                               then defaultName fname ++ ".js"
-                               else "out/out.stack.js"
+                          _ -> if Main.LibMode `elem` flags || Main.Module `elem` flags
+                               then defaultName fname <.> "js"
+                               else "out" </> "out" <.> "stack" <.> "js"
   where isOutFlag (OutputFile _) = True
         isOutFlag _              = False
 
-        defaultName f = concat [ takeDirectory f
-                               ,  "/out/"
-                               , if takeExtension f == ".trp" then takeBaseName f else takeFileName f
-                               ]
+        defaultName f = (takeDirectory f)
+          </> "out"
+          </> (if takeExtension f == ".trp" then takeBaseName else takeFileName) f
 
+-- Obtain the list of directories to look up required modules.
+-- TODO: Remove LibMode => Add 'lib/' folder (as in `src/ProcessImports`)
+includeDirs :: [Flag] -> [String]
+includeDirs flags = List.foldl mapDir [] flags
+  where mapDir y (Include x) = x:y
+        mapDir y _           = y
+
+-- Given the include directories and the program, we attempt to find the corresponding '.ir'/'.hash'
+-- file for each module that was 'required'. If succesful, the program is updated to include these
+-- hashes.
+processModules :: [String] -> Direct.Prog -> IO Direct.Prog
+processModules paths (Direct.Prog imports (Basics.Modules m) atoms term) = do
+  let paths' = paths >>= (\p -> [p, p </> "out"])
+  modules' <- Basics.Modules <$> mapM (processModule paths') m
+  return $ Direct.Prog imports modules' atoms term
+  where processModule paths' (Basics.ModName n, _) = do
+          matches <- filterM doesFileExist $ List.map (\p -> p </> n <.> "hash") paths'
+
+          match <- case matches of
+                     x:_ -> return x
+                     []  -> die $ "Could not find module: '" ++ n ++ "'"
+
+          matchContent  <- readFile match
+          let matchContent' = lines matchContent
+
+          hash <- case matchContent' of
+                    x:_ -> return x
+                    [] -> die $ "File '" ++ match ++ "' is empty"
+
+          return $ ((Basics.ModName n), (Just $ Basics.ModHash $ hash))
+
+-- Output to disk the intermediate representation and its hash of a Troupe program
+writeModule path prog hash =
+  let path'    = if takeExtension path == ".js" then dropExtension path else path
+  in do
+    writeFileD (path' ++ ".ir") (pickle prog)
+    writeFileD (path' ++ ".hash") (pickle hash)
+  where pickle = Text.unpack . TextEncoding.decodeUtf8 . encode
+
+-- Output to disk the list of exported values/functions of a Troupe library
+-- TODO: Remove LibMode => Remove
 writeExports path exports =
   let path' = if takeExtension path == ".js" then dropExtension path else path
   in writeFileD (path' ++ ".exports") (intercalate "\n" exports)
@@ -217,7 +282,7 @@ fromStdinIR putStrLn format = do
       case decode input of
         Right bs ->
            case CCIR.deserialize bs
-              of Right x -> do (putStrLn . format . ir2Stack) x
+              of Right x -> do (putStrLn . (format (bs, SHA256.hash bs)) . ir2Stack) x
                  Left s -> do putStrLn "ERROR in deserialization"
                               debugOut $ "deserialization error" ++ s
         Left s -> do putStrLn "ERROR in B64 decoding"

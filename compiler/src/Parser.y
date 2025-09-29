@@ -39,7 +39,8 @@ import Control.Monad.Except
     else  { L _ TokenElse }
     case  { L _ TokenCase }
     of    { L _ TokenOf }
-    import { L _ TokenImport }
+    import   { L _ TokenImport }
+    require  { L _ TokenRequire }
     datatype { L _ TokenDatatype }
     Atoms { L _ TokenAtoms }
     fn    { L _ TokenFn }
@@ -134,17 +135,19 @@ import Control.Monad.Except
 
 
 
-Prog : ImportDecl AtomsDecl Expr                       { Prog (Imports $1) (Atoms $2) $3 }
+Prog : ImportDecl RequireDecl AtomsDecl Expr { Prog (Imports $1) (Modules $2) (Atoms $3) $4 }
 
-ImportDecl: import  VAR ImportDecl { ((LibName (varTok $2), Nothing)): $3  }
-          | { [] }
+ImportDecl: import VAR ImportDecl { ((LibName (varTok $2), Nothing)): $3  }
+          | {[]}
 
+RequireDecl: require VAR RequireDecl { ((ModName (varTok $2), Nothing)): $3  }
+          | {[]}
 
-AtomsDecl : datatype Atoms '=' VAR AtomsList    { (varTok $4):$5 }
+AtomsDecl : datatype Atoms '=' VAR AtomsList { (varTok $4):$5 }
           |  {[]}
 
-AtomsList : { [] }
-          | '|' VAR AtomsList  { (varTok $2): $3 }
+AtomsList : {[]}
+          | '|' VAR AtomsList { (varTok $2): $3 }
 
 
 Expr: Form                        { $1 }

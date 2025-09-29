@@ -32,8 +32,8 @@ transFunDecl (Core.FunDecl fname (Core.Nullary e)) = do
   return $ CPS.Fun (VN fname) (CPS.Nullary e')
 
 transProg :: Core.Prog -> CPS.Prog
-transProg (Core.Prog imports atoms t) =
-  Prog atoms $ evalState (trans t (\z -> return $ Halt z)) 1
+transProg (Core.Prog _ modules atoms t) =
+  Prog modules atoms (evalState (trans t (\z -> return $ Halt z)) 1)
 
 
 transFields k fields context = 
@@ -66,6 +66,10 @@ transExplicit (Core.Var (Core.BaseName baseName)) = do
 transExplicit (Core.Var (Core.LibVar lib v)) = do
   x <- freshV
   return $ LetSimple x (Lib lib v) (KontReturn x)
+
+transExplicit (Core.Var (Core.ModVar mod)) = do
+  x <- freshV
+  return $ LetSimple x (CPS.Module mod) (KontReturn x)
 
 transExplicit (Core.Lit lit) = do
   x <- freshV
@@ -188,6 +192,10 @@ trans (Core.Var (Core.LibVar lib v)) context = do
   kterm' <- context x
   return $ LetSimple x (Lib lib v) kterm'
 
+trans (Core.Var (Core.ModVar mod)) context = do
+  x <- freshV
+  kterm' <- context x
+  return $ LetSimple x (CPS.Module mod) kterm'
 
 trans (Core.Lit i) context =
   do x <- freshV

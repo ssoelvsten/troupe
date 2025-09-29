@@ -111,9 +111,12 @@ data RawExpr
   -- | Cons operation with the new head (labelled value) and the list (simple value).
   | ListCons VarAccess RawVar
   | Const C.Lit
-  -- | Reference to a definition in a library
-  | Lib Basics.LibName Basics.VarName
+  -- | Base function in the runtime.
   | Base Basics.VarName
+  -- | Reference to a definition in a library.
+  | Lib Basics.LibName Basics.VarName
+  -- | Reference to a module.
+  | Module Basics.ModName
   -- | Make a labelled value out of the given 'RawVar's (value, value label, type label).
   | ConstructLVal RawVar RawVar RawVar
   deriving (Eq, Show)
@@ -187,12 +190,15 @@ ppRTAssertionCode f a = f (text $ "rt.rawAssert" ++ rtFun) args
 ppRTAssertion :: RTAssertion -> PP.Doc
 ppRTAssertion = ppRTAssertionCode ppFunCall
 
+-- Function definition
+type Modules = [(Basics.ModName, Basics.ModHash)]
+
 type Consts = [(RawVar, C.Lit )]
 
--- Function definition
 data FunDef = FunDef 
-                    HFN          -- name of the function          
-                    Consts   
+                    HFN          -- name of the function
+                    Modules      -- modules used in the function
+                    Consts       -- constants used in the function
                     RawBBTree    -- body
                     IR.FunDef    -- original definition for serialization
                 deriving (Eq)
@@ -268,9 +274,19 @@ ppProg (RawProgram atoms funs) =
 instance Show RawProgram where
   show = PP.render.ppProg
 
-ppFunDef ( FunDef hfn consts insts  _ )
+ppModules modules =
+  vcat $ map ppModule modules
+    where ppModule (Basics.ModName m, Basics.ModHash h) =
+            text "requires: " <+> hsep [text m, text "@", text h]
+
+ppConsts consts = 
+  vcat $ map ppConst consts 
+    where ppConst (x, lit) = hsep [ ppId x , text "=", ppLit lit ]
+
+ppFunDef ( FunDef hfn modules consts insts  _ )
   = vcat [ text "func" <+> ppFunCall (ppId hfn) [] <+> text "{"
-         , nest 2 (ppConsts consts )
+         , nest 2 (ppModules modules)
+         , nest 2 (ppConsts consts)
          , nest 2 (ppBB insts)
          , text "}"]
 
@@ -293,6 +309,7 @@ ppRawExpr (Const lit) = ppLit lit
 --                       then text v 
 --                       else text v <> text "$base"
 ppRawExpr (Lib (Basics.LibName l) v) = text l <> text "." <> text v
+ppRawExpr (Module (Basics.ModName m)) = text m
 ppRawExpr (Record fields) = PP.braces $ qqFields fields
 ppRawExpr (WithRecord x fields) = PP.braces $ PP.hsep[ ppId x, text "with", qqFields fields]
 ppRawExpr (ProjField x f) =
@@ -366,9 +383,5 @@ ppTr (Error va _)  = (text "error ") <> (ppId va)
 
 
 ppBB (BB insts tr) = vcat $ (map ppIR insts) ++ [ppTr tr]
-
-ppConsts consts = 
-  vcat $ map ppConst consts 
-    where ppConst (x, lit) = hsep [ ppId x , text "=", ppLit lit ]
 
 

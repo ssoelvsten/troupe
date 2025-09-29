@@ -492,6 +492,13 @@ expr2rawComp = \case
       , cTyLbl = PC
       }
 
+  IR.Module modName ->
+    return SimpleRawComp
+      { cVal = RExpr $ Module modName
+      , cValLbl = PC
+      , cTyLbl = PC
+      }
+
   -- Revision 2023-08: Raising of the blocking label with an argument's type label and
   -- an assertion on this argument are now coupled together for each argument (if possible).
   -- This results in higher granularity for the blocking label: when the first assertion fails,
@@ -755,8 +762,8 @@ tree2raw (IR.BB irInsts irTr) = do
 
 -- Revision 2023-08: new code, but equivalent
 fun2raw :: IR.FunDef -> FunDef
-fun2raw irfdef@(IR.FunDef hfn vname consts (IR.BB irInsts irTr)) =
-   FunDef hfn rawConsts (BB insts tr) irfdef
+fun2raw irfdef@(IR.FunDef hfn vname modules consts (IR.BB irInsts irTr)) =
+   FunDef hfn modules rawConsts (BB insts tr) irfdef
       where ((tr, rawConsts), insts) = evalRWS comp () 0
             comp = do
               -- Store the argument from R0 in the variable under which the argument is expected.

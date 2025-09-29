@@ -16,7 +16,9 @@ import           IR ( Identifier(..)
                     )
 import qualified IR (FunDef (..))
 import Raw (RawExpr (..), RawType(..), RawVar (..), MonComponent(..),
-            ppRawExpr, Assignable (..), Consts, ppConsts, RTAssertion(..), ppRTAssertion)
+            ppRawExpr, Assignable (..),
+            Modules, ppModules, Consts, ppConsts,
+            RTAssertion(..), ppRTAssertion)
 
 import qualified Core                      as C
 import qualified RetCPS                    as CPS
@@ -77,9 +79,10 @@ data StackInst
 data FunDef = FunDef 
                     HFN         -- name of the function     
                     Int         -- frame size     
-                    Raw.Consts      -- constant literars
-                    StackBBTree    -- body
-                    IR.FunDef    -- original definition for serialization
+                    Raw.Modules -- module literals
+                    Raw.Consts  -- constant literals
+                    StackBBTree -- body
+                    IR.FunDef   -- original definition for serialization
                 deriving (Eq)
 
 -- An IR program is just a collection of atoms declarations 
@@ -101,8 +104,9 @@ ppProg (StackProgram atoms funs) =
 instance Show StackProgram where
   show = PP.render.ppProg
 
-ppFunDef ( FunDef hfn _ consts insts _ )
+ppFunDef ( FunDef hfn _ modules consts insts _ )
   = vcat [ text "func" <+> ppFunCall (ppId hfn) [] <+> text "{"
+         , nest 2 (ppModules modules)
          , nest 2 (ppConsts consts)
          , nest 2 (ppBB insts)
          , text "}"]

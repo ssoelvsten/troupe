@@ -62,6 +62,7 @@ executables:
     - -W
     dependencies:
     - Troupe-compiler
+    - cryptohash-sha256
 
   dclabels: 
     main:      DCTest.hs 

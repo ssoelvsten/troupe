@@ -87,6 +87,7 @@ instance Substitutable SimpleTerm where
       ValSimpleTerm sv -> ValSimpleTerm (apply subst sv)
       Base v -> Base v
       Lib l v -> Lib l v 
+      Module m -> Module m
     where fwd x = Map.findWithDefault x x varmap
           fwdFields fields = map (\(f, x) -> (f, fwd x)) fields
 
@@ -154,6 +155,7 @@ instance CensusCollectible SimpleTerm where
       ListCons v vs -> updateCensus v >> updateCensus vs
       Base _ -> return () 
       Lib _ _ -> return ()
+      Module _ -> return ()
 
 instance CensusCollectible KLambda where   
   updateCensus kl = case kl of 
@@ -418,6 +420,7 @@ failFree st = case st of
   ListCons _ _ -> False   -- List cons can fail if second arg is not a list
   Base _ -> False         -- Base function calls can have side effects or fail
   Lib _ _ -> False        -- Library function calls can have side effects or fail 
+  Module _ -> True        -- Modules are initialised immediately; it is safe to access it at this point.
 
 instance Simplifiable KTerm where 
   simpl k = do 
@@ -545,5 +548,5 @@ iter kt =
                            iter kt' 
 
 rewrite :: Prog -> Prog
-rewrite (Prog atoms kterm) = 
- Prog atoms (iter kterm)
+rewrite (Prog modules atoms kterm) = 
+ Prog modules atoms (iter kterm)

@@ -109,19 +109,17 @@ transVars = mapM transVar
 
 isDeclaredEarlierThan lev (_, l)  = l < lev
 
-transFunDec f@(VN fname) (CPS.Unary var kt) = do   
+transFunDec modules f@(VN fname) (CPS.Unary var kt) = do   
   lev <- askLev
   let filt = isDeclaredEarlierThan lev
   (bb, (_, frees, consts_wo_levs)) <- 
       censor (\(a,b,c ) -> (a, filter filt b, filter (\(_, l) -> l == lev ) c))
-     $ listen 
-        $ local ((insVar var) . (incLev f))
-           $ cpsToIR kt
+     $ listen $ local ((insVar var) . (incLev f)) $ cpsToIR modules kt
   let consts = (fst.unzip) consts_wo_levs
-  tell ([FunDef (HFN fname) var consts bb], [], [])
+  tell ([FunDef (HFN fname) var modules consts bb], [], [])
   return (nub frees)
 
-transFunDec (VN _) (CPS.Nullary _) = error "not implemented"
+transFunDec _ (VN _) (CPS.Nullary _) = error "not implemented"
 
 -- state accessors
 
@@ -148,13 +146,14 @@ transFields fields = do
           lst' <- transVars vv 
           return $ zip ff lst'
 
-cpsToIR :: CPS.KTerm -> CC CCIR.IRBBTree
-cpsToIR (CPS.LetSimple vname@(VN ident) st kt) = do 
+cpsToIR :: Modules -> CPS.KTerm -> CC CCIR.IRBBTree
+cpsToIR modules (CPS.LetSimple vname@(VN ident) st kt) = do 
     i <-
       let _assign arg = return $ Just $ CCIR.Assign vname arg in
       case st of 
         CPS.Base base -> _assign  $ Base base
         CPS.Lib lib base -> _assign (Lib lib base)
+        CPS.Module mod -> _assign (CCIR.Module mod)
         CPS.Bin binop v1 v2 -> do
           v1' <- transVar v1 
           v2' <- transVar v2
@@ -189,26 +188,26 @@ cpsToIR (CPS.LetSimple vname@(VN ident) st kt) = do
                                               tell ([],[],[((vname, lit), lev)])
                                               return Nothing 
         CPS.ValSimpleTerm (CPS.KAbs klam) -> do 
-          freeVars <- transFunDec vname klam          
+          freeVars <- transFunDec modules vname klam          
           envBindings <- mkEnvBindings freeVars
           return $ Just $ CCIR.MkFunClosures envBindings [(vname, HFN ident)]          
         
-    t <- local (insVar vname) (cpsToIR kt)   
+    t <- local (insVar vname) (cpsToIR modules kt)   
     return $ case i of 
       Just i' -> i' `consBB` t
       Nothing -> t 
 
-cpsToIR (CPS.LetRet (CPS.Cont arg kt') kt) = do
-    t  <- cpsToIR kt
-    t' <- local (insVar arg) (cpsToIR kt')
+cpsToIR modules (CPS.LetRet (CPS.Cont arg kt') kt) = do
+    t  <- cpsToIR modules kt
+    t' <- local (insVar arg) (cpsToIR modules kt')
     return $ CCIR.BB [] $ StackExpand arg t t'
-cpsToIR (CPS.LetFun fdefs kt) = do 
+cpsToIR  modules (CPS.LetFun fdefs kt) = do 
     let vnames_orig = map (\(CPS.Fun fname _) -> fname) fdefs
     let localExt = local (insVars vnames_orig)
-    t <- localExt (cpsToIR kt) -- translate the body
+    t <- localExt (cpsToIR modules kt) -- translate the body
 
     frees <- mapM (\(CPS.Fun fname klam) -> 
-                        localExt (transFunDec fname klam)) 
+                        localExt (transFunDec modules fname klam)) 
                 fdefs
 
     let freeVars = (nub.concat) frees 
@@ -219,7 +218,7 @@ cpsToIR (CPS.LetFun fdefs kt) = do
     return $ (CCIR.MkFunClosures envBindings fnBindings) `consBB` t
 
 -- Special Halt continuation, for exiting program
-cpsToIR (CPS.Halt v) = do 
+cpsToIR _ (CPS.Halt v) = do 
     v' <- transVar v
     (compileMode,_ , _ , _, _ ) <- ask 
     let constructor =
@@ -231,28 +230,28 @@ cpsToIR (CPS.Halt v) = do
 
     return $ CCIR.BB [] $ constructor v'
 
-cpsToIR (CPS.KontReturn v) = do 
+cpsToIR _ (CPS.KontReturn v) = do 
   v' <- transVar v 
   return $ CCIR.BB [] $ CCIR.Ret v'
 
-cpsToIR (CPS.ApplyFun fname v) = do 
+cpsToIR _ (CPS.ApplyFun fname v) = do 
   fname' <- transVar fname 
   v'     <- transVar v 
   return $ CCIR.BB [] $ CCIR.TailCall fname' v'
 
-cpsToIR (CPS.If v kt1 kt2) = do 
+cpsToIR modules (CPS.If v kt1 kt2) = do 
   v' <- transVar v 
-  bb1 <- cpsToIR kt1 
-  bb2 <- cpsToIR kt2 
+  bb1 <- cpsToIR modules kt1 
+  bb2 <- cpsToIR modules kt2 
   return $ CCIR.BB [] $ CCIR.If v' bb1 bb2
 
-cpsToIR (CPS.AssertElseError v kt1 z p) = do 
+cpsToIR modules (CPS.AssertElseError v kt1 z p) = do 
   v' <- transVar v 
   z' <- transVar z 
-  bb <- cpsToIR kt1 
+  bb <- cpsToIR modules kt1 
   return $ CCIR.BB [] $ CCIR.AssertElseError v' bb z' p
 
-cpsToIR (CPS.Error v p) = do 
+cpsToIR _ (CPS.Error v p) = do 
   v' <- transVar v 
   return $ CCIR.BB [] $ CCIR.Error v' p
   
@@ -264,7 +263,7 @@ cpsToIR (CPS.Error v p) = do
 ------------------------------------------------------------
 
 closureConvert :: CompileMode -> CPS.Prog -> Except String CCIR.IRProgram
-closureConvert compileMode (CPS.Prog (C.Atoms atms) t) =
+closureConvert compileMode (CPS.Prog (C.Modules modules) (C.Atoms atms) t) =
   let atms' = C.Atoms atms
       initEnv = ( compileMode
                 , atms'
@@ -273,7 +272,7 @@ closureConvert compileMode (CPS.Prog (C.Atoms atms) t) =
                 , Nothing -- top level code has no function name 
                 )
       initState = 0
-      (bb, (fdefs, _, consts_wo_levs)) = evalRWS (cpsToIR t) initEnv initState
+      (bb, (fdefs, _, consts_wo_levs)) = evalRWS (cpsToIR modules t) initEnv initState
       (argumentName, toplevel) =
          case compileMode of
            -- Top level function of a library is named 'export'
@@ -281,10 +280,9 @@ closureConvert compileMode (CPS.Prog (C.Atoms atms) t) =
            -- Passing authority through the argument to main
            _                       -> ("$$authorityarg", "main")
 
-
       -- obs that our 'main' may have two names depending on the compilation mode; 2018-07-02; AA
       consts = (fst.unzip) consts_wo_levs
-      main = FunDef (HFN toplevel) (VN argumentName) consts bb
+      main = FunDef (HFN toplevel) (VN argumentName) modules consts bb
 
       irProg = CCIR.IRProgram (C.Atoms atms) $ fdefs++[main]
     in do CCIR.wfIRProg irProg 

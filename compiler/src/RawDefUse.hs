@@ -206,6 +206,7 @@ instance Usable RawExpr b where
         Raw.ListCons x y -> use x >> use y
         Raw.Const _ -> return ()
         Raw.Lib _ _ -> return ()
+        Raw.Module _ -> return ()
         Raw.Base _ -> return ()    
         Raw.ConstructLVal x y z -> do use x 
                                       use [y,z]
@@ -317,8 +318,8 @@ class Trav a where
 
 
 defUse :: FunDef -> DefUse 
-defUse (FunDef _ consts bb _) = 
-  let constVars = ( fst . unzip )consts 
+defUse (FunDef _ modules consts bb _) = 
+  let constVars = (fst . unzip) consts
       insertConsts = mapM define constVars 
       (defUse, _) = execRWS 
         (modify (__insertDefPure Env) >> insertConsts >> trav bb)

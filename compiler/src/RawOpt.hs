@@ -155,8 +155,9 @@ instance MarkUsed RawExpr where
     ProjIdx x _ -> markUsed x
     List xs -> markUsed xs
     ListCons x y -> markUsed x >> markUsed y 
-    Const _ -> return ()
-    Lib _ _ -> return ()
+    Const _  -> return ()
+    Lib _ _  -> return ()
+    Module _ -> return ()
     Base _ -> return ()    
     ConstructLVal x y z -> markUsed [x,y,z]
 
@@ -259,6 +260,7 @@ guessType = \case
   ProjectState R0_TLev -> Just RawLevel
   ProjectState R0_Val -> Nothing
   Lib _ _ -> Nothing
+  Module _ -> Nothing
   Base _ -> Nothing
   ConstructLVal _ _ _ -> Nothing
 
@@ -545,7 +547,7 @@ instance PEval RawBBTree where
 
 
 funopt :: FunDef -> FunDef 
-funopt (FunDef hfn consts bb ir) =  
+funopt (FunDef hfn modules consts bb ir) =  
   
   let 
       (m_consts, m_subst) = foldl (\(m1, m2) (x,lit) -> 
@@ -581,7 +583,7 @@ funopt (FunDef hfn consts bb ir) =
       readenv = ReadEnv { readConsts = Map.fromList consts  }
       (bb', _, (_, used_rvars)) = runRWS (peval bb) readenv pstate
       const_used = filter (\(x,_) -> Set.member x used_rvars) consts'
-      new = FunDef hfn const_used bb' ir  
+      new = FunDef hfn modules const_used bb' ir  
   in if bb /= bb' then funopt new else new
 
 

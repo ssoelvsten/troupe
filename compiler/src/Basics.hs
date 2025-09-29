@@ -114,8 +114,23 @@ instance Serialize LibName
 data Imports = Imports [(LibName, Maybe [VarName])]
   deriving (Eq, Show, Ord)
 
+-- 2025-09-29; SS: a module exports a single value. In most cases, this value is
+-- a record of functions. Until the introduction of gradual types, this makes it
+-- impossible to check for correct usage of each individual functions.
+--
+-- TODO: When gradual types are added, this needs to be extended with a
+--       `Maybe Type` which is populated as part of `processRequires`.
+--
+-- At current time of writing, we do need to process the local files in the
+-- frontend to obtain the hash.
+newtype ModName = ModName String deriving (Eq, Show, Generic, Ord)
+instance Serialize ModName
 
+newtype ModHash = ModHash String deriving (Eq, Show, Generic, Ord)
+instance Serialize ModHash
 
+data Modules = Modules [(ModName, Maybe ModHash)]
+  deriving (Eq, Show, Ord)
 
 op1Prec :: UnaryOp -> Precedence
 op1Prec x = 50
