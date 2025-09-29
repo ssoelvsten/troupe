@@ -11,6 +11,13 @@ clean:
 	rm -rf ../bin
 # If problems still persist after this, remove all GHC compilers in ~/.stack/programs/**/
 
+# https://github.com/fourmolu/fourmolu
+format:
+	fourmolu -i *.hs */*.hs
+
+format/check:
+	fourmolu --mode check *.hs */*.hs
+
 ghci-irtester:
 	stack ghci --main-is Troupe-compiler:exe:irtester --no-load
 
