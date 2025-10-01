@@ -131,15 +131,11 @@ process flags fname input = do
       ir <- case runExcept (CC.closureConvert compileMode rwcps) of 
           Right ir -> return ir 
           Left  s -> die $ "troupec: " ++ s
-        
-      
-      
 
       when verbose $ writeFileD "out/out.ir" (show ir)
 
       let iropt = IROpt.iropt ir 
       when verbose $ writeFileD "out/out.iropt" (show iropt)
-      
 
       --------------------------------------------------
       let debugOut = elem Debug flags 
@@ -169,22 +165,18 @@ process flags fname input = do
       let jsFile = outFile flags (fromJust fname)
       writeFile jsFile stackjs
 
-
+      ----- MODULE ----------------------------------------
       case exports of
         Nothing -> return ()
         Just es -> writeExports jsFile es
+
+      ----- EPILOGUE --------------------------------------
       when verbose printHr
-
       exitSuccess
-
-
-
 
 writeExports jsF exports =
   let exF' = if takeExtension jsF == ".js" then dropExtension jsF else jsF
   in writeFileD (exF' ++ ".exports") (intercalate "\n" exports)
-
-
 
 defaultName f =
    let ext = ".trp"
@@ -192,7 +184,6 @@ defaultName f =
              ,  "/out/"
              , if takeExtension f == ext then takeBaseName f else takeFileName f
              ]
-
 
 isOutFlag (OutputFile _) = True
 isOutFlag _ = False
