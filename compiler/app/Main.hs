@@ -57,14 +57,14 @@ data Flag
 
 options :: [OptDescr Flag]
 options =
-  [ Option ['i']      ["ir"]     (NoArg IRMode)              "ir interactive mode"
-  , Option ['j']      ["json"]   (NoArg JSONIRMode)          "ir json interactive mode"
-  , Option []         ["no-rawopt"] (NoArg NoRawOpt) "disable Raw optimization"
-  , Option ['v']      ["verbose"] (NoArg Verbose)            "verbose output"
-  , Option ['d']      ["debug"]  (NoArg Debug)               "debugging information in the .js file"
-  , Option ['l']      ["lib"]    (NoArg LibMode)             "compiling a library"
-  , Option ['h']      ["help"]   (NoArg Help)                "print usage"
-  , Option ['o']      ["output"] (ReqArg OutputFile "FILE")  "output FILE"
+  [ Option ['i'] ["ir"]        (NoArg IRMode)             "ir interactive mode"
+  , Option ['j'] ["json"]      (NoArg JSONIRMode)         "ir json interactive mode"
+  , Option []    ["no-rawopt"] (NoArg NoRawOpt)           "disable Raw optimization"
+  , Option ['v'] ["verbose"]   (NoArg Verbose)            "verbose output"
+  , Option ['d'] ["debug"]     (NoArg Debug)              "debugging information in the .js file"
+  , Option ['l'] ["lib"]       (NoArg LibMode)            "compiling a library"
+  , Option ['h'] ["help"]      (NoArg Help)               "print usage"
+  , Option ['o'] ["output"]    (ReqArg OutputFile "FILE") "output FILE"
   ]
 
 -- debugTokens (Right tks) = 
