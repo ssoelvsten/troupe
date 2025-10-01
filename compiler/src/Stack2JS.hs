@@ -60,45 +60,33 @@ import DCLabels (dcLabelExpToDCLabel)
 data LibAccess = LibAccess Basics.LibName Basics.VarName
    deriving (Eq, Show,Generic)
 
-
-data JSOutput = JSOutput { libs :: [LibAccess] 
-                         , fname:: Maybe String 
-                         , code :: String 
-                         , atoms :: [Basics.AtomName]
-                         } deriving (Show, Generic)
-
-instance Aeson.ToJSON Basics.LibName 
+instance Aeson.ToJSON Basics.LibName
 instance Aeson.ToJSON LibAccess
-instance Aeson.ToJSON JSOutput
-
-ppLibAccess :: LibAccess -> PP.Doc
-ppLibAccess (LibAccess (Basics.LibName libname) varname) = PP.braces $
-  PP.text "lib:" <+> (PP.doubleQuotes. PP.text) libname <+> PP.text "," <+>
-  PP.text "decl:" <+> (PP.doubleQuotes. PP.text) varname
-
-
-ppLibs :: [LibAccess] -> PP.Doc
-ppLibs libs = PP.brackets $
-                vcat $ PP.punctuate (text ",")
-                  $ map ppLibAccess (nub libs)
 
 jsLoadLibs = vcat $ map text [
   "this.libSet = new Set ()",
   "this.libs = []",
   "this.addLib = function (lib, decl) { if (!this.libSet.has (lib +'.'+decl)) { this.libSet.add (lib +'.'+decl); this.libs.push ({lib:lib, decl:decl})} }",
   "this.loadlibs = function (cb) { rt.linkLibs (this.libs, this, cb) }" ]
-                            
-      
-addOneLib (LibAccess (Basics.LibName libname) varname) =
-  let args = (PP.doubleQuotes.PP.text) libname <+> text "," <+> (PP.doubleQuotes. PP.text) varname
-  in text "this.addLib " <+> PP.parens args
 
 addLibs xs = vcat $ nub (map addOneLib xs)
+  where addOneLib (LibAccess (Basics.LibName libname) varname) =
+          let args = (PP.doubleQuotes.PP.text) libname <+> text "," <+> (PP.doubleQuotes. PP.text) varname
+          in text "this.addLib " <+> PP.parens args
+
+
+data JSOutput = JSOutput { libs :: [LibAccess]
+                         , fname:: Maybe String 
+                         , code :: String 
+                         , atoms :: [Basics.AtomName]
+                         } deriving (Show, Generic)
+
+instance Aeson.ToJSON JSOutput
 
 
 data TheState = TheState { freshCounter :: Integer
                          , frameSize    :: Int
-                         , sparseSlot    :: Int
+                         , sparseSlot   :: Int
                          , consts       :: Raw.Consts
                          , stHFN        :: IR.HFN }
 
