@@ -38,12 +38,9 @@ import Data.List as List
 import Data.Maybe (fromJust)
 import System.FilePath
 
--- import System.Console.Haskeline
--- import System.Process
+--------------------------------------------------------------------------------
+----- COMPILER FLAGS -----------------------------------------------------------
 
-
--- compiler flags
---
 data Flag
   = IRMode
   | JSONIRMode
@@ -67,13 +64,11 @@ options =
   , Option ['o'] ["output"]    (ReqArg OutputFile "FILE") "output FILE"
   ]
 
--- debugTokens (Right tks) = 
-  -- mapM_ print tks 
+--------------------------------------------------------------------------------
+----- PIPELINE FROM FLAGS TO IR AND JS -----------------------------------------
 
 process :: [Flag] -> Maybe String -> String -> IO ExitCode
 process flags fname input = do
-  -- let tokens = parseTokens input
-  -- debugTokens tokens
   let ast    = parseProg input
 
   let compileMode =
@@ -85,49 +80,56 @@ process flags fname input = do
 
   case ast of
     Left err -> do
-      -- putStrLn ("Tokens: " ++ show tokens)
       die $ "Parse Error:\n" ++ err
 
     Right prog_parsed -> do
-      let prog_empty_imports = 
-            case compileMode of 
-                Normal -> addAmbientMethods prog_parsed 
-                Export -> prog_parsed 
-      prog <- processImports prog_empty_imports
-      
+      let outPath = outFile flags (fromJust fname)
+
+      -- To print all tokens from the parser, uncomment the following line:
+      -- debugTokens (Right tks) = mapM_ print tks
+
+      ------------------------------------------------------
+      -- TROUPE (FRONTEND) ---------------------------------
+      let prog_without_dependencies =
+            case compileMode of
+                Normal -> addAmbientMethods prog_parsed
+                Export -> prog_parsed
+
+      prog <- (processImports) prog_without_dependencies
+
       exports <- case compileMode of
         Normal -> return Nothing
         Export -> case runExcept (extractExports prog) of
           Right es -> return (Just (es))
           Left s -> die s
-       
 
       when verbose $ do printSep "SYNTAX"
                         putStrLn (showIndent 2 prog)
-
-      --------------------------------------------------
+      ------------------------------------------------------
       prog' <- case runExcept (C.trans compileMode (AF.visitProg prog)) of
         Right p -> return p
         Left s -> die s
       when verbose $ do printSep "PATTERN MATCH ELIMINATION"
                         writeFileD "out/out.nopats" (showIndent 2 prog')
-      --------------------------------------------------
+      ------------------------------------------------------
       let lowered = Core.lowerProg prog'
       when verbose $ do printSep  "LOWERING FUNS AND LETS"
                         writeFileD "out/out.lowered" (showIndent 2 lowered)
-      --------------------------------------------------
+      ------------------------------------------------------
       let renamed = Core.renameProg lowered
       when verbose $ do printSep "α RENAMING"
                         writeFileD "out/out.alpha" (showIndent 2 renamed)
-      --------------------------------------------------
+      ------------------------------------------------------
       let cpsed = RetDFCPS.transProg renamed
       when verbose $ do printSep "CPSED"
                         writeFileD "out/out.cps" (showIndent 2 cpsed)
-      --------------------------------------------------
-      let rwcps = CPSOpt.rewrite cpsed -- Rewrite.rewrite cpsed
+      ------------------------------------------------------
+      let rwcps = CPSOpt.rewrite cpsed
       when verbose $ do printSep  "REWRITING CPS"
                         writeFileD "out/out.cpsopt" (showIndent 2 rwcps)
-      --------------------------------------------------
+
+      ------------------------------------------------------
+      ------ IR (BACKEND) ----------------------------------
       ir <- case runExcept (CC.closureConvert compileMode rwcps) of 
           Right ir -> return ir 
           Left  s -> die $ "troupec: " ++ s
@@ -137,116 +139,87 @@ process flags fname input = do
       let iropt = IROpt.iropt ir 
       when verbose $ writeFileD "out/out.iropt" (show iropt)
 
-      --------------------------------------------------
-      let debugOut = elem Debug flags 
-
-
-      ------ RAW -----------------------------------------
+      ------ RAW -------------------------------------------
       let raw = IR2Raw.prog2raw iropt
       when verbose $ printSep  "GENERATING RAW"
       when verbose $ writeFileD "out/out.rawout" (show raw)
 
-      ----- RAW OPT --------------------------------------
-
+      ----- RAW OPT ----------------------------------------
       rawopt <- do
-            if noRawOpt
-            then return raw
-            else do
-              let opt = RawOpt.rawopt raw
-              when verbose $ printSep  "OPTIMIZING RAW OPT"
-              when verbose $ writeFileD "out/out.rawopt" (show opt)
-              return opt
+        if noRawOpt
+        then return raw
+        else do
+          let opt = RawOpt.rawopt raw
+          when verbose $ printSep  "OPTIMIZING RAW OPT"
+          when verbose $ writeFileD "out/out.rawopt" (show opt)
+          return opt
 
-      ----- STACK ----------------------------------------
+      ----- STACK ------------------------------------------
       let stack = Raw2Stack.rawProg2Stack rawopt
       when verbose $ printSep "GENERATING STACK"
       when verbose $ writeFileD "out/out.stack" (show stack)
-      let stackjs = Stack2JS.irProg2JSString compileMode debugOut stack
-      let jsFile = outFile flags (fromJust fname)
-      writeFile jsFile stackjs
 
-      ----- MODULE ----------------------------------------
+      ----- JAVASCRIPT -------------------------------------
+      let stackjs = Stack2JS.irProg2JSString compileMode (Debug `elem` flags) stack
+      writeFile outPath stackjs
+
       case exports of
         Nothing -> return ()
-        Just es -> writeExports jsFile es
+        Just es -> writeExports outPath es
 
       ----- EPILOGUE --------------------------------------
       when verbose printHr
       exitSuccess
 
-writeExports jsF exports =
-  let exF' = if takeExtension jsF == ".js" then dropExtension jsF else jsF
-  in writeFileD (exF' ++ ".exports") (intercalate "\n" exports)
-
-defaultName f =
-   let ext = ".trp"
-   in concat [ takeDirectory f
-             ,  "/out/"
-             , if takeExtension f == ext then takeBaseName f else takeFileName f
-             ]
-
-isOutFlag (OutputFile _) = True
-isOutFlag _ = False
-
+-- TODO: 'where' for all helper functions below?
 outFile :: [Flag] -> String -> String
-outFile flags fname | LibMode `elem` flags =
-                        case List.find isOutFlag flags of
+outFile flags fname = case List.find isOutFlag flags of
                           Just (OutputFile s) -> s
-                          _ -> defaultName fname ++ ".js"
-outFile flags _ =
-  case List.find isOutFlag flags of
-    Just (OutputFile s) -> s
-    _ -> "out/out.stack.js"
+                          _ -> if LibMode `elem` flags
+                               then defaultName fname ++ ".js"
+                               else "out/out.stack.js"
+  where isOutFlag (OutputFile _) = True
+        isOutFlag _              = False
 
+        defaultName f = concat [ takeDirectory f
+                               ,  "/out/"
+                               , if takeExtension f == ".trp" then takeBaseName f else takeFileName f
+                               ]
 
--- AA: 2018-07-15: consider timestamping these entries
-debugOut s =
-  appendFile "/tmp/debug" (s ++ "\n")
+writeExports path exports =
+  let path' = if takeExtension path == ".js" then dropExtension path else path
+  in writeFileD (path' ++ ".exports") (intercalate "\n" exports)
 
+--------------------------------------------------------------------------------
+----- DESERIALIZATION FOR INTERACTIVE MODES ------------------------------------
 
-fromStdinIR = do
+fromStdin putFormattedLn = do
   eof <- isEOF
   if eof then exitSuccess else do
     input <- BS.getLine
     if BS.isPrefixOf "!ECHO " input
     then let response = BS.drop 6 input
           in do BS.putStrLn response
---                  debugOut "echo"
     else
       case decode input of
         Right bs ->
            case CCIR.deserialize bs
-              of Right x -> do putStrLn (IR2JS.irToJSString x)
---                                 debugOut "deserialization OK"
-
+              of Right x -> do putFormattedLn x
                  Left s -> do putStrLn "ERROR in deserialization"
                               debugOut $ "deserialization error" ++ s
         Left s -> do putStrLn "ERROR in B64 decoding"
                      debugOut $ "decoding error" ++s
     putStrLn "" -- magic marker to be recognized by the JS runtime; 2018-03-04; aa
     hFlush stdout
-    fromStdinIR
+    fromStdin putFormattedLn
+  -- AA: 2018-07-15: consider timestamping these entries
+  where debugOut s = appendFile "/tmp/debug" (s ++ "\n")
 
+fromStdinIR     = fromStdin (putStrLn . IR2JS.irToJSString)
+fromStdinIRJson = fromStdin (BSLazyChar8.putStrLn . IR2JS.irToJSON)
 
-fromStdinIRJson = do
-  eof <- isEOF
-  if eof then exitSuccess else do
-    input <- BS.getLine
-    if BS.isPrefixOf "!ECHO " input
-    then let response = BS.drop 6 input
-          in BS.putStrLn response
-    else
-      case decode input of
-        Right bs ->
-           case CCIR.deserialize bs
-              of Right x -> BSLazyChar8.putStrLn (IR2JS.irToJSON x)
-                 Left s -> do putStrLn "ERROR in deserialization"
-                              debugOut $ "deserialization error" ++ s
-        Left s -> do putStrLn "ERROR in B64 decoding"
-                     debugOut $ "decoding error" ++s
-    putStrLn "" -- magic marker to be recognized by the JS runtime; 2018-03-04; aa
-    hFlush stdout
-    fromStdinIRJson
+--------------------------------------------------------------------------------
+----- MAIN ---------------------------------------------------------------------
 
 main :: IO ExitCode
 main = do
