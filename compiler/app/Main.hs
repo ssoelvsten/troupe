@@ -159,7 +159,7 @@ process flags fname input = do
 
       ----- STACK ----------------------------------------
       let stack = Raw2Stack.rawProg2Stack rawopt
-      when verbose $ printSep "GENARTING STACK"
+      when verbose $ printSep "GENERATING STACK"
       when verbose $ writeFileD "out/out.stack" (show stack)
       let stackjs = Stack2JS.irProg2JSString compileMode debugOut stack
       let jsFile = outFile flags (fromJust fname)
