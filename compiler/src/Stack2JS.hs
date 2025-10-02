@@ -142,21 +142,13 @@ irProg2JSString compileMode debugOut ir =
   let (fns, _, (_,_,konts)) = runRWS (toJS ir) debugOut initState
       inner = vcat (fns:konts)
       outer = vcat $
-        stdlib
-        ++
-        [ "function" <+> ppNamespaceName <+> text "(rt) {" ]
-        ++
-        [ nest 2 inner
-        , text "}" ]
-        ++
-        suffix
-  in
-    PP.render $
-      case compileMode of
-         Normal -> outer
-         Export -> inner
-  where -- TODO: should be generating a new namespace per received blob
-    ppNamespaceName = text "Top"
+        [ "function" <+> text "Top" <+> text "(rt) {"
+        , nest 2 inner
+        , text "}"
+        , "module.exports = Top"
+        ]
+  in PP.render $ case compileMode of Normal -> outer
+                                     Export -> inner
 
 
 stack2JSString :: StackUnit -> String
@@ -605,9 +597,6 @@ ppPosInfo :: GetPosInfo a => a -> PP.Doc
 ppPosInfo  = PP.doubleQuotes . text . show . posInfo
 
 pickle = PP.doubleQuotes.text.T.unpack.decodeUtf8.encode
-stdlib = [] -- "let runtime = require('../runtimeMonitored.js')"]
-suffix  = [ "module.exports = Top "]
-
 
 jsClosure var env f =
      vcat [ ppLet var <+> ((text "rt.mkVal") <> (PP.parens ((text "rt.RawClosure") <> (PP.parens (PP.hsep $ PP.punctuate "," [ppId env, text "this", text "this." PP.<> ppId f])))))
