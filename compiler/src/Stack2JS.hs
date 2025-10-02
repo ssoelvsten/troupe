@@ -138,8 +138,8 @@ class ToJS a where
    toJS :: a -> W PP.Doc
 
 irProg2JSString :: CompileMode -> Bool -> StackProgram -> String
-irProg2JSString compileMode debugOut ir =
-  let (fns, _, (_,_,konts)) = runRWS (toJS ir) debugOut initState
+irProg2JSString compileMode debugMode ir =
+  let (fns, _, (_,_,konts)) = runRWS (toJS ir) debugMode initState
       inner = vcat (fns:konts)
       outer = vcat $
         [ "function" <+> text "Top" <+> text "(rt) {"
