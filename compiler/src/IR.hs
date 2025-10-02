@@ -154,14 +154,16 @@ instance ComputesDependencies FunDef where
   dependencies (FunDef _ _ _ bb) = dependencies bb
 
 
-ppDeps :: ComputesDependencies a => a -> (PP.Doc , PP.Doc, PP.Doc)
-ppDeps a = let (ffs_0,lls_0, atoms_0) = execWriter  (dependencies a)               
-               (ffs, lls, aas) = (nub ffs_0, nub lls_0, nub atoms_0)
+ppDepsAsJSON :: ComputesDependencies a => a -> (PP.Doc , PP.Doc, PP.Doc)
+ppDepsAsJSON a = let (ffs_0,lls_0, atoms_0) = execWriter  (dependencies a)
+                     (ffs, lls, aas) = (nub ffs_0, nub lls_0, nub atoms_0)
 
-               format dd =
-                   let tt = map (PP.doubleQuotes . ppId) dd in 
-                   (PP.brackets.PP.hsep) (PP.punctuate PP.comma tt)
-            in ( format ffs, format lls , format aas )            
+                     format dd =
+                       let tt = map (PP.doubleQuotes . ppId) dd
+                       in (PP.brackets.PP.hsep) (PP.punctuate PP.comma tt)
+                 in ( format ffs, format lls , format aas )
+
+ppDeps a = ppDepsAsJSON a
 
 
 -----------------------------------------------------------

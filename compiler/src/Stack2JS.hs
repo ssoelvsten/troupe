@@ -258,7 +258,7 @@ instance ToJS FunDef where
        let lits = constsToJS consts
        jj <- toJS bb
        debug <- ask
-       let (irdeps, libdeps, atomdeps ) = IR.ppDeps irfdef
+       let (irdeps, libdeps, atomdeps ) = IR.ppDepsAsJSON irfdef
        sparseSlotIdxPP <- ppSparseSlotIdx
 
        return $
