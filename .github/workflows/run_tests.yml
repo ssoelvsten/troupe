@@ -108,8 +108,8 @@ jobs:
           echo "Runtime built successfully, troupe.mjs found"
       - name: compile lib
         run: make lib
-      - name: compile service
-        run: make service      
+      - name: compile trp-rt
+        run: make trp-rt
       - name: run basic test
         run: ./local.sh tests/rt/pos/core/fib10.trp
       - name: run ci network test

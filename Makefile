@@ -1,7 +1,7 @@
-.PHONY: rt compiler lib p2p-tools
+.PHONY: rt trp-rt compiler lib p2p-tools
 
 # TODO: Rename to 'build/*' ?
-all: npm rt compiler p2p-tools lib service
+all: npm compiler rt trp-rt p2p-tools lib
 
 npm:
 	npm install
@@ -20,16 +20,16 @@ p2p-tools:
 lib:
 	cd lib; $(MAKE) build
 
-service:
-	mkdir -p ./trp-rt/out
-	$(COMPILER) ./trp-rt/service.trp -l
+trp-rt:
+	cd trp-rt/; $(MAKE) build
 
-# TODO: Rename to 'clean/*' ?
-clean: clean/compiler clean/rt clean/lib
+clean: clean/compiler clean/rt clean/trp-rt clean/p2p-tools clean/lib
 clean/compiler:
 	cd compiler; $(MAKE) clean
 clean/rt:
 	cd rt; $(MAKE) clean
+clean/trp-rt:
+	cd trp-rt; $(MAKE) clean
 clean/p2p-tools:
 	cd p2p-tools; $(MAKE) clean
 clean/lib:
