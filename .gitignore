@@ -1,34 +1,61 @@
-dist
-dist-*
-cabal-dev
-*.o
-*.hi
-*.chi
-*.chs.h
-*.DS_Store
-*.dyn_o
-*.dyn_hi
-.hpc
-.hsenv
+TAGS
+
+##################################################
+# NPM
+node_modules
+
+##################################################
+# Haskell
+
+## Cabal Sandbox
 .cabal-sandbox/
 cabal.sandbox.config
+cabal.project.local
+
+## Program Coverage
+.hpc
 *.prof
 *.aux
 *.hp
 *.eventlog
-.stack-work/
-cabal.project.local
-.HTF/
-TAGS
-*.vscode 
-/out
+
+## Test Framework
+.HTF
+
+## Virtual Environment
+.hsenv
+
+## Build files
 *.o
 *.hi
+*.chi
+*.chs.h
+*.dyn_o
+*.dyn_hi
+
+##################################################
+# Binaries from `compiler`
 bin/*
-node_modules
-yarn.lock
-yarn-error.log 
+
+##################################################
+# Troupe Compiler (`troupec`) output
+out/*
+
+##################################################
+# Editors
+
+## Visual Studio Code
+*.vscode
+
+## Vi
 *.swp
-bin/troupe
-bin/understudy
+
+## Emacs
 *.#*
+*~
+
+##################################################
+# Operating Systems
+
+## MacOS
+*.DS_Store

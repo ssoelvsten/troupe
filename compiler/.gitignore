@@ -1,6 +1,15 @@
+##################################################
+# Stack artifacts
 .stack-work/
-Troupe-compiler.cabal
-ir2raw-out
 stack.yaml.lock
-*~
-out
+
+##################################################
+# Cabal artifacts
+Troupe-compiler.cabal
+dist
+dist-*
+cabal-dev
+
+##################################################
+# Local compilation output
+ir2raw-out
