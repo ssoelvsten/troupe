@@ -42,7 +42,7 @@ import System.FilePath
 ----- COMPILER FLAGS -----------------------------------------------------------
 
 data Flag
-  = IRMode
+  = TextIRMode
   | JSONIRMode
   | LibMode
   | NoRawOpt
@@ -54,8 +54,8 @@ data Flag
 
 options :: [OptDescr Flag]
 options =
-  [ Option ['i'] ["ir"]        (NoArg IRMode)             "ir interactive mode"
-  , Option ['j'] ["json"]      (NoArg JSONIRMode)         "ir json interactive mode"
+  [ Option ['i'] ["text-ir"]   (NoArg TextIRMode)         "ir interactive mode (text)"
+  , Option ['j'] ["json-ir"]   (NoArg JSONIRMode)         "ir interactive mode (json)"
   , Option []    ["no-rawopt"] (NoArg NoRawOpt)           "disable Raw optimization"
   , Option ['v'] ["verbose"]   (NoArg Verbose)            "verbose output"
   , Option ['d'] ["debug"]     (NoArg Debug)              "debugging information in the .js file"
@@ -193,7 +193,7 @@ writeExports path exports =
 --------------------------------------------------------------------------------
 ----- DESERIALIZATION FOR INTERACTIVE MODES ------------------------------------
 
-fromStdin putFormattedLn = do
+fromStdinIR putFormattedLn = do
   eof <- isEOF
   if eof then exitSuccess else do
     input <- BS.getLine
@@ -211,12 +211,12 @@ fromStdin putFormattedLn = do
                      debugOut $ "decoding error" ++s
     putStrLn "" -- magic marker to be recognized by the JS runtime; 2018-03-04; aa
     hFlush stdout
-    fromStdin putFormattedLn
+    fromStdinIR putFormattedLn
   -- AA: 2018-07-15: consider timestamping these entries
   where debugOut s = appendFile "/tmp/debug" (s ++ "\n")
 
-fromStdinIR     = fromStdin (putStrLn . IR2JS.irToJSString)
-fromStdinIRJson = fromStdin (BSLazyChar8.putStrLn . IR2JS.irToJSON)
+fromStdinTextIR = fromStdinIR (putStrLn . IR2JS.irToJSString)
+fromStdinJsonIR = fromStdinIR (BSLazyChar8.putStrLn . IR2JS.irToJSON)
 
 --------------------------------------------------------------------------------
 ----- MAIN ---------------------------------------------------------------------
@@ -233,11 +233,8 @@ main = do
       putStrLn compilerUsage
       exitSuccess
 
-    ([JSONIRMode], [], []) -> fromStdinIRJson   
-
-    ([IRMode], [], []) -> do
-      fromStdinIR
-      -- hSetBuffering stdout NoBuffering
+    ([TextIRMode], [], []) -> fromStdinTextIR
+    ([JSONIRMode], [], []) -> fromStdinJsonIR
 
     (o, [file], []) | optionsOK o ->
       fromFile o file
@@ -253,7 +250,7 @@ main = do
    optionsOK :: [Flag] -> Bool
    optionsOK o | length o >=2 =
                 -- certain options must not be combined
-                not.or $ map (`elem` o) [IRMode, Help]
+                not.or $ map (`elem` o) [TextIRMode, Help]
    optionsOK _ = True
 
 

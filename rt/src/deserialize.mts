@@ -39,7 +39,7 @@ const HEADER:string =
              this.libs.push ({lib:lib, decl:decl})} }\n"
 
 function startCompiler() {
-    __compilerOsProcess = spawn(process.env.TROUPE + '/bin/troupec', ['--json']);
+    __compilerOsProcess = spawn(process.env.TROUPE + '/bin/troupec', ['--json-ir']);
     __compilerOsProcess.on('exit', (code: number) => {
         process.exit(code);
     });
