@@ -137,8 +137,6 @@ instance Identifier Raw.Assignable where
 class ToJS a where
    toJS :: a -> W PP.Doc
 
-
-
 irProg2JSString :: CompileMode -> Bool -> StackProgram -> String
 irProg2JSString compileMode debugOut ir =
   let (fns, _, (_,_,konts)) = runRWS (toJS ir) debugOut initState
@@ -152,11 +150,13 @@ irProg2JSString compileMode debugOut ir =
         , text "}" ]
         ++
         suffix
-  in      
+  in
     PP.render $
       case compileMode of
          Normal -> outer
          Export -> inner
+  where -- TODO: should be generating a new namespace per received blob
+    ppNamespaceName = text "Top"
 
 
 stack2JSString :: StackUnit -> String
@@ -189,21 +189,6 @@ instance ToJS IR.VarAccess where
   toJS (IR.VarFunSelfRef) = do 
     HFN (fname) <- gets stHFN 
     return $ text fname 
-
-
--- instance (Identifier a) => ToJS a where 
---   toJS x = return $ ppId x
-
-ppNamespaceName = text "Top"  -- should be generating a new namespace per received blob
-
-
-irProg2JsWrapped prog = do
-    inner <- toJS prog
-    return $
-       text "function" <+> ppNamespaceName <+> text "(rt) {"
-       $$ nest 2 inner
-       $$ text "}"
-
 
 
 instance ToJS StackProgram where
