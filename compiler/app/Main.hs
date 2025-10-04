@@ -104,6 +104,7 @@ process flags fname input = do
           Left s -> die s
 
       when verbose $ do printSep "SYNTAX"
+                        writeFileD "out/out.syntax" (showIndent 2 prog)
                         putStrLn (showIndent 2 prog)
       ------------------------------------------------------
       prog' <- case runExcept (C.trans compileMode (AF.visitProg prog)) of
