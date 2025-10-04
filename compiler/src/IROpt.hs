@@ -5,10 +5,12 @@ import IR
 import Control.Monad.RWS.Lazy
 import Data.Map.Lazy (Map)
 import Data.Set(Set)
+import qualified Data.List as List
 import qualified Data.Set as Set 
 import qualified Basics
 import qualified Core                      as C
 import           TroupePositionInfo
+import qualified Control.Monad.Writer      as CMW
 
 import qualified Data.Map.Lazy as Map 
 import           RetCPS                    (VarName (..))
@@ -534,10 +536,11 @@ funopt :: FunDef -> FunDef
 funopt (FunDef hfn argname modules consts bb) = 
     let initEnv = (Map.singleton argname Unknown, False)
         (bb', (_, hasChanges), _) = runRWS (peval bb) () initEnv
-        -- TODO: Prune list of modules based on which are accessed
-        --       (_, _, mms, _) = execWriter (IR.dependencies bb')
 
-        new = FunDef hfn argname modules consts bb'
+        (_, _, mms, _) = CMW.execWriter (IR.dependencies bb')
+        modules' = List.nub $ List.filter (\ (modName, _) -> List.elem modName mms) modules
+
+        new = FunDef hfn argname modules' consts bb'
     in if (bb /= bb')  then funopt new 
                        else new 
 
