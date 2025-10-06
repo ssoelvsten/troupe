@@ -191,6 +191,20 @@ writeExports path exports =
   let path' = if takeExtension path == ".js" then dropExtension path else path
   in writeFileD (path' ++ ".exports") (intercalate "\n" exports)
 
+-- Utility functions for printing things out
+hrWidth = 70
+
+printSep :: String -> IO ()
+printSep s = do
+  let prefix = replicate 5 '-'
+      suffix = replicate (hrWidth - length s - 5 - 2) '-'
+      s' = prefix ++ " " ++ s ++ " " ++ suffix
+  putStrLn s'
+
+
+printHr :: IO ()
+printHr = putStrLn (replicate hrWidth '-')
+
 --------------------------------------------------------------------------------
 ----- DESERIALIZATION FOR INTERACTIVE MODES ------------------------------------
 
@@ -253,21 +267,3 @@ main = do
                 -- certain options must not be combined
                 not.or $ map (`elem` o) [TextIRMode, Help]
    optionsOK _ = True
-
-
--- utility functions for printing things out
-
-hrWidth = 70
-
-printSep :: String -> IO ()
-printSep s = do
-  let prefix = replicate 5 '-'
-      suffix = replicate (hrWidth - length s - 5 - 2) '-'
-      s' = prefix ++ " " ++ s ++ " " ++ suffix
-  putStrLn s'
-
-
-printHr :: IO ()
-printHr = putStrLn (replicate hrWidth '-')
-
---------------------------------------------------
