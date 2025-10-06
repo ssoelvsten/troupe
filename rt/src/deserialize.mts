@@ -30,13 +30,16 @@ export function setRuntimeObj(rt: RuntimeInterface) {
     __rtObj = rt;
 }
 
-const HEADER:string =  
-        "this.libSet = new Set () \n\
-         this.libs = [] \n\
-         this.addLib = function (lib, decl)\
-             { if (!this.libSet.has (lib +'.'+decl)) {  \
-             this.libSet.add (lib +'.'+decl);\
-             this.libs.push ({lib:lib, decl:decl})} }\n"
+const HEADER : string = ```
+this.libSet = new Set () \n\
+this.libs = [] \n\
+this.addLib = function (lib, decl) {
+  if (!this.libSet.has (lib +'.'+decl)) {
+    this.libSet.add (lib +'.'+decl);\
+    this.libs.push ({lib:lib, decl:decl})
+  }
+}
+```
 
 function startCompiler() {
     __compilerOsProcess = spawn(process.env.TROUPE + '/bin/troupec', ['--json-ir']);
@@ -122,15 +125,6 @@ function constructCurrent(compilerOutput: string) {
         let nsFun = HEADER
 
         let atomSet = new Set<string>()
-
-        // nsFun += "this.libSet = new Set () \n"
-        // nsFun += "this.libs = [] \n"
-        // nsFun += "this.addLib = function (lib, decl) " +
-        //     " { if (!this.libSet.has (lib +'.'+decl)) { " +
-        //     " this.libSet.add (lib +'.'+decl); " +
-        //     " this.libs.push ({lib:lib, decl:decl})} } \n"
-        // nsFun += "this.loadlibs = function (cb) { rt.linkLibs (this.libs, this, cb) } \n"
-
 
         for (let j = 0; j < ns.length; j++) {
             if (j > 0) {
