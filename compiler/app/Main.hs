@@ -231,8 +231,9 @@ processModules paths (Direct.Prog imports (Basics.Modules m) atoms term) = do
           matches <- filterM doesFileExist $ List.map (\p -> p </> n <.> "hash") paths'
 
           match <- case matches of
-                     x:_ -> return x
-                     []  -> die $ "Could not find module: '" ++ n ++ "'"
+                     x:[] -> return x
+                     _:_  -> die $ "Multiple modules with name: '" ++ n ++ "'"
+                     []   -> die $ "Could not find module: '" ++ n ++ "'"
 
           matchContent  <- readFile match
           let matchContent' = lines matchContent
