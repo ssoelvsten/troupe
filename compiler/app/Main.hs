@@ -198,8 +198,9 @@ fromStdinIR putFormattedLn = do
   eof <- isEOF
   if eof then exitSuccess else do
     input <- BS.getLine
-    if BS.isPrefixOf "!ECHO " input
-    then let response = BS.drop 6 input
+    let echo = "!ECHO "
+    if BS.isPrefixOf echo input
+    then let response = BS.drop (BS.length echo) input
           in do BS.putStrLn response
     else
       case decode input of
