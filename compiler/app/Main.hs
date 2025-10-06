@@ -238,15 +238,14 @@ main = do
     ([TextIRMode], [], []) -> fromStdinTextIR
     ([JSONIRMode], [], []) -> fromStdinJsonIR
 
-    (o, [file], []) | optionsOK o ->
-      fromFile o file
-
+    (o, [file], []) | optionsOK o -> do
+      input <- readFile file
+      process o (Just file) input
 
     (_,_, errs) -> die $ concat errs ++ compilerUsage
  where
    compilerUsage = usageInfo header options
      where header = "Usage: <compiler> [OPTION...] file"
-
 
    -- Check options for consistency
    optionsOK :: [Flag] -> Bool
@@ -254,13 +253,6 @@ main = do
                 -- certain options must not be combined
                 not.or $ map (`elem` o) [TextIRMode, Help]
    optionsOK _ = True
-
-
-
-fromFile :: [Flag] -> String -> IO ExitCode
-fromFile flags fname = do
-  input <- readFile fname
-  process flags (Just fname) input
 
 
 -- utility functions for printing things out
