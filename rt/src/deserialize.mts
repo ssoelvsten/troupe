@@ -103,13 +103,6 @@ function debuglog(...s) {
 
 // -------------------------------------------------------------------------------------------------
 
-function deserializationError() {
-    console.log("DESERIALIZATION ERROR HANDLING IS NOT IMPLEMENTED")
-    process.exit(1);
-}
-
-// -------------------------------------------------------------------------------------------------
-
 const HEADER : string = `
 this.libSet = new Set ()
 this.libs = []
