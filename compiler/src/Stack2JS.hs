@@ -66,8 +66,7 @@ instance Aeson.ToJSON LibAccess
 jsLoadLibs = vcat $ map text [
   "this.libSet = new Set ()",
   "this.libs = []",
-  "this.addLib = function (lib, decl) { if (!this.libSet.has (lib +'.'+decl)) { this.libSet.add (lib +'.'+decl); this.libs.push ({lib:lib, decl:decl})} }",
-  "this.loadlibs = function (cb) { rt.linkLibs (this.libs, this, cb) }" ]
+  "this.addLib = function (lib, decl) { if (!this.libSet.has (lib +'.'+decl)) { this.libSet.add (lib +'.'+decl); this.libs.push ({lib:lib, decl:decl})} }" ]
 
 addLibs xs = vcat $ nub (map addOneLib xs)
   where addOneLib (LibAccess (Basics.LibName libname) varname) =
