@@ -42,6 +42,6 @@ printStringDecl = FunDecl "printString"
 
 
 addAmbientMethods :: Prog -> Prog 
-addAmbientMethods (Prog imports modules atoms t) = 
+addAmbientMethods (Prog imps reqs atoms t) = 
     let t' = Let [FunDecs [printDecl,printWithLabelsDecl,printStringDecl]] t
-    in Prog imports modules atoms t'
+    in Prog imps reqs atoms t'

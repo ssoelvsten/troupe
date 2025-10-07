@@ -253,13 +253,6 @@ export function assertIsAuthorityR3(x, lev, tlev) {
     }
 }
 
-export function assertIsEnv(x: any) {
-    _thread().raiseBlockingThreadLev(x.tlev);
-    if (!(x.val._is_rt_env)) {
-        err("value " + __stringRep(x) + " is not an environment");
-    }
-}
-
 export function assertNormalState(s: string) {
     if (!_thread().handlerState.isNormal()) {
         err("invalid handler state in " + s + " -- side effects are prohbited in handler pattern matching or sandboxed code")

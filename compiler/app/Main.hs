@@ -27,10 +27,8 @@ import Data.ByteString.Base64 (decode, encode)
 import qualified Data.ByteString.Lazy.Char8 as BSLazyChar8
 import System.IO
 import System.Exit
-import ProcessImports
 import AddAmbientMethods
 import ShowIndent
-import Exports
 import CompileMode
 import Control.Monad.Except
 import Control.Monad (when, filterM)
@@ -49,7 +47,6 @@ import qualified Crypto.Hash.SHA256 as SHA256
 data Flag
   = TextIRMode
   | JSONIRMode
-  | LibMode
   | Include String
   | Module
   | NoRawOpt
@@ -61,16 +58,15 @@ data Flag
 
 options :: [OptDescr Flag]
 options =
-  [ Option ['i'] ["text-ir"]   (NoArg TextIRMode)         "ir interactive mode (text)"
-  , Option ['j'] ["json-ir"]   (NoArg JSONIRMode)         "ir interactive mode (json)"
-  , Option []    ["no-rawopt"] (NoArg NoRawOpt)           "disable Raw optimization"
-  , Option ['v'] ["verbose"]   (NoArg Verbose)            "verbose output"
-  , Option ['d'] ["debug"]     (NoArg Debug)              "debugging information in the .js file"
-  , Option ['l'] ["lib"]       (NoArg LibMode)            "compiling a library"
+  [ Option ['i'] ["text-ir"]   (NoArg Main.TextIRMode)         "ir interactive mode (text)"
+  , Option ['j'] ["json-ir"]   (NoArg Main.JSONIRMode)         "ir interactive mode (json)"
+  , Option []    ["no-rawopt"] (NoArg Main.NoRawOpt)           "disable Raw optimization"
+  , Option ['v'] ["verbose"]   (NoArg Main.Verbose)            "verbose output"
+  , Option ['d'] ["debug"]     (NoArg Main.Debug)              "debugging information in the .js file"
   , Option []    ["add-module-search-dir"] (ReqArg Main.Include "DIR") "directory for required modules"
-  , Option []    ["module"]    (NoArg  Main.Module)       "compile as a module"
-  , Option ['h'] ["help"]      (NoArg Help)               "print usage"
-  , Option ['o'] ["output"]    (ReqArg OutputFile "FILE") "output FILE"
+  , Option ['l'] ["module"] (NoArg  Main.Module)               "compile as a module"
+  , Option ['h'] ["help"]      (NoArg  Main.Help)              "print usage"
+  , Option ['o'] ["output"]    (ReqArg Main.OutputFile "FILE") "output FILE"
   ]
 
 --------------------------------------------------------------------------------
@@ -80,8 +76,7 @@ process :: [Flag] -> Maybe String -> String -> IO ExitCode
 process flags fname input = do
   let ast = parseProg input
 
-  let compileMode = if Main.LibMode `elem` flags then CompileMode.Library else
-                    if Main.Module  `elem` flags then CompileMode.Module
+  let compileMode = if Main.Module  `elem` flags then CompileMode.Module
                     else CompileMode.Normal
 
   let verbose = Verbose `elem` flags
@@ -104,15 +99,9 @@ process flags fname input = do
             case compileMode of CompileMode.Normal -> addAmbientMethods prog_parsed
                                 _                  -> prog_parsed
 
-      prog_with_libs          <- processImports prog_without_dependencies
-      prog_with_libs_and_mods <- (processModules $ includeDirs flags) prog_with_libs
+      prog_with_imps_and_reqs <- (processModules $ includeDirs flags) prog_without_dependencies
 
-      let prog = prog_with_libs_and_mods
-
-      exports <- case compileMode of Library -> case runExcept (extractExports prog) of
-                                                     Right es -> return (Just (es))
-                                                     Left s   -> die s
-                                     _       -> return Nothing
+      let prog = prog_with_imps_and_reqs
 
       when verbose $ do printSep "SYNTAX"
                         writeFileD "out/out.syntax" (showIndent 2 prog)
@@ -142,7 +131,7 @@ process flags fname input = do
 
       ------------------------------------------------------
       ------ IR (BACKEND) ----------------------------------
-      ir <- case runExcept (CC.closureConvert compileMode rwcps) of 
+      ir <- case runExcept (CC.closureConvert rwcps) of 
           Right ir -> return ir 
           Left  s -> die $ "troupec: " ++ s
 
@@ -188,10 +177,6 @@ process flags fname input = do
 
       writeFile outPath stackjs
 
-      -- case compileMode of Library -> ...
-      case exports of Nothing -> return ()
-                      Just es -> writeExports outPath es
-
       ----- EPILOGUE --------------------------------------
       when verbose printHr
       exitSuccess
@@ -202,7 +187,7 @@ process flags fname input = do
 outFile :: [Flag] -> String -> String
 outFile flags fname = case List.find isOutFlag flags of
                           Just (OutputFile s) -> s
-                          _ -> if Main.LibMode `elem` flags || Main.Module `elem` flags
+                          _ -> if Main.Module `elem` flags
                                then defaultName fname <.> "js"
                                else "out" </> "out" <.> "stack" <.> "js"
   where isOutFlag (OutputFile _) = True
@@ -213,28 +198,28 @@ outFile flags fname = case List.find isOutFlag flags of
           </> (if takeExtension f == ".trp" then takeBaseName else takeFileName) f
 
 -- Obtain the list of directories to look up required modules.
--- TODO: Remove LibMode => Add 'lib/' folder (as in `src/ProcessImports`)
 includeDirs :: [Flag] -> [String]
 includeDirs flags = List.foldl mapDir [] flags
+  -- TODO (merging imports & requires): Add 'lib/' folder
   where mapDir y (Include x) = x:y
         mapDir y _           = y
 
 -- Given the include directories and the program, we attempt to find the corresponding '.ir'/'.hash'
--- file for each module that was 'required'. If succesful, the program is updated to include these
--- hashes.
+-- file for each module that was 'imported' or 'required'. If succesful, the program is updated to
+-- include these hashes.
 processModules :: [String] -> Direct.Prog -> IO Direct.Prog
-processModules paths (Direct.Prog imports (Basics.Modules m) atoms term) = do
+processModules paths (Direct.Prog (Basics.Modules imps) (Basics.Modules reqs) atoms term) = do
   maybeTroupeEnv <- lookupEnv "TROUPE"
   troupeEnv      <- case maybeTroupeEnv of
                       Just tp -> return tp
                       Nothing -> die "TROUPE environment variable not set!"
 
-  let defaultPaths = [troupeEnv </> "lib"]
+  let defaultPaths = [troupeEnv </> "lib" </> "out"]
+  imps' <- Basics.Modules <$> mapM (processModule defaultPaths) imps
 
   let paths' = (paths++defaultPaths) >>= (\p -> [p, p </> "out"])
-
-  modules' <- Basics.Modules <$> mapM (processModule paths') m
-  return $ Direct.Prog imports modules' atoms term
+  reqs' <- Basics.Modules <$> mapM (processModule paths') reqs
+  return $ Direct.Prog imps' reqs' atoms term
   where processModule paths' (Basics.ModName n, _) = do
           matches <- filterM doesFileExist $ List.map (\p -> p </> n <.> "hash") paths'
 
@@ -259,12 +244,6 @@ writeModule path prog hash =
     writeFileD (path' ++ ".ir") (pickle prog)
     writeFileD (path' ++ ".hash") (pickle hash)
   where pickle = Text.unpack . TextEncoding.decodeUtf8 . encode
-
--- Output to disk the list of exported values/functions of a Troupe library
--- TODO: Remove LibMode => Remove
-writeExports path exports =
-  let path' = if takeExtension path == ".js" then dropExtension path else path
-  in writeFileD (path' ++ ".exports") (intercalate "\n" exports)
 
 -- Utility functions for printing things out
 hrWidth = 70

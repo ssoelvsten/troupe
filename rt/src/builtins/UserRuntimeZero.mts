@@ -3,8 +3,8 @@ import { runtimeEquals } from '../EqualityChecker.mjs'
 import { isListFlagSet, isTupleFlagSet, mkTuple, mkList } from '../ValuesUtil.mjs'
 import { LVal, LValCopyAt, LCopyVal } from '../Lval.mjs'
 import { Nil, Cons, RawList } from '../RawList.mjs'
-import { loadLibsAsync } from '../loadLibsAsync.mjs';
 import * as levels from '../Level.mjs'
+const {lub} = levels
 import { BaseFunctionWithExplicitArg, ServiceFunction } from '../BaseFunction.mjs'
 import { Atom } from '../Atom.mjs'
 import { __unit } from '../UnitVal.mjs'
@@ -18,30 +18,11 @@ import { TroupeRawValue } from '../TroupeRawValue.mjs'
 import { RawTuple } from '../RawTuple.mjs'
 import { Level } from '../Level.mjs'
 import { rawAssertNotZero } from '../Asserts.mjs'
+import { hasLocalModule, getLocalModule } from '../LocalModules.mjs'
 
 // import { builtin_sandbox } from './builtins/sandox'
 
 export type Constructor<T = {}> = new (...args: any[]) => T;
-
-
-const {lub} = levels
-
-class RtEnv {
-    _is_rt_env: boolean;
-    constructor() {
-        this._is_rt_env = true;
-    }
-}
-
-class LibEnv {
-    ret: any;
-    _is_rt_env: boolean
-    constructor() {
-        this._is_rt_env = false;
-        this.ret = null;
-    }
-}
-
 
 export function mkBase(f,name=null) {
     return BaseFunctionWithExplicitArg(f,name)
@@ -49,6 +30,10 @@ export function mkBase(f,name=null) {
 
 export function mkService(f, name = null) {
     return ServiceFunction(f, name)
+}
+
+class RuntimeEnvironment {
+  constructor() {}
 }
 
 /**
@@ -75,7 +60,7 @@ export class UserRuntimeZero {
     sandbox: any
     sleep: any
 
-    Env = RtEnv
+    Env = RuntimeEnvironment
     RawClosure = RawClosure    
     constructLVal =  (x,y,z) => new LVal (x,y,z) 
     mkVal : (x:any) => LVal = this.default_mkVal
@@ -210,28 +195,29 @@ export class UserRuntimeZero {
         return levels.mkLevel(x);
     }
 
-    /**
-     * ComplexRT.
-     * Lookup a definition from a library.
-     * @param lib the library
-     * @param decl the declaration to look up
-     * @param obj the object to store the result in, under "libs["lib.decl"]"
-     * @returns the unlabelled value from the definition
-     */
-    loadLib(lib: string, decl: string, obj: { libs: { [x: string]: any } }): any {
-        // load the lib from the linked data structure
-        let r = obj.libs[lib + "." + decl];
-        // rt_debug("loading lib " + decl);
-        return r;
+    getLocalModule(name: string, obj: { imports: { [x : string]: string } }): any
+    {
+        const hash = obj.imports[name];
+        if (hasLocalModule({name, hash})) {
+            // HACK: The final `.val` unwraps the `LVal` to the raw value. This is
+            //       to get around the fact that the compiler (for now) does not
+            //       treat modules as labelled values.
+            return getLocalModule({ name, hash: obj.imports[name] }).value.val;
+        }
+        throw "Resolving 'import' statements for non-lib not supported (yet)";
     }
 
+    getModule(name: string, obj: { require: { [x : string]: string } }): LVal
+    {
+        throw "Resolving 'require' statements are not supported (yet)";
+    }
 
     /*
      * ==============================================================
      * The remaining functions are not referred to by generated code.
      * ==============================================================
      */
-    
+
     branch = function (x) {
         this.runtime.$t.setBranchFlag()
         this.runtime.$t.raiseCurrentThreadPC(x.lev);
@@ -257,24 +243,6 @@ export class UserRuntimeZero {
         return this.runtime.$t.mkCopy(x)
     }
 
-
-    libLoadingPseudoThread = new Thread(null, null, null, __unit, levels.BOT, levels.BOT, null, this, null);
-    savedThread =  null ;// this.runtime.__sched.getCurrentThread();
-    setLibloadMode() {
-        this.mkVal = (x) => new LVal(x, levels.BOT);
-        this.mkValPos = (x, pos) => new LVal(x, levels.BOT, levels.BOT, pos);
-        this.Env = LibEnv;
-        this.savedThread = this.runtime.__sched.setCurrentThread(this.libLoadingPseudoThread);
-    }
-
-
-    setNormalMode() {
-        this.mkVal = this.default_mkVal;
-        this.mkValPos = this.default_mkValPos
-        this.Env = RtEnv;
-        this.runtime.__sched.setCurrentThread(this.savedThread);
-    }
-
     // tailcall(lff, arg) {    
     //     this.runtime.tailcall (lff, arg)
     // }
@@ -282,11 +250,6 @@ export class UserRuntimeZero {
     // raw_tailcall(x) {
     //     this.runtime.__sched.tailToTroupeFun_raw (x);
     // }
-
-
-    async linkLibs (f) {
-        await loadLibsAsync(f, this)
-    }
 
     errorPos (x: { val: string }, pos: string) {
         if (pos != '') {

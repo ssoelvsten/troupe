@@ -55,8 +55,8 @@ instance FreeNames SimpleTerm where
   freeVars (List vs)  = FreeVars (Set.fromList vs)
   freeVars (ListCons v1 v2) = FreeVars (Set.fromList [v1, v2])
   freeVars (Base _ ) = FreeVars $ Set.empty
-  freeVars (Lib _ _) = FreeVars $ Set.empty
-  freeVars (Module _  ) = FreeVars $ Set.empty
+  freeVars (ImpBase _) = FreeVars $ Set.empty
+  freeVars (ReqBase _) = FreeVars $ Set.empty
   freeVars (Record fields) = unionMany $ 
       map (\(f,x) -> FreeVars (if x == VN f then Set.empty else Set.singleton x))
       fields

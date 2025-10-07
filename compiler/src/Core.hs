@@ -96,10 +96,10 @@ type Fields = [(FieldName, Term)]
 data VarAccess
     -- | A normal variable
     = RegVar VarName
-    -- | Referring to a definition from a library
-    | LibVar LibName VarName
-    -- | Referring to the value 'exported' from a module
-    | ModVar ModName
+    -- | Referring to the value 'exported' from an imported module
+    | ImpVar ModName
+    -- | Referring to the value 'exported' from a required module
+    | ReqVar ModName
     -- | A predefined name (e.g. send, receive)
     | BaseName VarName
  deriving (Eq)
@@ -131,7 +131,7 @@ instance Serialize Atoms
 data Modules = Modules [(ModName, ModHash)]
   deriving (Eq, Show)
 
-data Prog = Prog Imports Core.Modules Atoms Term
+data Prog = Prog Core.Modules Core.Modules Atoms Term
   deriving (Eq, Show)
 
 {-- 
@@ -156,9 +156,8 @@ The module also contains pretty printing for the Core representation.
 -- 1. Lowering 
 --------------------------------------------------
 
-lowerProg (D.Prog imports modules atms term) =
-  Prog imports (transModules modules) (transAtoms atms) (lower term)
-
+lowerProg (D.Prog imps reqs atms term) =
+  Prog (transModules imps) (transModules reqs) (transAtoms atms) (lower term)
 
 
 -- the rest of the declarations in this part are not exported
@@ -230,13 +229,13 @@ lower (D.Un op e) = Un op (lower e)
 -- This is the only function that is exported here
 
 renameProg :: Prog -> Prog
-renameProg (Prog imports modules (Atoms atms) term) =
+renameProg (Prog imps reqs (Atoms atms) term) =
   let alist = map (\ a -> (a, a)) atms
       initEnv    = Map.fromList alist
-      initReader = (mapFromImports imports, makeModEnv modules)
+      initReader = (makeModEnv imps, makeModEnv reqs)
       initState  = 0
       (term', _) = evalRWS (rename term initEnv) initReader initState
-  in Prog imports modules (Atoms atms) term'
+  in Prog imps reqs (Atoms atms) term'
 
 -- The rest of the declarations here are not exported
 
@@ -254,21 +253,10 @@ threaded explicitly. That is encoded in the `Env` map.
 --}
 
 
-type S = RWS (LibEnv, ModEnv) () Integer
+type S = RWS (ModEnv, ModEnv) () Integer
 
-type LibEnv = Map.Map VarName LibName
 type ModEnv = Map.Map VarName ModName
 type Env    = Map.Map VarName VarName
-
-mapFromImports :: Imports -> LibEnv
-mapFromImports (Imports imports) =
-  foldl insLib Map.empty imports
-     where
-       insLib map (lib, Just defs) = foldl (\map def -> Map.insert def lib map) map defs
-       insLib map (lib, Nothing) = error "malformed lib import data structure"
-           -- TODO: 2018-07-02; better error message for the above case
-           -- or even better: a data structure that avoids needing to make a check like that
-           -- (we should be in theory able to do that)
 
 makeModEnv :: Core.Modules -> ModEnv
 makeModEnv (Core.Modules modules) =
@@ -298,14 +286,14 @@ lookforgen v m =
        -- Previously defined variable
        Just v' -> return $ RegVar v'
        Nothing -> do
-          (libDefs, mods) <- ask
-          case (Map.lookup v mods, Map.lookup v libDefs) of
-            -- Module name
-            (Just v', _)   -> return $ ModVar v'
-            -- Definition by a library
-            (_, Just lib') -> return $ LibVar lib' v
+          (imps, reqs) <- ask
+          case (Map.lookup v imps, Map.lookup v reqs) of
+            -- Definition from an import
+            (Just v', _) -> return $ ImpVar v'
+            -- Definition from a require
+            (_, Just v') -> return $ ReqVar v'
             -- Otherwise, treat it as a new variable
-            _              -> return $ BaseName v
+            _            -> return $ BaseName v
 
 
 extend :: VarName -> VarName -> Env -> Env
@@ -429,16 +417,16 @@ instance ShowIndent Prog where
 
 
 ppProg :: Prog -> PP.Doc
-ppProg (Prog (Imports imports) (Core.Modules modules) (Atoms atoms) term) =
+ppProg (Prog (Core.Modules imps) (Core.Modules reqs) (Atoms atoms) term) =
   let ppAtoms =
         if null atoms
           then PP.empty
           else (text "datatype Atoms = ") <+>
                (hsep $ PP.punctuate (text " |") (map text atoms))
 
-      ppImports = if null imports then PP.empty else text "<<imports>>\n"
-      ppModules = if null modules then PP.empty else text "<<modules>>\n"
-  in ppImports $$ ppModules $$ ppAtoms $$ ppTerm 0 term
+      ppImports  = if null imps then PP.empty else text "<<imports>>\n"
+      ppRequires = if null reqs then PP.empty else text "<<requires>>\n"
+  in ppImports $$ ppRequires $$ ppAtoms $$ ppTerm 0 term
 
 
 ppTerm :: Precedence -> Term -> PP.Doc
@@ -481,8 +469,8 @@ ppTerm' (ListCons hd tl) =
    ppTerm consPrec hd PP.<> text "::" PP.<> ppTerm consPrec tl
 
 ppTerm' (Var (RegVar x)) = text x
-ppTerm' (Var (LibVar (LibName lib) var)) = text lib <+> text "." <+> text var
-ppTerm' (Var (ModVar (ModName mod))) = text mod
+ppTerm' (Var (ImpVar (ModName mod))) = text mod
+ppTerm' (Var (ReqVar (ModName mod))) = text mod
 ppTerm' (Var (BaseName v)) = text v
 ppTerm' (Abs lam) =
   let (ppArgs, ppBody) = qqLambda lam

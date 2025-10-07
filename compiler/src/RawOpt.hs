@@ -22,7 +22,6 @@ import           IR ( Identifier(..)
 import qualified Data.List
 import qualified Data.Ord
 
-import Debug.Trace
 --------------------------------------------------
 --  substitutions for Raw 
 --------------------------------------------------
@@ -156,8 +155,8 @@ instance MarkUsed RawExpr where
     List xs -> markUsed xs
     ListCons x y -> markUsed x >> markUsed y 
     Const _  -> return ()
-    Lib _ _  -> return ()
-    Module _ -> return ()
+    ImpBase _  -> return ()
+    ReqBase _ -> return ()
     Base _ -> return ()    
     ConstructLVal x y z -> markUsed [x,y,z]
 
@@ -259,8 +258,8 @@ guessType = \case
   ProjectState R0_Lev -> Just RawLevel
   ProjectState R0_TLev -> Just RawLevel
   ProjectState R0_Val -> Nothing
-  Lib _ _ -> Nothing
-  Module _ -> Nothing
+  ImpBase _ -> Nothing
+  ReqBase _ -> Nothing
   Base _ -> Nothing
   ConstructLVal _ _ _ -> Nothing
 
@@ -547,7 +546,7 @@ instance PEval RawBBTree where
 
 
 funopt :: FunDef -> FunDef 
-funopt (FunDef hfn modules consts bb ir) =  
+funopt (FunDef hfn imps reqs consts bb ir) =  
   
   let 
       (m_consts, m_subst) = foldl (\(m1, m2) (x,lit) -> 
@@ -583,7 +582,7 @@ funopt (FunDef hfn modules consts bb ir) =
       readenv = ReadEnv { readConsts = Map.fromList consts  }
       (bb', _, (_, used_rvars)) = runRWS (peval bb) readenv pstate
       const_used = filter (\(x,_) -> Set.member x used_rvars) consts'
-      new = FunDef hfn modules const_used bb' ir  
+      new = FunDef hfn imps reqs const_used bb' ir  
   in if bb /= bb' then funopt new else new
 
 

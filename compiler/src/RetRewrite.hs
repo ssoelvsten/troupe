@@ -74,8 +74,8 @@ instance Substitutable SimpleTerm where
       ListCons v v' -> ListCons (fwd v) (fwd v')
       ValSimpleTerm sv -> ValSimpleTerm (apply subst sv)
       Base v -> Base v
-      Lib l v -> Lib l v 
-      Module m -> Module m
+      ImpBase m -> ImpBase m
+      ReqBase m -> ReqBase m
     where fwd x = Map.findWithDefault x x varmap
           fwdFields fields = map (\(f, x) -> (f, fwd x)) fields
 
@@ -377,4 +377,4 @@ ktWalkFix kt =
        else ktWalkFix kt'
 
 rewrite :: Prog -> Prog
-rewrite (Prog atoms modules kterm) = Prog atoms modules (ktWalkFix kterm)
+rewrite (Prog imps reqs atoms kterm) = Prog imps reqs atoms (ktWalkFix kterm)

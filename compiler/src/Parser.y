@@ -135,9 +135,9 @@ import Control.Monad.Except
 
 
 
-Prog : ImportDecl RequireDecl AtomsDecl Expr { Prog (Imports $1) (Modules $2) (Atoms $3) $4 }
+Prog : ImportDecl RequireDecl AtomsDecl Expr { Prog (Modules $1) (Modules $2) (Atoms $3) $4 }
 
-ImportDecl: import VAR ImportDecl { ((LibName (varTok $2), Nothing)): $3  }
+ImportDecl: import VAR ImportDecl { ((ModName (varTok $2), Nothing)): $3  }
           | {[]}
 
 RequireDecl: require VAR RequireDecl { ((ModName (varTok $2), Nothing)): $3  }

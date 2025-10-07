@@ -19,6 +19,7 @@ export enum TroupeCliArg {
     RSpawn = 'rspawn',
     Relay = 'relay',
     NoColor = 'no-color',
+    Include = "include",
 }
 
 export interface ParsedArgs {
@@ -39,6 +40,7 @@ export interface ParsedArgs {
     [TroupeCliArg.RSpawn]?: boolean;
     [TroupeCliArg.Relay]?: string | string[];
     [TroupeCliArg.NoColor]?: boolean;
+    [TroupeCliArg.Include]?: string | string[];
     [key: string]: any;
 }
 
@@ -73,6 +75,11 @@ export function getCliArgs(): ParsedArgs {
                     // We want to return true when --no-color is present
                     return process.argv.includes('--no-color');
                 }
+            })
+            .option(TroupeCliArg.Include, {
+              type: 'array',
+              default: [],
+              describe: 'folders to include for (local) modules resolution',
             })
             .parseSync();
 

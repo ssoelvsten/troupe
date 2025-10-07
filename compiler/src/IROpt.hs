@@ -15,7 +15,6 @@ import qualified Control.Monad.Writer      as CMW
 import qualified Data.Map.Lazy as Map 
 import           RetCPS                    (VarName (..))
 
-
 --------------------------------------------------
 --  substitutions for IR
 --------------------------------------------------
@@ -48,8 +47,8 @@ instance Substitutable IRExpr where
             ListCons x y -> ListCons (apply subst x) (apply subst y)
             Const x -> Const x
             Base name -> Base name 
-            Lib name name' -> Lib name name'
-            Module name -> Module name
+            ImpBase name -> ImpBase name
+            ReqBase name -> ReqBase name
         where _ff fields = map (\(f,x) -> (f, apply subst x)) fields
 
 instance Substitutable IRInst where 
@@ -193,10 +192,13 @@ canFailOrHasEffects expr = case expr of
     
     -- Function calls can have side effects
     Base _ -> True
-    Lib _ _ -> True
 
-    -- Modules access can fail to obtain its source code (?)
-    Module _ -> True
+    -- At runtime, all modules have been successfully initialized. Accessing these are safe and has
+    -- no side effects. Completely removing the mention of a module, thereby possibly not
+    -- initializing the module, neither has any side effects as module initialisation is forced to
+    -- be pure.
+    ImpBase _ -> False
+    ReqBase _ -> False
     
     -- These are generally safe
     Tuple _ -> False
@@ -378,10 +380,10 @@ irExprPeval e =
         (Base _) -> do 
             r_ (Unknown, e)
 
-        (Lib _ _) -> do 
+        (ImpBase _) -> do 
             r_ (Unknown, e)
 
-        (Module _) -> do
+        (ReqBase _) -> do
             r_ (Unknown, e)
 
         (Un Basics.TupleLength x) -> do 
@@ -533,14 +535,16 @@ instance PEval IRBBTree where
 
 
 funopt :: FunDef -> FunDef
-funopt (FunDef hfn argname modules consts bb) = 
+funopt (FunDef hfn argname imps reqs consts bb) = 
     let initEnv = (Map.singleton argname Unknown, False)
         (bb', (_, hasChanges), _) = runRWS (peval bb) () initEnv
 
-        (_, _, mms, _) = CMW.execWriter (IR.dependencies bb')
-        modules' = List.nub $ List.filter (\ (modName, _) -> List.elem modName mms) modules
+        (_, impRefs, reqRefs, _) = CMW.execWriter (IR.dependencies bb')
 
-        new = FunDef hfn argname modules' consts bb'
+        imps' = List.nub $ List.filter (\ (modName, _) -> List.elem modName impRefs) imps
+        reqs' = List.nub $ List.filter (\ (modName, _) -> List.elem modName reqRefs) reqs
+
+        new = FunDef hfn argname imps' reqs' consts bb'
     in if (bb /= bb')  then funopt new 
                        else new 
 

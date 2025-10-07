@@ -29,6 +29,7 @@ import { configureColors, isColorEnabled } from './colorConfig.mjs';
 import { mkLogger } from './logger.mjs'
 import { Record } from './Record.mjs';
 import { level } from 'winston';
+import { Module, loadLocalModules } from './LocalModules.mjs';
 
 const readFile = fs.promises.readFile
 const argv = getCliArgs();
@@ -125,27 +126,27 @@ function remoteSpawnOK() {
  *    The identity of the node that initiates the spawning.
  */
 async function spawnFromRemote(jsonObj, fromNode) {
-  logger.debug("spawn from remote");
+  logger.debug("* rt spawnFromRemote *");
   // 2018-05-17: AA; note that this _only_ uses the lf.lev and
   // is completely independent of the current thread's pc;
+  const fromTrustLevel = nodeTrustLevel(fromNode);
 
-  const nodeLev = nodeTrustLevel(fromNode);
+  let f: LVal | undefined = undefined;
+  try {
+      f = await DS.deserialize(fromTrustLevel, jsonObj);
+  } catch (e) {
+      logger.debug(e);
+      return;
+  }
 
-  const lf = await DS.deserialize(nodeLev, jsonObj);
-  const f = lf.val;
-  const tid =
-    __sched.scheduleNewThread(
-      f
-      , __unit //[f.env, __unit]
-      // , f.namespace
-      , lf.lev
-      , lf.lev
-    );
+  // TODO:
+  // if (x._troupeType != TroupeType.CLOSURE) { ... }
 
-  // 2018-09-19: AA: because we need to send some info back, we have to invoke
-  // serialization.
+  // Schedule new thread with `f`.
+  const tid = __sched.scheduleNewThread(f.val, __unit, f.lev, f.lev);
 
-  const serObj = serialize(tid, levels.BOT).data
+  // Serialize to send some info back, we have to invoke serialization.
+  const serObj = serialize(tid, levels.BOT).data;
   __sched.resumeLoopAsync();
   return serObj;
 }
@@ -162,14 +163,19 @@ async function spawnFromRemote(jsonObj, fromNode) {
  *    The node identity of the sender node
  */
 async function receiveFromRemote(pid, jsonObj, fromNode) {
-  // Deserialize the data to runtime values, either directly or via the `troupec` compiler
-  logger.debug(`* rt receiveFromRemote *  ${JSON.stringify(jsonObj)}`);
-  const data = await DS.deserialize(nodeTrustLevel(fromNode), jsonObj);
-  logger.debug(`* rt receiveFromRemote *  ${fromNode} ${data.stringRep()}`);
+  // Deserialize the data to runtime values; we ignore messages that fail deserialization.
+  let data: LVal | undefined = undefined;
 
+  try {
+    data = await DS.deserialize(nodeTrustLevel(fromNode), jsonObj);
+  } catch (e) {
+    logger.debug(e);
+    return;
+  }
+
+  // Add the deserialized message to the mailbox of said process.
+  //
   // TODO (AA; 2018-07-23): do we need to do some more reasoning about the level of the fromNode?
-
-  // If successful, add the deserialized message to the mailbox of said process.
   const fromNodeId = $t().mkVal(fromNode);
   const toPid = new LVal(new ProcessID(runId, pid, __nodeManager.getLocalNode()), data.lev);
   __theMailbox.addMessage(fromNodeId, toPid, data.val, data.lev);
@@ -357,25 +363,6 @@ function bulletProofSigint() {
 bulletProofSigint();
 
 
-async function loadServiceCode() {
-  let input = await fs.promises.readFile(process.env.TROUPE + '/trp-rt/out/service.js', 'utf8')
-  let S: any = new Function('rt', input)
-  let service = new S(__userRuntime);
-
-  await __userRuntime.linkLibs(service)
-
-  __userRuntime.setLibloadMode()
-  let table = service.export({__dataLevel:levels.BOT}).val.toArray()
-  __userRuntime.setNormalMode()
-
-  for (let i = 0; i < table.length; i++) {
-    let name = table[i].val[0].val
-    let ff = table[i].val[1].val
-    __service[name] = ff
-  }
-}
-
-
 async function getNetworkPeerId(rtHandlers) {
   const nodeIdFile = argv[TroupeCliArg.Id] as string;
   if (nodeIdFile) {
@@ -408,6 +395,37 @@ async function getNetworkPeerId(rtHandlers) {
   }
 }
 
+// TODO: Move all service initialisation and `__service` ownership into its own separate file.
+async function loadServiceCode() {
+  const serviceFile = `${process.env.TROUPE}/trp-rt/out/service.js`;
+  let d = await import (serviceFile);
+  let Top: any = d.default;
+  let top = new Top(__userRuntime);
+
+  await loadLocalModules(top);
+
+  // Initialise Service as a separate program (compiled as any other Troupe program)
+  const res = await new Promise((resolve, reject) => {
+    __sched.scheduleNewThread(
+      () => top.main({__dataLevel: levels.BOT})
+      , __unit
+      , levels.BOT
+      , levels.BOT
+      , ThreadType.Module
+      , resolve
+    );
+
+    __sched.resumeLoopAsync();
+  });
+  const table = (res as any).val.toArray();
+
+  // Populate `__service` with each name-function pair from the service thread.
+  for (let i = 0; i < table.length; i++) {
+    let name = table[i].val[0].val
+    let ff = table[i].val[1].val
+    __service[name] = ff
+  }
+}
 
 export async function start(f) {
   // Set up p2p network
@@ -439,8 +457,9 @@ export async function start(f) {
   // HACK: Despite the fact that service code is only spawned, if `__p2pRunning`,
   //       we need to populate the runtime.$service object.
   //
-  // TODO: Instead, treat these fields as nullable in `builtins/receive.mts` and
-  //       elsewhere. Best is to also put this into the typesystem.
+  // TODO: Instead, treat these fields or the object itself as nullable in
+  //       `builtins/receive.mts` and elsewhere. Best is to also put this into
+  //       the typesystem.
   await loadServiceCode();
 
   if (__p2pRunning) {
@@ -448,8 +467,10 @@ export async function start(f) {
 
     let service_arg =
       new LVal ( new Record([ ["authority", serviceAuthority],
-                              ["options", __unit]]),
-              levels.BOT);
+                              ["options", __unit]
+                            ]),
+                 levels.BOT);
+
     __sched.scheduleNewThread(__service['service']
           , service_arg
           , levels.TOP
@@ -457,16 +478,18 @@ export async function start(f) {
           , ThreadType.System);
   }
 
+  // ---------------------------------------------------------------------------
   // Set up 'main' thread
-  const mainAuthority = new LVal(new Authority(levels.ROOT), levels.BOT);
+  await loadLocalModules(f);
 
-  await __userRuntime.linkLibs(f);
+  // Schedule thread
+  const mainAuthority = new LVal(new Authority(levels.ROOT), levels.BOT);
 
   const onTerminate = (retVal: LVal) => {
     console.log(`>>> Main thread finished with value: ${retVal.stringRep()}`);
     if (argv[TroupeCliArg.Persist]) {
-      this.rtObj.persist(retVal, argv[TroupeCliArg.Persist])
-      console.log("Saved the result value in file", argv[TroupeCliArg.Persist])
+      this.rtObj.persist(retVal, argv[TroupeCliArg.Persist]);
+      console.log("Saved the result value in file", argv[TroupeCliArg.Persist]);
     }
   };
 

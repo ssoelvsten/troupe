@@ -65,7 +65,7 @@ data Term
 data Atoms = Atoms [AtomName]
       deriving (Eq, Show)
 
-data Prog = Prog Imports Modules Atoms Term
+data Prog = Prog Modules Modules Atoms Term
   deriving (Eq, Show)
 
 
@@ -88,15 +88,15 @@ instance ShowIndent Prog where
 
 
 ppProg :: Prog -> PP.Doc
-ppProg (Prog (Imports imports) (Modules modules) (Atoms atoms) term) =
+ppProg (Prog (Modules imps) (Modules reqs) (Atoms atoms) term) =
   let ppAtoms =
         if null atoms
           then PP.empty
           else (text "datatype Atoms = ") <+>
                (hsep $ PP.punctuate (text " |") (map text atoms))
-      ppImports = if null imports then PP.empty else text "<<imports>>\n"
-      ppModules = if null modules then PP.empty else text "<<modules>>\n"
-  in ppImports $$ ppModules $$ ppAtoms $$ ppTerm 0 term
+      ppImports = if null imps then PP.empty else text "<<imports>>\n"
+      ppRequires = if null reqs then PP.empty else text "<<requires>>\n"
+  in ppImports $$ ppRequires $$ ppAtoms $$ ppTerm 0 term
 
 
 ppTerm :: Precedence -> Term -> PP.Doc

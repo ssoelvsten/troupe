@@ -24,8 +24,10 @@ export enum ThreadType {
     System = -1,
     /** Main thread. */
     Main   = 0,
+    /** Threads created as part of module initialisation. */
+    Module = 1,
     /** Other threads, spawned from 'Main' or 'System'. */
-    Other  = 1
+    Other  = 2
 }
 
 /** Enum for termination statuses. */

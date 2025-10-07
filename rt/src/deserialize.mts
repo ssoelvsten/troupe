@@ -13,6 +13,7 @@ import { RuntimeInterface } from './RuntimeInterface.mjs';
 import { Record } from './Record.mjs';
 import { RawClosure } from './RawClosure.mjs';
 import { Level, lub, BOT } from './Level.mjs';
+import { loadLocalModules } from './LocalModules.mjs';
 
 // OBS: The variables below with `__` prefixes are all global! This is because the callback and
 // deserializedJson changes all the time while the compiler process has been started.
@@ -131,25 +132,18 @@ export function setRuntimeObj(rt: RuntimeInterface) {
 }
 
 // -------------------------------------------------------------------------------------------------
+// Error object
+
+export class DeserializationError extends Error {
+    constructor(msg: string) {
+        super(msg);
+        this.name = "DeserializationError";
+    }
+}
+
+// -------------------------------------------------------------------------------------------------
 // Value Reconstruction
 
-/** Fixed JavaScript preamble for libraries. */
-const HEADER : string = `
-this.libSet = new Set ()
-this.libs = []
-this.addLib = function (lib, decl) {
-  if (!this.libSet.has (lib +'.'+decl)) {
-    this.libSet.add (lib +'.'+decl);
-    this.libs.push ({lib:lib, decl:decl});
-  }
-}
-`;
-
-/** Reconstruct the value stored in the serialized `jsonObj` compiled into `compilerOutput` at the
- *  given `trustLevel`.
- *
- *  @todo Split this function into several smaller helper functions.
- */
 async function reconstruct(jsonObj: any, compilerOutput: string | undefined, trustLevel: Level)
   : Promise<LVal>
 {
@@ -164,9 +158,11 @@ async function reconstruct(jsonObj: any, compilerOutput: string | undefined, tru
     let k = 0;
     for (let i = 0; i < jsonObj.namespaces.length; i++) {
         let ns    = jsonObj.namespaces[i]
-        let nsFun = HEADER;
+        let nsFun = "";
 
         let atomSet = new Set<string>()
+        const imports = {};
+        const requires = {};
 
         for (let j = 0; j < ns.length; j++) {
             if (j > 0) {
@@ -178,7 +174,16 @@ async function reconstruct(jsonObj: any, compilerOutput: string | undefined, tru
             for (let atom of snippetJson.atoms) {
                 atomSet.add(atom);
             }
+
+            for (let [name,hash] of snippetJson.imports) {
+                imports[name] = hash;
+            }
+
+            for (let [name,hash] of snippetJson.requires) {
+                requires[name] = hash;
+            }
         }
+
         let argNames  = Array.from(atomSet);
         let argValues = argNames.map(argName => {return new Atom(argName)})
         argNames.unshift('rt');
@@ -191,9 +196,29 @@ async function reconstruct(jsonObj: any, compilerOutput: string | undefined, tru
         // that takes the runtime object + atoms as its arguments
         argValues.unshift(__rtObj);
         ctxt.namespaces[i] = Reflect.construct (NS, argValues);
+
+        // Add the merged imports and requires
+        ctxt.namespaces[i].imports = imports;
+        ctxt.namespaces[i].requires = requires;
+
     }
 
-    // 2. reconstruct the closures and environments
+    // 2. Load module dependencies
+    for (let i = 0; i < jsonObj.namespaces.length; i++) {
+        // Load standard library (`import` statements)
+        const loadedAllImports = await loadLocalModules(ctxt.namespaces[i]);
+        if (!loadedAllImports) {
+            throw new DeserializationError("Imported module missing");
+        }
+
+        // Fail if there are any user modules (`require` statements)
+        const loadedAllRequires = Object.keys(ctxt.namespaces[i].requires).length === 0;
+        if (!loadedAllRequires) {
+            throw new DeserializationError("Required modules are not resolvable");
+        }
+    }
+
+    // 3. reconstruct the closures and environments
     const sercloss = jsonObj.closures;
     const serenvs  = jsonObj.envs;
 
@@ -228,7 +253,6 @@ async function reconstruct(jsonObj: any, compilerOutput: string | undefined, tru
         }
         return ctxt.envs[i]
     }
-
 
     function deserializeArray(x) {
         let a = [];
@@ -296,15 +320,7 @@ async function reconstruct(jsonObj: any, compilerOutput: string | undefined, tru
         mkEnv(i);
     }
 
-    let v = mkValue(jsonObj.value);
-
-    // For each namespace we have generated, load all libraries before returning the reconstructed
-    // value.
-    for (let i = 0; i < ctxt.namespaces.length; ++i) {
-        await __rtObj.linkLibs(ctxt.namespaces[i]);
-    }
-
-    return v;
+    return mkValue(jsonObj.value);
 }
 
 // -------------------------------------------------------------------------------------------------

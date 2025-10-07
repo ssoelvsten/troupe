@@ -6,8 +6,8 @@ import Data.Maybe
 import Control.Monad
 
 visitProg :: Prog -> Prog
-visitProg (Prog imports modules (Atoms atms) tm) =
-  Prog imports modules (Atoms atms) (visitTerm atms tm)
+visitProg (Prog imps reqs (Atoms atms) tm) =
+  Prog imps reqs (Atoms atms) (visitTerm atms tm)
 
 visitTerm :: [AtomName] -> Term -> Term
 visitTerm atms (Lit lit) = Lit lit

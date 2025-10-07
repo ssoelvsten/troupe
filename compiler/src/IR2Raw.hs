@@ -485,16 +485,16 @@ expr2rawComp = \case
 
   -- Revision 2023-08: Changed the RT operation to return an unlabelled value,
   -- as the labels are PC anyway.
-  IR.Lib libname funname ->
+  IR.ImpBase modName ->
     return SimpleRawComp
-      { cVal = RExpr $ Lib libname funname
+      { cVal = RExpr $ ImpBase modName
       , cValLbl = PC
       , cTyLbl = PC
       }
 
-  IR.Module modName ->
+  IR.ReqBase modName ->
     return SimpleRawComp
-      { cVal = RExpr $ Module modName
+      { cVal = RExpr $ ReqBase modName
       , cValLbl = PC
       , cTyLbl = PC
       }
@@ -762,8 +762,8 @@ tree2raw (IR.BB irInsts irTr) = do
 
 -- Revision 2023-08: new code, but equivalent
 fun2raw :: IR.FunDef -> FunDef
-fun2raw irfdef@(IR.FunDef hfn vname modules consts (IR.BB irInsts irTr)) =
-   FunDef hfn modules rawConsts (BB insts tr) irfdef
+fun2raw irfdef@(IR.FunDef hfn vname imps reqs consts (IR.BB irInsts irTr)) =
+   FunDef hfn imps reqs rawConsts (BB insts tr) irfdef
       where ((tr, rawConsts), insts) = evalRWS comp () 0
             comp = do
               -- Store the argument from R0 in the variable under which the argument is expected.

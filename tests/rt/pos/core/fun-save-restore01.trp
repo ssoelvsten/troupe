@@ -1,0 +1,9 @@
+import List
+
+let val xs = [1, 3, 2]
+
+    fun f ys = List.map (fn x => x+1) ys
+    val _ =  save (authority, "testFunc", f)
+    val f1 = restore ("testFunc")
+in f1 xs
+end

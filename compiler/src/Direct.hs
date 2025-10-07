@@ -110,7 +110,7 @@ data Atoms = Atoms [AtomName]
       deriving (Eq, Show)
 
 
-data Prog = Prog Imports Modules Atoms Term
+data Prog = Prog Modules Modules Atoms Term
   deriving (Eq, Show)
 
 
@@ -130,7 +130,7 @@ instance ShowIndent Prog where
 
 
 ppProg :: Prog -> PP.Doc
-ppProg (Prog (Imports imports) (Modules modules) (Atoms atoms) term) =
+ppProg (Prog (Modules imps) (Modules reqs) (Atoms atoms) term) =
   let ppAtoms =
         if null atoms
           then PP.empty
@@ -138,20 +138,21 @@ ppProg (Prog (Imports imports) (Modules modules) (Atoms atoms) term) =
                (hsep $ PP.punctuate (text " |") (map text atoms))
 
       ppImports =
-        if null imports then PP.empty
+        if null imps then PP.empty
         else
-          let ppLibName ((LibName s, _)) = text "import" <+> text s
+          let ppModName ((ModName s, _)) = text "import" <+> text s
           in
-            (vcat $ (map ppLibName imports)) $$ PP.text ""
+            (vcat $ (map ppModName imps)) $$ PP.text ""
 
-      ppModules =
-        if null imports then PP.empty
+      ppRequires =
+        if null reqs then PP.empty
         else
           let ppModName ((ModName s, _)) = text "require" <+> text s
           in
-            (vcat $ (map ppModName modules)) $$ PP.text ""
+            (vcat $ (map ppModName reqs)) $$ PP.text ""
 
   in vcat [ ppImports
+          , ppRequires
           , ppAtoms
           , ppTerm 0 term ]
 

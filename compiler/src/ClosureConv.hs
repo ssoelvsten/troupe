@@ -18,7 +18,6 @@ import Control.Monad.State
 import Control.Monad.Writer
 import Control.Monad.Reader
 import Data.List
-import CompileMode
 
 import           Control.Monad.Except
 import IR as CCIR
@@ -45,7 +44,7 @@ type CC = RWS
             FreshCounter                  -- state:  the counter for fresh name generation
 
 
-type CCEnv   = (CompileMode, C.Atoms, NestingLevel, Map VarName VarLevel, Maybe VarName)
+type CCEnv   = (C.Atoms, NestingLevel, Map VarName VarLevel, Maybe VarName)
 type Frees   = [(VarName, NestingLevel)]
 type FunDefs = [CCIR.FunDef]
 type ConstEntry = (VarName, C.Lit)
@@ -59,9 +58,8 @@ consBB:: CCIR.IRInst -> CCIR.IRBBTree -> CCIR.IRBBTree
 consBB i (BB insts t) = BB (i:insts) t
 
 insVar :: VarName -> CCEnv -> CCEnv
-insVar vn (compileMode, atms, lev, vmap, fname) =
-    ( compileMode
-    , atms
+insVar vn (atms, lev, vmap, fname) =
+    ( atms
     , lev
     , Map.insert vn (VarNested lev) vmap
     , fname
@@ -73,12 +71,12 @@ insVars vars ccenv =
 
 
 askLev = do
-  (_, _, lev, _, _) <- ask
+  (_, lev, _, _) <- ask
   return lev
 
 
-incLev fname (compileMode, atms, lev, vmap, _) =
-    (compileMode, atms, lev + 1, vmap, (Just fname))
+incLev fname (atms, lev, vmap, _) =
+    (atms, lev + 1, vmap, (Just fname))
 
 
 -- this helper function looks up the variable name 
@@ -87,7 +85,7 @@ incLev fname (compileMode, atms, lev, vmap, _) =
 
 transVar :: VarName -> CC VarAccess
 transVar v@(VN vname) = do 
-  (_, C.Atoms atms, lev, vmap, maybe_fname) <- ask
+  (C.Atoms atms, lev, vmap, maybe_fname) <- ask
   case maybe_fname of 
     Just fname | fname == v  -> return $ VarFunSelfRef
     _ -> 
@@ -109,17 +107,17 @@ transVars = mapM transVar
 
 isDeclaredEarlierThan lev (_, l)  = l < lev
 
-transFunDec modules f@(VN fname) (CPS.Unary var kt) = do   
+transFunDec imps reqs f@(VN fname) (CPS.Unary var kt) = do   
   lev <- askLev
   let filt = isDeclaredEarlierThan lev
   (bb, (_, frees, consts_wo_levs)) <- 
       censor (\(a,b,c ) -> (a, filter filt b, filter (\(_, l) -> l == lev ) c))
-     $ listen $ local ((insVar var) . (incLev f)) $ cpsToIR modules kt
+     $ listen $ local ((insVar var) . (incLev f)) $ cpsToIR imps reqs kt
   let consts = (fst.unzip) consts_wo_levs
-  tell ([FunDef (HFN fname) var modules consts bb], [], [])
+  tell ([FunDef (HFN fname) var imps reqs consts bb], [], [])
   return (nub frees)
 
-transFunDec _ (VN _) (CPS.Nullary _) = error "not implemented"
+transFunDec _ _ (VN _) (CPS.Nullary _) = error "not implemented"
 
 -- state accessors
 
@@ -146,14 +144,14 @@ transFields fields = do
           lst' <- transVars vv 
           return $ zip ff lst'
 
-cpsToIR :: Modules -> CPS.KTerm -> CC CCIR.IRBBTree
-cpsToIR modules (CPS.LetSimple vname@(VN ident) st kt) = do 
+cpsToIR :: Modules -> Modules -> CPS.KTerm -> CC CCIR.IRBBTree
+cpsToIR imps reqs (CPS.LetSimple vname@(VN ident) st kt) = do 
     i <-
       let _assign arg = return $ Just $ CCIR.Assign vname arg in
       case st of 
         CPS.Base base -> _assign  $ Base base
-        CPS.Lib lib base -> _assign (Lib lib base)
-        CPS.Module mod -> _assign (CCIR.Module mod)
+        CPS.ImpBase mod -> _assign (CCIR.ImpBase mod)
+        CPS.ReqBase mod -> _assign (CCIR.ReqBase mod)
         CPS.Bin binop v1 v2 -> do
           v1' <- transVar v1 
           v2' <- transVar v2
@@ -188,26 +186,26 @@ cpsToIR modules (CPS.LetSimple vname@(VN ident) st kt) = do
                                               tell ([],[],[((vname, lit), lev)])
                                               return Nothing 
         CPS.ValSimpleTerm (CPS.KAbs klam) -> do 
-          freeVars <- transFunDec modules vname klam          
+          freeVars <- transFunDec imps reqs vname klam          
           envBindings <- mkEnvBindings freeVars
           return $ Just $ CCIR.MkFunClosures envBindings [(vname, HFN ident)]          
         
-    t <- local (insVar vname) (cpsToIR modules kt)   
+    t <- local (insVar vname) (cpsToIR imps reqs kt)   
     return $ case i of 
       Just i' -> i' `consBB` t
       Nothing -> t 
 
-cpsToIR modules (CPS.LetRet (CPS.Cont arg kt') kt) = do
-    t  <- cpsToIR modules kt
-    t' <- local (insVar arg) (cpsToIR modules kt')
+cpsToIR imps reqs (CPS.LetRet (CPS.Cont arg kt') kt) = do
+    t  <- cpsToIR imps reqs kt
+    t' <- local (insVar arg) (cpsToIR imps reqs kt')
     return $ CCIR.BB [] $ StackExpand arg t t'
-cpsToIR  modules (CPS.LetFun fdefs kt) = do 
+cpsToIR  imps reqs (CPS.LetFun fdefs kt) = do 
     let vnames_orig = map (\(CPS.Fun fname _) -> fname) fdefs
     let localExt = local (insVars vnames_orig)
-    t <- localExt (cpsToIR modules kt) -- translate the body
+    t <- localExt (cpsToIR imps reqs kt) -- translate the body
 
     frees <- mapM (\(CPS.Fun fname klam) -> 
-                        localExt (transFunDec modules fname klam)) 
+                        localExt (transFunDec imps reqs fname klam)) 
                 fdefs
 
     let freeVars = (nub.concat) frees 
@@ -218,40 +216,32 @@ cpsToIR  modules (CPS.LetFun fdefs kt) = do
     return $ (CCIR.MkFunClosures envBindings fnBindings) `consBB` t
 
 -- Special Halt continuation, for exiting program
-cpsToIR _ (CPS.Halt v) = do 
+cpsToIR _ _ (CPS.Halt v) = do 
     v' <- transVar v
-    (compileMode,_ , _ , _, _ ) <- ask 
-    let constructor =
-          case compileMode of
-              -- Compiling library, then generate export instruction
-              CompileMode.Library -> CCIR.LibExport
-              -- Otherwise, keep it as a simple return
-              _                   -> CCIR.Ret
+    return $ CCIR.BB [] $ CCIR.Ret v'
 
-    return $ CCIR.BB [] $ constructor v'
-
-cpsToIR _ (CPS.KontReturn v) = do 
+cpsToIR _ _ (CPS.KontReturn v) = do 
   v' <- transVar v 
   return $ CCIR.BB [] $ CCIR.Ret v'
 
-cpsToIR _ (CPS.ApplyFun fname v) = do 
+cpsToIR _ _ (CPS.ApplyFun fname v) = do 
   fname' <- transVar fname 
   v'     <- transVar v 
   return $ CCIR.BB [] $ CCIR.TailCall fname' v'
 
-cpsToIR modules (CPS.If v kt1 kt2) = do 
+cpsToIR imps reqs (CPS.If v kt1 kt2) = do 
   v' <- transVar v 
-  bb1 <- cpsToIR modules kt1 
-  bb2 <- cpsToIR modules kt2 
+  bb1 <- cpsToIR imps reqs kt1 
+  bb2 <- cpsToIR imps reqs kt2 
   return $ CCIR.BB [] $ CCIR.If v' bb1 bb2
 
-cpsToIR modules (CPS.AssertElseError v kt1 z p) = do 
+cpsToIR imps reqs (CPS.AssertElseError v kt1 z p) = do 
   v' <- transVar v 
   z' <- transVar z 
-  bb <- cpsToIR modules kt1 
+  bb <- cpsToIR imps reqs kt1 
   return $ CCIR.BB [] $ CCIR.AssertElseError v' bb z' p
 
-cpsToIR _ (CPS.Error v p) = do 
+cpsToIR _ _ (CPS.Error v p) = do 
   v' <- transVar v 
   return $ CCIR.BB [] $ CCIR.Error v' p
   
@@ -262,27 +252,22 @@ cpsToIR _ (CPS.Error v p) = do
 -- Top-level function
 ------------------------------------------------------------
 
-closureConvert :: CompileMode -> CPS.Prog -> Except String CCIR.IRProgram
-closureConvert compileMode (CPS.Prog (C.Modules modules) (C.Atoms atms) t) =
+closureConvert :: CPS.Prog -> Except String CCIR.IRProgram
+closureConvert (CPS.Prog (C.Modules imps) (C.Modules reqs) (C.Atoms atms) t) =
   let atms' = C.Atoms atms
-      initEnv = ( compileMode
-                , atms'
+      initEnv = ( atms'
                 , 0 -- initial nesting counter
                 , Map.empty
                 , Nothing -- top level code has no function name 
                 )
       initState = 0
-      (bb, (fdefs, _, consts_wo_levs)) = evalRWS (cpsToIR modules t) initEnv initState
-      (argumentName, toplevel) =
-         case compileMode of
-           -- Top level function of a library is named 'export'
-           CompileMode.Library     -> ("$$dummy", "export")
-           -- Passing authority through the argument to main
-           _                       -> ("$$authorityarg", "main")
+      (bb, (fdefs, _, consts_wo_levs)) = evalRWS (cpsToIR imps reqs t) initEnv initState
+      argName  = "$$authorityarg"
+      topLevel = "main"
 
       -- obs that our 'main' may have two names depending on the compilation mode; 2018-07-02; AA
       consts = (fst.unzip) consts_wo_levs
-      main = FunDef (HFN toplevel) (VN argumentName) modules consts bb
+      main = FunDef (HFN topLevel) (VN argName) imps reqs consts bb
 
       irProg = CCIR.IRProgram (C.Atoms atms) $ fdefs++[main]
     in do CCIR.wfIRProg irProg 

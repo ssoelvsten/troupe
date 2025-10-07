@@ -215,7 +215,7 @@ trBB (Raw.BB insts tr) = do
 
 
 trFun :: Raw.FunDef -> Stack.FunDef
-trFun fdef@(Raw.FunDef hfn modules consts bb ir) = 
+trFun fdef@(Raw.FunDef hfn imps reqs consts bb ir) = 
   let defUseInfo = defUse fdef 
       constMap = Map.fromList consts
       offsets = offsetMap constMap defUseInfo
@@ -231,7 +231,7 @@ trFun fdef@(Raw.FunDef hfn modules consts bb ir) =
                      Nothing -> insts 
                      Just ee  -> (Stack.StoreStack Raw.Env ee) :insts
       frameSize = Map.size offsets
-  in Stack.FunDef hfn frameSize modules consts (Stack.BB insts_ bb_) ir
+  in Stack.FunDef hfn frameSize imps reqs consts (Stack.BB insts_ bb_) ir
 
 
 rawProg2Stack :: Raw.RawProgram -> Stack.StackProgram

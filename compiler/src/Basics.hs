@@ -99,30 +99,18 @@ opPrec FlowsTo    = 50
 opPrec RaisedTo   = 50
 opPrec HasField   = 50
 
-newtype LibName = LibName String deriving (Eq, Show, Generic, Ord)
-instance Serialize LibName
-
-
-
--- 2018-07-02; AA: note on the data structure that we use for imports:
--- For each `import` declaration, the parser returns the name of the
--- library that is imported together with a Nothing value. After
--- parsing we produce a version where we replace the Nothing value
--- with the list of names that are exported from the library.
-
-
-data Imports = Imports [(LibName, Maybe [VarName])]
-  deriving (Eq, Show, Ord)
-
+-- 2025-11-12; SS: note on the data structure that we use each
+-- `import`/`require` declaration: the parser returns the name of the module
+-- together with a Nothing value. After parsing we search for the library to
+-- find its files. This includes its hash which we use as a unique and canonical
+-- reference to the module.
+--
 -- 2025-09-29; SS: a module exports a single value. In most cases, this value is
 -- a record of functions. Until the introduction of gradual types, this makes it
 -- impossible to check for correct usage of each individual functions.
 --
 -- TODO: When gradual types are added, this needs to be extended with a
 --       `Maybe Type` which is populated as part of `processRequires`.
---
--- At current time of writing, we do need to process the local files in the
--- frontend to obtain the hash.
 newtype ModName = ModName String deriving (Eq, Show, Generic, Ord)
 instance Serialize ModName
 

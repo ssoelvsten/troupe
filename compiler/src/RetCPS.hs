@@ -68,8 +68,8 @@ data SimpleTerm
    | List [VarName]
    | ListCons VarName VarName
    | Base Basics.VarName
-   | Lib Basics.LibName Basics.VarName
-   | Module Basics.ModName
+   | ImpBase Basics.ModName
+   | ReqBase Basics.ModName
      deriving (Eq, Show, Ord)
 
 data KTerm
@@ -87,7 +87,7 @@ data KTerm
 
       deriving (Eq, Ord)
 
-data Prog = Prog C.Modules C.Atoms KTerm
+data Prog = Prog C.Modules C.Modules C.Atoms KTerm
   deriving (Eq, Show)
 
 --------------------------------------------------
@@ -104,19 +104,24 @@ instance ShowIndent Prog where
 --
 
 ppProg :: Prog -> PP.Doc
-ppProg (Prog (C.Modules modules) (C.Atoms atoms) kterm) =
+ppProg (Prog (C.Modules imps) (C.Modules reqs) (C.Atoms atoms) kterm) =
   let ppAtoms =
         if null atoms
         then PP.empty
         else (text "datatype Atoms = ") <+>
              (hsep $ PP.punctuate (text " |") (map text atoms))
 
-      ppModules =
-        if null modules
+      ppImps =
+        if null imps
         then PP.empty
-        else PP.hang (text "modules:") 3 (vcat $ map (\(Basics.ModName m, _) -> text m) modules)
+        else PP.hang (text "imports:") 3 (vcat $ map (\(Basics.ModName m, _) -> text m) imps)
 
-  in ppAtoms $$ ppModules $$ ppKTerm 0 kterm
+      ppReqs =
+        if null reqs
+        then PP.empty
+        else PP.hang (text "imports:") 3 (vcat $ map (\(Basics.ModName m, _) -> text m) reqs)
+
+  in ppAtoms $$ ppImps $$ ppReqs $$ ppKTerm 0 kterm
 
 ppKTerm :: Precedence -> KTerm -> PP.Doc
 
@@ -155,8 +160,8 @@ ppSimpleTerm (List vars) =
 ppSimpleTerm (ListCons v1 v2) =
   PP.parens $ textv v1 PP.<> text "::" PP.<> textv v2
 ppSimpleTerm (Base b) = text b PP.<> text "$base"
-ppSimpleTerm (Lib (Basics.LibName lib) v) = text lib <+> text "." <+> text v
-ppSimpleTerm (RetCPS.Module (Basics.ModName mod)) = text mod
+ppSimpleTerm (ImpBase (Basics.ModName mod)) = text mod
+ppSimpleTerm (ReqBase (Basics.ModName mod)) = text mod
 ppSimpleTerm (Record fields) = PP.braces $ qqFields fields 
 ppSimpleTerm (WithRecord x fields) = 
     PP.braces $ PP.hsep [textv x, text "with", qqFields fields]

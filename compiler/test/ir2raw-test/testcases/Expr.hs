@@ -14,7 +14,7 @@ import Basics
 
 
 mkP :: IRExpr -> IRProgram
-mkP e = IRProgram (Core.Atoms []) [FunDef (HFN "main") (VN "arg") [] [] body]
+mkP e = IRProgram (Core.Atoms []) [FunDef (HFN "main") (VN "arg") [] [] [] body]
   where body = BB [Assign (VN "r") e] (LibExport (mkV "r")) -- need to use assigned variable so that it is not optimized away
 
 tcs :: [(String, IRProgram)]
@@ -39,7 +39,8 @@ tcs = map (second mkP) $
   , ("WithRecord2", WithRecord (mkV "x") [("field1", mkV "v1"), ("field2", mkV "v2")])
   , ("ProjField", ProjField (mkV "x") "field1")
   , ("ProjIdx", ProjIdx (mkV "x") 123)
-  , ("Lib", Lib (LibName "string") "charAt")
+  , ("ImpBase", ImpBase (ModName "String"))
+  , ("ReqBase", ReqBase (ModName "pi"))
   ]
 
 deriving instance Enum BinOp

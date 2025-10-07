@@ -11,7 +11,6 @@ module CPSOpt (rewrite) where
 
 -- todo: consider renaming this to CPSRewrite
 
-import Debug.Trace
 import qualified Basics
 import RetCPS as CPS
 import qualified Core as C
@@ -86,8 +85,8 @@ instance Substitutable SimpleTerm where
       ListCons v v' -> ListCons (fwd v) (fwd v')
       ValSimpleTerm sv -> ValSimpleTerm (apply subst sv)
       Base v -> Base v
-      Lib l v -> Lib l v 
-      Module m -> Module m
+      ImpBase m -> ImpBase m
+      ReqBase m -> ReqBase m
     where fwd x = Map.findWithDefault x x varmap
           fwdFields fields = map (\(f, x) -> (f, fwd x)) fields
 
@@ -154,8 +153,8 @@ instance CensusCollectible SimpleTerm where
       List vs -> updateCensus vs
       ListCons v vs -> updateCensus v >> updateCensus vs
       Base _ -> return () 
-      Lib _ _ -> return ()
-      Module _ -> return ()
+      ImpBase _ -> return ()
+      ReqBase _ -> return ()
 
 instance CensusCollectible KLambda where   
   updateCensus kl = case kl of 
@@ -380,7 +379,8 @@ simplifySimpleTerm t =
   List _ -> _nochange 
   ListCons _ _ -> _nochange
   Base _ -> _nochange
-  Lib _ _ -> _nochange 
+  ImpBase _ -> _nochange
+  ReqBase _ -> _nochange
         --}
   _ -> _nochange
 
@@ -419,8 +419,8 @@ failFree st = case st of
   List _ -> True 
   ListCons _ _ -> False   -- List cons can fail if second arg is not a list
   Base _ -> False         -- Base function calls can have side effects or fail
-  Lib _ _ -> False        -- Library function calls can have side effects or fail 
-  Module _ -> True        -- Modules are initialised immediately; it is safe to access it at this point.
+  ImpBase _ -> True       -- Modules are initialised prior to execution; it is safe to access it at this point.
+  ReqBase _ -> True       -- Modules are initialised prior to execution; it is safe to access it at this point.
 
 instance Simplifiable KTerm where 
   simpl k = do 
@@ -548,5 +548,5 @@ iter kt =
                            iter kt' 
 
 rewrite :: Prog -> Prog
-rewrite (Prog modules atoms kterm) = 
- Prog modules atoms (iter kterm)
+rewrite (Prog imps reqs atoms kterm) = 
+ Prog imps reqs atoms (iter kterm)

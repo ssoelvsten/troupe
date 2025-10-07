@@ -114,7 +114,7 @@ export function serialize(w:LVal, pclev:Level) {
                         envs.push(jsonEnv);
 
                         for (let field in x.env) {
-                            if (field != "ret" && field != "_is_rt_env" && field != "__dataLevel") {
+                            if (field != "ret" && field != "__dataLevel") {
                                 let y = x.env[field];
                                 jsonEnv[field] = walk(y);
                             }

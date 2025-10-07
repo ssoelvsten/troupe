@@ -27,12 +27,16 @@ export function BuiltinPersist<TBase extends Constructor<UserRuntimeZero>>(Base:
             let file = arg;
 
             (async () => {
-                let jsonStr = await fs.promises.readFile("./out/saved." + file.val + ".persist.json", 'utf8');
-                let data = await deserialize(levels.TOP, JSON.parse(jsonStr));                
-                theThread.returnSuspended(data);
-                this.runtime.__sched.scheduleThread(theThread);
-                this.runtime.__sched.resumeLoopAsync();
-
+                try {
+                    let jsonStr = await fs.promises.readFile(`./out/saved.${file.val}.persist.json`, 'utf8');
+                    let data = await deserialize(levels.TOP, JSON.parse(jsonStr));
+                    theThread.returnSuspended(data);
+                    this.runtime.__sched.scheduleThread(theThread);
+                    this.runtime.__sched.resumeLoopAsync();
+                } catch (e) {
+                    this.runtime.debug(`restore error: ${e.toString()}`);
+                    throw e;
+                }
             })()
         }, "restore")
 

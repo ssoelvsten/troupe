@@ -96,6 +96,7 @@ export function BuiltinRegistry<TBase extends Constructor<UserRuntimeZero>>(Base
                         __sched.resumeLoopAsync();
 
                     } catch (err) {
+                        // TODO: should we not only crash the thread, not the entire runtime?
                         $r.debug("whereis error: " + err.toString())
                         throw err;
                     }
