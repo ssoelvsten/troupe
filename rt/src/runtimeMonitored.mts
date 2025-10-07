@@ -11,6 +11,7 @@ import { LVal, MbVal } from './Lval.mjs'
 import { ProcessID } from './process.mjs';
 import { UserRuntime } from './UserRuntime.mjs'
 import * as levels from './Level.mjs'
+const { flowsTo, lub, glb } = levels
 import * as DS from './deserialize.mjs'
 import { p2p } from './p2p/p2p.mjs'
 import { closeReadline } from './builtins/stdio.mjs';
@@ -22,10 +23,7 @@ import { setRuntimeObject } from './SysState.mjs';
 import { initTrustMap, nodeTrustLevel, _trustMap } from './TrustManager.mjs';
 import { serialize } from './serialize.mjs';
 import { Thread } from './Thread.mjs';
-
 import { Console } from 'node:console'
-
-const { flowsTo, lub, glb } = levels
 import { getCliArgs, TroupeCliArg } from './TroupeCliArgs.mjs';
 import { configureColors, isColorEnabled } from './colorConfig.mjs';
 import { mkLogger } from './logger.mjs'
@@ -33,38 +31,32 @@ import { Record } from './Record.mjs';
 import { level } from 'winston';
 
 const readFile = fs.promises.readFile
-const rt_uuid = runId
 const argv = getCliArgs();
 
 // Configure colors before any chalk or logger usage
 configureColors();
 
-let logLevel = argv[TroupeCliArg.Debug] ? 'debug': 'info'
+const logLevel = argv[TroupeCliArg.Debug] ? 'debug': 'info'
 const logger = mkLogger('RTM', logLevel);
-
-const info = x => logger.info(x)
-const debug = x => logger.debug(x)
-const error = x => logger.error(x)
 
 let __p2pRunning = false;
 
-
-let rt_xconsole = 
+const rt_xconsole =
       new Console({ stdout: process.stdout
                   , stderr: process.stderr
                   , colorMode: isColorEnabled()
                  });
 
-function $t():Thread { return __sched.__currentThread }; // returns the current thread
+/** Returns the current thread */
+function $t():Thread { return __sched.__currentThread };
 
 // --------------------------------------------------
 
 async function spawnAtNode(nodeid, f) {
-  debug (`* rt spawnAtNode  ${nodeid}`);
+  logger.debug(`* rt spawnAtNode  ${nodeid}`);
   let node = __nodeManager.getNode(nodeid.val);
-  // debug ("XX", node);
 
-  // TODO: 2018-09-24: AA: do the information flow check
+  // TODO (2018-09-24: AA): do the information flow check
 
   let { data, level } = serialize(f, lub($t().pc, nodeid.lev));
 
@@ -74,27 +66,24 @@ async function spawnAtNode(nodeid, f) {
   if (!flowsTo(level, trustLevel)) {
     theThread.throwInSuspended("Illegal trust flow when spawning on a remote node\n" +
       ` | the trust level of the recepient node: ${trustLevel.stringRep()}\n` +
-      ` | the level of the information in spawn: ${level.stringRep()}`)
+      ` | the level of the information in spawn: ${level.stringRep()}`);
      __sched.scheduleThread(theThread);
-     __sched.resumeLoopAsync();  
+     __sched.resumeLoopAsync();
      return;
   }
 
 
   // 0. we assume that the node is different from
   //    the local node
-
   // 1. we make a connection to the remote node
   // 2. we send the serialized version of f
   // 3. we wait for the reply (should be a pid)
   // 4. we return the obtained pid
   //--------------------------------------------------
 
-
-
   try {
     let body1 = await p2p.spawnp2p(node.nodeId, data);
-    let body = await DS.deserialize(nodeTrustLevel(node.nodeId), body1)
+    let body = await DS.deserialize(nodeTrustLevel(node.nodeId), body1);
     let pid = new ProcessID(body.val.uuid, body.val.pid, body.val.node);
     theThread.returnSuspended(new LVal(pid, body.lev));
 
@@ -102,13 +91,13 @@ async function spawnAtNode(nodeid, f) {
     __sched.resumeLoopAsync();
 
   } catch (err) {
-    error("error spawning remotely; this blocks current thread")
+    logger.error("error spawning remotely; this blocks current thread")
     if (err instanceof AggregateError) {
       for (let ie in err) {
-        error(`${ie}`)
+        logger.error(`${ie}`);
       }
     } else {
-      error(`${err}`)
+      logger.error(`${err}`);
     }
   }
 }
@@ -136,15 +125,15 @@ function remoteSpawnOK() {
  *    The identity of the node that initiates the spawning.
  */
 async function spawnFromRemote(jsonObj, fromNode) {
-  debug ("spawn from remote")
+  logger.debug("spawn from remote");
   // 2018-05-17: AA; note that this _only_ uses the lf.lev and
   // is completely independent of the current thread's pc;
 
-  let nodeLev = nodeTrustLevel(fromNode);
+  const nodeLev = nodeTrustLevel(fromNode);
 
-  let lf = await DS.deserialize(nodeLev, jsonObj)
-  let f = lf.val;
-  let newPid =
+  const lf = await DS.deserialize(nodeLev, jsonObj);
+  const f = lf.val;
+  const newPid =
     __sched.scheduleNewThreadAtLevel(
       f
       , __unit //[f.env, __unit]
@@ -156,9 +145,9 @@ async function spawnFromRemote(jsonObj, fromNode) {
   // 2018-09-19: AA: because we need to send some info back, we have to invoke
   // serialization.
 
-  let serObj = serialize(newPid, levels.BOT).data
+  const serObj = serialize(newPid, levels.BOT).data
   __sched.resumeLoopAsync();
-  return (serObj);
+  return serObj;
 }
 
 
@@ -173,18 +162,18 @@ async function spawnFromRemote(jsonObj, fromNode) {
  *    The node identity of the sender node
  */
 async function receiveFromRemote(pid, jsonObj, fromNode) {
-  debug(`* rt receiveFromremote *  ${JSON.stringify(jsonObj)}`)
-  let data = await DS.deserialize(nodeTrustLevel(fromNode), jsonObj)
-  debug(`* rt receiveFromremote *  ${fromNode} ${data.stringRep()}`);
+  // Deserialize the data to runtime values, either directly or via the `troupec` compiler
+  logger.debug(`* rt receiveFromRemote *  ${JSON.stringify(jsonObj)}`);
+  const data = await DS.deserialize(nodeTrustLevel(fromNode), jsonObj);
+  logger.debug(`* rt receiveFromRemote *  ${fromNode} ${data.stringRep()}`);
 
-  // TODO: 2018-07-23: do we need to do some more raising
-  // about the level of the fromNode?; AA
+  // TODO (AA; 2018-07-23): do we need to do some more reasoning about the level of the fromNode?
 
-  let fromNodeId = __sched.mkVal(fromNode);
-  let toPid = new LVal(new ProcessID(rt_uuid, pid, __nodeManager.getLocalNode()), data.lev);
+  // If successful, add the deserialized message to the mailbox of said process.
+  const fromNodeId = __sched.mkVal(fromNode);
+  const toPid = new LVal(new ProcessID(runId, pid, __nodeManager.getLocalNode()), data.lev);
   __theMailbox.addMessage(fromNodeId, toPid, data.val, data.lev);
   __sched.resumeLoopAsync();
-
 }
 
 
@@ -198,33 +187,39 @@ async function receiveFromRemote(pid, jsonObj, fromNode) {
  *
  */
 function sendMessageToRemote(toPid, message) {
-  let node = toPid.node.nodeId;
-  let pid = toPid.pid;
-  // debug (`* rt *  ${toPid}  ${message.stringRep()}`);  
+  const node = toPid.node.nodeId;
+  const pid = toPid.pid;
 
-  let { data, level } = serialize(new MbVal(message, $t().pc), $t().pc);
+  const { data, level } = serialize(new MbVal(message, $t().pc), $t().pc);
 
-  // debug (`* rt *  ${JSON.stringify(data)}`);
-  let trustLevel = nodeTrustLevel(node);
-
-  // debug ("data level: " +  level.stringRep());
-  // debug ("remote trust level: " + trustLevel.stringRep());
+  const trustLevel = nodeTrustLevel(node);
 
   if (!flowsTo(level, trustLevel)) {
-    threadError("Illegal trust flow when sending information to a remote node\n" +
-      ` | the trust level of the recepient node: ${trustLevel.stringRep()}\n` +
-      ` | the level of the information to send:  ${level.stringRep()}`);
+    $t().threadError("Illegal trust flow when sending information to a remote node\n" +
+                    ` | the trust level of the recepient node: ${trustLevel.stringRep()}\n` +
+                    ` | the level of the information to send:  ${level.stringRep()}`,
+                    false);
   } else {
+    // we return unit to the call site at the thread level
     p2p.sendp2p(node, pid, data)
-    return $t().returnImmediateLValue(__unit);   // we return unit to the call site at the thread level
+    return $t().returnImmediateLValue(__unit);
   }
 }
 
-// TODO: AA; 2020-05-19; consider moving these two functions somewhere else
 
+async function whereisFromRemote(k) {
+  __sched.resumeLoopAsync()
+  // TODO (AA; 2018-10-20): Make use of the levels as they were
+  // recorded during the registration (instead of the bottom here)
+  if (__theRegister[k]) {
+    return serialize(__theRegister[k], levels.BOT).data;
+  }
+}
+
+
+// TODO (AA; 2020-05-19): consider moving these two functions somewhere else
 function isLocalPid(pid) {
-  let x = pid.uuid.toString() == rt_uuid.toString();
-  return (x);
+  return pid.uuid.toString() == runId.toString();;
 }
 
 function rt_mkuuid() {
@@ -235,25 +230,22 @@ function rt_mkuuid() {
 
 function rt_sendMessageNochecks(lRecipientPid, message, ret = true) {
   let recipientPid = lRecipientPid.val;
-  // debug (`rt_sendMessageNoChecks ${message.stringRep()}`)
 
   if (isLocalPid(recipientPid)) {
     let nodeId = __sched.mkVal(__nodeManager.getNodeId());
     __theMailbox.addMessage(nodeId, lRecipientPid, message, $t().pc);
 
     if (ret) {
-      return $t().returnImmediateLValue(__unit);      
+      return $t().returnImmediateLValue(__unit);
     }
   } else {
-    debug ("* rt rt_send remote *"/*, recipientPid, message*/);
+    logger.debug ("* rt rt_send remote *"/*, recipientPid, message*/);
     return sendMessageToRemote(recipientPid, message)
   }
 }
 
 
-
-
-let rt_debug = function (s) {
+function rt_debug (s) {
   function formatToN(s, n) {
     if (s.length < n) {
       let j = s.length;
@@ -264,72 +256,27 @@ let rt_debug = function (s) {
     return s;
   }
 
-  let tid = $t().tidErrorStringRep()
-  let pc = $t().pc.stringRep()
-  let bl = $t().bl.stringRep()
-  let handler_state = __sched.handlerState.toString()
+  const tid = $t().tidErrorStringRep();
+  const pc = $t().pc.stringRep();
+  const bl = $t().bl.stringRep();
+  const handler_state = __sched.handlerState.toString();
   rt_xconsole.log(
     chalk.red(formatToN("PID:" + tid, 50)),
     chalk.red(formatToN("PC:" + pc, 20)),
     chalk.red(formatToN("BL:" + bl, 20)),
     chalk.red(formatToN("HN" + handler_state, 20)),
     chalk.red(formatToN("_sp:" + $t()._sp, 20)),
-    s 
+    s
   );
 }
 
-
-
-async function whereisFromRemote(k) {
-  __sched.resumeLoopAsync()
-  // TODO: 2018-10-20: make use of the levels as they were
-  // recorded during the registration (instead of the bottom here )
-  if (__theRegister[k]) {
-    let serObj = serialize(__theRegister[k], levels.BOT).data
-    return serObj
-  }
-}
-
-
-
 function rt_mkLabel(x) {
-  // debug ("mkLabel", x, x === "secret");
-
-  
   return new LVal(levels.fromSingleTag(x), $t().pc);
-
 }
 
-
-
-
-function threadError(s, internal = false) {
-  return $t().threadError(s, internal);
+function rt_ret (arg) {
+  return $t().returnImmediateLValue(arg);
 }
-
-let rt_threadError = threadError;
-
-function rt_error(x) {
-  threadError(x.val);
-}
-
-function rt_errorPos(x, pos) {
-  if (pos != '') {
-    threadError(x.val + " at " + pos);
-  } else {
-    threadError(x.val);
-  }
-}
-
-
-let rt_ret = (arg) => { return $t().returnImmediateLValue(arg); } 
-// let rt_ret_raw = () => __sched.returnInThread_raw();
-
-// function tailcall(lff, arg) {
-//   assertIsFunction(lff);
-//   $t().raiseCurrentThreadPC(lff.lev);
-//   __sched.tailToTroupeFun(lff.val, arg);
-// }
 
 let __sched: Scheduler
 let __theMailbox: MailboxProcessor
@@ -337,93 +284,76 @@ let __userRuntime: any
 let __service:any = {}
 
 class RuntimeObject implements RuntimeInterface {
-  // tailcall = tailcall
-  xconsole = rt_xconsole
-  ret = rt_ret
-  // ret_raw = rt_ret_raw 
-  debug = rt_debug
-  spawnAtNode = spawnAtNode
-  rt_mkuuid = rt_mkuuid
-  mkLabel = rt_mkLabel
+  xconsole            = rt_xconsole;
+  ret                 = rt_ret;
+  debug               = rt_debug;
+  spawnAtNode         = spawnAtNode;
+  rt_mkuuid           = rt_mkuuid;
+  mkLabel             = rt_mkLabel;
   sendMessageNoChecks = rt_sendMessageNochecks;
-  cleanup = cleanupAsync
+  cleanup             = cleanupAsync;
   persist(obj, path) {
     let jsonObj = serialize(obj, $t().pc).data;
     fs.writeFileSync(path, JSON.stringify(jsonObj));
   }
 
   get $service () {
-    return __service
+    return __service;
   }
-  
+
   get $t() {
-    return $t()
+    return $t();
   }
 
   get __sched() {
-    return __sched
+    return __sched;
   }
 
   get __mbox() {
-    return __theMailbox
+    return __theMailbox;
   }
 
   get __userRuntime() {
-    return __userRuntime
+    return __userRuntime;
   }
 
   constructor() {
-    __sched = new Scheduler(this)
-    __theMailbox = new MailboxProcessor(this)
-    __userRuntime = new UserRuntime(this)
+    __sched = new Scheduler(this);
+    __theMailbox = new MailboxProcessor(this);
+    __userRuntime = new UserRuntime(this);
   }
-
 }
-
 
 let __rtObj = new RuntimeObject();
 DS.setRuntimeObj(__rtObj.__userRuntime);
 setRuntimeObject(__rtObj)
-
-
 
 async function cleanupAsync() {
   closeReadline()
   DS.stopCompiler();
   if (__p2pRunning) {
     try {
-      debug("stopping p2p")
+      logger.debug("stopping p2p")
       await p2p.stopp2p()
-      debug("p2p stop OK")
+      logger.debug("p2p stop OK")
     } catch (err) {
-      debug(`p2p stop failed ${err}`)
+      logger.debug(`p2p stop failed ${err}`)
     }
   }
 }
 
-
 // 2020-02-09; AA; ugly ugly hack
 function bulletProofSigint() {
-  let listeners = process.listeners("SIGINT");
-  // console.log (util.inspect(listeners))
-  // for (let i = 0; i < listeners.length; i ++  ) {
-  // console.log (listeners[i].toString());
-  // }
-
-  // process.stdin.removeAllListeners("on");
   process.removeAllListeners("SIGINT");
-  // console.log ("sigint bulletproofing")
   process.on('SIGINT', () => {
-    debug("SIGINT");
+    logger.debug("SIGINT");
     (async () => {
       await cleanupAsync()
       process.exit(0);
     })()
   })
-  // setTimeout (bulletProofSigint, 1000)
 }
 bulletProofSigint();
-
 
 
 async function loadServiceCode() {
@@ -445,15 +375,12 @@ async function loadServiceCode() {
 }
 
 
-
 async function getNetworkPeerId(rtHandlers) {
   const nodeIdFile = argv[TroupeCliArg.Id] as string;
   if (nodeIdFile) {
     try {
       let nodeIdObj = await readFile(nodeIdFile, 'utf-8')
       process.on('unhandledRejection', (e) => p2p.processExpectedNetworkErrors(e, "unhandledRejection"))
-      // process.on ('unhandledRejection', up => {console.log ("Unhandled rejection"); console.error (up)})
-      // process.on ('uncaughtException', up => {console.log ("Uncaught exception"); console.error (up)})
       process.on('uncaughtException', (e) => p2p.processExpectedNetworkErrors(e, "uncaughtException"))
       return await p2p.startp2p(JSON.parse(nodeIdObj), rtHandlers);
     } catch (err) {
@@ -463,37 +390,39 @@ async function getNetworkPeerId(rtHandlers) {
   } else {
     try {
       if (argv[TroupeCliArg.LocalOnly] || argv[TroupeCliArg.Persist]) {
-        info("Skipping network creation. Observe that all external IO operations will yield a runtime error.")
+        logger.info("Skipping network creation. Observe that all external IO operations will yield a runtime error.");
         if (argv[TroupeCliArg.Persist]) {
-          info("Running with persist flag.")
+          logger.info("Running with persist flag.");
         }
-        return null//  OBS: 2018-07-22: we are jumping over the network creation
+        //  OBS: 2018-07-22: we are jumping over the network creation
+        return null;
       } else {
         return await p2p.startp2p(null, rtHandlers);
       }
     } catch (err) {
-      logger.error("uncaught exception in the runtime")
-      console.error(err.stack);;
+      logger.error("uncaught exception in the runtime");
+      console.error(err.stack);
       process.exit(1);
     }
   }
 }
 
+
 export async function start(f) {
-  await initTrustMap()
+  await initTrustMap();
 
   let peerid = await getNetworkPeerId({
     remoteSpawnOK,
     spawnFromRemote,
     receiveFromRemote,
     whereisFromRemote
-  })
+  });
 
   if (peerid) {
-    __p2pRunning = true
-    debug("network ready")
+    __p2pRunning = true;
+    logger.debug("network ready");
   } else {
-    debug("network not initialized")
+    logger.debug("network not initialized");
   }
 
   __nodeManager.setLocalPeerId(peerid);
@@ -504,13 +433,13 @@ export async function start(f) {
     , cleanupAsync);
 
   await loadServiceCode()
-  await __userRuntime.linkLibs(f)
+  await __userRuntime.linkLibs(f);
   let mainAuthority = new LVal(new Authority(levels.ROOT), levels.BOT);
 
   if (__p2pRunning) {
-    let service_arg = 
-      new LVal ( new Record([ ["authority", mainAuthority], 
-                              ["options", __unit]]), 
+    let service_arg =
+      new LVal ( new Record([ ["authority", mainAuthority],
+                              ["options", __unit]]),
               levels.BOT);
     __sched.scheduleNewThreadAtLevel(__service['service']
           , service_arg
@@ -522,14 +451,12 @@ export async function start(f) {
   }
 
   __sched.scheduleNewThreadAtLevel(
-    () => f.main ({__dataLevel:levels.BOT})
+    () => f.main({__dataLevel:levels.BOT})
     , mainAuthority
-    // , f
     , levels.BOT
     , levels.BOT
     , true
     , argv[TroupeCliArg.Persist]
-  )
-  __sched.loop()
+  );
+  __sched.loop();
 }
-
