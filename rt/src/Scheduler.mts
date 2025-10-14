@@ -74,14 +74,8 @@ export class Scheduler implements SchedulerInterface {
         // console.log (`The number of blocked threads is ${this.__blocked.length}`)
     }
 
-    done  ()  {            
-        this.notifyMonitors();
-        // console.log (this.__currentThread.processDebuggingName, this.currentThreadId.val.toString(), "done")
-        delete this.__alive [this.currentThreadId.val.toString()];              
-    }
-
-
-    halt  (persist=null)  {
+    /** Epilogue for `main` thread: notify monitors, print and persist the final value  */
+    haltMain  (persist=null)  {
         this.raiseCurrentThreadPCToBlockingLev();
         let retVal = new LVal (this.__currentThread.r0_val, 
                                lub(this.__currentThread.bl, this.__currentThread.r0_lev),
@@ -89,7 +83,7 @@ export class Scheduler implements SchedulerInterface {
 
         this.notifyMonitors ();
 
-        delete this.__alive[this.currentThreadId.val.toString()];            
+        delete this.__alive[this.currentThreadId.val.toString()];
         console.log(">>> Main thread finished with value:", retVal.stringRep());
         if (persist) {
             this.rtObj.persist (retVal, persist )
@@ -97,7 +91,14 @@ export class Scheduler implements SchedulerInterface {
         }
         return null;
     }
-    
+
+    /** Epilogue for non-`main` threads: notify monitors  */
+    haltOther  ()  {
+        this.notifyMonitors();
+        // console.log (this.__currentThread.processDebuggingName, this.currentThreadId.val.toString(), "done")
+        delete this.__alive [this.currentThreadId.val.toString()];
+    }
+
     notifyMonitors (status = TerminationStatus.OK, errstr = null) {
         let mkVal = this.__currentThread.mkVal
         let ids = Object.keys (this.__currentThread.monitors);
@@ -191,8 +192,8 @@ export class Scheduler implements SchedulerInterface {
     scheduleNewThreadAtLevel (thefun, arg, levpc, levblock, ismain = false, persist=null, isSystem = false) {
         let newPid = this.createNewProcessIDAtLevel(levpc, isSystem);
 
-        let halt = ismain ?  ()=> { this.halt (persist) } : 
-                             () => { this.done () };
+        let halt = ismain ?  () => { this.haltMain (persist) } :
+                             () => { this.haltOther () };
         
         
         let t = new Thread 
