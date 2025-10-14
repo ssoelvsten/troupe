@@ -91,7 +91,8 @@ data TheState = TheState { freshCounter :: Integer
 
 type RetKontText = PP.Doc
 
-type W = RWS Bool  ([LibAccess], [Basics.AtomName], [RetKontText]) TheState
+type WData = ([LibAccess], [Basics.AtomName], [RetKontText])
+type W = RWS Bool WData TheState
 
 
 initState = TheState { freshCounter = 0
@@ -136,37 +137,48 @@ instance Identifier Raw.Assignable where
 class ToJS a where
    toJS :: a -> W PP.Doc
 
-irProg2JSString :: CompileMode -> Bool -> StackProgram -> String
-irProg2JSString compileMode debugMode ir =
-  let (fns, _, (_,_,konts)) = runRWS (toJS ir) debugMode initState
-      inner = vcat (fns:konts)
-      outer = vcat $
-        [ "function" <+> text "Top" <+> text "(rt) {"
-        , nest 2 inner
-        , text "}"
-        , "module.exports = Top"
+stack2PPDoc :: CompileMode -> Bool -> StackUnit -> (PP.Doc, WData)
+
+stack2PPDoc compileMode debugMode (ProgramStackUnit sp) =
+  let (fns, _, w@(libs, atoms, konts)) = runRWS (toJS sp) debugMode initState
+      inner = vcat $
+        [ jsLoadLibs
+        , addLibs libs
         ]
-  in PP.render $ case compileMode of Normal -> outer
-                                     Export -> inner
+        ++ (fns:konts) ++
+        [ ]
+
+      outer = ("function Top (rt)" <+> PP.lbrace)
+        $$+ inner
+        $$ PP.rbrace
+        $$ PP.text "module.exports = Top"
+
+      ppDoc = case compileMode of CompileMode.Export     -> inner
+                                  CompileMode.Normal     -> outer
+  in (ppDoc, w)
+
+stack2PPDoc _           debugMode su =
+  let (inner, _, w@(libs, _, konts)) = runRWS (toJS su) debugMode initState
+      ppDoc = vcat $ [ addLibs libs ] ++ (inner:konts)
+  in (ppDoc, w)
 
 
-stack2JSString :: StackUnit -> String
-stack2JSString x =
-  let (inner, _, (libs, atoms, konts)) = runRWS (toJS x) False initState
-  in PP.render (addLibs libs $$ (vcat (inner:konts)))
+stack2JSString :: CompileMode -> Bool -> StackUnit -> String
+stack2JSString compileMode debugMode su =
+  let (ppDoc, _) = stack2PPDoc compileMode debugMode su
+  in PP.render ppDoc
 
 
-
-stack2JSON :: StackUnit -> ByteString
-stack2JSON (ProgramStackUnit _) = error "needs to be ported"
-stack2JSON x = 
-  let (inner, _, (libs, atoms, konts)) = runRWS (toJS x) False initState
+stack2JSON :: CompileMode -> Bool -> StackUnit -> ByteString
+stack2JSON compileMode debugMode su =
+  let (ppDoc, (libs, atoms, konts)) = stack2PPDoc compileMode debugMode su
+      fname = case su of FunStackUnit (FunDef (HFN n) _ _ _ _) -> Just n
+                         AtomStackUnit _                       -> Nothing
   in Aeson.encode $ JSOutput { libs = libs
-                             , fname = case x of FunStackUnit (FunDef (HFN n)_ _ _ _) -> Just n
-                                                 _ -> Nothing
-                             , atoms = atoms                              
-                             , code = PP.render (addLibs libs $$ (vcat (inner:konts))) 
-                             } 
+                             , fname = fname
+                             , atoms = atoms
+                             , code = PP.render ppDoc
+                             }
 
 
 instance ToJS StackUnit where
@@ -185,15 +197,8 @@ instance ToJS IR.VarAccess where
 instance ToJS StackProgram where
   toJS (StackProgram atoms funs) = do
      jjA <- toJS atoms
-     (jjF, (libsF, atoms', _)) <- listen $ mapM toJS funs
-     
-     return $
-          vcat $ [ jsLoadLibs
-                 , addLibs libsF
-                 , jjA
-                 ] ++ jjF
-
-          
+     jjF <- mapM toJS funs
+     return $ vcat $ [jjA] ++ jjF
 
 
 instance ToJS C.Atoms where

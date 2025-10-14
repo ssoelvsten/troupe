@@ -14,10 +14,9 @@ import qualified IR as CCIR
 import qualified IROpt
 -- import qualified RetRewrite as Rewrite
 import qualified CPSOpt as CPSOpt
-import qualified IR2JS
 import qualified IR2Raw
--- import qualified Stack 
 import qualified Raw2Stack
+import qualified Stack
 import qualified Stack2JS
 import qualified RawOpt
 -- import System.IO (isEOF)
@@ -77,6 +76,7 @@ process flags fname input = do
 
   let verbose = Verbose `elem` flags
       noRawOpt = NoRawOpt `elem` flags
+      debugJS = Debug `elem` flags
 
   case ast of
     Left err -> do
@@ -161,7 +161,9 @@ process flags fname input = do
       when verbose $ writeFileD "out/out.stack" (show stack)
 
       ----- JAVASCRIPT -------------------------------------
-      let stackjs = Stack2JS.irProg2JSString compileMode (Debug `elem` flags) stack
+      let stackjs = Stack2JS.stack2JSString compileMode
+                                            debugJS
+                                            (Stack.ProgramStackUnit stack)
       writeFile outPath stackjs
 
       case exports of
@@ -208,7 +210,7 @@ printHr = putStrLn (replicate hrWidth '-')
 --------------------------------------------------------------------------------
 ----- DESERIALIZATION FOR INTERACTIVE MODES ------------------------------------
 
-fromStdinIR putFormattedLn = do
+fromStdinIR putStrLn format = do
   eof <- isEOF
   if eof then exitSuccess else do
     input <- BS.getLine
@@ -220,19 +222,27 @@ fromStdinIR putFormattedLn = do
       case decode input of
         Right bs ->
            case CCIR.deserialize bs
-              of Right x -> do putFormattedLn x
+              of Right x -> do (putStrLn . format . ir2Stack) x
                  Left s -> do putStrLn "ERROR in deserialization"
                               debugOut $ "deserialization error" ++ s
         Left s -> do putStrLn "ERROR in B64 decoding"
                      debugOut $ "decoding error" ++s
     putStrLn "" -- magic marker to be recognized by the JS runtime; 2018-03-04; aa
     hFlush stdout
-    fromStdinIR putFormattedLn
+    fromStdinIR putStrLn format
   -- AA: 2018-07-15: consider timestamping these entries
   where debugOut s = appendFile "/tmp/debug" (s ++ "\n")
 
-fromStdinTextIR = fromStdinIR (putStrLn . IR2JS.irToJSString)
-fromStdinJsonIR = fromStdinIR (BSLazyChar8.putStrLn . IR2JS.irToJSON)
+        ir2Stack = Raw2Stack.raw2Stack . RawOpt.rawopt . IR2Raw.ir2raw
+
+fromStdinTextIR =
+  let format = Stack2JS.stack2JSString CompileMode.Normal False
+  in fromStdinIR putStrLn format
+
+fromStdinJsonIR =
+  let putStrLn = BSLazyChar8.putStrLn
+      format   = Stack2JS.stack2JSON CompileMode.Normal False
+  in fromStdinIR putStrLn format
 
 --------------------------------------------------------------------------------
 ----- MAIN ---------------------------------------------------------------------
