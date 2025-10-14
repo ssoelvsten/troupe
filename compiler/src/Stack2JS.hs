@@ -153,8 +153,8 @@ stack2PPDoc compileMode debugMode (ProgramStackUnit sp) =
         $$ PP.rbrace
         $$ PP.text "module.exports = Top"
 
-      ppDoc = case compileMode of CompileMode.Export     -> inner
-                                  CompileMode.Normal     -> outer
+      ppDoc = case compileMode of CompileMode.Library    -> inner
+                                  _                      -> outer
   in (ppDoc, w)
 
 stack2PPDoc _           debugMode su =

@@ -70,9 +70,7 @@ process :: [Flag] -> Maybe String -> String -> IO ExitCode
 process flags fname input = do
   let ast    = parseProg input
 
-  let compileMode =
-        if elem LibMode flags then Export
-        else Normal
+  let compileMode = if LibMode `elem` flags then Library else Normal
 
   let verbose = Verbose `elem` flags
       noRawOpt = NoRawOpt `elem` flags
@@ -90,18 +88,15 @@ process flags fname input = do
 
       ------------------------------------------------------
       -- TROUPE (FRONTEND) ---------------------------------
-      let prog_without_dependencies =
-            case compileMode of
-                Normal -> addAmbientMethods prog_parsed
-                Export -> prog_parsed
+      let prog_without_dependencies = case compileMode of Normal -> addAmbientMethods prog_parsed
+                                                          _      -> prog_parsed
 
       prog <- (processImports) prog_without_dependencies
 
-      exports <- case compileMode of
-        Normal -> return Nothing
-        Export -> case runExcept (extractExports prog) of
-          Right es -> return (Just (es))
-          Left s -> die s
+      exports <- case compileMode of Library -> case runExcept (extractExports prog) of
+                                                     Right es -> return (Just (es))
+                                                     Left s   -> die s
+                                     _       -> return Nothing
 
       when verbose $ do printSep "SYNTAX"
                         writeFileD "out/out.syntax" (showIndent 2 prog)
@@ -166,9 +161,9 @@ process flags fname input = do
                                             (Stack.ProgramStackUnit stack)
       writeFile outPath stackjs
 
-      case exports of
-        Nothing -> return ()
-        Just es -> writeExports outPath es
+      -- case compileMode of Library -> ...
+      case exports of Nothing -> return ()
+                      Just es -> writeExports outPath es
 
       ----- EPILOGUE --------------------------------------
       when verbose printHr

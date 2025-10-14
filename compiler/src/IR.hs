@@ -28,7 +28,6 @@ import           Data.Serialize            (Serialize)
 import qualified Data.Serialize            as Serialize
 import           GHC.Generics              (Generic)
 
-import           CompileMode
 import           Text.PrettyPrint.HughesPJ (hsep, nest, text, vcat, ($$), (<+>))
 import qualified Text.PrettyPrint.HughesPJ as PP
 import           TroupePositionInfo

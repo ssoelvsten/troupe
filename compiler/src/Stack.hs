@@ -30,7 +30,6 @@ import           Control.Monad.Writer
 import           Data.List
 import qualified Data.ByteString           as BS
 
-import           CompileMode
 import           Text.PrettyPrint.HughesPJ (hsep, nest, text, vcat, ($$), (<+>))
 import qualified Text.PrettyPrint.HughesPJ as PP
 import           TroupePositionInfo

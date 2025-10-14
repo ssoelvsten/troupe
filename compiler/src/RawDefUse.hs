@@ -39,7 +39,6 @@ import qualified Data.Text as T
 import Data.Text.Encoding
 import Data.ByteString.Lazy (ByteString)
 import Data.ByteString.Base64 (encode,decode)
-import CompileMode
 import TroupePositionInfo
 import qualified Data.Aeson as Aeson
 import GHC.Generics (Generic)

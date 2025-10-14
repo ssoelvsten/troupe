@@ -21,12 +21,12 @@ import Data.List (nub, (\\))
 type Trans = Except String
 
 trans :: CompileMode -> S.Prog -> Trans T.Prog
-trans mode (S.Prog imports atms tm) = do
-  let tm' = case mode of
-              Normal ->
-                  S.Let [ S.ValDecl (S.VarPattern "authority") (S.Var "$$authorityarg") _srcRT ]
-                        tm
-              Export -> tm
+trans compileMode (S.Prog imports atms tm) = do
+  let tm' = case compileMode of
+        CompileMode.Library -> tm
+        _                   ->
+          S.Let [ S.ValDecl (S.VarPattern "authority") (S.Var "$$authorityarg") _srcRT ]
+                tm
   atms' <- transAtoms atms
   tm'' <- transTerm tm'
   return (T.Prog imports atms' tm'')
