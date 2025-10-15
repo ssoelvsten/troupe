@@ -41,22 +41,36 @@ export class Scheduler implements SchedulerInterface {
     __node: any;
     __stopWhenAllThreadsAreDone: boolean;
     __stopRuntime: () => void;    
-    constructor(rtObj:RuntimeInterface) {        
+
+    /*************************************************************************************************\
+    Scheduler state
+    \*************************************************************************************************/
+
+    /**  */
+    constructor(rtObj: RuntimeInterface) {        
         this.rt_uuid = runId;
         this.rtObj = rtObj
         this.__funloop = new Array()
         this.__blocked = new Array()
         this.__alive = {} // new Set();
-        
         this.__currentThread = null; // current thread object
 
         this.stackcounter = 0;
-                
-        // the unit value 
-        this.__unit = __unit 
+
+        // the unit value
+        this.__unit = __unit
     }
 
+    /** Initialisation of the scheduler based on the p2p layer, e.g. the `node` identifier and
+     *  the scheduler should proceed despite all threads being done. */
+    initScheduler(node, stopWhenAllThreadsAreDone = false, stopRuntime = () => {}) {        
+        this.__node = node;
+        this.__stopWhenAllThreadsAreDone = stopWhenAllThreadsAreDone;
+        this.__stopRuntime = stopRuntime
+    }
 
+    /** Kill all current threads (without notifying any monitors), staying ready for spawning new
+     *  threads. */
     resetScheduler() {
         // console.log (`The current length of __funloop is ${this.__funloop.length}`)
         // console.log (`The number of active threads is ${Object.keys(this.__alive).length}`)
@@ -72,6 +86,107 @@ export class Scheduler implements SchedulerInterface {
         this.__funloop = [] 
         // console.log (`The number of active threads is ${Object.keys(this.__alive).length}`)
         // console.log (`The number of blocked threads is ${this.__blocked.length}`)
+    }
+
+    /*************************************************************************************************\
+    Thread creation
+    \*************************************************************************************************/
+
+    /** Add a thread `t` to the active function loop. */
+    scheduleThread(t) {
+        this.__funloop.push(t)
+    }
+
+    createNewProcessIDAtLevel(pcArg, isSystem = false) {
+        let pid = isSystem ? SYSTEM_PROCESS_STRING : uuidv4();
+        let pidObj = new ProcessID(this.rt_uuid, pid, this.__node);
+        return new LVal(pidObj, pcArg);
+    }
+
+    /** Create a new thread `t` for the given function to be evaluated and schedule it. */
+    scheduleNewThreadAtLevel (thefun, arg, levpc, levblock, ismain = false, persist=null, isSystem = false) {
+        let newPid = this.createNewProcessIDAtLevel(levpc, isSystem);
+
+        let halt = ismain ?  () => { this.haltMain (persist) } :
+                             () => { this.haltOther () };
+        
+        
+        let t = new Thread 
+            ( newPid
+            , halt
+            , thefun
+            , arg
+            , levpc
+            , levblock
+            , new SandboxStatus.NORMAL()
+            , this.rtObj
+            , this );
+
+
+        this.__alive[newPid.val.toString()] = t;
+        this.scheduleThread (t)
+        return newPid;
+    }
+
+    /** Schedule the given function as the very next thing to be run. */
+    schedule(thefun, args, nm) {
+        this.__currentThread.runNext (thefun, args, nm);
+        this.scheduleThread(this.__currentThread)
+    }
+
+    /*************************************************************************************************\
+    Thread access
+    \*************************************************************************************************/
+
+    /** Whether the thread with identifier, `tid`, is alive. */
+    isAlive(tid) {
+        return (this.__alive[tid.val.toString()] != null);
+    }
+
+    /** The thread object with the given identifier, `tid`. */
+    getThread (tid) {
+        return this.__alive[tid.val.toString()];
+    }
+
+    /*************************************************************************************************\
+    Thread blocking/unblocking
+    \*************************************************************************************************/
+
+    /** Block thread object `t`. */
+    blockThread(t) {
+        this.__blocked.push(t)
+    }
+
+    /** Unblock the thread with the given identifier, `pid`. */
+    unblockThread(pid) {        
+        for (let i = 0; i < this.__blocked.length; i++) {            
+            if (pid_equals(this.__blocked[i].tid, pid)) {
+                this.scheduleThread(this.__blocked[i]);
+                this.__blocked.splice(i, 1);                
+                break;
+            }
+        }
+    }
+
+    /*************************************************************************************************\
+    Thread Termination
+    \*************************************************************************************************/
+
+    /** Notify monitors about thread termination. */
+    notifyMonitors (status = TerminationStatus.OK, errstr = null) {
+      let mkVal = this.__currentThread.mkVal
+      let ids = Object.keys (this.__currentThread.monitors);
+      for ( let i = 0; i < ids.length; i ++ ) {            
+        let id = ids[i];
+        let toPid = this.__currentThread.monitors[id].pid; 
+        let refUUID = this.__currentThread.monitors[id].uuid; 
+        let thisPid = this.__currentThread.tid;
+        let statusVal = this.__currentThread.mkVal ( status ) ;
+        let reason = TerminationStatus.OK == status ? statusVal : 
+          mkTuple ( [statusVal,  mkVal (errstr)] );
+        let message = mkVal (mkTuple ([ mkVal("DONE"), refUUID, thisPid, reason]))             
+        this.rtObj.sendMessageNoChecks ( toPid, message , false) // false flag means no need to return in the process
+      }
     }
 
     /** Epilogue for `main` thread: notify monitors, print and persist the final value  */
@@ -99,122 +214,30 @@ export class Scheduler implements SchedulerInterface {
         delete this.__alive [this.__currentThread.tid.val.toString()];
     }
 
-    notifyMonitors (status = TerminationStatus.OK, errstr = null) {
-        let mkVal = this.__currentThread.mkVal
-        let ids = Object.keys (this.__currentThread.monitors);
-        for ( let i = 0; i < ids.length; i ++ ) {            
-            let id = ids[i];
-            let toPid = this.__currentThread.monitors[id].pid; 
-            let refUUID = this.__currentThread.monitors[id].uuid; 
-            let thisPid = this.__currentThread.tid;
-            let statusVal = this.__currentThread.mkVal ( status ) ;
-            let reason = TerminationStatus.OK == status ? statusVal : 
-                mkTuple ( [statusVal,  mkVal (errstr)] );
-            let message = mkVal (mkTuple ([ mkVal("DONE"), refUUID, thisPid, reason]))             
-            this.rtObj.sendMessageNoChecks ( toPid, message , false) // false flag means no need to return in the process
-        }
-    }
-
-    initScheduler(node, stopWhenAllThreadsAreDone = false, stopRuntime = () => {}) {        
-        this.__node = node;
-        this.__stopWhenAllThreadsAreDone = stopWhenAllThreadsAreDone;
-        this.__stopRuntime = stopRuntime
-    }
-
-    resumeLoopAsync() {
-        setImmediate(() => {this.loop()});
-    }
-
-    scheduleThread(t) {
-        this.__funloop.push(t)
-    }
-
-
-    createNewProcessIDAtLevel(pcArg, isSystem = false) {
-        let pid = isSystem ? SYSTEM_PROCESS_STRING : uuidv4();
-        let pidObj = new ProcessID(this.rt_uuid, pid, this.__node);
-        return new LVal(pidObj, pcArg);
-    }
-
-
-
-    scheduleNewThreadAtLevel (thefun, arg, levpc, levblock, ismain = false, persist=null, isSystem = false) {
-        let newPid = this.createNewProcessIDAtLevel(levpc, isSystem);
-
-        let halt = ismain ?  () => { this.haltMain (persist) } :
-                             () => { this.haltOther () };
-        
-        
-        let t = new Thread 
-            ( newPid
-            , halt
-            , thefun
-            , arg
-            , levpc
-            , levblock
-            , new SandboxStatus.NORMAL()
-            , this.rtObj
-            , this );
-
-
-        this.__alive[newPid.val.toString()] = t;
-        this.scheduleThread (t)
-        return newPid;
-    }
-
-    schedule(thefun, args, nm) {
-        this.__currentThread.runNext (thefun, args, nm);
-        this.scheduleThread(this.__currentThread)
-    }
-
-
-    blockThread(t) {
-        this.__blocked.push(t)
-    }
-
-
-    unblockThread(pid) {        
-        for (let i = 0; i < this.__blocked.length; i++) {            
-            if (pid_equals(this.__blocked[i].tid, pid)) {
-                this.scheduleThread(this.__blocked[i]);
-                this.__blocked.splice(i, 1);                
-                break;
-            }
-        }
-    }
-
-
-    isAlive(tid) {
-        return (this.__alive[tid.val.toString()] != null);
-    }
-
-    getThread (tid) {
-        return this.__alive[tid.val.toString()];
-    }
-
-
-    stopThreadWithErrorMessage (t:Thread, s:string ) {
+    /** Kill thread `t` with the error message `s` sent to its monitors. */
+    stopThreadWithErrorMessage (t: Thread, s: string) {
         this.notifyMonitors(TerminationStatus.ERR, s) ;
         delete this.__alive [t.tid.val.toString()];
     }
 
-    /*****************************************************************************\
+    /*************************************************************************************************\
+    Scheduler loop
+    \*************************************************************************************************/
 
-    2018-02-18: AA: a hypothesis about memory management in V8
-
-    It appears that V8's memory management is not very well suited for infinitely
-    running functions. In other words, functions are expected to eventually
-    terminate, and all long-running computations are  expected to run through the
-    event loop. This is not surprising given the application where V8 is used.
-    This is why we periodically yield to the event loop; this hack appears to let
-    GC claim the objects allocated throughout the runtime of this function.  Note
-    that without this hack, we are observing memory leaks for many "server"-like
-    programs; with the hack, we get a waivy memory consumption profile that reaches
-    around 50M on the low points of the wave.
-
-    \*****************************************************************************/
-
-
+    /** Start the main scheduler loop.
+     *
+     * HACK (2018-02-18: AA): a hypothesis about memory management in V8
+     *
+     * It appears that V8's memory management is not very well suited for infinitely
+     * running functions. In other words, functions are expected to eventually
+     * terminate, and all long-running computations are  expected to run through the
+     * event loop. This is not surprising given the application where V8 is used.
+     * This is why we periodically yield to the event loop; this hack appears to let
+     * GC claim the objects allocated throughout the runtime of this function.  Note
+     * that without this hack, we are observing memory leaks for many "server"-like
+     * programs; with the hack, we get a waivy memory consumption profile that reaches
+     * around 50M on the low points of the wave.
+     */
     loop()  {
         const $$LOOPBOUND = 500000;
         let _FUNLOOP = this.__funloop
@@ -227,7 +250,8 @@ export class Scheduler implements SchedulerInterface {
                 dest = _curThread.next 
                 let ttl = 1000;  // magic constant; 2021-04-29
                 while (dest && ttl -- ) {
-                    // if (showStack) { // 2021-04-24; AA; TODO: profile the addition of this conditional in this tight loop
+                    // 2021-04-24; AA; TODO: profile the addition of this conditional in this tight loop
+                    // if (showStack) {
                     //     this.__currentThread.showStack()
                     // }
                     // console.log (">>>>>>>>>>")
@@ -262,10 +286,15 @@ export class Scheduler implements SchedulerInterface {
             // we are not really done, but are just hacking around the V8's memory management
             this.resumeLoopAsync();
         }
-  
+
         if (this.__stopWhenAllThreadsAreDone && Object.keys(this.__alive).length == 0 ) {
             this.__stopRuntime();
         }
     }
-    
+
+    /** Add continuation of the main Troupe execution loop to the Javascript queue. In the meantime
+     *  other code, e.g. the p2p and deserialization layers can run. */
+    resumeLoopAsync() {
+        setImmediate(() => { this.loop(); });
+    }
 }
