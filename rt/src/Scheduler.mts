@@ -258,16 +258,6 @@ export class Scheduler implements SchedulerInterface {
                 dest = _curThread.next;
                 let ttl = 1000;  // magic constant; 2021-04-29
                 while (dest && ttl--) {
-                    // 2021-04-24; AA; TODO: profile the addition of this conditional in this tight loop
-                    // if (showStack) {
-                    //     this.__currentThread.showStack()
-                    // }
-                    // console.log (">>>>>>>>>>")
-                    // console.log (dest.toString())
-                    // console.log ("<<<<<<<<<<")
-                    // if (dest.debugname ) {
-                    //     console.log (" -- ", dest.debugname)
-                    // }
                     dest = dest();
                 }
 
