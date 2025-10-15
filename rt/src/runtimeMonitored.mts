@@ -170,7 +170,7 @@ async function receiveFromRemote(pid, jsonObj, fromNode) {
   // TODO (AA; 2018-07-23): do we need to do some more reasoning about the level of the fromNode?
 
   // If successful, add the deserialized message to the mailbox of said process.
-  const fromNodeId = __sched.mkVal(fromNode);
+  const fromNodeId = $t().mkVal(fromNode);
   const toPid = new LVal(new ProcessID(runId, pid, __nodeManager.getLocalNode()), data.lev);
   __theMailbox.addMessage(fromNodeId, toPid, data.val, data.lev);
   __sched.resumeLoopAsync();
@@ -232,7 +232,7 @@ function rt_sendMessageNochecks(lRecipientPid, message, ret = true) {
   let recipientPid = lRecipientPid.val;
 
   if (isLocalPid(recipientPid)) {
-    let nodeId = __sched.mkVal(__nodeManager.getNodeId());
+    let nodeId = $t().mkVal(__nodeManager.getNodeId());
     __theMailbox.addMessage(nodeId, lRecipientPid, message, $t().pc);
 
     if (ret) {
@@ -259,7 +259,7 @@ function rt_debug (s) {
   const tid = $t().tidErrorStringRep();
   const pc = $t().pc.stringRep();
   const bl = $t().bl.stringRep();
-  const handler_state = __sched.handlerState.toString();
+  const handler_state = $t().handlerState.toString();
   rt_xconsole.log(
     chalk.red(formatToN("PID:" + tid, 50)),
     chalk.red(formatToN("PC:" + pc, 20)),

@@ -61,7 +61,7 @@ export class Scheduler implements SchedulerInterface {
         // console.log (`The current length of __funloop is ${this.__funloop.length}`)
         // console.log (`The number of active threads is ${Object.keys(this.__alive).length}`)
         for (let x in this.__alive) {            
-            if (this.currentThreadId.val.toString() == x) {
+            if (this.__currentThread.tid.val.toString() == x) {
                 // console.log (x, "ACTIVE")
             } else {
                 // console.log (x, "KILLING");
@@ -76,14 +76,14 @@ export class Scheduler implements SchedulerInterface {
 
     /** Epilogue for `main` thread: notify monitors, print and persist the final value  */
     haltMain  (persist=null)  {
-        this.raiseCurrentThreadPCToBlockingLev();
+        this.__currentThread.raiseCurrentThreadPCToBlockingLev()
         let retVal = new LVal (this.__currentThread.r0_val, 
                                lub(this.__currentThread.bl, this.__currentThread.r0_lev),
                                lub(this.__currentThread.bl, this.__currentThread.r0_tlev))
 
         this.notifyMonitors ();
 
-        delete this.__alive[this.currentThreadId.val.toString()];
+      delete this.__alive[this.__currentThread.tid.val.toString()];
         console.log(">>> Main thread finished with value:", retVal.stringRep());
         if (persist) {
             this.rtObj.persist (retVal, persist )
@@ -95,8 +95,8 @@ export class Scheduler implements SchedulerInterface {
     /** Epilogue for non-`main` threads: notify monitors  */
     haltOther  ()  {
         this.notifyMonitors();
-        // console.log (this.__currentThread.processDebuggingName, this.currentThreadId.val.toString(), "done")
-        delete this.__alive [this.currentThreadId.val.toString()];
+        // console.log (this.__currentThread.processDebuggingName, this.__currentThread.tid.val.toString(), "done")
+        delete this.__alive [this.__currentThread.tid.val.toString()];
     }
 
     notifyMonitors (status = TerminationStatus.OK, errstr = null) {
@@ -115,66 +115,15 @@ export class Scheduler implements SchedulerInterface {
         }
     }
 
-    raiseCurrentThreadPC (l)  {        
-        this.__currentThread.raiseCurrentThreadPC(l);
-    }
-    
-    raiseCurrentThreadPCToBlockingLev () {        
-        this.__currentThread.raiseCurrentThreadPCToBlockingLev()
-    }
-
-
-    raiseBlockingThreadLev (l) {   
-        this.__currentThread.raiseBlockingThreadLev(l); 
-    }
-
-
-    pinipush (l, cap) {        
-        this.__currentThread.pcpinipush(l, cap)        
-    }
-
-    pinipop (cap) {
-        return this.__currentThread.pinipop(cap); 
-    }
-
-    mkVal(x) {        
-        return this.__currentThread.mkVal (x);    
-    }
-    
-    mkValPos (x,p) {    
-        return this.__currentThread.mkValPos (x,p);    
-    }
-
-    mkCopy (x) {
-        return this.__currentThread.mkCopy (x);
-    }
-
-
     initScheduler(node, stopWhenAllThreadsAreDone = false, stopRuntime = () => {}) {        
         this.__node = node;
         this.__stopWhenAllThreadsAreDone = stopWhenAllThreadsAreDone;
         this.__stopRuntime = stopRuntime
     }
 
-
-    
-    get currentThreadId() {
-        return this.__currentThread.tid;
-    }
-
-    set handlerState (st) {
-        this.__currentThread.handlerState = st;        
-    }
-
-    get handlerState () {
-        return this.__currentThread.handlerState;
-    }
-
     resumeLoopAsync() {
         setImmediate(() => {this.loop()});
     }
-
-    
 
     scheduleThread(t) {
         this.__funloop.push(t)
