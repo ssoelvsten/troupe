@@ -7,6 +7,7 @@ import { mkTuple } from './ValuesUtil.mjs';
 import { SchedulerInterface } from './SchedulerInterface.mjs';
 import { RuntimeInterface } from './RuntimeInterface.mjs';
 import { LVal } from './Lval.mjs'
+import { Level } from "./Level.mjs";
 import {ProcessID, pid_equals} from './process.mjs'
 import SandboxStatus from './SandboxStatus.mjs'
 import  {ThreadError, TroupeError} from './TroupeError.mjs'
@@ -106,11 +107,18 @@ export class Scheduler implements SchedulerInterface {
     }
 
     /** Create a new thread `t` for the given function to be evaluated and schedule it. */
-    scheduleNewThreadAtLevel (thefun, arg, levpc, levblock, ismain = false, persist=null, isSystem = false) {
+    scheduleNewThreadAtLevel (f: () => any,
+                              arg: any,
+                              pc: Level,
+                              block: Level,
+                              ismain: boolean        = false,
+                              persist: boolean | null = null,
+                              isSystem: boolean      = false)
+    {
         // Create a new process ID at the given level.
         const pid = isSystem ? SYSTEM_PROCESS_STRING : uuidv4();
         const pidObj = new ProcessID(this.rt_uuid, pid, this.__node);
-        const newPid =  new LVal(pidObj, levpc);
+        const newPid =  new LVal(pidObj, pc);
 
         // Epilogue for thread.
         const halt = ismain ?  () => { this.haltMain (persist) } :
@@ -120,10 +128,10 @@ export class Scheduler implements SchedulerInterface {
         const t = new Thread
             ( newPid
             , halt
-            , thefun
+            , f
             , arg
-            , levpc
-            , levblock
+            , pc
+            , block
             , new SandboxStatus.NORMAL()
             , this.rtObj
             , this );
@@ -134,9 +142,9 @@ export class Scheduler implements SchedulerInterface {
         return newPid;
     }
 
-    /** Schedule the given function as the very next thing to be run. */
-    schedule(thefun, args, nm) {
-        this.__currentThread.runNext(thefun, args, nm);
+    /** Schedule the given function as the very next thing to be run on the current thread. */
+    schedule(f: () => any, args: any, namespace: any) {
+        this.__currentThread.runNext(f, args, namespace);
         this.scheduleThread(this.__currentThread);
     }
 
@@ -206,7 +214,7 @@ export class Scheduler implements SchedulerInterface {
       delete this.__alive[this.__currentThread.tid.val.toString()];
         console.log(">>> Main thread finished with value:", retVal.stringRep());
         if (persist) {
-            this.rtObj.persist(retVal, persist )
+            this.rtObj.persist(retVal, persist)
             console.log("Saved the result value in file", persist)
         }
         return null;
@@ -220,8 +228,8 @@ export class Scheduler implements SchedulerInterface {
     }
 
     /** Kill thread `t` with the error message `s` sent to its monitors. */
-    stopThreadWithErrorMessage (t: Thread, s: string) {
-        this.notifyMonitors(TerminationStatus.ERR, s);
+    stopThreadWithErrorMessage (t: Thread, errMsg: string) {
+        this.notifyMonitors(TerminationStatus.ERR, errMsg);
         delete this.__alive [t.tid.val.toString()];
     }
 
