@@ -91,21 +91,19 @@ export class Scheduler implements SchedulerInterface {
         this.__funloop.push(t)
     }
 
-    createNewProcessIDAtLevel(pcArg, isSystem = false) {
-        let pid = isSystem ? SYSTEM_PROCESS_STRING : uuidv4();
-        let pidObj = new ProcessID(this.rt_uuid, pid, this.__node);
-        return new LVal(pidObj, pcArg);
-    }
-
     /** Create a new thread `t` for the given function to be evaluated and schedule it. */
     scheduleNewThreadAtLevel (thefun, arg, levpc, levblock, ismain = false, persist=null, isSystem = false) {
-        let newPid = this.createNewProcessIDAtLevel(levpc, isSystem);
+        // Create a new process ID at the given level.
+        const pid = isSystem ? SYSTEM_PROCESS_STRING : uuidv4();
+        const pidObj = new ProcessID(this.rt_uuid, pid, this.__node);
+        const newPid =  new LVal(pidObj, levpc);
 
-        let halt = ismain ?  () => { this.haltMain (persist) } :
-                             () => { this.haltOther () };
-        
-        
-        let t = new Thread 
+        // Epilogue for thread.
+        const halt = ismain ?  () => { this.haltMain (persist) } :
+                               () => { this.haltOther () };
+
+        // New thread
+        const t = new Thread
             ( newPid
             , halt
             , thefun
