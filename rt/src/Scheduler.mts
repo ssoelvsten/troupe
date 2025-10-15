@@ -285,7 +285,10 @@ export class Scheduler implements SchedulerInterface {
                 console.log("--- Schedule module caught an internal exception ---");
                 console.log("--- The following output may help identify a bug in the runtime ---");
                 console.log("Destination function\n", dest);
-                this.__currentThread.showStack();
+
+                if (showStack) {
+                    this.__currentThread.showStack();
+                }
                 throw e;
             }
         }
