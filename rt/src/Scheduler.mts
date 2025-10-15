@@ -63,7 +63,7 @@ export class Scheduler implements SchedulerInterface {
 
     /** Initialisation of the scheduler based on the p2p layer, e.g. the `node` identifier and
      *  the scheduler should proceed despite all threads being done. */
-    initScheduler(node, stopWhenAllThreadsAreDone = false, stopRuntime = () => {}) {        
+    initScheduler(node, stopWhenAllThreadsAreDone, stopRuntime) {
         this.__node = node;
         this.__stopWhenAllThreadsAreDone = stopWhenAllThreadsAreDone;
         this.__stopRuntime = stopRuntime
