@@ -23,8 +23,6 @@ const logger = mkLogger('scheduler');
 const info = x => logger.info(x)
 const debug = x => logger.debug(x)
 
-const STACKDEPTH = 150;
-
 let TerminationStatus = {
     OK: 0,
     ERR: 1
