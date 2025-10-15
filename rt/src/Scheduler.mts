@@ -34,7 +34,6 @@ export class Scheduler implements SchedulerInterface {
     __blocked: any[];
     __alive: {};
     __currentThread: Thread;
-    stackcounter: number;
     rtObj : RuntimeInterface
     __node: any;
     __stopWhenAllThreadsAreDone: boolean;
@@ -52,8 +51,6 @@ export class Scheduler implements SchedulerInterface {
         this.__blocked = new Array()
         this.__alive = {} // new Set();
         this.__currentThread = null; // current thread object
-
-        this.stackcounter = 0;
     }
 
     /** Initialisation of the scheduler based on the p2p layer, e.g. the `node` identifier and
