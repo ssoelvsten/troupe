@@ -2,7 +2,6 @@
 import { v4 as uuidv4} from 'uuid'
 import { Thread } from './Thread.mjs';
 import runId from './runId.mjs';
-import { __unit } from './UnitVal.mjs';
 import { mkTuple } from './ValuesUtil.mjs';
 import { SchedulerInterface } from './SchedulerInterface.mjs';
 import { RuntimeInterface } from './RuntimeInterface.mjs';
@@ -36,7 +35,6 @@ export class Scheduler implements SchedulerInterface {
     __alive: {};
     __currentThread: Thread;
     stackcounter: number;
-    __unit: any;
     rtObj : RuntimeInterface
     __node: any;
     __stopWhenAllThreadsAreDone: boolean;
@@ -56,9 +54,6 @@ export class Scheduler implements SchedulerInterface {
         this.__currentThread = null; // current thread object
 
         this.stackcounter = 0;
-
-        // the unit value
-        this.__unit = __unit
     }
 
     /** Initialisation of the scheduler based on the p2p layer, e.g. the `node` identifier and
