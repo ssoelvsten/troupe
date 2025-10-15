@@ -5,8 +5,7 @@ export interface SchedulerInterface {
     // tailToTroupeFun_raw(f: any)
     // stepThread();
     resetScheduler();
-    __alive: any;
-    scheduleNewThreadAtLevel(fun: any, arg: any, pc: any, blockingTopLev: any);        
+    scheduleNewThreadAtLevel(fun: any, arg: any, pc: any, blockingTopLev: any);
     scheduleThread(theThread: any);
     resumeLoopAsync();
     blockThread(__currentThread: Thread);
