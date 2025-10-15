@@ -23,9 +23,12 @@ const logger = mkLogger('scheduler');
 const info = x => logger.info(x)
 const debug = x => logger.debug(x)
 
-let TerminationStatus = {
-    OK: 0,
-    ERR: 1
+/** Enum for termination statuses. */
+enum TerminationStatus {
+    /** Thread finished its computation. */
+    OK  = 0,
+    /** Thread stopped early due to an error. */
+    ERR = 1
 }
 
 export class Scheduler implements SchedulerInterface {
