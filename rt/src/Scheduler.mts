@@ -41,7 +41,7 @@ export class Scheduler implements SchedulerInterface {
     __funloop: Thread[];
 
     /** Queue of blocked threads. */
-    __blocked: Thread[];
+    __blocked: { [tid in string]: Thread };
 
     /** Map of alive threads from their stringified identifier, `tid`. */
     __alive: { [tid in string]: Thread };
@@ -64,7 +64,7 @@ export class Scheduler implements SchedulerInterface {
         this.rt_uuid = runId;
         this.rtObj = rtObj;
         this.__funloop = [];
-        this.__blocked = [];
+        this.__blocked = {};
         this.__alive = {};
         this.__currentThread = null;
     }
@@ -90,7 +90,7 @@ export class Scheduler implements SchedulerInterface {
                 delete this.__alive[x];
             }
         }
-        this.__blocked = [];
+        this.__blocked = {};
         this.__funloop = [];
         // console.log (`The number of active threads is ${Object.keys(this.__alive).length}`)
         // console.log (`The number of blocked threads is ${this.__blocked.length}`)
@@ -160,18 +160,15 @@ export class Scheduler implements SchedulerInterface {
 
     /** Block thread object `t`. */
     blockThread(t: Thread) {
-        this.__blocked.push(t);
+        this.__blocked[t.tid.val.toString()] = t;
     }
 
     /** Unblock the thread with the given identifier, `pid`. */
     unblockThread(tid: LVal) {
-        for (let i = 0; i < this.__blocked.length; i++) {
-            if (pid_equals(this.__blocked[i].tid, tid)) {
-                this.scheduleThread(this.__blocked[i]);
-                this.__blocked.splice(i, 1);
-                break;
-            }
-        }
+        if (!this.__blocked[tid.val.toString()]) { return; }
+
+        this.scheduleThread(this.__blocked[tid.val.toString()]);
+        delete this.__blocked[tid.val.toString()];
     }
 
     /*************************************************************************************************\
