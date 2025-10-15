@@ -17,7 +17,6 @@ import {SYSTEM_PROCESS_STRING} from './Constants.mjs'
 
 import { getCliArgs, TroupeCliArg } from './TroupeCliArgs.mjs';
 const argv = getCliArgs();
-const showStack = argv[TroupeCliArg.ShowStack]
 
 /** Enum for termination statuses. */
 enum TerminationStatus {
@@ -247,25 +246,26 @@ export class Scheduler implements SchedulerInterface {
      * around 50M on the low points of the wave.
      */
     loop()  {
-        const $$LOOPBOUND = 500000;
-        let _FUNLOOP = this.__funloop
-        let _curThread: Thread;
-        let dest;
+        const maxThreadsPerLoop = 500000;
+        const maxKontsPerThread = 1000;
+
+        let dest: () => any;
         try {
-            for (let $$loopiter = 0; $$loopiter < $$LOOPBOUND && _FUNLOOP.length > 0; $$loopiter++) {
-                _curThread = _FUNLOOP.shift();
-                this.__currentThread = _curThread;
-                dest = _curThread.next;
-                let ttl = 1000;  // magic constant; 2021-04-29
-                while (dest && ttl--) {
+            for (let i = 0; i < maxThreadsPerLoop && this.__funloop.length > 0; ++i) {
+                // Pop front of function queue and set it to be the next thread.
+                this.__currentThread = this.__funloop.shift();
+                dest = this.__currentThread.next;
+
+                // Run thread for `maxKontsPerThread` continuations.
+                for (let j = 0; dest && j < maxKontsPerThread; ++j) {
                     dest = dest();
                 }
 
+                // If not done, push it back into the queue.
                 if (dest) {
-                    _curThread.handlerState.checkGuard();
-
-                    _curThread.next = dest;
-                    _FUNLOOP.push(_curThread);
+                    this.__currentThread.handlerState.checkGuard();
+                    this.__currentThread.next = dest;
+                    this.__funloop.push(this.__currentThread);
                 }
             }
         } catch (e) {
@@ -276,18 +276,20 @@ export class Scheduler implements SchedulerInterface {
                 console.log("--- The following output may help identify a bug in the runtime ---");
                 console.log("Destination function\n", dest);
 
-                if (showStack) {
+                if (argv[TroupeCliArg.ShowStack]) {
                     this.__currentThread.showStack();
                 }
                 throw e;
             }
         }
 
-        if (_FUNLOOP.length > 0) {
-            // we are not really done, but are just hacking around the V8's memory management
+        // If more work is to be done, then resume `loop` after the Javascript runtime has been able
+        // to run other tasks, e.g. garbage collection.
+        if (this.__funloop.length > 0) {
             this.resumeLoopAsync();
         }
 
+        // If everything is done, and the node should not persist, then terminate.
         if (this.__stopWhenAllThreadsAreDone && Object.keys(this.__alive).length == 0) {
             this.__stopRuntime();
         }
