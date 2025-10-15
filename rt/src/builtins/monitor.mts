@@ -19,7 +19,7 @@ export function BuiltinMonitors <TBase extends Constructor<UserRuntimeZero>> (Ba
 
             let r = this.runtime.rt_mkuuid();
             if (t) {
-                t.addMonitor(this.runtime.__sched.__currentThread.tid, r);
+                t.addMonitor(this.runtime.__sched.getCurrentThread().tid, r);
             }
 
             return this.runtime.ret(r);

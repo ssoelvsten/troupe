@@ -16,7 +16,7 @@ import { TroupeAggregateRawValue, TroupeRawValue } from './TroupeRawValue.mjs';
 // import { LVal } from './Lval';
 
 function _thread() {
-    return getRuntimeObject().__sched.__currentThread
+    return getRuntimeObject().__sched.getCurrentThread()
 }
 
 function __stringRep (v) {
