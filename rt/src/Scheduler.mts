@@ -74,7 +74,7 @@ export class Scheduler implements SchedulerInterface {
     initScheduler(node, stopWhenAllThreadsAreDone, stopRuntime) {
         this.__node = node;
         this.__stopWhenAllThreadsAreDone = stopWhenAllThreadsAreDone;
-        this.__stopRuntime = stopRuntime
+        this.__stopRuntime = stopRuntime;
     }
 
     /** Kill all current threads (without notifying any monitors), staying ready for spawning new
@@ -82,12 +82,12 @@ export class Scheduler implements SchedulerInterface {
     resetScheduler() {
         // console.log (`The current length of __funloop is ${this.__funloop.length}`)
         // console.log (`The number of active threads is ${Object.keys(this.__alive).length}`)
-        for (let x in this.__alive) {            
+        for (let x in this.__alive) {
             if (this.__currentThread.tid.val.toString() == x) {
                 // console.log (x, "ACTIVE")
             } else {
                 // console.log (x, "KILLING");
-                delete this.__alive[x]
+                delete this.__alive[x];
             }
         }
         this.__blocked = [];
@@ -102,7 +102,7 @@ export class Scheduler implements SchedulerInterface {
 
     /** Add a thread `t` to the active function loop. */
     scheduleThread(t: Thread) {
-        this.__funloop.push(t)
+        this.__funloop.push(t);
     }
 
     /** Create a new thread `t` for the given function to be evaluated and schedule it. */
@@ -130,14 +130,14 @@ export class Scheduler implements SchedulerInterface {
 
 
         this.__alive[newPid.val.toString()] = t;
-        this.scheduleThread (t)
+        this.scheduleThread(t);
         return newPid;
     }
 
     /** Schedule the given function as the very next thing to be run. */
     schedule(thefun, args, nm) {
-        this.__currentThread.runNext (thefun, args, nm);
-        this.scheduleThread(this.__currentThread)
+        this.__currentThread.runNext(thefun, args, nm);
+        this.scheduleThread(this.__currentThread);
     }
 
     /*************************************************************************************************\
@@ -160,7 +160,7 @@ export class Scheduler implements SchedulerInterface {
 
     /** Block thread object `t`. */
     blockThread(t: Thread) {
-        this.__blocked.push(t)
+        this.__blocked.push(t);
     }
 
     /** Unblock the thread with the given identifier, `pid`. */
@@ -180,35 +180,37 @@ export class Scheduler implements SchedulerInterface {
 
     /** Notify monitors about thread termination. */
     notifyMonitors (status = TerminationStatus.OK, errstr = null) {
-      let mkVal = this.__currentThread.mkVal
-      let ids = Object.keys (this.__currentThread.monitors);
-      for ( let i = 0; i < ids.length; i ++ ) {            
-        let id = ids[i];
-        let toPid = this.__currentThread.monitors[id].pid; 
-        let refUUID = this.__currentThread.monitors[id].uuid; 
-        let thisPid = this.__currentThread.tid;
-        let statusVal = this.__currentThread.mkVal ( status ) ;
-        let reason = TerminationStatus.OK == status ? statusVal : 
-          mkTuple ( [statusVal,  mkVal (errstr)] );
-        let message = mkVal (mkTuple ([ mkVal("DONE"), refUUID, thisPid, reason]))             
-        this.rtObj.sendMessageNoChecks ( toPid, message , false) // false flag means no need to return in the process
-      }
+        let mkVal = this.__currentThread.mkVal;
+        let ids = Object.keys(this.__currentThread.monitors);
+        for (let i = 0; i < ids.length; i++) {
+            let id = ids[i];
+            let toPid = this.__currentThread.monitors[id].pid;
+            let refUUID = this.__currentThread.monitors[id].uuid;
+            let thisPid = this.__currentThread.tid;
+            let statusVal = this.__currentThread.mkVal( status );
+            let reason = TerminationStatus.OK == status
+                ? statusVal
+                : mkTuple ([statusVal,  mkVal (errstr)]);
+            let message = mkVal (mkTuple([ mkVal("DONE"), refUUID, thisPid, reason]));
+            // false flag means no need to return in the process
+            this.rtObj.sendMessageNoChecks( toPid, message, false);
+        }
     }
 
     /** Epilogue for `main` thread: notify monitors, print and persist the final value  */
     haltMain  (persist=null)  {
         this.__currentThread.raiseCurrentThreadPCToBlockingLev()
-        let retVal = new LVal (this.__currentThread.r0_val, 
+        let retVal = new LVal (this.__currentThread.r0_val,
                                lub(this.__currentThread.bl, this.__currentThread.r0_lev),
                                lub(this.__currentThread.bl, this.__currentThread.r0_tlev))
 
-        this.notifyMonitors ();
+        this.notifyMonitors();
 
       delete this.__alive[this.__currentThread.tid.val.toString()];
         console.log(">>> Main thread finished with value:", retVal.stringRep());
         if (persist) {
-            this.rtObj.persist (retVal, persist )
-            console.log ("Saved the result value in file", persist)
+            this.rtObj.persist(retVal, persist )
+            console.log("Saved the result value in file", persist)
         }
         return null;
     }
@@ -217,12 +219,12 @@ export class Scheduler implements SchedulerInterface {
     haltOther  ()  {
         this.notifyMonitors();
         // console.log (this.__currentThread.processDebuggingName, this.__currentThread.tid.val.toString(), "done")
-        delete this.__alive [this.__currentThread.tid.val.toString()];
+        delete this.__alive[this.__currentThread.tid.val.toString()];
     }
 
     /** Kill thread `t` with the error message `s` sent to its monitors. */
     stopThreadWithErrorMessage (t: Thread, s: string) {
-        this.notifyMonitors(TerminationStatus.ERR, s) ;
+        this.notifyMonitors(TerminationStatus.ERR, s);
         delete this.__alive [t.tid.val.toString()];
     }
 
@@ -247,15 +249,15 @@ export class Scheduler implements SchedulerInterface {
     loop()  {
         const $$LOOPBOUND = 500000;
         let _FUNLOOP = this.__funloop
-        let _curThread: Thread; 
-        let dest; 
+        let _curThread: Thread;
+        let dest;
         try {
-            for (let $$loopiter = 0; $$loopiter < $$LOOPBOUND && _FUNLOOP.length > 0; $$loopiter ++ ) {
+            for (let $$loopiter = 0; $$loopiter < $$LOOPBOUND && _FUNLOOP.length > 0; $$loopiter++) {
                 _curThread = _FUNLOOP.shift();
                 this.__currentThread = _curThread;
-                dest = _curThread.next 
+                dest = _curThread.next;
                 let ttl = 1000;  // magic constant; 2021-04-29
-                while (dest && ttl -- ) {
+                while (dest && ttl--) {
                     // 2021-04-24; AA; TODO: profile the addition of this conditional in this tight loop
                     // if (showStack) {
                     //     this.__currentThread.showStack()
@@ -266,24 +268,24 @@ export class Scheduler implements SchedulerInterface {
                     // if (dest.debugname ) {
                     //     console.log (" -- ", dest.debugname)
                     // }
-                    dest = dest ()
+                    dest = dest();
                 }
 
                 if (dest) {
-                    _curThread.handlerState.checkGuard() 
+                    _curThread.handlerState.checkGuard();
 
-                    _curThread.next = dest ;
-                    _FUNLOOP.push (_curThread);
+                    _curThread.next = dest;
+                    _FUNLOOP.push(_curThread);
                 }
-            }    
+            }
         } catch (e) {
             if (e instanceof TroupeError) {
                 e.handleError(this);
             } else {
-                console.log ("--- Schedule module caught an internal exception ---")
-                console.log ("--- The following output may help identify a bug in the runtime ---")
-                console.log ("Destination function\n" , dest)
-                this.__currentThread.showStack()
+                console.log("--- Schedule module caught an internal exception ---");
+                console.log("--- The following output may help identify a bug in the runtime ---");
+                console.log("Destination function\n", dest);
+                this.__currentThread.showStack();
                 throw e;
             }
         }
@@ -293,7 +295,7 @@ export class Scheduler implements SchedulerInterface {
             this.resumeLoopAsync();
         }
 
-        if (this.__stopWhenAllThreadsAreDone && Object.keys(this.__alive).length == 0 ) {
+        if (this.__stopWhenAllThreadsAreDone && Object.keys(this.__alive).length == 0) {
             this.__stopRuntime();
         }
     }
