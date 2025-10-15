@@ -105,7 +105,7 @@ export class MailboxProcessor implements MailboxInterface {
 
 
     peek(lev: Level, index: number, lowb: Level, highb: Level) {        
-        let theThread = this.sched.__currentThread
+        let theThread = this.sched.getCurrentThread()
         let mb = theThread.mailbox;
         debug (`peek index: ${index}`)        
         debug (`peek interval: [${lowb.stringRep()}, ${highb.stringRep()}]`)
@@ -138,7 +138,7 @@ export class MailboxProcessor implements MailboxInterface {
     }
 
     consume(lev: Level, index: number, lowb: Level, highb: Level) {
-        let theThread = this.sched.__currentThread
+        let theThread = this.sched.getCurrentThread()
         let mb = theThread.mailbox;
         debug (`consume index: ${index}`)        
         debug (`consume interval: [${lowb.stringRep()} to ${highb.stringRep()}]`)

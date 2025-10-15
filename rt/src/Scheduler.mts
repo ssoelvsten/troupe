@@ -158,6 +158,18 @@ export class Scheduler implements SchedulerInterface {
         return this.__alive[tid.val.toString()];
     }
 
+    /** The currently scheduled thread */
+    getCurrentThread() {
+        return this.__currentThread;
+    }
+
+    /** Overwrites the current thread; the previously current thread is returned. */
+    setCurrentThread(t: Thread) {
+        const prev = this.__currentThread
+        this.__currentThread = t;
+        return prev;
+    }
+
     /*************************************************************************************************\
     Thread blocking/unblocking
     \*************************************************************************************************/

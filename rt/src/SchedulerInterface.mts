@@ -3,8 +3,6 @@ import { LVal } from './Lval.mjs'
 import { Level } from "./Level.mjs";
 
 export interface SchedulerInterface {
-    __currentThread: Thread;
-
     resetScheduler(): void;
 
     scheduleNewThread(fun: () => any, arg: any, pc: Level, block: Level): LVal;
@@ -15,6 +13,8 @@ export interface SchedulerInterface {
 
     isAlive(tid: LVal): boolean;
     getThread(tid: LVal): Thread;
+    getCurrentThread(): Thread;
+    setCurrentThread(t: Thread): Thread;
 
     stopThreadWithErrorMessage (t: Thread, errMsg: string): void
 

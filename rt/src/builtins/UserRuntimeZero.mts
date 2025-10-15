@@ -259,13 +259,12 @@ export class UserRuntimeZero {
 
 
     libLoadingPseudoThread = new Thread(null, null, null, __unit, levels.BOT, levels.BOT, null, this, null);
-    savedThread =  null ;// this.runtime.__sched.__currentThread;
+    savedThread =  null ;// this.runtime.__sched.getCurrentThread();
     setLibloadMode() {
         this.mkVal = (x) => new LVal(x, levels.BOT);
         this.mkValPos = (x, pos) => new LVal(x, levels.BOT, levels.BOT, pos);
         this.Env = LibEnv;
-        this.savedThread = this.runtime.__sched.__currentThread;
-        this.runtime.__sched.__currentThread = this.libLoadingPseudoThread;
+        this.savedThread = this.runtime.__sched.setCurrentThread(this.libLoadingPseudoThread);
     }
 
 
@@ -273,7 +272,7 @@ export class UserRuntimeZero {
         this.mkVal = this.default_mkVal;
         this.mkValPos = this.default_mkValPos
         this.Env = RtEnv;
-        this.runtime.__sched.__currentThread = this.savedThread;
+        this.runtime.__sched.setCurrentThread(this.savedThread);
     }
 
     // tailcall(lff, arg) {    

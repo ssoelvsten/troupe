@@ -48,7 +48,7 @@ const rt_xconsole =
                  });
 
 /** Returns the current thread */
-function $t():Thread { return __sched.__currentThread };
+function $t():Thread { return __sched.getCurrentThread() };
 
 // --------------------------------------------------
 

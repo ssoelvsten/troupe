@@ -133,7 +133,7 @@ export function BuiltinReceive<TBase extends Constructor<UserRuntimeZero>>(Base:
 
         _blockThread = mkBase ((arg) => {
           assertIsUnit(arg)
-          this.runtime.__sched.blockThread(this.runtime.__sched.__currentThread);
+          this.runtime.__sched.blockThread(this.runtime.__sched.getCurrentThread());
           return null;
         })
 
