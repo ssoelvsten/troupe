@@ -19,11 +19,6 @@ import { getCliArgs, TroupeCliArg } from './TroupeCliArgs.mjs';
 const argv = getCliArgs();
 const showStack = argv[TroupeCliArg.ShowStack]
 
-import { mkLogger } from './logger.mjs'
-const logger = mkLogger('scheduler');
-const info = x => logger.info(x)
-const debug = x => logger.debug(x)
-
 /** Enum for termination statuses. */
 enum TerminationStatus {
     /** Thread finished its computation. */
