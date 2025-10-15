@@ -93,7 +93,7 @@ export class Scheduler implements SchedulerInterface {
     \*************************************************************************************************/
 
     /** Add a thread `t` to the active function loop. */
-    scheduleThread(t) {
+    scheduleThread(t: Thread) {
         this.__funloop.push(t)
     }
 
@@ -139,12 +139,12 @@ export class Scheduler implements SchedulerInterface {
     \*************************************************************************************************/
 
     /** Whether the thread with identifier, `tid`, is alive. */
-    isAlive(tid) {
+    isAlive(tid: LVal) {
         return (this.__alive[tid.val.toString()] != null);
     }
 
     /** The thread object with the given identifier, `tid`. */
-    getThread (tid) {
+    getThread (tid: LVal) {
         return this.__alive[tid.val.toString()];
     }
 
@@ -153,16 +153,16 @@ export class Scheduler implements SchedulerInterface {
     \*************************************************************************************************/
 
     /** Block thread object `t`. */
-    blockThread(t) {
+    blockThread(t: Thread) {
         this.__blocked.push(t)
     }
 
     /** Unblock the thread with the given identifier, `pid`. */
-    unblockThread(pid) {        
-        for (let i = 0; i < this.__blocked.length; i++) {            
-            if (pid_equals(this.__blocked[i].tid, pid)) {
+    unblockThread(tid: LVal) {
+        for (let i = 0; i < this.__blocked.length; i++) {
+            if (pid_equals(this.__blocked[i].tid, tid)) {
                 this.scheduleThread(this.__blocked[i]);
-                this.__blocked.splice(i, 1);                
+                this.__blocked.splice(i, 1);
                 break;
             }
         }
