@@ -144,12 +144,6 @@ export class Scheduler implements SchedulerInterface {
         return newPid;
     }
 
-    /** Schedule the given function as the very next thing to be run on the current thread. */
-    schedule(f: () => any, args: any, namespace: any) {
-        this.__currentThread.runNext(f, args, namespace);
-        this.scheduleThread(this.__currentThread);
-    }
-
     /*************************************************************************************************\
     Thread access
     \*************************************************************************************************/

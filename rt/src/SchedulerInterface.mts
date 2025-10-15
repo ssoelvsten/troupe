@@ -9,7 +9,6 @@ export interface SchedulerInterface {
 
     scheduleNewThreadAtLevel(fun: () => any, arg: any, pc: Level, block: Level): LVal;
     scheduleThread(t: Thread): void;
-    schedule(fun: () => any, args: any[], namespace: any): void;
 
     blockThread(t: Thread): void;
     unblockThread(tid: LVal): void;
