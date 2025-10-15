@@ -19,6 +19,16 @@ import { getCliArgs, TroupeCliArg } from './TroupeCliArgs.mjs';
 const argv = getCliArgs();
 
 /** Enum for termination statuses. */
+export enum ThreadType {
+    /** System service thread. */
+    System = -1,
+    /** Main thread. */
+    Main   = 0,
+    /** Other threads, spawned from 'Main' or 'System'. */
+    Other  = 1
+}
+
+/** Enum for termination statuses. */
 enum TerminationStatus {
     /** Thread finished its computation. */
     OK  = 0,
@@ -105,18 +115,16 @@ export class Scheduler implements SchedulerInterface {
                               arg: any,
                               pc: Level,
                               block: Level,
-                              ismain: boolean        = false,
-                              persist: boolean | null = null,
-                              isSystem: boolean      = false)
+                              tType: ThreadType = ThreadType.Other)
     {
         // Create a new process ID at the given level.
-        const pid = isSystem ? SYSTEM_PROCESS_STRING : uuidv4();
+        const pid = tType === ThreadType.System ? SYSTEM_PROCESS_STRING : uuidv4();
         const pidObj = new ProcessID(this.rt_uuid, pid, this.__node);
-        const newPid =  new LVal(pidObj, pc);
+        const newPid = new LVal(pidObj, pc);
 
         // Epilogue for thread.
-        const halt = ismain ?  () => { this.haltMain (persist) } :
-                               () => { this.haltOther () };
+        const halt = tType === ThreadType.Main ? () => { this.haltMain() }
+                                               : () => { this.haltOther() };
 
         // New thread
         const t = new Thread
@@ -197,7 +205,7 @@ export class Scheduler implements SchedulerInterface {
     }
 
     /** Epilogue for `main` thread: notify monitors, print and persist the final value  */
-    haltMain  (persist=null)  {
+    haltMain ()  {
         this.__currentThread.raiseCurrentThreadPCToBlockingLev()
         let retVal = new LVal (this.__currentThread.r0_val,
                                lub(this.__currentThread.bl, this.__currentThread.r0_lev),
@@ -207,6 +215,7 @@ export class Scheduler implements SchedulerInterface {
 
       delete this.__alive[this.__currentThread.tid.val.toString()];
         console.log(">>> Main thread finished with value:", retVal.stringRep());
+        const persist = argv[TroupeCliArg.Persist];
         if (persist) {
             this.rtObj.persist(retVal, persist)
             console.log("Saved the result value in file", persist)

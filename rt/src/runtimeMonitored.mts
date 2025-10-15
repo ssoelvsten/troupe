@@ -4,7 +4,7 @@ import { v4 as uuidv4 } from 'uuid'
 import AggregateError from 'aggregate-error';
 import { __unit } from './UnitVal.mjs'
 import { Authority } from './Authority.mjs'
-import { Scheduler } from './Scheduler.mjs'
+import { Scheduler, ThreadType } from './Scheduler.mjs'
 import { MailboxProcessor } from './MailboxProcessor.mjs'
 import { RuntimeInterface } from './RuntimeInterface.mjs'
 import { LVal, MbVal } from './Lval.mjs'
@@ -445,9 +445,7 @@ export async function start(f) {
           , service_arg
           , levels.TOP
           , levels.BOT
-          , false
-          , null
-          , true);
+          , ThreadType.System);
   }
 
   __sched.scheduleNewThreadAtLevel(
@@ -455,8 +453,7 @@ export async function start(f) {
     , mainAuthority
     , levels.BOT
     , levels.BOT
-    , true
-    , argv[TroupeCliArg.Persist]
+    , ThreadType.Main
   );
   __sched.loop();
 }
