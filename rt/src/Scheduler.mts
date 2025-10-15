@@ -32,15 +32,28 @@ enum TerminationStatus {
 }
 
 export class Scheduler implements SchedulerInterface {
-    rt_uuid: any;
-    __funloop: Thread[];
-    __blocked: any[];
-    __alive: {};
+    // Current thread state
+
+    /** Current thread alive */
     __currentThread: Thread;
-    rtObj : RuntimeInterface
+
+    /** FIFO queue of all threads to evaluate */
+    __funloop: Thread[];
+
+    /** Queue of blocked threads. */
+    __blocked: Thread[];
+
+    /** Map of alive threads from their stringified identifier, `tid`. */
+    __alive: { [tid in string]: Thread };
+
+    // Dependencies for unique thread identifier creation.
+    rt_uuid: any;
     __node: any;
+
+    // Runtime dependencies
+    rtObj : RuntimeInterface
     __stopWhenAllThreadsAreDone: boolean;
-    __stopRuntime: () => void;    
+    __stopRuntime: () => void;
 
     /*************************************************************************************************\
     Scheduler state
