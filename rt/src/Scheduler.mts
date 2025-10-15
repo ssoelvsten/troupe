@@ -60,13 +60,13 @@ export class Scheduler implements SchedulerInterface {
     \*************************************************************************************************/
 
     /**  */
-    constructor(rtObj: RuntimeInterface) {        
+    constructor(rtObj: RuntimeInterface) {
         this.rt_uuid = runId;
-        this.rtObj = rtObj
-        this.__funloop = new Array()
-        this.__blocked = new Array()
-        this.__alive = {} // new Set();
-        this.__currentThread = null; // current thread object
+        this.rtObj = rtObj;
+        this.__funloop = [];
+        this.__blocked = [];
+        this.__alive = {};
+        this.__currentThread = null;
     }
 
     /** Initialisation of the scheduler based on the p2p layer, e.g. the `node` identifier and
@@ -90,8 +90,8 @@ export class Scheduler implements SchedulerInterface {
                 delete this.__alive[x]
             }
         }
-        this.__blocked = []
-        this.__funloop = [] 
+        this.__blocked = [];
+        this.__funloop = [];
         // console.log (`The number of active threads is ${Object.keys(this.__alive).length}`)
         // console.log (`The number of blocked threads is ${this.__blocked.length}`)
     }
