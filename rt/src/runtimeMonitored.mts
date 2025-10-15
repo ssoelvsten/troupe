@@ -134,7 +134,7 @@ async function spawnFromRemote(jsonObj, fromNode) {
   const lf = await DS.deserialize(nodeLev, jsonObj);
   const f = lf.val;
   const newPid =
-    __sched.scheduleNewThreadAtLevel(
+    __sched.scheduleNewThread(
       f
       , __unit //[f.env, __unit]
       // , f.namespace
@@ -441,14 +441,14 @@ export async function start(f) {
       new LVal ( new Record([ ["authority", mainAuthority],
                               ["options", __unit]]),
               levels.BOT);
-    __sched.scheduleNewThreadAtLevel(__service['service']
+    __sched.scheduleNewThread(__service['service']
           , service_arg
           , levels.TOP
           , levels.BOT
           , ThreadType.System);
   }
 
-  __sched.scheduleNewThreadAtLevel(
+  __sched.scheduleNewThread(
     () => f.main({__dataLevel:levels.BOT})
     , mainAuthority
     , levels.BOT

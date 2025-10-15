@@ -111,11 +111,11 @@ export class Scheduler implements SchedulerInterface {
     }
 
     /** Create a new thread `t` for the given function to be evaluated and schedule it. */
-    scheduleNewThreadAtLevel (f: () => any,
-                              arg: any,
-                              pc: Level,
-                              block: Level,
-                              tType: ThreadType = ThreadType.Other)
+    scheduleNewThread(f: () => any,
+                      arg: any,
+                      pc: Level,
+                      block: Level,
+                      tType: ThreadType = ThreadType.Other)
     {
         // Create a new process ID at the given level.
         const pid = tType === ThreadType.System ? SYSTEM_PROCESS_STRING : uuidv4();

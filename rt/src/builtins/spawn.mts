@@ -27,7 +27,7 @@ export function BuiltinSpawn<TBase extends Constructor<UserRuntimeZero>>(Base: T
             let spawnLocal = (arg) => {
                 // debug ("scheduled rt_spawn ", arg.fun);
 
-                let newPid = __sched.scheduleNewThreadAtLevel(
+                let newPid = __sched.scheduleNewThread(
                     arg,
                     __unit, // [arg.env, __unit],
                     // arg.namespace,
