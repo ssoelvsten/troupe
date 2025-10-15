@@ -269,6 +269,8 @@ export class Scheduler implements SchedulerInterface {
             for (let i = 0; i < maxThreadsPerLoop && this.__funloop.length > 0; ++i) {
                 // Pop front of function queue and set it to be the next thread.
                 this.__currentThread = this.__funloop.shift();
+                if (!this.__alive[this.__currentThread.tid.val.toString()]) { continue; }
+
                 dest = this.__currentThread.next;
 
                 // Run thread for `maxKontsPerThread` continuations.
