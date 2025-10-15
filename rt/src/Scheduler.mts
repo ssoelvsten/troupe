@@ -1,4 +1,5 @@
 'use strict';
+
 import { v4 as uuidv4} from 'uuid'
 import { Thread } from './Thread.mjs';
 import runId from './runId.mjs';
@@ -10,12 +11,13 @@ import {ProcessID, pid_equals} from './process.mjs'
 import SandboxStatus from './SandboxStatus.mjs'
 import  {ThreadError, TroupeError} from './TroupeError.mjs'
 import  {lub} from './Level.mjs'
-import { getCliArgs, TroupeCliArg } from './TroupeCliArgs.mjs';
 
 import {SYSTEM_PROCESS_STRING} from './Constants.mjs'
-const argv = getCliArgs();
 
+import { getCliArgs, TroupeCliArg } from './TroupeCliArgs.mjs';
+const argv = getCliArgs();
 const showStack = argv[TroupeCliArg.ShowStack]
+
 import { mkLogger } from './logger.mjs'
 const logger = mkLogger('scheduler');
 const info = x => logger.info(x)
