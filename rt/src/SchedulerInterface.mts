@@ -1,19 +1,23 @@
 import { Thread } from "./Thread.mjs";
+import { LVal } from './Lval.mjs'
+import { Level } from "./Level.mjs";
 
 export interface SchedulerInterface {
-    // tailToTroupeFun(f: any, arg:any)
-    // tailToTroupeFun_raw(f: any)
-    // stepThread();
-    resetScheduler();
-    scheduleNewThreadAtLevel(fun: any, arg: any, pc: any, blockingTopLev: any);
-    scheduleThread(theThread: any);
-    resumeLoopAsync();
-    blockThread(__currentThread: Thread);
-    isAlive(toPid: any);
-    getThread(toPid: any);
-    unblockThread(toPid: any);
-    schedule(fun: any, args: any[], namespace: any);
     __currentThread: Thread;
-    stopThreadWithErrorMessage (t:Thread, s:string)
-    
+
+    resetScheduler(): void;
+
+    scheduleNewThreadAtLevel(fun: () => any, arg: any, pc: Level, block: Level): LVal;
+    scheduleThread(t: Thread): void;
+    schedule(fun: () => any, args: any[], namespace: any): void;
+
+    blockThread(t: Thread): void;
+    unblockThread(tid: LVal): void;
+
+    isAlive(tid: LVal): boolean;
+    getThread(tid: LVal): Thread;
+
+    stopThreadWithErrorMessage (t: Thread, errMsg: string): void
+
+    resumeLoopAsync(): void;
 }
