@@ -1,21 +1,21 @@
-'use strict'
-const P2PCONFIG_FILE = 'p2pconfig.json'
+'use strict';
+const P2PCONFIG_FILE = 'p2pconfig.json';
 let logger;
 (async() => {
     let { mkLogger } = await import ('../logger.mjs');
     logger = mkLogger ('p2p-config','info');
-})()
+})();
 
 import { existsSync, readFileSync } from 'fs';
-let relays
+let relays;
 
 
 // TODO: change the relay address to be the actual address
 let default_relays =
   // ["/dns4/relay.troupe-lang.net/tcp/5555/p2p/QmcQpBNGULxRC3QmvxVGXSw8BarpMvdADYvFtmvKAL5QMe"]
   // TODO: dns resolution of the relay has stopped working
-  ["/ip4/134.209.92.133/tcp/5555/ws/p2p/12D3KooWShh9qmeS1UEgwWpjAsrjsigu8UGh8DRKyx1UG6HeHzjf"]
-  
+  ["/ip4/134.209.92.133/tcp/5555/ws/p2p/12D3KooWShh9qmeS1UEgwWpjAsrjsigu8UGh8DRKyx1UG6HeHzjf"];
+
 let known_nodes = [
     {nodeid:"QmXfj4ysaS4pARJU5uUP59B47aCQP6X6FH6cm5otLhcMPa", ip: "/ip4/134.209.90.7/tcp/6789"},
 
@@ -30,25 +30,25 @@ let known_nodes = [
     {nodeid:"QmX2edVZhWVa9Q6gbpwNZJGXqeLgcAvAYTga2m25dwWudH", ip: "/ip4/188.166.70.132/tcp/6789"},
     {nodeid:"QmbkpnNgD8uu9FArPPyzYUYuuVZtCo7n3jQ5Rz2nqiZEWD", ip: "/ip4/167.71.76.8/tcp/6789"},
     {nodeid:"QmYFdcq31Gnch87kkqFjWt5R1GH8jTPNspz5XxBzC6hJ1r", ip: "/ip4/104.248.86.46/tcp/6789"}
-]
-  
+];
+
 
 if (existsSync(P2PCONFIG_FILE)) {
   try {
-    let s = readFileSync(P2PCONFIG_FILE) 
+    let s = readFileSync(P2PCONFIG_FILE);
     let o = JSON.parse (s);
-    console.log (o.relays)
-    if (o.relays) {      
-      relays = o.relays
+    console.log (o.relays);
+    if (o.relays) {
+      relays = o.relays;
     } else {
-      throw new Error ("relays field undefined")
+      throw new Error ("relays field undefined");
     }
   } catch (err) {
-    logger.error ("error parsing p2p configuration file")    
-    relays = default_relays
+    logger.error ("error parsing p2p configuration file");
+    relays = default_relays;
   }
 } else {
-  relays = default_relays
+  relays = default_relays;
 }
 
 let cliRelays = null;
@@ -69,4 +69,4 @@ export function getRelays() {
   return relays;
 }
 
-export default { relays: getRelays(), known_nodes, setCliRelays, getRelays }
+export default { relays: getRelays(), known_nodes, setCliRelays, getRelays };

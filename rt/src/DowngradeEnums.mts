@@ -6,7 +6,7 @@ export enum DowngradeKind {
 	BLOCKING = 2,
 	MAILBOX = 3
 }
-    
+
 export enum DowngradeDimension {
 	CONFIDENTIALITY = 1,
 	INTEGRITY = 2,
@@ -19,14 +19,14 @@ export enum DowngradeErrorReason {
 	BLOCKING_LEVEL_MISMATCH = 4
 }
 
-export type SuccessfulDowngradeResult = {
+export interface SuccessfulDowngradeResult {
 	kind: "SUCCESS";
-};
+}
 
-export type FailedDowngradeResult = {
+export interface FailedDowngradeResult {
 	kind: "FAILURE";
 	reason: DowngradeErrorReason;
-};
+}
 
 export type DowngradeResult = SuccessfulDowngradeResult | FailedDowngradeResult;
 
@@ -36,12 +36,12 @@ export function DowngradeError(reason: DowngradeErrorReason): FailedDowngradeRes
 	return { kind: "FAILURE", reason };
 }
 
-export type ValidateDowngradeParams = {
+export interface ValidateDowngradeParams {
 	downgradeKind: DowngradeKind;
 	levFrom: Level;
 	levTo: Level;
 	authorityLevel: Level;
 	downgradeDimension: DowngradeDimension;
-	blockLevel?: Level ; 
+	blockLevel?: Level ;
 	operationDescription?: string;
-};
+}

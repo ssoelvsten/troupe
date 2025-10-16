@@ -1,1 +1,1 @@
-export const SYSTEM_PROCESS_STRING = "system-process"
+export const SYSTEM_PROCESS_STRING = "system-process";

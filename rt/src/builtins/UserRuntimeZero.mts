@@ -1,30 +1,30 @@
-'use strict'
-import { runtimeEquals } from '../EqualityChecker.mjs'
-import { isListFlagSet, isTupleFlagSet, mkTuple, mkList } from '../ValuesUtil.mjs'
-import { LVal, LValCopyAt, LCopyVal } from '../Lval.mjs'
-import { Nil, Cons, RawList } from '../RawList.mjs'
+'use strict';
+import { runtimeEquals } from '../EqualityChecker.mjs';
+import { isListFlagSet, isTupleFlagSet, mkTuple, mkList } from '../ValuesUtil.mjs';
+import { LVal, LValCopyAt, LCopyVal } from '../Lval.mjs';
+import { Nil, Cons, RawList } from '../RawList.mjs';
 import { loadLibsAsync } from '../loadLibsAsync.mjs';
-import * as levels from '../Level.mjs'
-import { BaseFunctionWithExplicitArg, ServiceFunction } from '../BaseFunction.mjs'
-import { Atom } from '../Atom.mjs'
-import { __unit } from '../UnitVal.mjs'
+import * as levels from '../Level.mjs';
+import { BaseFunctionWithExplicitArg, ServiceFunction } from '../BaseFunction.mjs';
+import { Atom } from '../Atom.mjs';
+import { __unit } from '../UnitVal.mjs';
 import { RuntimeInterface } from '../RuntimeInterface.mjs';
-import { Record } from '../Record.mjs'
-import { TroupeType } from '../TroupeTypes.mjs'
-import { RawClosure } from '../RawClosure.mjs'
-import { __unitbase } from '../UnitBase.mjs'
-import { Thread } from '../Thread.mjs'
-import { TroupeRawValue } from '../TroupeRawValue.mjs'
-import { RawTuple } from '../RawTuple.mjs'
-import { Level } from '../Level.mjs'
-import { rawAssertNotZero } from '../Asserts.mjs'
+import { Record } from '../Record.mjs';
+import { TroupeType } from '../TroupeTypes.mjs';
+import { RawClosure } from '../RawClosure.mjs';
+import { __unitbase } from '../UnitBase.mjs';
+import { Thread } from '../Thread.mjs';
+import { TroupeRawValue } from '../TroupeRawValue.mjs';
+import { RawTuple } from '../RawTuple.mjs';
+import { Level } from '../Level.mjs';
+import { rawAssertNotZero } from '../Asserts.mjs';
 
 // import { builtin_sandbox } from './builtins/sandox'
 
 export type Constructor<T = {}> = new (...args: any[]) => T;
 
 
-const {lub} = levels
+const {lub} = levels;
 
 class RtEnv {
     _is_rt_env: boolean;
@@ -35,7 +35,7 @@ class RtEnv {
 
 class LibEnv {
     ret: any;
-    _is_rt_env: boolean
+    _is_rt_env: boolean;
     constructor() {
         this._is_rt_env = false;
         this.ret = null;
@@ -44,11 +44,11 @@ class LibEnv {
 
 
 export function mkBase(f,name=null) {
-    return BaseFunctionWithExplicitArg(f,name)
+    return BaseFunctionWithExplicitArg(f,name);
 }
 
 export function mkService(f, name = null) {
-    return ServiceFunction(f, name)
+    return ServiceFunction(f, name);
 }
 
 /**
@@ -63,29 +63,29 @@ export function mkService(f, name = null) {
  * Functions marked with "SpecialRT" do not work on values and are special control instructions.
  */
 export class UserRuntimeZero {
-    runtime: RuntimeInterface
-    
-    mkuuid: any
-    // SimpleRT with array of labelled values as parameter
-    mkRecord = Record.mkRecord    
-    // SimpleRT with array of labelled values as parameter
-    mkTuple = mkTuple
-    // SimpleRT with array of labelled values as parameter
-    mkList = mkList
-    sandbox: any
-    sleep: any
+    runtime: RuntimeInterface;
 
-    Env = RtEnv
-    RawClosure = RawClosure    
-    constructLVal =  (x,y,z) => new LVal (x,y,z) 
-    mkVal : (x:any) => LVal = this.default_mkVal
-    mkValPos : (x:any, pos:string) => LVal = this.default_mkValPos
-    __unit = __unit
-    __unitbase = __unitbase
-    Atom = Atom
+    mkuuid: any;
+    // SimpleRT with array of labelled values as parameter
+    mkRecord = Record.mkRecord;
+    // SimpleRT with array of labelled values as parameter
+    mkTuple = mkTuple;
+    // SimpleRT with array of labelled values as parameter
+    mkList = mkList;
+    sandbox: any;
+    sleep: any;
 
-    constructor(runtime:RuntimeInterface) {                  
-        this.runtime = runtime
+    Env = RtEnv;
+    RawClosure = RawClosure;
+    constructLVal =  (x,y,z) => new LVal (x,y,z);
+    mkVal : (x:any) => LVal = this.default_mkVal;
+    mkValPos : (x:any, pos:string) => LVal = this.default_mkValPos;
+    __unit = __unit;
+    __unitbase = __unitbase;
+    Atom = Atom;
+
+    constructor(runtime:RuntimeInterface) {
+        this.runtime = runtime;
     }
 
 
@@ -94,17 +94,17 @@ export class UserRuntimeZero {
     }
 
     ret (x) {
-        this.runtime.ret (x)
+        this.runtime.ret (x);
     }
 
     // SimpleRT
     raw_join(...xs) : Level {
-        return lub.apply (null, xs)
+        return lub.apply (null, xs);
     }
 
     // SpecialRT
     raw_invalidateSparseBit() {
-        this.runtime.$t.invalidateSparseBit()
+        this.runtime.$t.invalidateSparseBit();
     }
 
     // SpecialRT
@@ -118,23 +118,23 @@ export class UserRuntimeZero {
 
     // ComplexRT
     eq(x: TroupeRawValue, y: TroupeRawValue): LVal {
-        return runtimeEquals(x, y)
+        return runtimeEquals(x, y);
     }
 
     // ComplexRT
     neq(x: TroupeRawValue, y: TroupeRawValue): LVal {
-        let b = runtimeEquals(x, y);
+        const b = runtimeEquals(x, y);
         b.val = !b.val;
         return b;
     }
 
     // SimpleRT
     intdiv(x: number, y: number): number {
-        return Math.trunc(x / y)
+        return Math.trunc(x / y);
     }
 
     // SimpleRT
-    rawAssertNotZero = rawAssertNotZero
+    rawAssertNotZero = rawAssertNotZero;
 
     // ComplexRT
     raw_indexTuple(x: TroupeRawValue, y: number): LVal {
@@ -143,52 +143,52 @@ export class UserRuntimeZero {
 
     // SimpleRT
     raw_islist(x: TroupeRawValue): boolean {
-        return isListFlagSet(x) // TODO check _troupeType instead?
+        return isListFlagSet(x); // TODO check _troupeType instead?
     }
 
     // SimpleRT
     raw_istuple(x: TroupeRawValue): boolean {
-        return (x._troupeType == TroupeType.TUPLE)
+        return (x._troupeType == TroupeType.TUPLE);
     }
 
     // ComplexRT
     getField(x: Record, f: string): LVal {
-        return x.getField(f)
+        return x.getField(f);
     }
 
     // SimpleRT
     hasField(x: Record, f: string): boolean {
-        return x.hasField(f)
+        return x.hasField(f);
     }
 
     // SimpleRT
     isRecord(x: TroupeRawValue): boolean {
-        return (x._troupeType == TroupeType.RECORD)
+        return (x._troupeType == TroupeType.RECORD);
     }
 
     // SimpleRT
-    withRecord(r: Record, fields: Array<[string, LVal]>): Record {
-        return Record.mkWithRecord(r, fields)
+    withRecord(r: Record, fields: [string, LVal][]): Record {
+        return Record.mkWithRecord(r, fields);
     }
 
     // SimpleRT
     cons(a: LVal, b: RawList): RawList {
-        return new Cons(a, b)
+        return new Cons(a, b);
     }
 
     // SimpleRT
     raw_listLength(x: RawList): number {
-        return x.length
+        return x.length;
     }
 
     // SimpleRT
     raw_tupleLength(x: RawTuple): number {
-        return x.length
+        return x.length;
     }
 
     // SimpleRT
     raw_recordSize(x: Record): number {
-        return x.__obj.size
+        return x.__obj.size;
     }
 
     // ComplexRT
@@ -198,12 +198,12 @@ export class UserRuntimeZero {
 
     // SimpleRT
     tail(x: RawList): RawList {
-        return x.tail
+        return x.tail;
     }
 
     // SimpleRT
     mkV1Label(x: string): Level {
-        return levels.mkV1Level(x)
+        return levels.mkV1Level(x);
     }
 
     mkDCLabel(x:any):Level {
@@ -220,7 +220,7 @@ export class UserRuntimeZero {
      */
     loadLib(lib: string, decl: string, obj: { libs: { [x: string]: any } }): any {
         // load the lib from the linked data structure
-        let r = obj.libs[lib + "." + decl];
+        const r = obj.libs[lib + "." + decl];
         // rt_debug("loading lib " + decl);
         return r;
     }
@@ -231,11 +231,11 @@ export class UserRuntimeZero {
      * The remaining functions are not referred to by generated code.
      * ==============================================================
      */
-    
+
     branch = function (x) {
-        this.runtime.$t.setBranchFlag()
+        this.runtime.$t.setBranchFlag();
         this.runtime.$t.raiseCurrentThreadPC(x.lev);
-    }
+    };
 
     push(x, frameSize) {
         this.runtime.$t.pushFrame(x, frameSize);
@@ -246,15 +246,15 @@ export class UserRuntimeZero {
     }
 
     default_mkVal(x) {
-        return this.runtime.$t.mkVal(x)        
+        return this.runtime.$t.mkVal(x);
     }
 
     default_mkValPos(x,p) {
-        return this.runtime.$t.mkValPos(x, p)
+        return this.runtime.$t.mkValPos(x, p);
     }
 
     mkCopy (x):LVal {
-        return this.runtime.$t.mkCopy(x)
+        return this.runtime.$t.mkCopy(x);
     }
 
 
@@ -271,12 +271,12 @@ export class UserRuntimeZero {
 
     setNormalMode() {
         this.mkVal = this.default_mkVal;
-        this.mkValPos = this.default_mkValPos
+        this.mkValPos = this.default_mkValPos;
         this.Env = RtEnv;
         this.runtime.__sched.__currentThread = this.savedThread;
     }
 
-    // tailcall(lff, arg) {    
+    // tailcall(lff, arg) {
     //     this.runtime.tailcall (lff, arg)
     // }
 
@@ -286,7 +286,7 @@ export class UserRuntimeZero {
 
 
     async linkLibs (f) {
-        await loadLibsAsync(f, this)
+        await loadLibsAsync(f, this);
     }
 
     errorPos (x: { val: string }, pos: string) {
@@ -294,7 +294,7 @@ export class UserRuntimeZero {
             this.runtime.$t.threadError(x.val + " at " + pos);
         } else {
             this.runtime.$t.threadError(x.val);
-        }    
+        }
     }
 
 }

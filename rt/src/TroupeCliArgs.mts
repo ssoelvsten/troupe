@@ -63,9 +63,9 @@ export function getCliArgs(): ParsedArgs {
             .option(TroupeCliArg.File, { alias: 'f', type: 'string', describe: 'Path to the main troupe program file to execute' })
             .option(TroupeCliArg.RSpawn, { type: 'boolean', default: false, describe: 'Allow remote spawning of troupe processes' })
             .option(TroupeCliArg.Relay, { type: 'array', describe: 'Relay server multiaddress(es) for P2P connectivity' })
-            .option(TroupeCliArg.NoColor, { 
-                type: 'boolean', 
-                default: false, 
+            .option(TroupeCliArg.NoColor, {
+                type: 'boolean',
+                default: false,
                 describe: 'Disable colored output (also respects NO_COLOR env var)',
                 coerce: (arg) => {
                     // Handle the case where yargs interprets --no-color as negation
@@ -83,4 +83,4 @@ export function getCliArgs(): ParsedArgs {
         parsedArgs = rawArgs as ParsedArgs;
     }
     return parsedArgs;
-} 
+}

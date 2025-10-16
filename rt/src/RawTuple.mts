@@ -2,7 +2,7 @@ import { Level } from './Level.mjs';
 import { LVal, listStringRep } from './Lval.mjs';
 import { TroupeAggregateRawValue } from './TroupeRawValue.mjs';
 import { TroupeType } from './TroupeTypes.mjs';
-import * as levels from './Level.mjs'
+import * as levels from './Level.mjs';
 
 export class RawTuple extends Array<LVal> implements TroupeAggregateRawValue {
   dataLevel: Level;
@@ -11,12 +11,12 @@ export class RawTuple extends Array<LVal> implements TroupeAggregateRawValue {
   stringRep = null;
 
   constructor(x: LVal[]) {
-    super(...x)
+    super(...x);
     this.stringRep = function (omitLevels = false, taintRef = null) {
       return ("(" + listStringRep(x, omitLevels, taintRef) + ")");
     };
 
-    let dataLevels = x.map(lv => lv.dataLevel);
+    const dataLevels = x.map(lv => lv.dataLevel);
     this.dataLevel = levels.lubs.call(null, dataLevels);
   }
 }

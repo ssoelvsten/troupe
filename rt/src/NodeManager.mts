@@ -1,6 +1,6 @@
-'use strict'
+'use strict';
 
-import * as fs from 'node:fs'
+import * as fs from 'node:fs';
 import * as levels from "./Level.mjs";
 import { getCliArgs, TroupeCliArg } from './TroupeCliArgs.mjs';
 const argv = getCliArgs();
@@ -9,25 +9,25 @@ const argv = getCliArgs();
 class Node {
     nodeId: any;
     constructor(nodeId) {
-        this.nodeId = nodeId;     
+        this.nodeId = nodeId;
     }
 }
 
 class NodeManager {
     localNode: any;
-    levels: any
+    levels: any;
     aliases: any;
-    
+
     constructor () {
 
-        let aliases = argv[TroupeCliArg.Aliases]
-                        ? JSON.parse ( fs.readFileSync(argv[TroupeCliArg.Aliases] as string, 'utf8'))
-                        : {}
+        const aliases = argv[TroupeCliArg.Aliases]
+                        ? JSON.parse ( fs.readFileSync(argv[TroupeCliArg.Aliases], 'utf8'))
+                        : {};
 
-        
+
         this.localNode = null;
         this.levels = levels;
-        this.aliases = aliases
+        this.aliases = aliases;
     }
 
     setLocalPeerId (peerid)  {
@@ -40,9 +40,9 @@ class NodeManager {
 
     getNodeId () {
         if (this.localNode.nodeId == null) {
-            return "<local>"
-        } 
-        return this.localNode.nodeId
+            return "<local>";
+        }
+        return this.localNode.nodeId;
     }
 
     getNode(nodeName) {
@@ -50,30 +50,30 @@ class NodeManager {
             nodeName = this.aliases[nodeName.substring(1)];
         }
         // TODO: error handling in case aliases are not available; 2020-01-31
-        
-        return new Node (nodeName);        
+
+        return new Node (nodeName);
     }
 
-    isLocalNode (id) {        
+    isLocalNode (id) {
         if (id == "<null>") {
             return true;
         }
         // console.log ("local node id is ", this.localNode)
         if (this.localNode == undefined) {
-            console.log("ERROR: local node undefined; should not happen")
+            console.log("ERROR: local node undefined; should not happen");
             process.exit(1);
         }
-        return this.localNode.nodeId == this.getNode(id).nodeId
+        return this.localNode.nodeId == this.getNode(id).nodeId;
     }
 
     // Another hack; 2018-03-10; aa
     getLocalNode() {
         if (this.localNode == undefined) {
-            console.log("ERROR: local node undefined; should not happen")
+            console.log("ERROR: local node undefined; should not happen");
             process.exit(1);
-        }        
+        }
         return this.localNode;
     }
 }
 
-export let __nodeManager = new NodeManager()
+export const __nodeManager = new NodeManager();

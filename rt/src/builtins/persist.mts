@@ -1,9 +1,9 @@
-import { UserRuntimeZero, Constructor, mkBase } from './UserRuntimeZero.mjs'
+import { UserRuntimeZero, Constructor, mkBase } from './UserRuntimeZero.mjs';
 import { LVal } from '../Lval.mjs';
-import * as levels from '../Level.mjs'
-import {deserialize} from '../deserialize.mjs'
+import * as levels from '../Level.mjs';
+import {deserialize} from '../deserialize.mjs';
 import * as fs from 'node:fs';
-import { assertIsNTuple, assertIsRootAuthority, assertIsString } from '../Asserts.mjs'
+import { assertIsNTuple, assertIsRootAuthority, assertIsString } from '../Asserts.mjs';
 import { __unit } from '../UnitVal.mjs';
 
 export function BuiltinPersist<TBase extends Constructor<UserRuntimeZero>>(Base: TBase) {
@@ -11,31 +11,31 @@ export function BuiltinPersist<TBase extends Constructor<UserRuntimeZero>>(Base:
         save = mkBase((larg) => {
             assertIsNTuple(larg, 3);
             this.runtime.$t.raiseCurrentThreadPC(larg.lev);
-            let arg = larg.val;
-            let auth = arg[0]; 
-            let file = arg[1].val;
-            let data = arg[2];
+            const arg = larg.val;
+            const auth = arg[0];
+            const file = arg[1].val;
+            const data = arg[2];
             assertIsRootAuthority(auth);
-            this.runtime.persist(data, "./out/saved." + file + ".persist.json")
+            this.runtime.persist(data, "./out/saved." + file + ".persist.json");
             return this.runtime.ret(__unit);
-        }, "save")
+        }, "save");
 
 
         restore = mkBase((arg) => {
-            assertIsString(arg)
-            let theThread = this.runtime.$t;
-            let file = arg;
+            assertIsString(arg);
+            const theThread = this.runtime.$t;
+            const file = arg;
 
             (async () => {
-                let jsonStr = await fs.promises.readFile("./out/saved." + file.val + ".persist.json", 'utf8');
-                let data = await deserialize(levels.TOP, JSON.parse(jsonStr));                
+                const jsonStr = await fs.promises.readFile("./out/saved." + file.val + ".persist.json", 'utf8');
+                const data = await deserialize(levels.TOP, JSON.parse(jsonStr));
                 theThread.returnSuspended(data);
                 this.runtime.__sched.scheduleThread(theThread);
                 this.runtime.__sched.resumeLoopAsync();
 
-            })()
-        }, "restore")
+            })();
+        }, "restore");
 
-    }
+    };
 
 }

@@ -1,40 +1,40 @@
-import { UserRuntimeZero, Constructor, mkBase } from './UserRuntimeZero.mjs'
-import {lub} from '../Level.mjs'
-import { assertNormalState, assertIsFunction, assertIsNode } from '../Asserts.mjs'
+import { UserRuntimeZero, Constructor, mkBase } from './UserRuntimeZero.mjs';
+import {lub} from '../Level.mjs';
+import { assertNormalState, assertIsFunction, assertIsNode } from '../Asserts.mjs';
 import { __nodeManager } from '../NodeManager.mjs';
 import { __unit } from '../UnitVal.mjs';
-import {SYSTEM_PROCESS_STRING} from '../Constants.mjs'
+import {SYSTEM_PROCESS_STRING} from '../Constants.mjs';
 import { ProcessID } from '../process.mjs';
 
 export function BuiltinSpawn<TBase extends Constructor<UserRuntimeZero>>(Base: TBase) {
     return class extends Base {
         _getSystemProcess = mkBase ((arg) => {
-            assertIsNode(arg.val)
-            let node = __nodeManager.getNode(arg.val)
-            let pid = new ProcessID (null, SYSTEM_PROCESS_STRING, node)
+            assertIsNode(arg.val);
+            const node = __nodeManager.getNode(arg.val);
+            const pid = new ProcessID (null, SYSTEM_PROCESS_STRING, node);
             return this.runtime.$t.mkVal (pid);
-        })
+        });
 
         spawn = mkBase((larg) => {
-            assertNormalState("spawn")
+            assertNormalState("spawn");
             // debug ("* rt rt_spawn *", larg.val, larg.lev);
             // console.log ("SPAWN ARGS", larg)
             this.runtime.$t.raiseCurrentThreadPC(larg.lev);
-            let arg = larg.val;
-            let __sched = this.runtime.__sched
-            
+            const arg = larg.val;
+            const __sched = this.runtime.__sched;
 
-            let spawnLocal = (arg) => {
+
+            const spawnLocal = (arg) => {
                 // debug ("scheduled rt_spawn ", arg.fun);
 
-                let newPid = __sched.scheduleNewThreadAtLevel(
+                const newPid = __sched.scheduleNewThreadAtLevel(
                     arg,
                     __unit, // [arg.env, __unit],
                     // arg.namespace,
                     this.runtime.$t.pc,
-                    this.runtime.$t.bl)
+                    this.runtime.$t.bl);
                 return this.runtime.$t.returnImmediateLValue(newPid) ;
-            }
+            };
 
 
             if (Array.isArray(arg)) {
@@ -42,17 +42,17 @@ export function BuiltinSpawn<TBase extends Constructor<UserRuntimeZero>>(Base: T
                     // debug ("SAME NODE")
                     this.runtime.$t.raiseCurrentThreadPC(lub(arg[0].lev, arg[1].lev));
                     assertIsFunction(arg[1]);
-                    return spawnLocal(arg[1].val)
+                    return spawnLocal(arg[1].val);
                 } else {
                     assertIsNode(arg[0]);
                     assertIsFunction(arg[1]);
-                    (async () => this.runtime.spawnAtNode(arg[0], arg[1]))()
+                    (async () => this.runtime.spawnAtNode(arg[0], arg[1]))();
 
                 }
             } else {
                 assertIsFunction(larg);
-                return spawnLocal(arg)
+                return spawnLocal(arg);
             }
         }, "spawn");
-    }
+    };
 }

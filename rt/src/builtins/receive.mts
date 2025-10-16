@@ -1,5 +1,5 @@
-import { UserRuntimeZero, Constructor, mkBase, mkService } from './UserRuntimeZero.mjs'
-import { assertNormalState, assertIsNTuple, assertIsLevel, assertIsList, assertIsAtom, assertIsNumber, assertIsUnit, assertIsFunction } from '../Asserts.mjs'
+import { UserRuntimeZero, Constructor, mkBase, mkService } from './UserRuntimeZero.mjs';
+import { assertNormalState, assertIsNTuple, assertIsLevel, assertIsList, assertIsAtom, assertIsNumber, assertIsUnit, assertIsFunction } from '../Asserts.mjs';
 import { flowsTo, lub, glb, BOT } from '../Level.mjs';
 import { RuntimeInterface } from '../RuntimeInterface.mjs';
 import { ReceiveTaintAction } from '../ReceiveTaintAction.mjs';
@@ -13,46 +13,46 @@ import { debug } from 'console';
 
 
 /*
-// this function must only be called from 
-// one of the checked functions 
+// this function must only be called from
+// one of the checked functions
 function _receiveFromMailbox ($r:RuntimeInterface, lowb, highb, handlers) {
   let mclear = $r.$t.mailbox.mclear
-  
-  let is_sufficient_clearance = 
+
+  let is_sufficient_clearance =
     flowsTo( lub (highb.val, $r.$t.pc)
           ,  lub (lowb.val, mclear.boost_level ))
 
-    if (!is_sufficient_clearance)  {  
-      let errorMessage = 
+    if (!is_sufficient_clearance)  {
+      let errorMessage =
         "Not enough mailbox clearance for this receive\n" +
-        ` | receive lower bound: ${lowb.val.stringRep()}\n` + 
+        ` | receive lower bound: ${lowb.val.stringRep()}\n` +
         ` | receive upper bound: ${highb.val.stringRep()}\n` +
         ` | pc level           : ${$r.$t.pc.stringRep()}\n` +
-        ` | mailbox clearance  : ${mclear.boost_level.stringRep()}` 
+        ` | mailbox clearance  : ${mclear.boost_level.stringRep()}`
       $r.$t.threadError (errorMessage);
-    }    
-  
+    }
+
     let is_clearance_a_leak = flowsTo( mclear.pc_at_creation, glb ($r.$t.pc, lowb.val))
 
     if (!is_clearance_a_leak)  {
-      let errorMessage = 
+      let errorMessage =
         "PC level at the time of raising the mailbox clearance is too sensitive for this receive\n" +
-        ` | receive lower bound: ${lowb.val.stringRep()}\n` + 
-        ` | pc level at the time of receive: ${$r.$t.pc.stringRep()}\n` +        
-        ` | pc level at the time of raise: ${mclear.pc_at_creation.stringRep()}`  // we need better terminology for these       
+        ` | receive lower bound: ${lowb.val.stringRep()}\n` +
+        ` | pc level at the time of receive: ${$r.$t.pc.stringRep()}\n` +
+        ` | pc level at the time of raise: ${mclear.pc_at_creation.stringRep()}`  // we need better terminology for these
       $r.$t.threadError (errorMessage);
     }
 
 
     return $r.__mbox.rcv(lowb.val, highb.val, handlers, mclear.boost_level)
-    
+
 }
 */
 
- 
-/** Receiving functionality; 2020-02-12; AA 
+
+/** Receiving functionality; 2020-02-12; AA
  *
- * Observe that we have three receive functions. 
+ * Observe that we have three receive functions.
  *
  * 1. The most general one is called `rcv` and it takes a 3-tuple of the form
  *    (low_bound_lev, high_bound_lev handlers), and performs an
@@ -61,7 +61,7 @@ function _receiveFromMailbox ($r:RuntimeInterface, lowb, highb, handlers) {
  *    that leaks information, it is necessary that the mailbox has sufficient
  *    clearance. The implementation of this function checks that the
  *    clearance is sufficient; this check is perfomed similaly to how
- *    declassification checks are performed. 
+ *    declassification checks are performed.
  *
  * 2. Receive on a point interval, `rcvp`. A sugar for (1)
  *
@@ -70,7 +70,7 @@ function _receiveFromMailbox ($r:RuntimeInterface, lowb, highb, handlers) {
  *    examples.
  *
  *
- */ 
+ */
 
 
 
@@ -78,133 +78,133 @@ function _receiveFromMailbox ($r:RuntimeInterface, lowb, highb, handlers) {
 export function BuiltinReceive<TBase extends Constructor<UserRuntimeZero>>(Base: TBase) {
     return class extends Base {
         peek = mkBase (arg => {
-          assertIsNTuple(arg, 3)
-          assertIsNumber(arg.val[0])
-          assertIsLevel (arg.val[1])
-          assertIsLevel (arg.val[2])
-          let i = arg.val[0]
-          let lowb = arg.val[1]
-          let highb = arg.val[2]
-          let mclear = this.runtime.$t.mailbox.mclear
+          assertIsNTuple(arg, 3);
+          assertIsNumber(arg.val[0]);
+          assertIsLevel (arg.val[1]);
+          assertIsLevel (arg.val[2]);
+          const i = arg.val[0];
+          const lowb = arg.val[1];
+          const highb = arg.val[2];
+          const mclear = this.runtime.$t.mailbox.mclear;
           return this.runtime.__mbox.peek (
-              lub (this.runtime.$t.pc, i.lev, lowb.lev, highb.lev, highb.val, mclear.boost_level), 
-              i.val, lowb.val, highb.val )
-        })
+              lub (this.runtime.$t.pc, i.lev, lowb.lev, highb.lev, highb.val, mclear.boost_level),
+              i.val, lowb.val, highb.val );
+        });
 
         consume = mkBase (arg => {
-          assertIsNTuple(arg, 3)
-          assertIsNumber(arg.val[0])
-          assertIsLevel (arg.val[1])
-          assertIsLevel (arg.val[2])
-          let i = arg.val[0]
-          let lowb = arg.val[1]
-          let highb = arg.val[2]
+          assertIsNTuple(arg, 3);
+          assertIsNumber(arg.val[0]);
+          assertIsLevel (arg.val[1]);
+          assertIsLevel (arg.val[2]);
+          const i = arg.val[0];
+          const lowb = arg.val[1];
+          const highb = arg.val[2];
 
-          let $r = this.runtime
-          let mclear = $r.$t.mailbox.mclear
-          let is_sufficient_clearance = 
+          const $r = this.runtime;
+          const mclear = $r.$t.mailbox.mclear;
+          const is_sufficient_clearance =
             flowsTo( lub (highb.val, $r.$t.pc)
-                  ,  lub (lowb.val, mclear.boost_level ))
-      
-          if (!is_sufficient_clearance)  {  
-            let errorMessage = 
+                  ,  lub (lowb.val, mclear.boost_level ));
+
+          if (!is_sufficient_clearance)  {
+            const errorMessage =
               "Not enough mailbox clearance for this receive\n" +
-              ` | receive lower bound: ${lowb.val.stringRep()}\n` + 
+              ` | receive lower bound: ${lowb.val.stringRep()}\n` +
               ` | receive upper bound: ${highb.val.stringRep()}\n` +
               ` | pc level           : ${$r.$t.pc.stringRep()}\n` +
-              ` | mailbox clearance  : ${mclear.boost_level.stringRep()}` 
-            $r.$t.threadError (errorMessage);
-          }    
-        
-          let is_clearance_a_leak = flowsTo( mclear.pc_at_creation, glb ($r.$t.pc, lowb.val))
-      
-          if (!is_clearance_a_leak)  {
-            let errorMessage = 
-              "PC level at the time of raising the mailbox clearance is too sensitive for this receive\n" +
-              ` | receive lower bound: ${lowb.val.stringRep()}\n` + 
-              ` | pc level at the time of receive: ${$r.$t.pc.stringRep()}\n` +        
-              ` | pc level at the time of raise: ${mclear.pc_at_creation.stringRep()}`  // we need better terminology for these       
+              ` | mailbox clearance  : ${mclear.boost_level.stringRep()}`;
             $r.$t.threadError (errorMessage);
           }
-     
-          let consume_l = lub (this.runtime.$t.pc, i.lev, lowb.lev, highb.lev, highb.val, mclear.boost_level)
-          return this.runtime.__mbox.consume ( consume_l, i.val, lowb.val, highb.val )
-        })
+
+          const is_clearance_a_leak = flowsTo( mclear.pc_at_creation, glb ($r.$t.pc, lowb.val));
+
+          if (!is_clearance_a_leak)  {
+            const errorMessage =
+              "PC level at the time of raising the mailbox clearance is too sensitive for this receive\n" +
+              ` | receive lower bound: ${lowb.val.stringRep()}\n` +
+              ` | pc level at the time of receive: ${$r.$t.pc.stringRep()}\n` +
+              ` | pc level at the time of raise: ${mclear.pc_at_creation.stringRep()}`;  // we need better terminology for these
+            $r.$t.threadError (errorMessage);
+          }
+
+          const consume_l = lub (this.runtime.$t.pc, i.lev, lowb.lev, highb.lev, highb.val, mclear.boost_level);
+          return this.runtime.__mbox.consume ( consume_l, i.val, lowb.val, highb.val );
+        });
 
         _blockThread = mkBase ((arg) => {
-          assertIsUnit(arg)
+          assertIsUnit(arg);
           this.runtime.__sched.blockThread(this.runtime.__sched.__currentThread);
           return null;
-        })
+        });
 
         _pc = mkBase ((arg) => {
-          assertIsUnit (arg)
+          assertIsUnit (arg);
           return this.runtime.ret (
-            new LVal (this.runtime.$t.pc, this.runtime.$t.pc, BOT))
-        })
- 
+            new LVal (this.runtime.$t.pc, this.runtime.$t.pc, BOT));
+        });
+
 
         guard = mkBase (arg => {
-          assertIsNTuple(arg, 3)
-          let f = arg.val[0]
-          let taintLimitArg = arg.val[1]
-          let def = arg.val[2]
-          assertIsFunction(f)
-          assertIsLevel(taintLimitArg)
-          let theThread = this.runtime.$t
-          theThread.raiseCurrentThreadPC(lub (f.lev, taintLimitArg.lev, taintLimitArg.val))
+          assertIsNTuple(arg, 3);
+          const f = arg.val[0];
+          const taintLimitArg = arg.val[1];
+          const def = arg.val[2];
+          assertIsFunction(f);
+          assertIsLevel(taintLimitArg);
+          const theThread = this.runtime.$t;
+          theThread.raiseCurrentThreadPC(lub (f.lev, taintLimitArg.lev, taintLimitArg.val));
 
-          let tntLim = theThread.bl 
-          let guard_sp : number = null 
+          const tntLim = theThread.bl;
+          let guard_sp : number = null;
           theThread.handlerState = new SandboxStatus.INHANDLER (
             () => { // trapper - invoked upon side-effects and guard check failure
-              theThread._sp = guard_sp 
-              theThread.invalidateSparseBit()
-              theThread.pc = taintLimitArg.val 
-              theThread.bl = taintLimitArg.val 
-              theThread.handlerState = new SandboxStatus.NORMAL ()
-              return theThread.returnImmediateLValue(def)
+              theThread._sp = guard_sp;
+              theThread.invalidateSparseBit();
+              theThread.pc = taintLimitArg.val;
+              theThread.bl = taintLimitArg.val;
+              theThread.handlerState = new SandboxStatus.NORMAL ();
+              return theThread.returnImmediateLValue(def);
             },
             theThread.pc,
-            () => { // guard checker -- called by the scheduler on context switches  
+            () => { // guard checker -- called by the scheduler on context switches
               if (!flowsTo(theThread.bl, tntLim)) {
-                theThread.threadError ("guard violation")
+                theThread.threadError ("guard violation");
               }
             }
-          )
+          );
 
-          let guardFrame : any = () => {
-            let arg = theThread.arg_as_lval
-            let l_guard = lub (arg.lev, theThread.bl) 
+          const guardFrame : any = () => {
+            const arg = theThread.arg_as_lval;
+            const l_guard = lub (arg.lev, theThread.bl);
             if (flowsTo(l_guard, tntLim)) {
-              theThread.invalidateSparseBit()
-              theThread.handlerState = new SandboxStatus.NORMAL ()
-              return theThread.returnImmediate()
+              theThread.invalidateSparseBit();
+              theThread.handlerState = new SandboxStatus.NORMAL ();
+              return theThread.returnImmediate();
             } else {
-              theThread.threadError ("guard violation")
+              theThread.threadError ("guard violation");
             }
-          }
+          };
 
-          guardFrame.debugname = "<guardReturnFrame>"
-          theThread.pushFrame ( guardFrame)
-          guard_sp = theThread._sp 
-          return theThread.tailCall (f.val, __unit)
+          guardFrame.debugname = "<guardReturnFrame>";
+          theThread.pushFrame ( guardFrame);
+          guard_sp = theThread._sp;
+          return theThread.tailCall (f.val, __unit);
 
-        })
+        });
 
-        receive = mkService ( () => { 
-                assertNormalState("receive"); 
-                return this.runtime.$service.receive()
-            }, "receive")
+        receive = mkService ( () => {
+                assertNormalState("receive");
+                return this.runtime.$service.receive();
+            }, "receive");
         rcvp = mkService ( () => {
-          assertNormalState ("rcvp")
-          return this.runtime.$service.rcvp()
-        }, "rcvp")
+          assertNormalState ("rcvp");
+          return this.runtime.$service.rcvp();
+        }, "rcvp");
 
-        rcv = mkService ( () => { 
-          assertNormalState ("rcv")
-          return this.runtime.$service.rcv()
-        }, "rcv")
+        rcv = mkService ( () => {
+          assertNormalState ("rcv");
+          return this.runtime.$service.rcv();
+        }, "rcv");
 
-    }
+    };
 }

@@ -104,7 +104,7 @@ function getValueDowngradeErrorMessageForReason(
         case DowngradeErrorReason.INTEGRITY_MISMATCH: return formatIntegrityMismatchMsg(operationDescription, levFrom, levTo);
         case DowngradeErrorReason.CONFIDENTIALITY_MISMATCH: return formatConfidentialityMismatchMsg(operationDescription, levFrom, levTo);
         case DowngradeErrorReason.BLOCKING_LEVEL_MISMATCH:
-            return formatPiniBlockingLevelMismatchMsg(operationDescription, currentBlockingLevelForCheck!, levTo);
+            return formatPiniBlockingLevelMismatchMsg(operationDescription, currentBlockingLevelForCheck, levTo);
         case DowngradeErrorReason.INSUFFICIENT_AUTHORITY: return formatValueInsufficientAuthorityMsg(operationDescription, levFrom, authorityLevel, levTo);
         default:
             const _exhaustiveValueReason: never = reason;
@@ -135,4 +135,4 @@ export function getDowngradeErrorMessage(params: ValidateDowngradeParams, reason
             const _exhaustiveKind: never = downgradeKind;
             throw new ImplementationError(`Unhandled DowngradeKind: ${_exhaustiveKind}`);
     }
-} 
+}

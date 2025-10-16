@@ -1,5 +1,5 @@
-import {UserRuntimeZero, Constructor, mkBase} from './UserRuntimeZero.mjs'
-import { assertIsUnit } from '../Asserts.mjs'
+import {UserRuntimeZero, Constructor, mkBase} from './UserRuntimeZero.mjs';
+import { assertIsUnit } from '../Asserts.mjs';
 
 
 export function BuiltinMkUuid <TBase extends Constructor<UserRuntimeZero>> (Base:TBase) {
@@ -9,5 +9,5 @@ export function BuiltinMkUuid <TBase extends Constructor<UserRuntimeZero>> (Base
             assertIsUnit(arg);
             return this.runtime.ret(this.runtime.rt_mkuuid());
         });
-    }
+    };
 }

@@ -6,16 +6,16 @@ import { TroupeType } from "./TroupeTypes.mjs";
 export class Authority implements TroupeRawValue {
     authorityLevel: Level;
     stringRep: () => string;
-    _troupeType = TroupeType.AUTHORITY 
+    _troupeType = TroupeType.AUTHORITY;
     dataLevel = BOT;
     constructor (authorityLevel: Level) {
-        this.authorityLevel = authorityLevel
+        this.authorityLevel = authorityLevel;
         this.stringRep = this.toString;
     }
 
     toString () {
-        let x = this.authorityLevel.stringRep();
+        const x = this.authorityLevel.stringRep();
         return "!" + x;
-    } 
+    }
 }
 

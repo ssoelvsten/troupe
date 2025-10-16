@@ -1,5 +1,5 @@
-import {TroupeType} from './TroupeTypes.mjs'
-import { Level } from './Level.mjs'
+import {TroupeType} from './TroupeTypes.mjs';
+import { Level } from './Level.mjs';
 
 export interface TroupeRawValue {
     _troupeType: TroupeType;

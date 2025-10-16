@@ -1,8 +1,8 @@
-import * as levels from './Level.mjs'
+import * as levels from './Level.mjs';
 
 
-export let __unitbase = { stringRep: () => "()"
+export const __unitbase = { stringRep: () => "()"
               , _is_unit : true
               , _troupeType : 0 /* UNIT */
-              , dataLevel : levels.BOT 
+              , dataLevel : levels.BOT
               } ;

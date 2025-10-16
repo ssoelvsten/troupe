@@ -1,7 +1,7 @@
-import {UserRuntimeZero, Constructor, mkBase} from './UserRuntimeZero.mjs'
+import {UserRuntimeZero, Constructor, mkBase} from './UserRuntimeZero.mjs';
 import { LVal } from '../Lval.mjs';
-import * as levels  from '../Level.mjs'
-import { assertIsUnit, assertIsNumber } from '../Asserts.mjs'
+import * as levels  from '../Level.mjs';
+import { assertIsUnit, assertIsNumber } from '../Asserts.mjs';
 
 
 export function BuiltinMath <TBase extends Constructor<UserRuntimeZero>> (Base:TBase) {
@@ -9,29 +9,29 @@ export function BuiltinMath <TBase extends Constructor<UserRuntimeZero>> (Base:T
 
          random = mkBase((arg) => {
             assertIsUnit(arg);
-            return this.runtime.ret(new LVal(Math.random(), levels.BOT, levels.BOT))
-        })
+            return this.runtime.ret(new LVal(Math.random(), levels.BOT, levels.BOT));
+        });
 
         ceil = mkBase((arg) => {
             assertIsNumber(arg);
             return this.runtime.ret(new LVal(Math.ceil(arg.val), arg.lev, arg.tlev));
-        })
+        });
 
         round = mkBase((arg) => {
             assertIsNumber(arg);
             return this.runtime.ret(new LVal(Math.round(arg.val), arg.lev, arg.tlev));
-        })
+        });
 
         floor = mkBase((arg) => {
             assertIsNumber(arg);
             return this.runtime.ret(new LVal(Math.floor(arg.val), arg.lev, arg.tlev));
-        })
+        });
 
         sqrt = mkBase((arg) => {
             assertIsNumber(arg);
             return this.runtime.ret(new LVal(Math.sqrt(arg.val), arg.lev, arg.tlev));
-        })
+        });
 
-        
-    }
+
+    };
 }

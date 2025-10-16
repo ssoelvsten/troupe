@@ -6,7 +6,7 @@ export interface SchedulerInterface {
     // stepThread();
     resetScheduler();
     __alive: any;
-    scheduleNewThreadAtLevel(fun: any, arg: any, pc: any, blockingTopLev: any);        
+    scheduleNewThreadAtLevel(fun: any, arg: any, pc: any, blockingTopLev: any);
     scheduleThread(theThread: any);
     resumeLoopAsync();
     blockThread(__currentThread: Thread);
@@ -16,5 +16,5 @@ export interface SchedulerInterface {
     schedule(fun: any, args: any[], namespace: any);
     __currentThread: Thread;
     stopThreadWithErrorMessage (t:Thread, s:string)
-    
+
 }

@@ -1,5 +1,5 @@
-/* 2020-05-19; this method is commented for convenience to avoid 
-            having the IDE erroneously suggest importing it 
+/* 2020-05-19; this method is commented for convenience to avoid
+            having the IDE erroneously suggest importing it
 */
 
 /*
@@ -38,7 +38,7 @@ levels.mkLevel = (x) => {
     if ( x === "secret" || x === "`{secret}`" ) {
         return levels.HIGH;
     } else {
-        if ( x === "public" || x === "{public}" ) { 
+        if ( x === "public" || x === "{public}" ) {
             return levels.LOW
         }
         else {

@@ -1,7 +1,7 @@
 import { start } from './runtimeMonitored.mjs';
 import { getRuntimeObject } from './SysState.mjs';
 import path  from 'path';
-import fs from 'node:fs'
+import fs from 'node:fs';
 import { getCliArgs, TroupeCliArg } from './TroupeCliArgs.mjs';
 const argv = getCliArgs();
 
@@ -18,11 +18,11 @@ if (!fs.existsSync(p)) {
     process.exit(1);
 }
 (async () => {
-    let d = await import (p);
-    let Top = d.default     
-    let __userRuntime = (getRuntimeObject() as any).__userRuntime;
-    let top = new Top(__userRuntime);
+    const d = await import (p);
+    const Top = d.default;
+    const __userRuntime = (getRuntimeObject() as any).__userRuntime;
+    const top = new Top(__userRuntime);
     start(top);
 
-}) ()
+}) ();
 

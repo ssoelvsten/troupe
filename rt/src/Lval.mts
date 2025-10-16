@@ -1,4 +1,4 @@
-import * as levels from './Level.mjs'
+import * as levels from './Level.mjs';
 import { Level } from "./Level.mjs";
 import * as Ty from './TroupeTypes.mjs';
 import { TroupeRawValue } from './TroupeRawValue.mjs';
@@ -10,36 +10,36 @@ export class LVal implements TroupeRawValue{
     dlev: Level;
     posInfo: string;
 
-    /* 2020-06-06: AA   
+    /* 2020-06-06: AA
 
-       Observe that we only need the type information here only because of the 
+       Observe that we only need the type information here only because of the
        base type such as booleans, strings, and numbers; becauase we cannot attach
-       properties to them in JS. 
+       properties to them in JS.
 
-       The main downside of duplicating the type information is the duplication of 
+       The main downside of duplicating the type information is the duplication of
        this information during serialization
     */
-    __troupeType : Ty.TroupeType 
-    
+    __troupeType : Ty.TroupeType;
+
     constructor(v:any, l:Level, tlev:Level = null, posInfo:string = null) {
         this.val = v;
         this.lev = l;
         this.tlev = tlev == null?l:tlev;
         this.posInfo = posInfo;
         if (v._troupeType == undefined) {
-            this.__troupeType = Ty.getTypeForBasicValue(v)
-            this.dlev = this.lev
+            this.__troupeType = Ty.getTypeForBasicValue(v);
+            this.dlev = this.lev;
         } else {
-            this.__troupeType = v._troupeType                 
-            this.dlev = levels.lub (this.lev, v.dataLevel)
-        } 
+            this.__troupeType = v._troupeType;
+            this.dlev = levels.lub (this.lev, v.dataLevel);
+        }
     }
 
     get _troupeType() {
-        return Ty.TroupeType.LVAL
+        return Ty.TroupeType.LVAL;
     }
-    get troupeType () {        
-        return this.__troupeType
+    get troupeType () {
+        return this.__troupeType;
     }
 
     get dataLevel () {
@@ -47,20 +47,20 @@ export class LVal implements TroupeRawValue{
     }
 
     get closureType ()  {
-        return (this.troupeType == Ty.TroupeType.CLOSURE 
-                    ? this.val._closureType 
+        return (this.troupeType == Ty.TroupeType.CLOSURE
+                    ? this.val._closureType
                     : null
-               )
-    }    
+               );
+    }
     stringRep(omitLevels?: boolean, taintRef?: any) {
-      let v = this.val;
-      let l = this.lev;
+      const v = this.val;
+      const l = this.lev;
       let t = "";
       if (v.stringRep != undefined) { // 2018-05-17; AA; ugly hack!
-          t = v.stringRep(omitLevels, taintRef)
+          t = v.stringRep(omitLevels, taintRef);
       } else {
           if (typeof v === 'string') {
-              t = "\"" + v.toString() + "\""
+              t = "\"" + v.toString() + "\"";
           } else {
               t = v.toString();
           }
@@ -88,7 +88,7 @@ export class LVal implements TroupeRawValue{
 export class LValCopyAt extends LVal {
     constructor (x:LVal, l:Level, l2 = null) {
         if (l2 == null) {
-            l2 = levels.lub (x.tlev,l)
+            l2 = levels.lub (x.tlev,l);
         }
         super (x.val, levels.lub (x.lev, l), l2);
     }

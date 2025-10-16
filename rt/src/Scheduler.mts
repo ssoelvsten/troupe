@@ -1,33 +1,33 @@
 'use strict';
-import { v4 as uuidv4} from 'uuid'
+import { v4 as uuidv4} from 'uuid';
 import { Thread } from './Thread.mjs';
 import runId from './runId.mjs';
 import { __unit } from './UnitVal.mjs';
 import { mkTuple } from './ValuesUtil.mjs';
 import { SchedulerInterface } from './SchedulerInterface.mjs';
 import { RuntimeInterface } from './RuntimeInterface.mjs';
-import { LVal } from './Lval.mjs'
-import {ProcessID, pid_equals} from './process.mjs'
-import SandboxStatus from './SandboxStatus.mjs'
-import  {ThreadError, TroupeError} from './TroupeError.mjs'
-import  {lub} from './Level.mjs'
+import { LVal } from './Lval.mjs';
+import {ProcessID, pid_equals} from './process.mjs';
+import SandboxStatus from './SandboxStatus.mjs';
+import  {ThreadError, TroupeError} from './TroupeError.mjs';
+import  {lub} from './Level.mjs';
 import { getCliArgs, TroupeCliArg } from './TroupeCliArgs.mjs';
 
-import {SYSTEM_PROCESS_STRING} from './Constants.mjs'
+import {SYSTEM_PROCESS_STRING} from './Constants.mjs';
 const argv = getCliArgs();
 
-const showStack = argv[TroupeCliArg.ShowStack]
-import { mkLogger } from './logger.mjs'
+const showStack = argv[TroupeCliArg.ShowStack];
+import { mkLogger } from './logger.mjs';
 const logger = mkLogger('scheduler');
-const info = x => logger.info(x)
-const debug = x => logger.debug(x)
+const info = x => logger.info(x);
+const debug = x => logger.debug(x);
 
 const STACKDEPTH = 150;
 
-let TerminationStatus = {
+const TerminationStatus = {
     OK: 0,
     ERR: 1
-}
+};
 
 export class Scheduler implements SchedulerInterface {
     rt_uuid: any;
@@ -37,111 +37,111 @@ export class Scheduler implements SchedulerInterface {
     __currentThread: Thread;
     stackcounter: number;
     __unit: any;
-    rtObj : RuntimeInterface
+    rtObj : RuntimeInterface;
     __node: any;
     __stopWhenAllThreadsAreDone: boolean;
-    __stopRuntime: () => void;    
-    constructor(rtObj:RuntimeInterface) {        
+    __stopRuntime: () => void;
+    constructor(rtObj:RuntimeInterface) {
         this.rt_uuid = runId;
-        this.rtObj = rtObj
-        this.__funloop = new Array()
-        this.__blocked = new Array()
-        this.__alive = {} // new Set();
-        
+        this.rtObj = rtObj;
+        this.__funloop = [];
+        this.__blocked = [];
+        this.__alive = {}; // new Set();
+
         this.__currentThread = null; // current thread object
 
         this.stackcounter = 0;
-                
-        // the unit value 
-        this.__unit = __unit 
+
+        // the unit value
+        this.__unit = __unit;
     }
 
 
     resetScheduler() {
         // console.log (`The current length of __funloop is ${this.__funloop.length}`)
         // console.log (`The number of active threads is ${Object.keys(this.__alive).length}`)
-        for (let x in this.__alive) {            
+        for (const x in this.__alive) {
             if (this.currentThreadId.val.toString() == x) {
                 // console.log (x, "ACTIVE")
             } else {
                 // console.log (x, "KILLING");
-                delete this.__alive[x]
+                delete this.__alive[x];
             }
         }
-        this.__blocked = []
-        this.__funloop = [] 
+        this.__blocked = [];
+        this.__funloop = [];
         // console.log (`The number of active threads is ${Object.keys(this.__alive).length}`)
         // console.log (`The number of blocked threads is ${this.__blocked.length}`)
     }
 
-    done  ()  {            
+    done  ()  {
         this.notifyMonitors();
         // console.log (this.__currentThread.processDebuggingName, this.currentThreadId.val.toString(), "done")
-        delete this.__alive [this.currentThreadId.val.toString()];              
+        delete this.__alive [this.currentThreadId.val.toString()];
     }
 
 
     halt  (persist=null)  {
         this.raiseCurrentThreadPCToBlockingLev();
-        let retVal = new LVal (this.__currentThread.r0_val, 
+        const retVal = new LVal (this.__currentThread.r0_val,
                                lub(this.__currentThread.bl, this.__currentThread.r0_lev),
-                               lub(this.__currentThread.bl, this.__currentThread.r0_tlev))
+                               lub(this.__currentThread.bl, this.__currentThread.r0_tlev));
 
         this.notifyMonitors ();
 
-        delete this.__alive[this.currentThreadId.val.toString()];            
+        delete this.__alive[this.currentThreadId.val.toString()];
         console.log(">>> Main thread finished with value:", retVal.stringRep());
         if (persist) {
-            this.rtObj.persist (retVal, persist )
-            console.log ("Saved the result value in file", persist)
+            this.rtObj.persist (retVal, persist );
+            console.log ("Saved the result value in file", persist);
         }
         return null;
     }
-    
+
     notifyMonitors (status = TerminationStatus.OK, errstr = null) {
-        let mkVal = this.__currentThread.mkVal
-        let ids = Object.keys (this.__currentThread.monitors);
-        for ( let i = 0; i < ids.length; i ++ ) {            
-            let id = ids[i];
-            let toPid = this.__currentThread.monitors[id].pid; 
-            let refUUID = this.__currentThread.monitors[id].uuid; 
-            let thisPid = this.__currentThread.tid;
-            let statusVal = this.__currentThread.mkVal ( status ) ;
-            let reason = TerminationStatus.OK == status ? statusVal : 
+        const mkVal = this.__currentThread.mkVal;
+        const ids = Object.keys (this.__currentThread.monitors);
+        for ( let i = 0; i < ids.length; i ++ ) {
+            const id = ids[i];
+            const toPid = this.__currentThread.monitors[id].pid;
+            const refUUID = this.__currentThread.monitors[id].uuid;
+            const thisPid = this.__currentThread.tid;
+            const statusVal = this.__currentThread.mkVal ( status ) ;
+            const reason = TerminationStatus.OK == status ? statusVal :
                 mkTuple ( [statusVal,  mkVal (errstr)] );
-            let message = mkVal (mkTuple ([ mkVal("DONE"), refUUID, thisPid, reason]))             
-            this.rtObj.sendMessageNoChecks ( toPid, message , false) // false flag means no need to return in the process
+            const message = mkVal (mkTuple ([ mkVal("DONE"), refUUID, thisPid, reason]));
+            this.rtObj.sendMessageNoChecks ( toPid, message , false); // false flag means no need to return in the process
         }
     }
 
-    raiseCurrentThreadPC (l)  {        
+    raiseCurrentThreadPC (l)  {
         this.__currentThread.raiseCurrentThreadPC(l);
     }
-    
-    raiseCurrentThreadPCToBlockingLev () {        
-        this.__currentThread.raiseCurrentThreadPCToBlockingLev()
+
+    raiseCurrentThreadPCToBlockingLev () {
+        this.__currentThread.raiseCurrentThreadPCToBlockingLev();
     }
 
 
-    raiseBlockingThreadLev (l) {   
-        this.__currentThread.raiseBlockingThreadLev(l); 
+    raiseBlockingThreadLev (l) {
+        this.__currentThread.raiseBlockingThreadLev(l);
     }
 
 
-    pinipush (l, cap) {        
-        this.__currentThread.pcpinipush(l, cap)        
+    pinipush (l, cap) {
+        this.__currentThread.pcpinipush(l, cap);
     }
 
     pinipop (cap) {
-        return this.__currentThread.pinipop(cap); 
+        return this.__currentThread.pinipop(cap);
     }
 
-    mkVal(x) {        
-        return this.__currentThread.mkVal (x);    
+    mkVal(x) {
+        return this.__currentThread.mkVal (x);
     }
-    
-    mkValPos (x,p) {    
-        return this.__currentThread.mkValPos (x,p);    
+
+    mkValPos (x,p) {
+        return this.__currentThread.mkValPos (x,p);
     }
 
     mkCopy (x) {
@@ -149,20 +149,20 @@ export class Scheduler implements SchedulerInterface {
     }
 
 
-    initScheduler(node, stopWhenAllThreadsAreDone = false, stopRuntime = () => {}) {        
+    initScheduler(node, stopWhenAllThreadsAreDone = false, stopRuntime = () => {}) {
         this.__node = node;
         this.__stopWhenAllThreadsAreDone = stopWhenAllThreadsAreDone;
-        this.__stopRuntime = stopRuntime
+        this.__stopRuntime = stopRuntime;
     }
 
 
-    
+
     get currentThreadId() {
         return this.__currentThread.tid;
     }
 
     set handlerState (st) {
-        this.__currentThread.handlerState = st;        
+        this.__currentThread.handlerState = st;
     }
 
     get handlerState () {
@@ -170,32 +170,32 @@ export class Scheduler implements SchedulerInterface {
     }
 
     resumeLoopAsync() {
-        setImmediate(() => {this.loop()});
+        setImmediate(() => {this.loop();});
     }
 
-    
+
 
     scheduleThread(t) {
-        this.__funloop.push(t)
+        this.__funloop.push(t);
     }
 
 
     createNewProcessIDAtLevel(pcArg, isSystem = false) {
-        let pid = isSystem ? SYSTEM_PROCESS_STRING : uuidv4();
-        let pidObj = new ProcessID(this.rt_uuid, pid, this.__node);
+        const pid = isSystem ? SYSTEM_PROCESS_STRING : uuidv4();
+        const pidObj = new ProcessID(this.rt_uuid, pid, this.__node);
         return new LVal(pidObj, pcArg);
     }
 
 
 
     scheduleNewThreadAtLevel (thefun, arg, levpc, levblock, ismain = false, persist=null, isSystem = false) {
-        let newPid = this.createNewProcessIDAtLevel(levpc, isSystem);
+        const newPid = this.createNewProcessIDAtLevel(levpc, isSystem);
 
-        let halt = ismain ?  ()=> { this.halt (persist) } : 
-                             () => { this.done () };
-        
-        
-        let t = new Thread 
+        const halt = ismain ?  ()=> { this.halt (persist); } :
+                             () => { this.done (); };
+
+
+        const t = new Thread
             ( newPid
             , halt
             , thefun
@@ -208,26 +208,26 @@ export class Scheduler implements SchedulerInterface {
 
 
         this.__alive[newPid.val.toString()] = t;
-        this.scheduleThread (t)
+        this.scheduleThread (t);
         return newPid;
     }
 
     schedule(thefun, args, nm) {
         this.__currentThread.runNext (thefun, args, nm);
-        this.scheduleThread(this.__currentThread)
+        this.scheduleThread(this.__currentThread);
     }
 
 
     blockThread(t) {
-        this.__blocked.push(t)
+        this.__blocked.push(t);
     }
 
 
-    unblockThread(pid) {        
-        for (let i = 0; i < this.__blocked.length; i++) {            
+    unblockThread(pid) {
+        for (let i = 0; i < this.__blocked.length; i++) {
             if (pid_equals(this.__blocked[i].tid, pid)) {
                 this.scheduleThread(this.__blocked[i]);
-                this.__blocked.splice(i, 1);                
+                this.__blocked.splice(i, 1);
                 break;
             }
         }
@@ -267,14 +267,14 @@ export class Scheduler implements SchedulerInterface {
 
     loop()  {
         const $$LOOPBOUND = 500000;
-        let _FUNLOOP = this.__funloop
-        let _curThread: Thread; 
-        let dest; 
+        const _FUNLOOP = this.__funloop;
+        let _curThread: Thread;
+        let dest;
         try {
             for (let $$loopiter = 0; $$loopiter < $$LOOPBOUND && _FUNLOOP.length > 0; $$loopiter ++ ) {
                 _curThread = _FUNLOOP.shift();
                 this.__currentThread = _curThread;
-                dest = _curThread.next 
+                dest = _curThread.next;
                 let ttl = 1000;  // magic constant; 2021-04-29
                 while (dest && ttl -- ) {
                     // if (showStack) { // 2021-04-24; AA; TODO: profile the addition of this conditional in this tight loop
@@ -286,24 +286,24 @@ export class Scheduler implements SchedulerInterface {
                     // if (dest.debugname ) {
                     //     console.log (" -- ", dest.debugname)
                     // }
-                    dest = dest ()
+                    dest = dest ();
                 }
 
                 if (dest) {
-                    _curThread.handlerState.checkGuard() 
+                    _curThread.handlerState.checkGuard();
 
                     _curThread.next = dest ;
                     _FUNLOOP.push (_curThread);
                 }
-            }    
+            }
         } catch (e) {
             if (e instanceof TroupeError) {
                 e.handleError(this);
             } else {
-                console.log ("--- Schedule module caught an internal exception ---")
-                console.log ("--- The following output may help identify a bug in the runtime ---")
-                console.log ("Destination function\n" , dest)
-                this.__currentThread.showStack()
+                console.log ("--- Schedule module caught an internal exception ---");
+                console.log ("--- The following output may help identify a bug in the runtime ---");
+                console.log ("Destination function\n" , dest);
+                this.__currentThread.showStack();
                 throw e;
             }
         }
@@ -312,10 +312,10 @@ export class Scheduler implements SchedulerInterface {
             // we are not really done, but are just hacking around the V8's memory management
             this.resumeLoopAsync();
         }
-  
+
         if (this.__stopWhenAllThreadsAreDone && Object.keys(this.__alive).length == 0 ) {
             this.__stopRuntime();
         }
     }
-    
+
 }

@@ -1,29 +1,29 @@
-import {TroupeType} from './TroupeTypes.mjs'
-import {TroupeAggregateRawValue} from './TroupeRawValue.mjs'
-import {LVal, listStringRep} from './Lval.mjs'
-import { Level } from './Level.mjs'
-import * as levels from './Level.mjs'
+import {TroupeType} from './TroupeTypes.mjs';
+import {TroupeAggregateRawValue} from './TroupeRawValue.mjs';
+import {LVal, listStringRep} from './Lval.mjs';
+import { Level } from './Level.mjs';
+import * as levels from './Level.mjs';
 
 
-export abstract class RawList implements TroupeAggregateRawValue {    
+export abstract class RawList implements TroupeAggregateRawValue {
     _troupeType = TroupeType.LIST;
     isList = true ;
-    isNil : boolean
+    isNil : boolean;
 
     constructor() {
-        
+
     }
 
     abstract toArray (): LVal [];
     abstract get length() : number;
-    abstract get head () : LVal 
-    abstract get tail () : RawList 
+    abstract get head () : LVal
+    abstract get tail () : RawList
     abstract index (j:number) : LVal
-    
+
     stringRep (omitLevels?: boolean, taintRef?: any) {
-        return ("[" + listStringRep(this.toArray(), omitLevels, taintRef) + "]")
+        return ("[" + listStringRep(this.toArray(), omitLevels, taintRef) + "]");
     }
-    
+
     static fromArray (a : LVal []) {
         let x = new Nil();
         for (let j = a.length - 1 ; j >= 0; j -- ) {
@@ -32,12 +32,12 @@ export abstract class RawList implements TroupeAggregateRawValue {
         return x;
     }
 
-    abstract get dataLevel (): Level 
+    abstract get dataLevel (): Level
 }
 
 export class Nil extends RawList {
     constructor() {
-        super ()
+        super ();
         this.isNil = true;
     }
 
@@ -46,7 +46,7 @@ export class Nil extends RawList {
     }
 
     get head () {
-        throw new Error ("head: empty list")
+        throw new Error ("head: empty list");
         return null;
     }
 
@@ -60,19 +60,19 @@ export class Nil extends RawList {
     }
 
     get dataLevel (): Level {
-        return levels.BOT
+        return levels.BOT;
     }
 
     index (j:number) {
-        throw new Error ("index: empty list")
-        return null
+        throw new Error ("index: empty list");
+        return null;
     }
 
 }
 
 export class Cons extends RawList {
-    _head: LVal
-    _tail: RawList 
+    _head: LVal;
+    _tail: RawList;
     _length : number;
     _dataLevel: Level;
     constructor (head: LVal, tail: RawList ) {
@@ -80,24 +80,24 @@ export class Cons extends RawList {
         this._head = head;
         this._tail = tail;
         this.isNil = false;
-        this._length = tail.length + 1 
-        this._dataLevel = levels.lub (head.dataLevel, tail.dataLevel)
+        this._length = tail.length + 1;
+        this._dataLevel = levels.lub (head.dataLevel, tail.dataLevel);
     }
 
     index (j:number) {
         if (j == 0) {
-            return this._head 
+            return this._head;
         } else {
-            return this._tail.index(j - 1)
+            return this._tail.index(j - 1);
         }
     }
 
     get dataLevel (): Level {
-        return this._dataLevel
+        return this._dataLevel;
     }
 
     get head () {
-        return this._head
+        return this._head;
     }
 
     get tail () {
@@ -109,7 +109,7 @@ export class Cons extends RawList {
     }
 
     toArray () {
-        let x = this._tail.toArray();
+        const x = this._tail.toArray();
         x.unshift ( this._head );
         return x;
     }

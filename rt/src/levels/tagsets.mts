@@ -1,44 +1,44 @@
-import { mkLogger } from '../logger.mjs'
+import { mkLogger } from '../logger.mjs';
 const logger = mkLogger('TAGSETS');
-const info = x => logger.info(x)
-const debug = x => logger.debug(x)
+const info = x => logger.info(x);
+const debug = x => logger.debug(x);
 
-import { AbstractLevel, AbstractLevelSystem }  from '../AbstractLevel.mjs'
+import { AbstractLevel, AbstractLevelSystem }  from '../AbstractLevel.mjs';
 
 
 function stringRep (T:Set <string>) {
-    let n = T.size
+    const n = T.size;
     let s = "{";
     let i = 0;
-    let R = Array.from (T.values()).sort();
+    const R = Array.from (T.values()).sort();
 
     R.forEach( t => {
         s += t;
         if (++ i < n ) {
-            s += ","
+            s += ",";
         }
-    })
-    s += "}"
+    });
+    s += "}";
     return s;
 }
 
 
-export const tagsetStringRep = stringRep
+export const tagsetStringRep = stringRep;
 
-let __cache = {}
+const __cache = {};
 
 
 class TagLevel extends AbstractLevel<TagLevel> {
-    lev: any 
+    lev: any;
     isTop: boolean;
     __stringRep : string ;
-   
+
     constructor (lev:any, s = null) {
         s = s || stringRep (lev);
         super();
         this.lev = lev;
-        this.__stringRep = s
-      
+        this.__stringRep = s;
+
     }
 
     stringRep () {
@@ -52,27 +52,27 @@ class TagLevel extends AbstractLevel<TagLevel> {
 
 }
 
-// Factory method for creating tag levels 
-// Observe that it makes use of caching 
+// Factory method for creating tag levels
+// Observe that it makes use of caching
 function createTagLevel0 ( lev ) {
-    let s = stringRep (lev)
-    __cache [s] = __cache[s] || (new TagLevel (lev))
-    return __cache[s]
+    const s = stringRep (lev);
+    __cache [s] = __cache[s] || (new TagLevel (lev));
+    return __cache[s];
 }
 
-let botLevel = createTagLevel0 (new Set ())
+const botLevel = createTagLevel0 (new Set ());
 // botLevel.dataLevel = botLevel ; // 2021-03-19; hacky; AA
 
 
 function createTagLevel ( lev ) {
-    let obj = createTagLevel0 (lev);    
+    const obj = createTagLevel0 (lev);
     // obj.dataLevel = botLevel ;
     return obj;
 }
 
 
 
-let topLevel = new TagLevel ({}, "{#TOP}");
+const topLevel = new TagLevel ({}, "{#TOP}");
 topLevel.isTop = true;
 
 
@@ -101,7 +101,7 @@ function fromString (str2): TagLevel {
         return topLevel;
     }
 
-    let s = new Set ();
+    const s = new Set ();
     const tags = str.split(',');
 
     tags.map ( t => {
@@ -131,10 +131,10 @@ function fromString (str2): TagLevel {
 
 
 class TagLevelSystem extends AbstractLevelSystem<TagLevel>  {
-    BOT = botLevel
-    TOP = topLevel
-    NULL = botLevel
-    ROOT = topLevel
+    BOT = botLevel;
+    TOP = topLevel;
+    NULL = botLevel;
+    ROOT = topLevel;
 
     lub (...ls:TagLevel[]):TagLevel {
         if (ls.length == 0) {
@@ -142,18 +142,18 @@ class TagLevelSystem extends AbstractLevelSystem<TagLevel>  {
         }
         if (ls.length == 2) {
             if (ls[0] == ls[1]) {
-                return ls[0]
+                return ls[0];
             }
-        }  
+        }
 
-        let s = new Set ();
-        for (let l of ls) {
+        const s = new Set ();
+        for (const l of ls) {
             if (l == topLevel) {
-                return topLevel
+                return topLevel;
             }
             l.lev.forEach(t => s.add(t));
         }
-        return createTagLevel (s); 
+        return createTagLevel (s);
     }
 
     glb (l1:TagLevel, l2:TagLevel):TagLevel {
@@ -165,7 +165,7 @@ class TagLevelSystem extends AbstractLevelSystem<TagLevel>  {
             return l1;
         }
 
-        let s = new Set();
+        const s = new Set();
         l1.lev.forEach (
             t => {
                 if (l2.lev.has(t)) {
@@ -188,7 +188,7 @@ class TagLevelSystem extends AbstractLevelSystem<TagLevel>  {
         }
 
         const iter = l1.lev.entries();
-        for (let t1 of iter) {
+        for (const t1 of iter) {
             if (!l2.lev.has(t1[0])) {
             return false;
             }
@@ -198,10 +198,10 @@ class TagLevelSystem extends AbstractLevelSystem<TagLevel>  {
     }
 
     actsFor (l1, l2) : boolean {
-        return this.flowsTo(l2, l1)
+        return this.flowsTo(l2, l1);
     }
 }
 
-export let mkLevel = fromString
-export type Level = TagLevel 
+export const mkLevel = fromString;
+export type Level = TagLevel
 export const levels = new TagLevelSystem ();

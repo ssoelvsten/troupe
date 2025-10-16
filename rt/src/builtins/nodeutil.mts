@@ -1,6 +1,6 @@
-import { UserRuntimeZero, Constructor, mkBase } from './UserRuntimeZero.mjs'
+import { UserRuntimeZero, Constructor, mkBase } from './UserRuntimeZero.mjs';
 import { LVal } from '../Lval.mjs';
-import { assertIsProcessId } from '../Asserts.mjs'
+import { assertIsProcessId } from '../Asserts.mjs';
 
 /**
  * Returns a string corresponding to the node identify
@@ -11,13 +11,13 @@ export function BuiltinNodeUtils<TBase extends Constructor<UserRuntimeZero>>(Bas
     return class extends Base {
         node = mkBase((arg) => {
             assertIsProcessId(arg);
-            let data = arg.val;
+            const data = arg.val;
             let nodeId = data.node.nodeId;
             if (nodeId == null) {
-                nodeId = "<null>"
+                nodeId = "<null>";
             }
-            let v = new LVal(nodeId, arg.lev);
+            const v = new LVal(nodeId, arg.lev);
             return this.runtime.ret(v);
-        }, "node")
-    }
+        }, "node");
+    };
 }

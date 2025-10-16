@@ -1,7 +1,7 @@
 import { LCopyVal } from './Lval.mjs';
-import { assertIsNTuple, assertIsAuthority, assertIsLevel } from './Asserts.mjs'
+import { assertIsNTuple, assertIsAuthority, assertIsLevel } from './Asserts.mjs';
 import { __unit } from './UnitVal.mjs';
-import { lub, flowsTo, okToDeclassify, okToEndorse}  from './Level.mjs'
+import { lub, flowsTo, okToDeclassify, okToEndorse}  from './Level.mjs';
 import { DowngradeResult, DowngradeDimension, DowngradeErrorReason } from './DowngradeEnums.mjs';
 import {
     formatIntegrityMismatchMsg,
@@ -14,10 +14,10 @@ import {
 function stringOfDowngrader (d) {
     switch (d) {
         case DowngradeDimension.CONFIDENTIALITY: {
-            return "declassification"
+            return "declassification";
         }
         case DowngradeDimension.INTEGRITY: {
-            return "endorsement"
+            return "endorsement";
         }
     }
 }
@@ -25,26 +25,26 @@ function stringOfDowngrader (d) {
 export function downgrader (runtime, dimension:DowngradeDimension, isNMIFC: boolean ) {
     return (arg => {
             assertIsNTuple(arg, 3);
-            let argv = arg.val;
-            let data = argv[0];
-            let auth = argv[1];
+            const argv = arg.val;
+            const data = argv[0];
+            const auth = argv[1];
             assertIsAuthority(auth);
-            let toLevV = argv[2];
+            const toLevV = argv[2];
             assertIsLevel(toLevV);
-            let pc = runtime.$t.pc;
-            let levFrom = data.lev;
-            let bl = runtime.$t.bl ;
-            let lev_to = toLevV.val 
-            const downgradeKindString = stringOfDowngrader (dimension)
+            const pc = runtime.$t.pc;
+            const levFrom = data.lev;
+            const bl = runtime.$t.bl ;
+            const lev_to = toLevV.val;
+            const downgradeKindString = stringOfDowngrader (dimension);
 
-            const dg_f = 
+            const dg_f =
                 dimension == DowngradeDimension.CONFIDENTIALITY ? okToDeclassify : okToEndorse;
             const ok_to_downgrade_result: DowngradeResult =
-                dg_f(levFrom, lev_to, auth.val.authorityLevel, bl, isNMIFC)
+                dg_f(levFrom, lev_to, auth.val.authorityLevel, bl, isNMIFC);
 
             if (ok_to_downgrade_result.kind === "SUCCESS") {
-                let r = new LCopyVal(data, lub(lev_to, pc, arg.lev, auth.lev));
-                return runtime.ret(r)
+                const r = new LCopyVal(data, lub(lev_to, pc, arg.lev, auth.lev));
+                return runtime.ret(r);
             } else {
                 let errorMessage = "";
                 switch (ok_to_downgrade_result.reason) {
@@ -66,5 +66,5 @@ export function downgrader (runtime, dimension:DowngradeDimension, isNMIFC: bool
                 }
                 runtime.$t.threadError(errorMessage);
             }
-        })
+        });
 }

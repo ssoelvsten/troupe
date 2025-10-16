@@ -2,15 +2,15 @@ import { Level } from "./Level.mjs";
 
 export interface HnState {
     isNormal ():  boolean
-    checkGuard () : void 
-    getTrapper (): any 
+    checkGuard () : void
+    getTrapper (): any
     declassificationAllowed () : boolean
     lev : Level
 }
 class NormalState implements HnState   {
-    name:string
+    name:string;
     constructor (name="NORMAL") {
-      this.name = name
+      this.name = name;
     }
 
 
@@ -27,7 +27,7 @@ class NormalState implements HnState   {
     }
 
     toString () {
-      return this.name
+      return this.name;
     }
 
     getTrapper () {
@@ -35,23 +35,23 @@ class NormalState implements HnState   {
     }
 
     get lev () {
-        throw new Error ("handler usage error")
+        throw new Error ("handler usage error");
         return null;
     }
 }
 
 class InHandlerState extends NormalState {
     trapper: any;
-    _lev : Level
+    _lev : Level;
     constructor (f,lev, checkGuard ) {
         super ("INHANDLER");
         this.trapper = f;
-        this._lev = lev 
-        this.checkGuard = checkGuard 
+        this._lev = lev;
+        this.checkGuard = checkGuard;
     }
 
     get lev () {
-        return this._lev
+        return this._lev;
     }
 
     isNormal () {
@@ -65,21 +65,21 @@ class InHandlerState extends NormalState {
     declassificationAllowed () {
         return false;
     }
-     
+
 }
 
 
 class InSandboxState extends NormalState {
     trapper: any;
-    _lev : Level 
+    _lev : Level;
     constructor (f, lev ) {
         super ("INSANDBOX");
         this.trapper = f;
-        this._lev = lev 
+        this._lev = lev;
     }
 
     get lev () {
-        return this._lev 
+        return this._lev;
     }
 
     isNormal () {
@@ -91,10 +91,10 @@ class InSandboxState extends NormalState {
     }
 }
 
-export const HandlerState = { 
+export const HandlerState = {
     NORMAL : NormalState,
     INHANDLER : InHandlerState,
     INSANDBOX : InSandboxState
-}
+};
 
-export default HandlerState
+export default HandlerState;

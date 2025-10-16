@@ -1,53 +1,53 @@
-'use strict'
-import { UserRuntimeZero, Constructor, mkBase } from './UserRuntimeZero.mjs'
+'use strict';
+import { UserRuntimeZero, Constructor, mkBase } from './UserRuntimeZero.mjs';
 import { LVal } from '../Lval.mjs';
-import { assertIsNTuple, assertIsRecord, assertIsString, assertIsUnit, assertNormalState } from '../Asserts.mjs'
+import { assertIsNTuple, assertIsRecord, assertIsString, assertIsUnit, assertNormalState } from '../Asserts.mjs';
 import { Record } from "../Record.mjs";
 import { lub } from '../Level.mjs';
 import { __unit } from '../UnitVal.mjs';
 import { TroupeType } from '../TroupeTypes.mjs';
 
 export function BuiltinTypeInformation<TBase extends Constructor<UserRuntimeZero>>(Base: TBase) {
-    return class extends Base {        
-	// returns a string containing the type information 
+    return class extends Base {
+	// returns a string containing the type information
         getType = mkBase((larg) => {
-	     let _t = "unknown" // 2024-03-18; todo: add proper type	
+	     let _t = "unknown"; // 2024-03-18; todo: add proper type
 	     switch (larg.val._troupeType) {
-		case TroupeType.UNIT: 
+		case TroupeType.UNIT:
 			_t = "unit";
 			break;
-		case TroupeType.BOOLEAN: 
+		case TroupeType.BOOLEAN:
 			_t = "boolean";
 			break;
-		case TroupeType.NUMBER: 
+		case TroupeType.NUMBER:
 			_t = "number";
 			break;
-				
-		case TroupeType.STRING: 
+
+		case TroupeType.STRING:
 			_t = "string";
 			break;
-		case TroupeType.PROCESS_ID: 
+		case TroupeType.PROCESS_ID:
 			_t = "process_id";
 			break;
-		case TroupeType.LEVEL: 
+		case TroupeType.LEVEL:
 			_t = "level";
 			break;
-		case TroupeType.AUTHORITY: 
+		case TroupeType.AUTHORITY:
 			_t = "authority";
 			break;
-		case TroupeType.CLOSURE: 
+		case TroupeType.CLOSURE:
 			_t = "function";
 			break;
-		case TroupeType.TUPLE: 
+		case TroupeType.TUPLE:
 			_t = "tuple";
 			break;
-		case TroupeType.LIST: 
+		case TroupeType.LIST:
 			_t = "list";
 			break;
-		case TroupeType.RECORD: 
+		case TroupeType.RECORD:
 			_t = "record";
 			break;
-		case TroupeType.LOCALOBJECT: 
+		case TroupeType.LOCALOBJECT:
 			_t = "localobject";
 			break;
 		default:
@@ -59,7 +59,7 @@ export function BuiltinTypeInformation<TBase extends Constructor<UserRuntimeZero
 					_t = "number";
 					break;
 				case 'boolean':
-					_t = "boolean"
+					_t = "boolean";
 					break;
 			}
 	     }
@@ -67,10 +67,10 @@ export function BuiltinTypeInformation<TBase extends Constructor<UserRuntimeZero
 		 new LVal ( _t
 			  , lub (larg.tlev, this.runtime.$t.pc)
 			  , this.runtime.$t.pc)
-	     )
+	     );
 
 
 
-        })
-    }
+        });
+    };
 }

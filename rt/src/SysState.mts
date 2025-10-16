@@ -4,9 +4,9 @@ let __state: RuntimeInterface = null;
 
 export function setRuntimeObject (x) {
     if (__state) {
-        throw new Error ("Runtime object is already set")
+        throw new Error ("Runtime object is already set");
     }
-    __state = x
+    __state = x;
 }
 
 

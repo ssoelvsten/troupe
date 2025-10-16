@@ -8,7 +8,7 @@ import { Category
        , implies
        , conjunction
        , disjunction
-    } from './cnf.mjs'
+    } from './cnf.mjs';
 import { DC_CONF_LITERALS, DC_DELIM_LEFT, DC_DELIM_LEFT_V1, DC_DELIM_RIGHT, DC_DELIM_RIGHT_V1, DC_DELIM_SEP, DC_IFC_TOP, DC_INTG_LITERALS, DC_TRUST_ROOT } from './dcl_pp_config.mjs';
 
 import { getCliArgs, TroupeCliArg } from '../../TroupeCliArgs.mjs';
@@ -20,39 +20,39 @@ import { mkLogger } from '../../logger.mjs';
 // const debug = x => logger.debug(x);
 
 export class DCLabel extends AbstractLevel<DCLabel> {
-    integrity: CNF
-    confidentiality: CNF
+    integrity: CNF;
+    confidentiality: CNF;
 
     get dataLevel () {
-        return IFC_BOT
+        return IFC_BOT;
     }
 
     _cachedStringRepresentation: string = null ;
 
     constructor(c: CNF, i: CNF) {
-        super ()
+        super ();
         this.confidentiality = c;
         this.integrity = i;
-        
+
     }
 
     flowsTo(other: DCLabel): boolean {
-        /* 
+        /*
         S_2 ==> S1         I1 ==> I_2
         -------------------------------
         <S_1, I_1> flowsto <S_2, I_2>
 
         assuming this = <S_1, I_1>
-    	
+
         */
-        return implies(other.confidentiality, this.confidentiality) 
+        return implies(other.confidentiality, this.confidentiality)
             && implies(this.integrity, other.integrity);
 
     }
 
     actsFor(other:DCLabel) : boolean {
-        /* 
-        returns true if this label actsfor another label. 
+        /*
+        returns true if this label actsfor another label.
 
         S_1 ==> S2         I_1 ==> I_2
         -------------------------------
@@ -63,7 +63,7 @@ export class DCLabel extends AbstractLevel<DCLabel> {
 
         return implies(this.confidentiality, other.confidentiality)
             && implies(this.integrity, other.integrity);
-        
+
     }
 
     equals(other: DCLabel): boolean {
@@ -76,21 +76,21 @@ export class DCLabel extends AbstractLevel<DCLabel> {
         }
 
         if (this.integrity.categories.size != 1) {
-            return false; 
+            return false;
         }
-        const _the_integrity: Category = 
+        const _the_integrity: Category =
             this.integrity.categories.values().next().value;
 
         const s :Set <string> = _the_integrity.labels;
 
 
-        for (let cat of this.confidentiality.categories) {
+        for (const cat of this.confidentiality.categories) {
             if (cat.labels.size == 1) {
                 // debug (`isTagsetCompatible: cat.labels.size is 1`);
                 const l:string  = cat.labels.values().next().value;
                 // debug (`checking the label ${l}`)
                 if (!s.has(l)) {
-                    return false; 
+                    return false;
                 }
             } else {
                 // debug (`isTagsetCompatible: cat.labels.size is ${cat.labels.size}`);
@@ -104,45 +104,45 @@ export class DCLabel extends AbstractLevel<DCLabel> {
 
     stringRep(): string {
         if (this._cachedStringRepresentation) {
-            return this._cachedStringRepresentation
+            return this._cachedStringRepresentation;
         }
 
         if (this.flowsTo(IFC_BOT)) {
-            this._cachedStringRepresentation = 
-                DC_DELIM_LEFT_V1 + DC_DELIM_RIGHT_V1
+            this._cachedStringRepresentation =
+                DC_DELIM_LEFT_V1 + DC_DELIM_RIGHT_V1;
         } else
         if (IFC_TOP.flowsTo(this)) {
-               this._cachedStringRepresentation = 
-                DC_DELIM_LEFT_V1 + DC_IFC_TOP + DC_DELIM_RIGHT_V1
-        } else 
+               this._cachedStringRepresentation =
+                DC_DELIM_LEFT_V1 + DC_IFC_TOP + DC_DELIM_RIGHT_V1;
+        } else
         if (TRUST_ROOT.flowsTo(this) && this.flowsTo(TRUST_ROOT)) {
-            this._cachedStringRepresentation = 
-                DC_DELIM_LEFT_V1 + DC_TRUST_ROOT + DC_DELIM_RIGHT_V1
+            this._cachedStringRepresentation =
+                DC_DELIM_LEFT_V1 + DC_TRUST_ROOT + DC_DELIM_RIGHT_V1;
         } else  {
             // debug (`calling isTagsetCompatible`)
-            let s = this.isTagsetCompatible() 
+            const s = this.isTagsetCompatible();
             // debug (`returning from isTagsetCompatible: ${s}`)
             if (s) {
-                this._cachedStringRepresentation = 
+                this._cachedStringRepresentation =
                     tagsetStringRep (s as Set <string>);
             } else {
-                this._cachedStringRepresentation = 
-                    DC_DELIM_LEFT + 
-                    this.confidentiality.stringRep(DC_CONF_LITERALS) + 
+                this._cachedStringRepresentation =
+                    DC_DELIM_LEFT +
+                    this.confidentiality.stringRep(DC_CONF_LITERALS) +
                     DC_DELIM_SEP +
-                    this.integrity.stringRep(DC_INTG_LITERALS) + 
-                    DC_DELIM_RIGHT
+                    this.integrity.stringRep(DC_INTG_LITERALS) +
+                    DC_DELIM_RIGHT;
                 }
-        } 
-        
+        }
+
         return this._cachedStringRepresentation;
     }
 
-    
-    /* 
 
-    L1 ⊔ L2 = <S1 /\ S2, I1 \/ I2) 
-    L1 ⊓ L2 = <S1 \/ S2, I1 /\ I2) 
+    /*
+
+    L1 ⊔ L2 = <S1 /\ S2, I1 \/ I2)
+    L1 ⊓ L2 = <S1 \/ S2, I1 /\ I2)
 
     */
 
@@ -150,7 +150,7 @@ export class DCLabel extends AbstractLevel<DCLabel> {
         return new DCLabel (
              conjunction (this.confidentiality, other.confidentiality)
            , disjunction (this.integrity, other.integrity)
-        )
+        );
     }
 
     meet (other:DCLabel): DCLabel {
@@ -163,30 +163,30 @@ export class DCLabel extends AbstractLevel<DCLabel> {
 
 
     toJSON () {
-        return { confidentiality: this.confidentiality.toJSON() 
-               , integrity: this.integrity.toJSON()  
-        }
+        return { confidentiality: this.confidentiality.toJSON()
+               , integrity: this.integrity.toJSON()
+        };
     }
 
     static fromJSON (o: { confidentiality: [[string]]
                         ; integrity: [[string]]; }) {
         return new DCLabel(CNF.fromJSON(o.confidentiality)
-                         , CNF.fromJSON(o.integrity))
+                         , CNF.fromJSON(o.integrity));
     }
 
     static fromSingleTag (s:string):DCLabel {
-        let labels = new Set ([s.trim()])
-        let cat = new Category(labels)
-        let cnf = new CNF (new Set ([cat]))
-        return new DCLabel(cnf, cnf)
+        const labels = new Set ([s.trim()]);
+        const cat = new Category(labels);
+        const cnf = new CNF (new Set ([cat]));
+        return new DCLabel(cnf, cnf);
     }
 
-    
+
 }
 
 
 
-/*  
+/*
                    ⊤ = <False, True>  (most secret, least trusted)
 
 <True, True>                      <False, False>  (TOP TRUST  = most secret, most trusted)
@@ -194,44 +194,44 @@ export class DCLabel extends AbstractLevel<DCLabel> {
                    ⊥ = <True, False>  (most public, least garbage)
 */
 
-/// see fabric paper https://www.cs.cornell.edu/andru/papers/jfabric/jfabric.pdf 
+/// see fabric paper https://www.cs.cornell.edu/andru/papers/jfabric/jfabric.pdf
 /// for the intuition about trust
 
 
-export const IFC_BOT = new DCLabel(CNF_TRUE, CNF_FALSE)
-export const IFC_TOP = new DCLabel(CNF_FALSE, CNF_TRUE)
-export const TRUST_NULL = new DCLabel(CNF_TRUE, CNF_TRUE)
-export const TRUST_ROOT = new DCLabel(CNF_FALSE, CNF_FALSE)
+export const IFC_BOT = new DCLabel(CNF_TRUE, CNF_FALSE);
+export const IFC_TOP = new DCLabel(CNF_FALSE, CNF_TRUE);
+export const TRUST_NULL = new DCLabel(CNF_TRUE, CNF_TRUE);
+export const TRUST_ROOT = new DCLabel(CNF_FALSE, CNF_FALSE);
 
 
 export class DCLevelSystem extends AbstractLevelSystem<DCLabel> {
-    BOT = IFC_BOT
-    TOP = IFC_TOP
-    NULL = TRUST_NULL
-    ROOT = TRUST_ROOT
+    BOT = IFC_BOT;
+    TOP = IFC_TOP;
+    NULL = TRUST_NULL;
+    ROOT = TRUST_ROOT;
     flowsTo(a: DCLabel, b: DCLabel): boolean {
-        return a.flowsTo (b);   
+        return a.flowsTo (b);
     }
 
     actsFor(a: DCLabel, b: DCLabel): boolean {
-        return a.actsFor (b);   
+        return a.actsFor (b);
     }
 
-    
+
 
     glb(a: DCLabel, b: DCLabel): DCLabel {
-         return a.meet(b)
+         return a.meet(b);
     }
 
     // 2025-05-24: TODO
     // - make a better version of this
     lub(...ls: DCLabel[]): DCLabel {
         if (ls.length == 0) {
-            return IFC_BOT
+            return IFC_BOT;
         }
-        let r = ls[0]
+        let r = ls[0];
         for (let i = 1; i < ls.length; i ++) {
-            r = r.join (ls[i])
+            r = r.join (ls[i]);
         }
         return r;
     }
@@ -241,42 +241,42 @@ export class DCLevelSystem extends AbstractLevelSystem<DCLabel> {
         let str = str1.startsWith ("{") && str1.endsWith ("}") ?
                 str1.substring(1, str1.length - 1) :
                 str1;
-        
+
         str = str.trim();
         if (str == "") {
-            return IFC_BOT
+            return IFC_BOT;
         }
 
         if (str == "#TOP") {
             return IFC_TOP;
         }
 
-        let s = new Set ();
+        const s = new Set ();
         const tags = str.split(',');
-        const dcs = tags.map (t => DCLabel.fromSingleTag(t))
-        return this.lub (...dcs)
+        const dcs = tags.map (t => DCLabel.fromSingleTag(t));
+        return this.lub (...dcs);
     }
 
-    
-    okToDowngradeGeneric (kind: DowngradeKind, dimension: DowngradeDimension) { 
+
+    okToDowngradeGeneric (kind: DowngradeKind, dimension: DowngradeDimension) {
         return (( l_from : DCLabel
                 , l_to   : DCLabel
                 , l_auth : DCLabel
-                , bl     : DCLabel 
-                , isNMIFC: boolean = false ) : DowngradeResult => {
+                , bl     : DCLabel
+                , isNMIFC = false ) : DowngradeResult => {
 
 
-            
+
             if (kind === DowngradeKind.VALUE && !this.flowsTo(bl, l_to)) {
                 return DowngradeError(DowngradeErrorReason.BLOCKING_LEVEL_MISMATCH);
             }
 
-            /* 
-            
+            /*
+
             S_auth /\ S_to ==> S_from        I_auth /\ I_from ==> I_to
             -----------------------------------------------------------
                 <S_from, I_from> flowsto_{l_auth} <S_to, I_to>
-            
+
             */
 
             switch (dimension) {
@@ -292,28 +292,28 @@ export class DCLevelSystem extends AbstractLevelSystem<DCLabel> {
                     break;
                 default:
                   const _exhaustiveCheck: never = dimension;
-                  throw new Error (`Unhandled DowngradeDimension: ${_exhaustiveCheck}`)
+                  throw new Error (`Unhandled DowngradeDimension: ${_exhaustiveCheck}`);
             }
 
-            let enough_confidentiality = 
+            const enough_confidentiality =
                 implies( conjunction ( l_auth.confidentiality
                                 ,   l_to.confidentiality)
-                    , l_from.confidentiality)
-            let enough_integrity = 
+                    , l_from.confidentiality);
+            const enough_integrity =
                 implies( conjunction ( l_auth.integrity
                                     , l_from.integrity)
-                    , l_to.integrity)            
-                
+                    , l_to.integrity);
+
             if (!(enough_confidentiality && enough_integrity)) {
                 return DowngradeError(DowngradeErrorReason.INSUFFICIENT_AUTHORITY);
             }
-            
+
             return DowngradeResultSuccess;
         }
-     )}
+     );}
 
-    okToEndorse = this.okToDowngradeGeneric (DowngradeKind.VALUE, DowngradeDimension.INTEGRITY)
-    okToDeclassify = this.okToDowngradeGeneric (DowngradeKind.VALUE, DowngradeDimension.CONFIDENTIALITY)
+    okToEndorse = this.okToDowngradeGeneric (DowngradeKind.VALUE, DowngradeDimension.INTEGRITY);
+    okToDeclassify = this.okToDowngradeGeneric (DowngradeKind.VALUE, DowngradeDimension.CONFIDENTIALITY);
     okToDowngrade (kind: DowngradeKind, dimension: DowngradeDimension) {
         return this.okToDowngradeGeneric(kind, dimension);
     }
@@ -321,6 +321,6 @@ export class DCLevelSystem extends AbstractLevelSystem<DCLabel> {
 
 }
 
-export const mkLevel = DCLabel.fromJSON
+export const mkLevel = DCLabel.fromJSON;
 export type Level = DCLabel
-export const levels = new DCLevelSystem ()
+export const levels = new DCLevelSystem ();
