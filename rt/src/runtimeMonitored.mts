@@ -409,6 +409,7 @@ async function getNetworkPeerId(rtHandlers) {
 
 
 export async function start(f) {
+  // Set up p2p network
   await initTrustMap();
 
   let peerid = await getNetworkPeerId({
@@ -427,18 +428,25 @@ export async function start(f) {
 
   __nodeManager.setLocalPeerId(peerid);
 
-  let stopWhenAllThreadsAreDone = !__p2pRunning
-  __sched.initScheduler(__nodeManager.getLocalNode()
-    , stopWhenAllThreadsAreDone
-    , cleanupAsync);
+  // ---------------------------------------------------------------------------
+  // Initialise 'scheduler' for Troupe code execution
+  __sched.initScheduler(__nodeManager.getLocalNode() , !__p2pRunning, cleanupAsync);
 
-  await loadServiceCode()
-  await __userRuntime.linkLibs(f);
-  let mainAuthority = new LVal(new Authority(levels.ROOT), levels.BOT);
+  // ---------------------------------------------------------------------------
+  // Set up 'service' thread
+
+  // HACK: Despite the fact that service code is only spawned, if `__p2pRunning`,
+  //       we need to populate the runtime.$service object.
+  //
+  // TODO: Instead, treat these fields as nullable in `builtins/receive.mts` and
+  //       elsewhere. Best is to also put this into the typesystem.
+  await loadServiceCode();
 
   if (__p2pRunning) {
+    const serviceAuthority = new LVal(new Authority(levels.ROOT), levels.BOT);
+
     let service_arg =
-      new LVal ( new Record([ ["authority", mainAuthority],
+      new LVal ( new Record([ ["authority", serviceAuthority],
                               ["options", __unit]]),
               levels.BOT);
     __sched.scheduleNewThread(__service['service']
@@ -448,6 +456,11 @@ export async function start(f) {
           , ThreadType.System);
   }
 
+  // Set up 'main' thread
+  const mainAuthority = new LVal(new Authority(levels.ROOT), levels.BOT);
+
+  await __userRuntime.linkLibs(f);
+
   __sched.scheduleNewThread(
     () => f.main({__dataLevel:levels.BOT})
     , mainAuthority
@@ -455,5 +468,8 @@ export async function start(f) {
     , levels.BOT
     , ThreadType.Main
   );
+
+  // ---------------------------------------------------------------------------
+  // Start code execution
   __sched.loop();
 }
