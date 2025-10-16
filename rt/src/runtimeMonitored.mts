@@ -431,7 +431,7 @@ export async function start(f) {
 
   // ---------------------------------------------------------------------------
   // Initialise 'scheduler' for Troupe code execution
-  __sched.initScheduler(__nodeManager.getLocalNode() , !__p2pRunning, cleanupAsync);
+  __sched.initScheduler(__nodeManager.getLocalNode(), cleanupAsync);
 
   // ---------------------------------------------------------------------------
   // Set up 'service' thread
@@ -481,5 +481,8 @@ export async function start(f) {
 
   // ---------------------------------------------------------------------------
   // Start code execution
+  if (!__p2pRunning) {
+    __sched.stopWhenIdle();
+  }
   __sched.resumeLoopAsync();
 }
