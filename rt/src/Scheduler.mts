@@ -82,23 +82,17 @@ export class Scheduler implements SchedulerInterface {
         this.__stopRuntime = stopRuntime;
     }
 
-    /** Kill all current threads (without notifying any monitors), staying ready for spawning new
-     *  threads. */
+    /** Kill all threads except the current one, staying ready for spawning new threads.
+     *
+     *  @note This does not notify the monitors. */
     resetScheduler() {
-        // console.log (`The current length of __funloop is ${this.__funloop.length}`)
-        // console.log (`The number of active threads is ${Object.keys(this.__alive).length}`)
         for (let x in this.__alive) {
-            if (this.__currentThread.tid.val.toString() == x) {
-                // console.log (x, "ACTIVE")
-            } else {
-                // console.log (x, "KILLING");
+            if (this.__currentThread.tid.val.toString() !== x) {
                 delete this.__alive[x];
             }
         }
         this.__blocked = {};
         this.__funloop = [];
-        // console.log (`The number of active threads is ${Object.keys(this.__alive).length}`)
-        // console.log (`The number of blocked threads is ${this.__blocked.length}`)
     }
 
     /*************************************************************************************************\
