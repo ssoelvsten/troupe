@@ -133,7 +133,7 @@ async function spawnFromRemote(jsonObj, fromNode) {
 
   const lf = await DS.deserialize(nodeLev, jsonObj);
   const f = lf.val;
-  const newPid =
+  const tid =
     __sched.scheduleNewThread(
       f
       , __unit //[f.env, __unit]
@@ -145,7 +145,7 @@ async function spawnFromRemote(jsonObj, fromNode) {
   // 2018-09-19: AA: because we need to send some info back, we have to invoke
   // serialization.
 
-  const serObj = serialize(newPid, levels.BOT).data
+  const serObj = serialize(tid, levels.BOT).data
   __sched.resumeLoopAsync();
   return serObj;
 }
@@ -278,6 +278,7 @@ function rt_ret (arg) {
   return $t().returnImmediateLValue(arg);
 }
 
+// TODO: Clean up the mess below...
 let __sched: Scheduler
 let __theMailbox: MailboxProcessor
 let __userRuntime: any
@@ -461,15 +462,24 @@ export async function start(f) {
 
   await __userRuntime.linkLibs(f);
 
+  const onTerminate = (retVal: LVal) => {
+    console.log(`>>> Main thread finished with value: ${retVal.stringRep()}`);
+    if (argv[TroupeCliArg.Persist]) {
+      this.rtObj.persist(retVal, argv[TroupeCliArg.Persist])
+      console.log("Saved the result value in file", argv[TroupeCliArg.Persist])
+    }
+  };
+
   __sched.scheduleNewThread(
     () => f.main({__dataLevel:levels.BOT})
     , mainAuthority
     , levels.BOT
     , levels.BOT
     , ThreadType.Main
+    , onTerminate
   );
 
   // ---------------------------------------------------------------------------
   // Start code execution
-  __sched.loop();
+  __sched.resumeLoopAsync();
 }

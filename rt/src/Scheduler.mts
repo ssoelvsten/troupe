@@ -110,38 +110,46 @@ export class Scheduler implements SchedulerInterface {
         this.__funloop.push(t);
     }
 
-    /** Create a new thread `t` for the given function to be evaluated and schedule it. */
+    /** Create a new thread `t` for the given function to be evaluated and schedule it.
+     *
+     *  NOTE (20-10-2025; SS): A hypothesis about the Javascript event loop:
+     *
+     *       It would be a more clean design to return the thread identifier of type `LVal`, as we
+     *       do right now, together with a `Promise<LVal>` of the final returned value. But, since
+     *       the Javascript event loop is a LIFO queue, i.e. a stack, this would bury resolving the
+     *       termination of each thread (especially the *main* thread) beneath everything else.
+     */
     scheduleNewThread(f: () => any,
                       arg: any,
                       pc: Level,
                       block: Level,
-                      tType: ThreadType = ThreadType.Other)
+                      tType: ThreadType = ThreadType.Other,
+                      cb: (LVal) => void = (_) => {})
     {
         // Create a new process ID at the given level.
         const pid = tType === ThreadType.System ? SYSTEM_PROCESS_STRING : uuidv4();
-        const pidObj = new ProcessID(this.rt_uuid, pid, this.__node);
-        const newPid = new LVal(pidObj, pc);
+        const tid = new LVal(new ProcessID(this.rt_uuid, pid, this.__node), pc);
 
-        // Epilogue for thread.
-        const halt = tType === ThreadType.Main ? () => { this.haltMain() }
-                                               : () => { this.haltOther() };
+        const halt = () => {
+            this.__currentThread.raiseCurrentThreadPCToBlockingLev();
+            this.notifyMonitors();
+
+            const currT = this.__currentThread;
+            const retVal = new LVal (currT.r0_val, lub(currT.bl, currT.r0_lev), lub(currT.bl, currT.r0_tlev));
+
+            delete this.__alive[this.__currentThread.tid.val.toString()];
+
+            cb(retVal);
+        }
 
         // New thread
-        const t = new Thread
-            ( newPid
-            , halt
-            , f
-            , arg
-            , pc
-            , block
-            , new SandboxStatus.NORMAL()
-            , this.rtObj
-            , this );
+        const sStatus = new SandboxStatus.NORMAL();
+        const t = new Thread(tid, halt, f, arg, pc, block, sStatus, this.rtObj, this);
 
-
-        this.__alive[newPid.val.toString()] = t;
+        this.__alive[tid.val.toString()] = t;
         this.scheduleThread(t);
-        return newPid;
+
+        return tid as LVal;
     }
 
     /*************************************************************************************************\
@@ -208,32 +216,6 @@ export class Scheduler implements SchedulerInterface {
             // false flag means no need to return in the process
             this.rtObj.sendMessageNoChecks( toPid, message, false);
         }
-    }
-
-    /** Epilogue for `main` thread: notify monitors, print and persist the final value  */
-    haltMain ()  {
-        this.__currentThread.raiseCurrentThreadPCToBlockingLev()
-        let retVal = new LVal (this.__currentThread.r0_val,
-                               lub(this.__currentThread.bl, this.__currentThread.r0_lev),
-                               lub(this.__currentThread.bl, this.__currentThread.r0_tlev))
-
-        this.notifyMonitors();
-
-      delete this.__alive[this.__currentThread.tid.val.toString()];
-        console.log(">>> Main thread finished with value:", retVal.stringRep());
-        const persist = argv[TroupeCliArg.Persist];
-        if (persist) {
-            this.rtObj.persist(retVal, persist)
-            console.log("Saved the result value in file", persist)
-        }
-        return null;
-    }
-
-    /** Epilogue for non-`main` threads: notify monitors  */
-    haltOther  ()  {
-        this.notifyMonitors();
-        // console.log (this.__currentThread.processDebuggingName, this.__currentThread.tid.val.toString(), "done")
-        delete this.__alive[this.__currentThread.tid.val.toString()];
     }
 
     /** Kill thread `t` with the error message `s` sent to its monitors. */
