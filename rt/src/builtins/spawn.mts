@@ -21,21 +21,12 @@ export function BuiltinSpawn<TBase extends Constructor<UserRuntimeZero>>(Base: T
             // console.log ("SPAWN ARGS", larg)
             this.runtime.$t.raiseCurrentThreadPC(larg.lev);
             let arg = larg.val;
-            let __sched = this.runtime.__sched
-            
 
-            let spawnLocal = (arg) => {
-                // debug ("scheduled rt_spawn ", arg.fun);
-
-                let newPid = __sched.scheduleNewThread(
-                    arg,
-                    __unit, // [arg.env, __unit],
-                    // arg.namespace,
-                    this.runtime.$t.pc,
-                    this.runtime.$t.bl)
-                return this.runtime.$t.returnImmediateLValue(newPid) ;
+            const spawnLocal = (func) => {
+                const tid = this.runtime.__sched.scheduleNewThread(
+                    func, __unit, this.runtime.$t.pc, this.runtime.$t.bl);
+                return this.runtime.$t.returnImmediateLValue(tid);
             }
-
 
             if (Array.isArray(arg)) {
                 if (__nodeManager.isLocalNode(arg[0].val)) { // check if we are at the same node or note
