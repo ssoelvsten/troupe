@@ -224,7 +224,15 @@ includeDirs flags = List.foldl mapDir [] flags
 -- hashes.
 processModules :: [String] -> Direct.Prog -> IO Direct.Prog
 processModules paths (Direct.Prog imports (Basics.Modules m) atoms term) = do
-  let paths' = paths >>= (\p -> [p, p </> "out"])
+  maybeTroupeEnv <- lookupEnv "TROUPE"
+  troupeEnv      <- case maybeTroupeEnv of
+                      Just tp -> return tp
+                      Nothing -> die "TROUPE environment variable not set!"
+
+  let defaultPaths = [troupeEnv </> "lib"]
+
+  let paths' = (paths++defaultPaths) >>= (\p -> [p, p </> "out"])
+
   modules' <- Basics.Modules <$> mapM (processModule paths') m
   return $ Direct.Prog imports modules' atoms term
   where processModule paths' (Basics.ModName n, _) = do
