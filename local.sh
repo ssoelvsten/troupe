@@ -33,25 +33,55 @@ command -v mktemp >/dev/null 2>&1 || { echo "Error: 'mktemp' command not found" 
 tmp=`mktemp`.js
 
 # Separate compiler and runtime arguments
+input_file=""
+keep_temp=false
 compiler_args=""
 runtime_args=""
-keep_temp=false
 
-for arg in "$@"; do
-    case "$arg" in
-        --no-color)
-            runtime_args="$runtime_args $arg"
-            ;;
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        # Non runtime/compiler arguments
         --keep-temp)
             keep_temp=true
+            shift;
+            ;;
+        # Shared arguments
+        -i)
+            runtime_args="$runtime_args $1 $2"
+            compiler_args="$compiler_args $1 $2"
+            shift;
+            shift;
+            ;;
+        --include=*)
+            runtime_args="$runtime_args $1"
+            compiler_args="$compiler_args $1"
+            shift;
+            ;;
+        # Runtime arguments
+        --no-color)
+            runtime_args="$runtime_args $1"
+            shift;
+            ;;
+        # Compiler arguments
+        -o)         # ignore -o <..>
+            shift;
+            shift;
+            ;;
+        --output=*) # --output=<..>
+            shift;
+            ;;
+        -*|--*)
+            compiler_args="$compiler_args $1"
+            shift;
             ;;
         *)
-            compiler_args="$compiler_args $arg"
+            input_file="$1"
+            shift;
             ;;
     esac
 done
 
-"$TROUPE/bin/troupec" $compiler_args --output="$tmp"
+"$TROUPE/bin/troupec" $input_file $compiler_args --output="$tmp"
 
 if [ $? -eq 0 ]; then
     eval "node --stack-trace-limit=1000 \"$TROUPE/rt/built/troupe.mjs\" -f=\"$tmp\" --localonly $runtime_args"
