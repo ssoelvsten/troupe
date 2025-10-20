@@ -230,17 +230,16 @@ export class Scheduler implements SchedulerInterface {
 
     /** Start the main scheduler loop.
      *
-     * HACK (2018-02-18: AA): a hypothesis about memory management in V8
+     * HACK (2018-02-18: AA): a hypothesis about memory management in V8:
      *
-     * It appears that V8's memory management is not very well suited for infinitely
-     * running functions. In other words, functions are expected to eventually
-     * terminate, and all long-running computations are  expected to run through the
-     * event loop. This is not surprising given the application where V8 is used.
-     * This is why we periodically yield to the event loop; this hack appears to let
-     * GC claim the objects allocated throughout the runtime of this function.  Note
-     * that without this hack, we are observing memory leaks for many "server"-like
-     * programs; with the hack, we get a waivy memory consumption profile that reaches
-     * around 50M on the low points of the wave.
+     *      It appears that V8's memory management is not very well suited for infinitely running
+     *      functions. In other words, functions are expected to eventually terminate, and all
+     *      long-running computations are expected to run through the event loop. This is not
+     *      surprising given the application where V8 is used. This is why we periodically yield to
+     *      the event loop; this hack appears to let GC claim the objects allocated throughout the
+     *      runtime of this function. Note that without this hack, we are observing memory leaks for
+     *      many "server"-like programs; with the hack, we get a waivy memory consumption profile
+     *      that reaches around 50M on the low points of the wave.
      */
     loop()  {
         const maxThreadsPerLoop = 500000;
