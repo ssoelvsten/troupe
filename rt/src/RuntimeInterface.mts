@@ -11,6 +11,7 @@ export interface RuntimeInterface {
     $t: Thread;   
     $service: any; // todo 2021-06-13; identify what the right interface here should be     
     debug(arg0: string);
+    __userRuntime: any
     __sched: SchedulerInterface
     __mbox : MailboxInterface
     sendMessageNoChecks(toPid: any, message: LVal, arg2?: boolean): any;

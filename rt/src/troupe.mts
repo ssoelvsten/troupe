@@ -19,9 +19,8 @@ if (!fs.existsSync(p)) {
 }
 (async () => {
     let d = await import (p);
-    let Top = d.default     
-    let __userRuntime = (getRuntimeObject() as any).__userRuntime;
-    let top = new Top(__userRuntime);
+    let Top = d.default;
+    let top = new Top(getRuntimeObject().__userRuntime);
     start(top);
 
 }) ()
