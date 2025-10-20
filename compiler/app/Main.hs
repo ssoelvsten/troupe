@@ -182,6 +182,10 @@ process flags fname input = do
                                             debugJS
                                             (iroptSerialized, iroptHash)
                                             (Stack.ProgramStackUnit stack)
+
+      when verbose $ do printSep  "GENERATING JAVASCRIPT"
+                        writeFileD "out/out.js" stackjs
+
       writeFile outPath stackjs
 
       -- case compileMode of Library -> ...
