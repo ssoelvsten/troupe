@@ -27,7 +27,6 @@ build:
 	$(COMPILER) ./NetHealth.trp -l
 	$(COMPILER) ./declassifyutil.trp -l
 	$(COMPILER) ./stdio.trp -l
-	$(COMPILER) ./localregistry.trp -l
 
 clean:
 	rm -rf out
