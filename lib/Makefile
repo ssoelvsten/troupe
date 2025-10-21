@@ -21,7 +21,6 @@ build:
   # Transition hack; 2025-12-14; AA 
 	$(COMPILER) ./Missing.trp -l 
   # Old stuff, here be dragons...
-	$(COMPILER) ./nsuref.trp -l
 	$(COMPILER) ./printService.trp -l
 	$(COMPILER) ./timeout.trp -l
 	$(COMPILER) ./declassifyutil.trp -l
