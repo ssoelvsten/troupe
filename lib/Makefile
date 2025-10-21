@@ -27,8 +27,6 @@ build:
 	$(COMPILER) ./NetHealth.trp -l
 	$(COMPILER) ./declassifyutil.trp -l
 	$(COMPILER) ./stdio.trp -l
-	$(COMPILER) ./raft.trp -l
-	$(COMPILER) ./raft_debug.trp -l
 	$(COMPILER) ./localregistry.trp -l
 
 clean:
