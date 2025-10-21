@@ -5,6 +5,7 @@ build:
   # Standard Library
 	$(COMPILER) ./Number.trp -l
 	$(COMPILER) ./List.trp -l
+	$(COMPILER) ./ThreadUtil.trp -l
 	$(COMPILER) ./ListPair.trp -l
 	$(COMPILER) ./DeclassifyUtil.trp -l
 	$(COMPILER) ./String.trp -l
@@ -21,8 +22,6 @@ build:
 	$(COMPILER) ./Html.trp -l
   # Transition hack; 2025-12-14; AA 
 	$(COMPILER) ./Missing.trp -l 
-  # Old stuff, here be dragons...
-	$(COMPILER) ./timeout.trp -l
 
 clean:
 	rm -rf out
