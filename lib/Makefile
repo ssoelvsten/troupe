@@ -6,6 +6,7 @@ build:
 	$(COMPILER) ./Number.trp -l
 	$(COMPILER) ./List.trp -l
 	$(COMPILER) ./ListPair.trp -l
+	$(COMPILER) ./DeclassifyUtil.trp -l
 	$(COMPILER) ./String.trp -l
 	$(COMPILER) ./Result.trp -l
 	$(COMPILER) ./Hash.trp -l
@@ -22,7 +23,6 @@ build:
 	$(COMPILER) ./Missing.trp -l 
   # Old stuff, here be dragons...
 	$(COMPILER) ./timeout.trp -l
-	$(COMPILER) ./declassifyutil.trp -l
 
 clean:
 	rm -rf out
