@@ -1,20 +1,30 @@
 -- 2020-05-17, AA
 
 -- HACK
--- This module add a number of standard
--- ambient methods such as `print` to the
--- beginning of the file. This provides some
--- backward compatibility with prior test cases
--- as well as minimizes some clutter
+--
+-- This module add a number of standard ambient methods such as `print` to the beginning of the
+-- file. This provides some backward compatibility with prior test cases as well as minimizes some
+-- clutter
+-- If these methods are unused they are eliminated by the optimization passes in the further passes.
 
--- If these methods are unused they are
--- eliminated by the optimization passes in
--- the further passes.
+-- TODO
+--
+-- Move this into a '.trp' file of the form
+--
+-- ```
+--     let fun print x = fwrite (stdout authority, (toString x) ^"\n")
+--         ...
+--     in () end
+-- ```
+--
+-- Which, similar to below, after parsing has the `dummy` value replaced by the actual program. This
+-- preamble can then be specified at compile-time.
 
 module AddAmbientMethods(addAmbientMethods) where
 
 import Basics
 import Direct
+
 import TroupePositionInfo (Located(..), PosInf(..), noLoc)
 
 -- Helper to create Located values at NoPos
@@ -29,36 +39,35 @@ lpat = lp
 lterm :: Term -> LTerm
 lterm = lp
 
+printStringDecl :: LFunDecl
+printStringDecl = lp $ FunDecl "printString"
+    [Lambda [lpat $ VarPattern "x"] $
+        lterm $ Let [ ValDecl (lpat $ VarPattern "fd") (lterm $ App (lterm $ Var "stdout") [lterm $ Var "authority"])
+                    , ValDecl (lpat $ VarPattern "x'") (lterm $ Bin Concat (lterm $ Var "x") (lterm $ Lit $ LString "\\n"))
+            ]
+            (lterm $ App (lterm $ Var "fwrite") [lterm $ Tuple [lterm $ Var "fd", lterm $ Var "x'"]])
+    ]
+
 printDecl :: LFunDecl
 printDecl = lp $ FunDecl "print"
-    [Lambda [lpat (VarPattern "x")] $
-        lterm $ Let [ValDecl (lpat (VarPattern "out"))
-                             (lterm (App (lterm (Var "getStdout")) [lterm (Var "authority")]))]
-            (lterm (App (lterm (Var "fprintln")) [lterm (Tuple [lterm (Var "out"), lterm (Var "x")])]))
+    [Lambda [lpat $ VarPattern "x"] $
+      (lterm $ App (lterm $ Var "printString") [lterm $ App (lterm $ Var "toString") [lterm $ Var "x"]])
     ]
 
 printWithLabelsDecl :: LFunDecl
 printWithLabelsDecl = lp $ FunDecl "printWithLabels"
-    [Lambda [lpat (VarPattern "x")] $
-        lterm $ Let [ValDecl (lpat (VarPattern "out"))
-                             (lterm (App (lterm (Var "getStdout")) [lterm (Var "authority")]))]
-            (lterm (App (lterm (Var "fprintlnWithLabels")) [lterm (Tuple [lterm (Var "out"), lterm (Var "x")])]))
+    [Lambda [lpat $ VarPattern "x"] $
+      (lterm $ App (lterm $ Var "printString") [lterm $ App (lterm $ Var "toStringL") [lterm $ Var "x"]])
     ]
 
-
-printStringDecl :: LFunDecl
-printStringDecl = lp $ FunDecl "printString"
-    [Lambda [lpat (VarPattern "x")] $
-        lterm $ Let [ValDecl (lpat (VarPattern "out"))
-                             (lterm (App (lterm (Var "getStdout")) [lterm (Var "authority")]))]
-            (lterm (App (lterm (Var "fwrite"))
-                        [lterm (Tuple [lterm (Var "out"),
-                                       lterm (Bin Concat (lterm (Var "x")) (lterm (Lit (LString "\\n"))))])]))
+inputLineDecl :: LFunDecl
+inputLineDecl = lp $ FunDecl "inputLine"
+    [Lambda [lpat $ VarPattern "_"] $
+        lterm $ Let [ ValDecl (lpat $ VarPattern "fd") (lterm $ App (lterm $ Var "stdin") [lterm $ Var "authority"])]
+                    (lterm $ App (lterm $ Var "freadln") [lterm $ App (lterm $ Var "stdin") [lterm $ Var "authority"]])
     ]
-
-
 
 addAmbientMethods :: Prog -> Prog
 addAmbientMethods (Prog imports atoms t) =
-    let t' = lterm $ Let [FunDecs [printDecl,printWithLabelsDecl,printStringDecl]] t
+    let t' = lterm $ Let [FunDecs [printStringDecl,printDecl,printWithLabelsDecl,inputLineDecl]] t
     in Prog imports atoms t'

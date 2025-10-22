@@ -6,10 +6,10 @@ datatype Atoms = STDOUT
 
 
 let fun service ({authority, options, ..}) = 
-    let val stdout = getStdout (authority)
+    let val stdout = stdout authority
         fun loop () = 
               let val _ = receive 
-                           [ hn (STDOUT, s) => fprintln (stdout, s)  
+                           [ hn (STDOUT, s) => fwrite (stdout, s); fwrite (stdout, "\n")
                             (*
                             , hn (SPAWN, f, pid_spawner, nonce) when options.spawnAllowed => 
                                     let val pid = spawn f

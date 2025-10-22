@@ -299,7 +299,7 @@ instance WellFormedIRCheck IRExpr where
     -- code over wire. Such malformed code would result
     -- in a JS output returning a runtime error (which should
     -- generally be avoided)
-     if  fname `elem`[ 
+     if  fname `elem`[
                        "$$authorityarg"
                      , "adv"
                      , "ladv"
@@ -329,17 +329,14 @@ instance WellFormedIRCheck IRExpr where
                      , "endorse"
                      , "floor"
                      , "flowsTo"                     
-                     , "fprintln"
-                     , "fprintlnWithLabels"
-                     , "fwrite"                     
+                     , "freadln"
+                     , "fwrite"
                      , "getTime"
                      , "getCliArgs"
                      , "getType"
                      , "getNanoTime"
-                     , "getStdout"
                      , "_getSystemProcess"
                      , "guard"
-                     , "inputLine"
                      , "intToString"                     
                      , "listToTuple"
                      , "lowermbox"
@@ -357,7 +354,6 @@ instance WellFormedIRCheck IRExpr where
                      , "pinipushto"
                      , "pinipop"
                     --  , "pcpush"                      
-                     , "question"
                      , "raisembox"
                      , "raiseTrust"
                      , "random"
@@ -380,6 +376,9 @@ instance WellFormedIRCheck IRExpr where
                      , "spawn"
                      , "sqrt"
                      , "substring"
+                     , "stdin"
+                     , "stdout"
+                     , "stderr"
                      , "stringToInt"
                      , "strlen"
                      , "restore"

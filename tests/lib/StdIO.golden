@@ -1,0 +1,26 @@
+2026-02-09T10:56:28.298Z [RTM] [32minfo[39m: Skipping network creation. Observe that all external IO operations will yield a runtime error.
+Hello, Alice @ stdout!
+PC: {}, BL: {}
+Hello, Alice @ stdout... again!
+PC: {}, BL: {}
+"Hello, Bob @ stdout!"@{bob}%{}
+PC: {}, BL: {}
+"Hello, Eve @ stdout!"@{eve}%{}
+PC: {}, BL: {}
+PC: {}, BL: {}
+PC: {}, BL: {}
+PC: {}, BL: {}
+PC: {}, BL: {}
+What is your name: Hello, "Alice"@{#ROOT}%{}
+PC: {}, BL: {#ROOT}
+What is your name: Hello, "Bob"@{#ROOT}%{}
+PC: {}, BL: {}
+What is your name: Hello, "Charlie"@{}%{}
+PC: {}, BL: {}
+What is your name: Hello, "Alice"@{#ROOT}%{}
+PC: {}, BL: {#ROOT}
+What is your name: Hello, "Bob"@{#ROOT}%{}
+PC: {}, BL: {}
+What is your name: Hello, "Charlie"@{}%{}
+PC: {}, BL: {}
+>>> Main thread finished with value: ()@{}%{}
