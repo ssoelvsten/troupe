@@ -1,6 +1,6 @@
 "use strict";
 import { strict as assert } from 'node:assert'
-import {spawn} from 'child_process'
+import { spawn, ChildProcess } from 'child_process'
 import * as Ty from './TroupeTypes.mjs'
 import { LVal } from './Lval.mjs';
 import { mkTuple, mkList } from './ValuesUtil.mjs';
@@ -10,44 +10,78 @@ import { Atom } from './Atom.mjs';
 import { __unitbase }from './UnitBase.mjs'
 import { glb, mkLevel } from './Level.mjs';
 import { RuntimeInterface } from './RuntimeInterface.mjs';
-import { Level } from './Level.mjs';
 import { Record } from './Record.mjs';
 import { RawClosure } from './RawClosure.mjs';
-import * as levels from './Level.mjs';
+import { Level, lub, BOT } from './Level.mjs';
 
-// OBS: The variables below are all global! This is because the callback and deserializedJson
-// changes all the time while the compiler process has been started.
+// OBS: The variables below with `__` prefixes are all global! This is because the callback and
+// deserializedJson changes all the time while the compiler process has been started.
+
+// -------------------------------------------------------------------------------------------------
+// Troupe Compiler
+//
+// We run the compiler in *interactive* mode. Since there is only one compiler process which is
+// accessed via the lock below, we can guarantee a FIFO ordering on the compilation input/output
+// pairs.
+
+/** Magic marker to identify when the compiler is done a single deserialization and compilation. */
+const MARKER = "/*-----*/";
+
+// TODO: Add types for `jsonObj` and `compilerOutput` variables.
+
+type CompilerJob = {
+    /** The to be deserialized object. */
+    jsonObj: any;
+    /** Trust level of the sender. The result should implicitly be declassified based on the (lack
+     *  of) trust. */
+    trustLevel: Level;
+    /** Callback to hand the final value back to be used at runtime. */
+    callback: (LVal) => void;
+};
+
+type CompilerOutput = string | undefined;
+
+/** Forwards the compiler output (if any) for value reconstruction. */
+function onJobDone({ jsonObj, trustLevel, callback }: CompilerJob,
+                   compilerOutput: CompilerOutput)
+  : void
+{
+    setImmediate(
+        () => reconstruct(jsonObj, compilerOutput, trustLevel).then(v => callback(v))
+    );
+}
 
 /** We spawn an instance of the Troupe compiler in its interactive IR mode. Through this, we
  *  pass the IR provided by other nodes.
- *
- *  Since there is only one compiler process which is accessed via the lock below, we can guarantee
- *  a FIFO ordering on the compilation input/output pairs.
  */
-let __compilerOsProcess = null;
+let __compilerOsProcess : ChildProcess | null = null;
 
-/** Simple flag to make sure we handle one deserialization at a time. */
-let __isCurrentlyUsingCompiler = false;
+/** Queue of to be done jobs that have been sent to the compiler. */
+let __compilerQueue  : CompilerJob[] = [];
 
-/** The runtime object to which we should be deserializing. */
-let __rtObj = null;
+/** Push a deserialization job to the compiler. */
+function pushCompilerQueue(cj : CompilerJob): void
+{
+    // Skip the compiler, if it is a simple value and not a function.
+    if (cj.jsonObj.namespaces.length === 0) {
+        return onJobDone(cj, undefined);
+    }
 
-export function setRuntimeObj(rt: RuntimeInterface) {
-  __rtObj = rt;
-}
+    // Push each namespace object to the compiler
+    __compilerQueue.push(cj);
 
-/** A callback for synchronizing with the caller. */
-let __currentCallback = null;
+    for (let i = 0; i < cj.jsonObj.namespaces.length; ++i) {
+        let ns = cj.jsonObj.namespaces[i];
+        for (let j = 0; j < ns.length; ++j) {
+            __compilerOsProcess.stdin.write(ns[j][1]);
+            __compilerOsProcess.stdin.write("\n");
+        }
+    }
+    __compilerOsProcess.stdin.write("!ECHO " + MARKER + "\n");
+};
 
-/** The JSON with the context for deserialization. */
-let __currentDeserializedJson = null;
-
-/** The trust level of the sender, i.e. implicit declassification based on the (lack of) trust. */
-let __trustLevel = null;
-
-const MARKER = "/*-----*/";
-
-function startCompiler() {
+function startCompiler(): void
+{
     __compilerOsProcess = spawn(process.env.TROUPE + '/bin/troupec', ['--json-ir']);
     __compilerOsProcess.on('exit', (code: number) => {
         process.exit(code);
@@ -55,20 +89,25 @@ function startCompiler() {
 
     let marker = MARKER + "\n\n";
 
-    // accumulator of communication with the compiler; reset after
-    // each deserialization; needed because we have no guarantees about
-    // how the data coming back from the compiler is chunked
+    // accumulator of communication with the compiler; reset after each
+    // deserialization; needed because we have no guarantees about how the data
+    // coming back from the compiler is chunked
     //
-    // TODO: Switch to an array of strings which are `join`ed at the end.
-    //       This is ~4-10x faster.
+    // TODO: Only check the new data for the marker to not recheck the same
+    //       substring again and again? But, what about the marker being split
+    //       between two instances of `data`?
+    //
+    // TODO: Switch to an array of strings which are `join`ed at the end. This
+    //       is ~4-10x faster.
     let accum = "";
 
     __compilerOsProcess.stdout.on('data', (data: string) => {
         accum += data;
-        let j = accum.indexOf(marker);
-        if (j >= 0) {
-            constructCurrent(accum.slice(0, j));
-            accum = accum.slice(j + marker.length);
+        let markerIdx = accum.indexOf(marker);
+        if (markerIdx >= 0) {
+            const cj : CompilerJob = __compilerQueue.shift();
+            onJobDone(cj, accum.slice(0, markerIdx));
+            accum = accum.slice(markerIdx + marker.length);
         }
     });
 }
@@ -79,30 +118,22 @@ export function stopCompiler() {
 }
 
 // -------------------------------------------------------------------------------------------------
+// Runtime Object
 
-// some rudimentary debugging mechanisms; probably should be rewritten
-var indentCounter = 0;
+/** The runtime object to which we should be deserializing.
+ *
+ * @todo Fix this tight coupling.
+ */
+let __rtObj = null;
 
-function indent() {
-  indentCounter++;
-}
-
-function unindent() {
-  indentCounter--;
-}
-
-function debuglog(...s) {
-    let spaces = "";
-    for (let j = 0; j < indentCounter; j++) {
-        spaces = "  " + spaces;
-    }
-
-    s.unshift("DEBUG:" + spaces);
-    console.log.apply(null, s);
+export function setRuntimeObj(rt: RuntimeInterface) {
+    __rtObj = rt;
 }
 
 // -------------------------------------------------------------------------------------------------
+// Value Reconstruction
 
+/** Fixed JavaScript preamble for libraries. */
 const HEADER : string = `
 this.libSet = new Set ()
 this.libs = []
@@ -114,22 +145,25 @@ this.addLib = function (lib, decl) {
 }
 `;
 
-function constructCurrent(compilerOutput: string | null) {
-    __isCurrentlyUsingCompiler = false;
-    const serobj = __currentDeserializedJson;
-    const desercb = __currentCallback;
-
+/** Reconstruct the value stored in the serialized `jsonObj` compiled into `compilerOutput` at the
+ *  given `trustLevel`.
+ *
+ *  @todo Split this function into several smaller helper functions.
+ */
+async function reconstruct(jsonObj: any, compilerOutput: string | undefined, trustLevel: Level)
+  : Promise<LVal>
+{
     // 1. reconstruct the namespaces
     let ctxt = { // deserialization context
-        namespaces : new Array (serobj.namespaces.length),
-        closures   : new Array (serobj.closures.length),
-        envs       : new Array (serobj.envs.length),
+        namespaces : new Array (jsonObj.namespaces.length),
+        closures   : new Array (jsonObj.closures.length),
+        envs       : new Array (jsonObj.envs.length),
     }
 
     const snippets = compilerOutput ? compilerOutput.split("\n\n") : [];
     let k = 0;
-    for (let i = 0; i < serobj.namespaces.length; i++) {
-        let ns    = serobj.namespaces[i]
+    for (let i = 0; i < jsonObj.namespaces.length; i++) {
+        let ns    = jsonObj.namespaces[i]
         let nsFun = HEADER;
 
         let atomSet = new Set<string>()
@@ -160,8 +194,8 @@ function constructCurrent(compilerOutput: string | null) {
     }
 
     // 2. reconstruct the closures and environments
-    const sercloss = serobj.closures;
-    const serenvs  = serobj.envs;
+    const sercloss = jsonObj.closures;
+    const serenvs  = jsonObj.envs;
 
     function mkClosure(i: number) {
         if (!ctxt.closures[i]) {
@@ -177,7 +211,7 @@ function constructCurrent(compilerOutput: string | null) {
 
     function mkEnv(i: number, post_init?: (any)=>void ) {
         if (!ctxt.envs[i]) {
-            let env = {__dataLevel : levels.BOT};
+            let env = { __dataLevel : BOT };
             if (post_init) {
                 post_init (env);
             }
@@ -185,7 +219,7 @@ function constructCurrent(compilerOutput: string | null) {
             for (var field in serenvs[i]) {
                 const v = mkValue(serenvs[i][field]);
                 env[field] = v;
-                env.__dataLevel = levels.lub (env.__dataLevel, v.dataLevel)
+                env.__dataLevel = lub (env.__dataLevel, v.dataLevel)
             }
         } else {
             if (post_init) {
@@ -211,7 +245,7 @@ function constructCurrent(compilerOutput: string | null) {
         const tlev = mkLevel(arg.tlev);
 
         function _trustGLB(x: Level) {
-            return glb(x, __trustLevel);
+            return glb(x, trustLevel);
         }
 
         function value() {
@@ -262,52 +296,28 @@ function constructCurrent(compilerOutput: string | null) {
         mkEnv(i);
     }
 
-    let v = mkValue(serobj.value);
+    let v = mkValue(jsonObj.value);
 
-    // For each namespace we have generated, load all libraries before calling the last callback.
-    function loadLib(i: number, cb) {
-        if (i < ctxt.namespaces.length) {
-            __rtObj.linkLibs(ctxt.namespaces[i]).then(() => loadLib(i + 1, cb));
-        } else {
-            cb();
-        }
+    // For each namespace we have generated, load all libraries before returning the reconstructed
+    // value.
+    for (let i = 0; i < ctxt.namespaces.length; ++i) {
+        await __rtObj.linkLibs(ctxt.namespaces[i]);
     }
 
-    loadLib(0, () => desercb(v));
+    return v;
 }
 
-// TODO: Implement a proper deserialization queue instead of the coarse-grained piggybacking on the
-//       event loop below.
-function deserializeCb(lev: Level, jsonObj: any, cb: (body: LVal) => void) {
-    if (__isCurrentlyUsingCompiler) {
-        // Other thread is currently deserializing, postpone execution.
-        setImmediate(deserializeCb, lev, jsonObj, cb);
-    } else {
-        // Prevent parallel deserialization attempts (abuses that JavaScript is a singly threaded
-        // language). Be wary when messing with the variables below, they are all global!
-        __isCurrentlyUsingCompiler = true;
-        __trustLevel = lev;
-        __currentCallback = cb;
-        __currentDeserializedJson = jsonObj;
+// -------------------------------------------------------------------------------------------------
 
-        if (jsonObj.namespaces.length > 0) {
-            for (let i = 0; i < jsonObj.namespaces.length; i++) {
-                let ns = jsonObj.namespaces[i];
-                for (let j = 0; j < ns.length; j++) {
-                    __compilerOsProcess.stdin.write(ns[j][1]);
-                    __compilerOsProcess.stdin.write("\n");
-                }
-            }
-            __compilerOsProcess.stdin.write("!ECHO " + MARKER + "\n");
-        } else {
-            // Unnecessary interaction with the compiler: skip it!
-            constructCurrent(null);
-        }
-    }
-}
-
-export function deserialize(lev: Level, jsonObj: any): Promise<LVal> {
+/** Deserialize the given `jsonObj` into a Troupe value.
+ *
+ * @param jsonObj    Object to be deserialized.
+ * @param trustTevel Trust level to the origin of `jsonObj`.
+ *
+ * @todo Swap the order of the arguments?
+ */
+export async function deserialize(trustLevel: Level, jsonObj: any): Promise<LVal> {
     return new Promise((resolve, reject) => {
-        deserializeCb(lev, jsonObj, (body: LVal) => resolve(body));
+        pushCompilerQueue({ jsonObj, trustLevel, callback: (v: LVal) => resolve(v) });
     });
 }
