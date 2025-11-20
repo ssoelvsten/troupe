@@ -29,7 +29,7 @@ Additionally, we pipe the connection to a drain sink that does the following:
    the publishable object from the lookup table. This should ensure that if we
    we want to communicate with that node later, we will dialing to that node.
 
-The messages themselves can be one of the six forms: 
+The messages themselves can be one of the six forms:
 
 1. SPAWN -- spawning on a remote node
 
@@ -84,7 +84,7 @@ import { Logger, mkLogger } from '../logger.mjs';
 import {v4 as uuidv4} from 'uuid';
 import { kadDHT } from '@libp2p/kad-dht';
 
-// LOGGING AND DEBUGGING 
+// LOGGING AND DEBUGGING
 
 const argv = getCliArgs();
 
@@ -134,11 +134,11 @@ async function startp2p(nodeId, rt: any): Promise<String> {
     });
 
     await nodeListener.start();
-  
+
     // Save the libp2p node and runtime objects
     _node = nodeListener;
     _rt = rt;
-    
+
     // Get the peer ID from the node
     id = nodeListener.peerId;
 
@@ -146,7 +146,7 @@ async function startp2p(nodeId, rt: any): Promise<String> {
     error(`Something wrong while creating Libp2p node: ${err}`);
     throw err;
   }
-  
+
   // When a peer dials using the Troupe protocol, handle the connection
   await _node.handle(_PROTOCOL, async ({ connection, stream }) => {
     debug(`Handling protocol dial from id: ${connection.remotePeer}`);
@@ -173,7 +173,7 @@ async function startp2p(nodeId, rt: any): Promise<String> {
     let id = evt.detail;
     debug(`Disconnect from ${id}`);
   });
-  
+
   // When new addresses are added report it on the debug logger
   _node.addEventListener('self:peer:update', (_) => {
     debug(`Advertising with following addresses:`);
@@ -234,7 +234,7 @@ async function createLibp2p(_options) {
       }),
       identify: identify(),
     },
-    
+
   };
 
   return create(defaultsDeep(_options, defaults));
@@ -245,7 +245,7 @@ async function createLibp2p(_options) {
  * Create it from a protobuf if possible,
  * otherwise generate a fresh one.
  */
-async function obtainPrivateKey(nodeId): Promise<any> {    
+async function obtainPrivateKey(nodeId): Promise<any> {
   let privateKey: any = null;
   if(nodeId && nodeId.privKey) {
     // Load the private key from the nodeId object
@@ -257,7 +257,7 @@ async function obtainPrivateKey(nodeId): Promise<any> {
       debug(`Loaded id from file: ${id.toString()}`);
     } catch (err) {
       error(`Error creating private key from protobuf: ${err}`);
-      throw err;    
+      throw err;
     }
   } else {
     // Otherwise create a fresh key pair
@@ -283,8 +283,8 @@ async function obtainPrivateKey(nodeId): Promise<any> {
  * Give up if more than 10 attempts have failed.
  */
 function dial(id: PeerId) {
-  let i = 0;      
-  let timeout = 2000;      
+  let i = 0;
+  let timeout = 2000;
   return new Promise((resolve, reject) => {
     async function tryDialing() {
       try {
@@ -304,7 +304,7 @@ function dial(id: PeerId) {
         processExpectedNetworkErrors (err, "dial");
 
         // if the error is suppressed we move on to trying 10 times with exponential backoff
-        // 2020-02-10; AA: TODO: this code has a hardcoded constant 
+        // 2020-02-10; AA: TODO: this code has a hardcoded constant
         if(i <= 10) {
           debug(`Dial failed, we retry in ${timeout/1000} seconds`);
           debug(err);
@@ -314,10 +314,10 @@ function dial(id: PeerId) {
         } else {
           error(`Giving up on dialing ${id}: ${err}`);
           reject(err);
-        } 
+        }
       }
     }
-    tryDialing();                
+    tryDialing();
   });
 }
 
@@ -342,7 +342,7 @@ async function getPeerInfo(id: PeerId): Promise<void> {
       return;
     }
   }
-  
+
   let usePeerRouting = true;
 
   // Check whether the node is known from previously
@@ -394,7 +394,7 @@ async function getPeerInfoWithPeerRouting(id: PeerId) : Promise<void> {
 
         // Add the found address
         await _node.peerStore.merge(id, {
-          multiaddrs: 
+          multiaddrs:
             peerInfo.multiaddrs
         });
         debug("Added multiaddr to store");
@@ -470,7 +470,7 @@ function setupConnection(peerId: PeerId, stream): void {
           }
 
           // Hangs up when the connection closes
-          debug(`Hanging up connection to ${id}`);                
+          debug(`Hanging up connection to ${id}`);
           try {
             await _node.hangUp(peerId);
           } catch (err) {
@@ -566,21 +566,21 @@ async function inputHandler(id, input) {
       );
       break;
 
-    case (MessageType.WHEREIS): 
+    case (MessageType.WHEREIS):
       debug("Received WHEREIS");
       // Get the runtime to find the peer
       let runtimeAnswer = await _rt.whereisFromRemote(input.message);
 
      // Reply with WHEREISOK
       pushWrap(id, {
-        messageType: MessageType.WHEREISOK, 
+        messageType: MessageType.WHEREISOK,
         whereisNonce : input.whereisNonce,
         message : runtimeAnswer
       });
 
       debug("WHEREIS replied");
-      break; 
-        
+      break;
+
     case (MessageType.WHEREISOK):
       debug("Received WHEREISOK");
       // Find the call-back and give the message
@@ -598,7 +598,7 @@ async function inputHandler(id, input) {
       debug("Received TEST");
       debug(input);
       break;
-        
+
     default:
       debug(`received data ${input.toString('utf8').replace('\n', '')}`);
       break;
@@ -628,7 +628,7 @@ async function keepAliveRelay(relayAddr: string) {
   } catch (err) {
     error(`Failed to connect to relay: ${err}`);
     processExpectedNetworkErrors(err, "relay");
-    
+
     // Retry after a delay if connection fails
     setTimeout(() => keepAliveRelay(relayAddr), 30000);
   }
@@ -686,7 +686,7 @@ async function sendp2p(id: string, procId, obj) {
     pid: procId,
     message: obj
   };
-  
+
   let peerId = peerIdFromString(id);
   debug("Pushing SEND message");
   pushWrap(peerId, data);
@@ -702,7 +702,7 @@ async function pushWrap(id: PeerId, data: any) {
   while(true) {
     debug(`pushWrap`);
     let p = await getPushable(id);
-    
+
     try {
       if(p) {
         // A pushable has been found, data can be pushed
@@ -714,17 +714,17 @@ async function pushWrap(id: PeerId, data: any) {
         debug("Pushable found was null; re-trying");
       }
     } catch (err) {
-      // The pushable we have used is no good for whatever reason; 
+      // The pushable we have used is no good for whatever reason;
       // most likely there are networking issues.
       // We report the errors and redial
-      processExpectedNetworkErrors(err, "pushWrap");             
+      processExpectedNetworkErrors(err, "pushWrap");
     }
   }
 }
 
 /**
  * Finds a pushable to node `id` by checking all
- * existing connections with the node. If no 
+ * existing connections with the node. If no
  * existing pushable is found, then dials the node.
  */
 async function getPushable(id: PeerId, relayAddr=null) {
@@ -794,13 +794,13 @@ async function whereisp2p(id: string, data: any) {
     pushWrap(peerId, {
       messageType : MessageType.WHEREIS,
       whereisNonce : whereisNonce,
-      message : data 
+      message : data
     });
   }
 
   // Set the WHEREIS request as unacknowledged
   addUnacknowledged(id.toString(), whereisNonce, sendMessage);
-  
+
   return new Promise((resolve, reject) => {
     // Return the error or result when an answer comes in
     _whereisNonces[whereisNonce] = (err, result) => {
@@ -810,7 +810,7 @@ async function whereisp2p(id: string, data: any) {
         // Only remove the unacknowledged status if the request succeeds
         removeUnacknowledged(id.toString(), whereisNonce);
         resolve(result);
-      } 
+      }
     }
 
     // Push the WHEREIS message
@@ -826,7 +826,7 @@ async function whereisp2p(id: string, data: any) {
  */
 async function spawnp2p(id: string, data: any) {
   debug("spawnp2p");
-  
+
   // Create a nonce
   const spawnNonce = uuidv4();
 
@@ -835,7 +835,7 @@ async function spawnp2p(id: string, data: any) {
     pushWrap(peerId, {
       messageType : MessageType.SPAWN,
       spawnNonce : spawnNonce,
-      message : data 
+      message : data
     });
   }
 
@@ -865,7 +865,7 @@ async function spawnp2p(id: string, data: any) {
  * WHEREIS request for `id` with nonce `uuid`.
  */
 function addUnacknowledged(id: string, uuid, f) {
-  if(!_unacknowledged[id]) { 
+  if(!_unacknowledged[id]) {
     _unacknowledged[id] = [];
   }
   _unacknowledged[id][uuid] = f;
@@ -896,12 +896,12 @@ function reissueUnacknowledged(id: string) {
  * If it takes much longer than that before the check runs,
  * this is reported, since it indicates blocking.
  */
-function setupBlockingHealthChecker(period: number) {    
+function setupBlockingHealthChecker(period: number) {
     let lastHealth: number = Date.now();
     let healthCounter = 0;
     let healthThreshold = Math.max(period * 1.25 , period + 50);
     // AA: 2020-02-10;
-    // The event queue always has a fair bit of latency, so we adjust for 
+    // The event queue always has a fair bit of latency, so we adjust for
     // the minimal expected latency here; the constant of 50 is an
     // empirically derived value, but needs to be critically reevaluated
     // as the system evolves
@@ -933,7 +933,7 @@ function setupBlockingHealthChecker(period: number) {
 function processExpectedNetworkErrors(err, source="unknown") {
     debug(`Error source: ${source}`);
     if(err instanceof AggregateError) {
-      for(const e of err.errors ) {        
+      for(const e of err.errors ) {
         processExpectedNetworkErrors (e, source)
       }
     } else {
@@ -997,7 +997,7 @@ function processExpectedNetworkErrors(err, source="unknown") {
         error(`Unhandled general error case ${err}`)
         throw err;
       }
-    }    
+    }
 }
 
 // INTERFACE
@@ -1020,5 +1020,5 @@ export let p2p = {
   },
   processExpectedNetworkErrors: (arg1, arg2) => {
     return processExpectedNetworkErrors(arg1, arg2)
-  }, 
+  },
 }
