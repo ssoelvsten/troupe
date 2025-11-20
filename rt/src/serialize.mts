@@ -16,15 +16,14 @@ import { LVal } from './Lval.mjs';
 import { Level } from './Level.mjs';
 import { StopThreadError, ThreadError } from './TroupeError.mjs';
 import { getRuntimeObject } from './SysState.mjs';
-
 import { getCliArgs, TroupeCliArg } from './TroupeCliArgs.mjs';
-const argv = getCliArgs();
-
-let logLevel = argv[TroupeCliArg.Debug] ? 'debug': 'info'
 import { mkLogger } from './logger.mjs'
-const logger = mkLogger('SRL', logLevel);
-const debug = x => logger.debug(x)
 
+const argv = getCliArgs();
+const logLevel = argv[TroupeCliArg.Debug] ? 'debug': 'info'
+const logger = mkLogger('SRL', logLevel);
+
+const debug = x => logger.debug(x)
 
 export class UnserializableObjectError extends StopThreadError {
     obj: LVal

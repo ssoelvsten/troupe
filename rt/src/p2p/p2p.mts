@@ -80,7 +80,7 @@ import { multiaddr } from '@multiformats/multiaddr';
 import { identify } from '@libp2p/identify';
 import { circuitRelayTransport } from '@libp2p/circuit-relay-v2';
 const KEEP_ALIVE = 'KEEP_ALIVE'; // Tag for keeping connections alive
-import { Logger } from 'winston';
+import { Logger, mkLogger } from '../logger.mjs';
 import {v4 as uuidv4} from 'uuid';
 import { kadDHT } from '@libp2p/kad-dht';
 
@@ -88,14 +88,10 @@ import { kadDHT } from '@libp2p/kad-dht';
 
 const argv = getCliArgs();
 
-let logLevel = argv[TroupeCliArg.DebugP2p]? 'debug':'info';
-let __port = argv[TroupeCliArg.Port] || 0;
+const __port = argv[TroupeCliArg.Port] || 0;
 
-let logger: Logger;
-(async() => {
-  let { mkLogger } = await import ('../logger.mjs');
-  logger = mkLogger ('p2p', logLevel);
-})()
+const logLevel = argv[TroupeCliArg.DebugP2p]? 'debug':'info';
+const logger = mkLogger ('p2p', logLevel);
 
 const info = x => logger.info(x);
 const debug = x => logger.debug(x);

@@ -3,18 +3,18 @@ import { LVal, LValCopyAt } from '../Lval.mjs';
 import { assertNormalState, assertIsNTuple, assertIsNumber, assertIsFunction } from '../Asserts.mjs'
 import { __unit } from '../UnitVal.mjs';
 import { getCliArgs, TroupeCliArg } from '../TroupeCliArgs.mjs';
-const argv = getCliArgs();
-
-let logLevel = argv[TroupeCliArg.DebugSandbox]? 'debug': 'info'
 import { mkLogger } from '../logger.mjs'
-const logger = mkLogger('MBX', logLevel);
-const debug = x => logger.debug(x)
-
 import SandboxStatus from '../SandboxStatus.mjs'
 import { mkTuple } from '../ValuesUtil.mjs';
 import { CALLSIZE, RETOFFSET, Thread } from '../Thread.mjs';
 import { RawClosure, SandboxResumption } from '../RawClosure.mjs';
 import { RuntimeInterface } from '../RuntimeInterface.mjs';
+
+const argv = getCliArgs();
+const logLevel = argv[TroupeCliArg.DebugSandbox]? 'debug': 'info'
+const logger = mkLogger('MBX', logLevel);
+
+const debug = x => logger.debug(x)
 
 function rt_raisedToLev(x, y) {
     return new LValCopyAt(x, y)

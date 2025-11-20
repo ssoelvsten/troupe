@@ -1,17 +1,14 @@
 import * as levels from './Level.mjs';
 import { getCliArgs, TroupeCliArg } from "./TroupeCliArgs.mjs";
 import * as fs from 'node:fs';
+const { readFile } = fs.promises
 import { Level } from "./Level.mjs";
 import { __nodeManager } from "./NodeManager.mjs";
-const { readFile } = fs.promises
-
+import { mkLogger } from './logger.mjs'
 
 const argv = getCliArgs();
-
-let logLevel = argv[TroupeCliArg.Debug] ? 'debug' : 'info';
-import { mkLogger } from './logger.mjs'
+const logLevel = argv[TroupeCliArg.Debug] ? 'debug' : 'info';
 const logger = mkLogger('RTM', logLevel);
-
 
 export let _trustMap = {}
 

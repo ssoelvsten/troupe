@@ -1,22 +1,13 @@
 import * as levels from './Level.mjs'
+const lub = levels.lub;
+const flowsTo = levels.flowsTo
 import { DowngradeDimension, DowngradeKind, DowngradeResult, DowngradeErrorReason, ValidateDowngradeParams } from './DowngradeEnums.mjs';
 import { LVal, LValCopyAt } from './Lval.mjs';
 import { HandlerError, ImplementationError, StrThreadError } from './TroupeError.mjs';
 import { getCliArgs, TroupeCliArg } from './TroupeCliArgs.mjs';
-import {
-    getDowngradeErrorMessage,
-} from './DowngradeFormatter.mjs';
-
-const argv = getCliArgs();
-
-let logLevel = argv[TroupeCliArg.Debug]? 'debug' : 'info'
+import { getDowngradeErrorMessage } from './DowngradeFormatter.mjs';
 import { mkLogger } from './logger.mjs'
-const logger = mkLogger('thread',  logLevel);
-const debug = x => logger.debug(x)
-let lub = levels.lub;
-let flowsTo = levels.flowsTo
 import { v4 as uuidv4} from 'uuid'
-
 import { TroupeType } from './TroupeTypes.mjs'
 import { RuntimeInterface } from './RuntimeInterface.mjs';
 import { __unit } from './UnitVal.mjs';
@@ -25,9 +16,13 @@ import { SchedulerInterface } from './SchedulerInterface.mjs';
 import { getRuntimeObject } from './SysState.mjs';
 import { HnState } from './SandboxStatus.mjs';
 
+const argv = getCliArgs();
+const logLevel = argv[TroupeCliArg.Debug]? 'debug' : 'info'
+const logger = mkLogger('thread',  logLevel);
 
-let isPiniMode = argv[TroupeCliArg.Pini]?true:false;
+const debug = x => logger.debug(x)
 
+let isPiniMode = argv[TroupeCliArg.Pini] ? true : false;
 
 export enum PCDeclassificationPurpose {
     Full="pcpush", 

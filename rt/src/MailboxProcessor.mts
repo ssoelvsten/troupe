@@ -3,16 +3,10 @@ import { mkTuple } from "./ValuesUtil.mjs";
 import { SchedulerInterface } from "./SchedulerInterface.mjs";
 import { __unit } from "./UnitVal.mjs";
 import { RuntimeInterface } from "./RuntimeInterface.mjs";
-
-import { getCliArgs, TroupeCliArg } from './TroupeCliArgs.mjs';
-const argv = getCliArgs();
-let logLevel = argv[TroupeCliArg.DebugMailbox] ? 'debug': 'info'
-
 import { mkLogger } from './logger.mjs'
-const logger = mkLogger('MBX', logLevel);
-const debug = x => logger.debug(x);
-import  { HandlerState as SandboxStatus }  from  './SandboxStatus.mjs' ;
-import {lub,flowsTo} from './Level.mjs'
+import { getCliArgs, TroupeCliArg } from './TroupeCliArgs.mjs';
+import { HandlerState as SandboxStatus }  from  './SandboxStatus.mjs' ;
+import { lub, flowsTo } from './Level.mjs'
 import * as levels from './Level.mjs'
 import { ReceiveTaintAction } from "./ReceiveTaintAction.mjs";
 import { LVal, MbVal } from "./Lval.mjs";
@@ -20,6 +14,11 @@ import { MailboxInterface } from "./MailboxInterface.mjs";
 import { Level } from "./Level.mjs";
 import { Thread } from "./Thread.mjs";
 
+const argv = getCliArgs();
+const logLevel = argv[TroupeCliArg.DebugMailbox] ? 'debug': 'info'
+const logger = mkLogger('MBX', logLevel);
+
+const debug = x => logger.debug(x);
 
 function createMessage(msg, fromNodeId, pc) {
     let tuple:any = mkTuple ([msg, fromNodeId]);  

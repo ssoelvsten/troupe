@@ -8,19 +8,17 @@ import { __nodeManager } from '../NodeManager.mjs';
 import { assertNormalState, assertIsNTuple, assertIsString, assertIsProcessId, assertIsAuthority, assertIsRootAuthority, assertIsNode } from '../Asserts.mjs';
 import { __unit } from '../UnitVal.mjs';
 import { nodeTrustLevel } from '../TrustManager.mjs';
-export let __theRegister = {}
 import {p2p} from '../p2p/p2p.mjs'
-
-// import runId from '../runId.mjs';
-
 import { getCliArgs, TroupeCliArg } from '../TroupeCliArgs.mjs';
-const argv = getCliArgs();
-
-let logLevel = argv[TroupeCliArg.Debug] ? 'debug': 'info'
 import { mkLogger } from '../logger.mjs'
+
+const argv = getCliArgs();
+const logLevel = argv[TroupeCliArg.Debug] ? 'debug': 'info'
 const logger = mkLogger('RTM', logLevel);
+
 const debug = x => logger.debug(x)
 
+export let __theRegister = {}
 
 export function BuiltinRegistry<TBase extends Constructor<UserRuntimeZero>>(Base: TBase) {
     return class extends Base {
