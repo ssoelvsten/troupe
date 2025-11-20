@@ -22,7 +22,7 @@ const logger = mkLogger('thread',  logLevel);
 
 const debug = x => logger.debug(x)
 
-let isPiniMode = argv[TroupeCliArg.Pini] ? true : false;
+const isPiniMode: boolean = argv[TroupeCliArg.Pini];
 
 export enum PCDeclassificationPurpose {
     Full="pcpush", 
