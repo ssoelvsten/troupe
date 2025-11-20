@@ -75,7 +75,7 @@ import map from 'it-map';
 import { fromString as uint8ArrayFromString } from 'uint8arrays/from-string';
 import { toString as uint8ArrayToString } from 'uint8arrays/to-string';
 import { pushable } from 'it-pushable';
-import p2pconfig, { setCliRelays, getRelays } from './p2pconfig.mjs';
+import { bootstrappers, knownNodes, relays } from './config.mjs';
 import { multiaddr } from '@multiformats/multiaddr';
 import { identify } from '@libp2p/identify';
 import { circuitRelayTransport } from '@libp2p/circuit-relay-v2';
@@ -121,29 +121,12 @@ const MessageType = {
 let _node: Libp2p = null; // The libp2p node this peer uses
 let _rt = null; // The runtime object
 
-const bootstrappers = [
-  // libp2p bootstrap nodes
-  // (from https://github.com/libp2p/js-libp2p/blob/b36ec7f24e477af21cec31effc086a6c611bf271/examples/discovery-mechanisms/README.md?plain=1#L60)
-  '/ip4/104.131.131.82/tcp/4001/p2p/QmaCpDMGvV2BGHeYERUEnRQAwe3N8SzbUtfsmvsqQLuvuJ',
-  '/dnsaddr/bootstrap.libp2p.io/p2p/QmNnooDu7bfjPFoTZYxMNLWUQJyrVwtbZg5gBMjTezGAJN',
-  '/dnsaddr/bootstrap.libp2p.io/p2p/QmbLHAnMoJPWSCR5Zhtx6BHJX9KiKNN6tpvbUcqanj75Nb',
-  '/dnsaddr/bootstrap.libp2p.io/p2p/QmZa1sAxajnQjVM8WjWXoMbmPd7NsWhfKsPkErzpm9wGkp',
-  '/dnsaddr/bootstrap.libp2p.io/p2p/QmQCU2EcMqAqQPR2i9bChDtGNJchTbq5TbXJJ16u19uLTa',
-  '/dnsaddr/bootstrap.libp2p.io/p2p/QmcZf59bWwK5XFi76CZX8cbJ4BhTzzA3gU1ZjYZcYW3dwt'
-];
-
 /**
  * Start the libp2p node that this peer will use.
  * Also sets up the event queue block checker and
  * the connections to relays.
  */
 async function startp2p(nodeId, rt: any): Promise<String> {
-  // Set CLI relays if provided
-  const cliRelays = argv[TroupeCliArg.Relay];
-  if (cliRelays) {
-    setCliRelays(Array.isArray(cliRelays) ? cliRelays : [cliRelays]);
-  }
-
   // Load or create a private key
   let privateKey = await obtainPrivateKey(nodeId);
   let id: PeerId;
@@ -209,7 +192,6 @@ async function startp2p(nodeId, rt: any): Promise<String> {
 
   // Make sure the relay is dialed and the connections are kept live
   // To use more than one relay, make sure to dial them all
-  const relays = getRelays();
   if (relays && relays.length > 0) {
     keepAliveRelay(relays[0]);
   } else {
@@ -345,14 +327,13 @@ function dial(id: PeerId) {
 
 /**
  * Tries to find and add addresses to use for a node.
- * Checks the known nodes from p2pconfig, the peerStore,
+ * Checks the `knownNodes` from p2pconfig, the peerStore,
  * peerRouting and using a relay.
  */
 async function getPeerInfo(id: PeerId): Promise<void> {
-  let knownNodes = p2pconfig.known_nodes;
   debug(`Checking whether node is already known`);
 
-  // Check whether the node is known in p2pconfig
+  // Check whether the node is known in `config`
   for(let ni of knownNodes) {
     if(ni.nodeid == id.toString()) {
       // Found a known node!
