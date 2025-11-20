@@ -53,6 +53,7 @@ the libp2p).
 
 */
 
+// -------------------------------------------------------------------------------------------------
 // IMPORTS
 
 import type { PeerId } from '@libp2p/interface';
@@ -79,16 +80,14 @@ import { bootstrappers, knownNodes, relays } from './config.mjs';
 import { multiaddr } from '@multiformats/multiaddr';
 import { identify } from '@libp2p/identify';
 import { circuitRelayTransport } from '@libp2p/circuit-relay-v2';
-const KEEP_ALIVE = 'KEEP_ALIVE'; // Tag for keeping connections alive
 import { Logger, mkLogger } from '../logger.mjs';
 import {v4 as uuidv4} from 'uuid';
 import { kadDHT } from '@libp2p/kad-dht';
 
+// -------------------------------------------------------------------------------------------------
 // LOGGING AND DEBUGGING
 
 const argv = getCliArgs();
-
-const __port = argv[TroupeCliArg.Port] || 0;
 
 const logLevel = argv[TroupeCliArg.DebugP2p]? 'debug':'info';
 const logger = mkLogger ('p2p', logLevel);
@@ -97,30 +96,50 @@ const info = x => logger.info(x);
 const debug = x => logger.debug(x);
 const error = x => logger.error(x);
 
+// -------------------------------------------------------------------------------------------------
 // CONSTANTS
 
-const _PROTOCOL = "/troupe/1.0.0"; // Protocol for peers to talk to each other
-const _RELAY_PROTOCOL = "/trouperelay/keepalive"; // Protocol for peers to talk to relays
-const _HEALTHCHECKPERIOD = 5000; // How often the health check happens 2020-02-10; AA; this should be an option
-const _KEEPALIVE = 5000; // Time-out for keep-alive messages to relay
-const MessageType = {
-  SPAWN: 0,
-  SPAWNOK: 1,
-  SEND: 2,
-  TEST: 3,
-  WHEREIS: 4,
-  WHEREISOK: 5
+/** Port to listen on. If a value is not provided by the CLI, then port 0, is used (i.e. whichever
+ *  is picked by the operating system). */
+const PORT = argv[TroupeCliArg.Port] || 0;
+
+/** Protocol for peers to talk to each other */
+const PROTOCOL = "/troupe/1.0.0";
+
+/** Protocol for peers to talk to relays */
+const RELAY_PROTOCOL = "/trouperelay/keepalive";
+
+/** How often the health check happens 2020-02-10; AA; this should be an option */
+const HEALTH_CHECK_PERIOD = 5000;
+
+/** Tag for keeping connections alive. */
+const KEEP_ALIVE = 'KEEP_ALIVE';
+
+/** Time-out for keep-alive messages to relay */
+const KEEP_ALIVE_TIMEOUT = 5000;
+
+/** Enum of Message tags */
+enum MessageType {
+  SPAWN = 0,
+  SPAWNOK,
+  SEND,
+  TEST,
+  WHEREIS,
+  WHEREISOK,
 };
 
+// -------------------------------------------------------------------------------------------------
 // SET-UP
 
-let _node: Libp2p = null; // The libp2p node this peer uses
-let _rt = null; // The runtime object
+/** The libp2p node this peer uses */
+let _node: Libp2p = null;
+
+/** The runtime object */
+let _rt = null;
 
 /**
- * Start the libp2p node that this peer will use.
- * Also sets up the event queue block checker and
- * the connections to relays.
+ * Start the libp2p node that this peer will use. Also sets up the event queue block checker and the
+ * connections to relays.
  */
 async function startp2p(nodeId, rt: any): Promise<String> {
   // Load or create a private key
@@ -148,7 +167,7 @@ async function startp2p(nodeId, rt: any): Promise<String> {
   }
 
   // When a peer dials using the Troupe protocol, handle the connection
-  await _node.handle(_PROTOCOL, async ({ connection, stream }) => {
+  await _node.handle(PROTOCOL, async ({ connection, stream }) => {
     debug(`Handling protocol dial from id: ${connection.remotePeer}`);
     setupConnection(connection.remotePeer, stream);
   });
@@ -184,7 +203,7 @@ async function startp2p(nodeId, rt: any): Promise<String> {
   debug(`This node's id is ${id.toString()}`);
 
   // Set-up checking if the event queue is blocked
-  setupBlockingHealthChecker(_HEALTHCHECKPERIOD);
+  setupBlockingHealthChecker(HEALTH_CHECK_PERIOD);
 
   // Make sure the relay is dialed and the connections are kept live
   // To use more than one relay, make sure to dial them all
@@ -203,7 +222,7 @@ async function startp2p(nodeId, rt: any): Promise<String> {
 async function createLibp2p(_options) {
   const defaults = {
     addresses: {
-      listen: [`/ip4/0.0.0.0/tcp/${__port}`]
+      listen: [`/ip4/0.0.0.0/tcp/${PORT}`]
     },
     connectionManager : {
       minConnections: 1,
@@ -234,16 +253,14 @@ async function createLibp2p(_options) {
       }),
       identify: identify(),
     },
-
   };
 
   return create(defaultsDeep(_options, defaults));
 }
 
 /**
- * Obtain this node's private key.
- * Create it from a protobuf if possible,
- * otherwise generate a fresh one.
+ * Obtain this node's private key. Create it from a protobuf if possible, otherwise generate a fresh
+ * one.
  */
 async function obtainPrivateKey(nodeId): Promise<any> {
   let privateKey: any = null;
@@ -275,16 +292,25 @@ async function obtainPrivateKey(nodeId): Promise<any> {
   return privateKey;
 }
 
+// -------------------------------------------------------------------------------------------------
 // DIAL
 
 /**
  * Dial the node `id` using the Troupe protocol.
- * First find addresses to use, then attempt to dial.
- * Give up if more than 10 attempts have failed.
  */
 function dial(id: PeerId) {
-  let i = 0;
+  // Attempt counter
+  let attempt = 0;
+
+  // Maximum number of attempts prior to giving up.
+  const maxAttempts = 10;
+
+  // Initial timeout, if something failed (2s).
   let timeout = 2000;
+
+  // Exponential backoff factor for `timeout`.
+  const backoff = 2;
+
   return new Promise((resolve, reject) => {
     async function tryDialing() {
       try {
@@ -292,8 +318,8 @@ function dial(id: PeerId) {
         await getPeerInfo(id);
 
         // Dial using the Troupe protocol
-        debug(`Trying to dial ${id}, attempt number ${i}`);
-        const stream = await _node.dialProtocol(id, _PROTOCOL);
+        debug(`Trying to dial ${id}, attempt number ${attempt}`);
+        const stream = await _node.dialProtocol(id, PROTOCOL);
         debug("Dial successful");
 
         // Handle inputs and outputs
@@ -303,14 +329,13 @@ function dial(id: PeerId) {
       } catch (err) {
         processExpectedNetworkErrors (err, "dial");
 
-        // if the error is suppressed we move on to trying 10 times with exponential backoff
-        // 2020-02-10; AA: TODO: this code has a hardcoded constant
-        if(i <= 10) {
+        // If the error is suppressed we move on to trying again with exponential backoff.
+        if(attempt <= maxAttempts) {
           debug(`Dial failed, we retry in ${timeout/1000} seconds`);
           debug(err);
           setTimeout(tryDialing, timeout);
-          i++;
-          timeout *= 2;
+          attempt += 1;
+          timeout *= backoff;
         } else {
           error(`Giving up on dialing ${id}: ${err}`);
           reject(err);
@@ -323,8 +348,8 @@ function dial(id: PeerId) {
 
 /**
  * Tries to find and add addresses to use for a node.
- * Checks the `knownNodes` from p2pconfig, the peerStore,
- * peerRouting and using a relay.
+ *
+ * Checks the `knownNodes` from config, the peerStore, peerRouting and using a relay.
  */
 async function getPeerInfo(id: PeerId): Promise<void> {
   debug(`Checking whether node is already known`);
@@ -345,8 +370,7 @@ async function getPeerInfo(id: PeerId): Promise<void> {
 
   let usePeerRouting = true;
 
-  // Check whether the node is known from previously
-  // and has an address
+  // Check whether the node is known from previously and has an address
   if(await _node.peerStore.has(id)) {
     try {
       let foundPeer = await _node.peerStore.get(id);
@@ -361,14 +385,14 @@ async function getPeerInfo(id: PeerId): Promise<void> {
   }
 
   if(usePeerRouting) {
-    // The node is not known or has no address
+    // The node is not known or has no address.
     debug("The node is not known; using peerRouting");
     await getPeerInfoWithPeerRouting(id);
   }
 
   if(_relayId) {
-    // Try to contact the node through a relay
-    // To use several relays, cycle through them and add them all
+    // Try to contact the node through a relay. To use several relays, cycle through them and add
+    // them all
     debug(`Adding circuit relay address for ${id}: /p2p/${_relayId}/p2p-circuit/p2p/${id.toString()}`);
     await _node.peerStore.merge(id, {
       multiaddrs: [
@@ -379,10 +403,11 @@ async function getPeerInfo(id: PeerId): Promise<void> {
 }
 
 /**
- * Tries to find an address to use for a node through
- * peerRouting. Tries six times, then gives up.
+ * Tries to find an address to use for a node through peerRouting. Tries six times, then gives up.
  */
 async function getPeerInfoWithPeerRouting(id: PeerId) : Promise<void> {
+  const maxAttempts = 6;
+
   return new Promise ((resolve, _) => {
     let n_attempts = 0;
     async function tryFindPeer() {
@@ -411,13 +436,12 @@ async function getPeerInfoWithPeerRouting(id: PeerId) : Promise<void> {
           debug(`Find peer error: ${err.toString()}`);
         }
 
-        // Increase the attempts used
-        // Only if the node is connected to the network
+        // Increase the attempts used (only if the node is connected to the network)
         if(nPeers() > 0) {
           n_attempts++;
         }
-        // Try six times and then give up
-        if(n_attempts > 5) {
+        // Give up if this was the last attempts.
+        if(maxAttempts <= n_attempts) {
           debug(`Giving up on peerRouting`);
           resolve();
         } else {
@@ -437,13 +461,14 @@ function nPeers(): number {
   return _node.getPeers().length;
 }
 
+// -------------------------------------------------------------------------------------------------
 // CONNECTION SET-UP
 
 /**
  * Sets up the connection with a new peer with `peerId`.
- * Ensures that messages that are sent and
- * received are marshalled correctly and
- * passes any input to the input handler.
+ *
+ * This ensures that messages that are sent and received are marshalled correctly and passes any
+ * input to the input handler.
  */
 function setupConnection(peerId: PeerId, stream): void {
   let id: string = peerId.toString();
@@ -482,34 +507,38 @@ function setupConnection(peerId: PeerId, stream): void {
         }
   );
 
-  stream.p = p; // Storing a reference to the pushable on the stream
-                // We rely on the p2p library to keep track of streams
+  // Storing a reference to the pushable on the stream. We rely on the p2p library to keep track of
+  // streams
+  stream.p = p;
   debug(`Connection set up with ${id}`);
 }
 
 /**
- * Handles the different input types
- * - SPAWN: Checks whether remote spawn are allowed,
- *          informs the runtime and replies SPAWNOK.
+ * Handles the different input types:
+ *
+ * - SPAWN: Checks whether remote spawn are allowed, informs the runtime and replies SPAWNOK.
+ *
  * - SPAWNOK: Gives the message to the call-back.
+ *
  * - SEND: Passes the message to the runtime.
- * - WHEREIS: Asks the runtime where the peer is,
- *            and replies with WHEREISOK.
+ *
+ * - WHEREIS: Asks the runtime where the peer is, and replies with WHEREISOK.
+ *
  * - WHEREISOK: Gives the message to the call-back.
+ *
  * - TEST / other: Writes the input on the debug logger.
  */
 async function inputHandler(id, input) {
   debug("Input handler");
   switch (input.messageType) {
     case (MessageType.SPAWN):
-      // Check if spawning is allowed
-      // Drop the message otherwise
+      // Check if spawning is allowed; drop the message otherwise.
       if(_rt.remoteSpawnOK()) {
         debug("Received SPAWN");
 
         if(receivedSpawnNonces[input.spawnNonce]) {
-          // This is an already seen spawn request.
-          // Look up the reply and resend without spawning again
+          // This is an already seen spawn request. Look up the reply and resend without spawning
+          // again
           debug("This spawn was already received; replying again without spawning");
           let cachedAnswer = receivedSpawnNonces[input.spawnNonce];
 
@@ -533,8 +562,7 @@ async function inputHandler(id, input) {
         });
         debug("SPAWN replied");
 
-        // Save the nonce and the answer for 10 minutes
-        // in case we get the same request again
+        // Save the nonce and the answer for 10 minutes in case we get the same request again
         receivedSpawnNonces[input.spawnNonce] = runtimeAnswer;
         function deleteSpawnNonce() {
           delete receivedSpawnNonces[input.spawnNonce];
@@ -545,8 +573,7 @@ async function inputHandler(id, input) {
 
     case (MessageType.SPAWNOK):
       debug("Received SPAWN OK");
-      // Find the call-back and give the message
-      // Otherwise report an error
+      // Find the call-back and give the message; otherwise report an error
       let _cb = _spawnNonces[input.spawnNonce];
       if(_cb) {
         delete _spawnNonces[input.spawnNonce]; // Clean-up
@@ -571,7 +598,7 @@ async function inputHandler(id, input) {
       // Get the runtime to find the peer
       let runtimeAnswer = await _rt.whereisFromRemote(input.message);
 
-     // Reply with WHEREISOK
+      // Reply with WHEREISOK
       pushWrap(id, {
         messageType: MessageType.WHEREISOK,
         whereisNonce : input.whereisNonce,
@@ -583,8 +610,7 @@ async function inputHandler(id, input) {
 
     case (MessageType.WHEREISOK):
       debug("Received WHEREISOK");
-      // Find the call-back and give the message
-      // Otherwise report an error
+      // Find the call-back and give the message Otherwise report an error
       let _cbw = _whereisNonces[input.whereisNonce];
       if(_cbw) {
         delete _whereisNonces [input.whereisNonce]; // Clean-up
@@ -605,11 +631,14 @@ async function inputHandler(id, input) {
   }
 }
 
+// -------------------------------------------------------------------------------------------------
 // RELAY
 
-let _relayId = null; // The id for the relay
-let _keepAliveCounter = 0; // The number of times "keep-alive" has been sent to the relay
-// To use more than one relay, these should be kept in a table
+/** The id for the relay */
+let _relayId = null;
+/** The number of times "keep-alive" has been sent to the relay. To use more than one relay, these
+ *  should be kept in a table */
+let _keepAliveCounter = 0;
 
 /**
  * Send keep-alive messages to a relay at `relayAddr`.
@@ -635,9 +664,8 @@ async function keepAliveRelay(relayAddr: string) {
 }
 
 /**
- * Dials the relay at `relayAddr`
- * and returns the pushable for the relay.
- * Also tags the relay with "keep alive" in the peerStore.
+ * Dials the relay at `relayAddr` and returns the pushable for the relay. Also tags the relay with
+ * "keep alive" in the peerStore.
  */
 async function dialRelay(relayAddr: string) {
   try {
@@ -656,27 +684,26 @@ async function dialRelay(relayAddr: string) {
       }
     });
 
-    // Dial the relay - in circuit relay v2, we just dial without a specific protocol
+    // Dial the relay - in circuit relay v2, we just dial without a specific protocol.
     debug(`Added relay address`);
     const connection = await _node.dial(relayId);
     debug(`Relay dialed`);
     _relayId = id;
     debug(`Relay connected, keep alive counter is ${_keepAliveCounter++}`);
 
-    // In circuit relay v2, we don't need to send keep-alive messages
-    // The connection is maintained by libp2p automatically
-    // Just return null since we don't have a stream to return
+    // In circuit relay v2, we don't need to send keep-alive messages The connection is maintained
+    // by libp2p automatically Just return null since we don't have a stream to return
     return null;
   } catch (err) {
     processExpectedNetworkErrors (err, "dial relay");
   }
 }
 
+// -------------------------------------------------------------------------------------------------
 // SEND
 
 /**
- * Handles a send request to peer `id`.
- * Just pushes a SEND message.
+ * Handles a send request to peer `id`. Just pushes a SEND message.
  */
 async function sendp2p(id: string, procId, obj) {
   debug(`sendp2p`);
@@ -693,10 +720,8 @@ async function sendp2p(id: string, procId, obj) {
 }
 
 /**
- * Pushes `data` to a connection with `id`.
- * First finds a pushable on a connection with
- * `id`, then pushes the data.
- * Continues until the data is successfully pushed.
+ * Pushes `data` to a connection with `id`. First finds a pushable on a connection with `id`, then
+ * pushes the data. Continues until the data is successfully pushed.
  */
 async function pushWrap(id: PeerId, data: any) {
   while(true) {
@@ -714,18 +739,16 @@ async function pushWrap(id: PeerId, data: any) {
         debug("Pushable found was null; re-trying");
       }
     } catch (err) {
-      // The pushable we have used is no good for whatever reason;
-      // most likely there are networking issues.
-      // We report the errors and redial
+      // The pushable we have used is no good for whatever reason; most likely there are networking
+      // issues. We report the errors and redial
       processExpectedNetworkErrors(err, "pushWrap");
     }
   }
 }
 
 /**
- * Finds a pushable to node `id` by checking all
- * existing connections with the node. If no
- * existing pushable is found, then dials the node.
+ * Finds a pushable to node `id` by checking all existing connections with the node. If no existing
+ * pushable is found, then dials the node.
  */
 async function getPushable(id: PeerId, relayAddr=null) {
   debug("getPushable");
@@ -769,19 +792,27 @@ async function getPushable(id: PeerId, relayAddr=null) {
   return p;
 }
 
+// -------------------------------------------------------------------------------------------------
 // WHEREIS / SPAWN
 
-let _whereisNonces = {}; // Stores call-backs for WHEREIS requests
-let _spawnNonces = {}; // Stores call-backs for SPAWN requests
-let receivedSpawnNonces = {}; // Stores received SPAWN nonces and the runtime answer for their reply
-                              // These are stored for 10 minutes in case the SPAWNOK disappeared
-let _unacknowledged: any = {}; // Keeps track of unacknowledged WHEREIS and SPAWN requests
+/** Stores call-backs for WHEREIS requests. */
+let _whereisNonces = {};
+
+/** Stores call-backs for SPAWN requests. */
+let _spawnNonces = {};
 
 /**
- * Handles a where-is request of peer `id`.
- * Creates a nonce which gives the result in the where-is table.
- * Also sets the request as unacknowledged.
- * Then pushes a WHEREIS message.
+ * Stores received SPAWN nonces and the runtime answer for their reply. These are stored for 10
+ * minutes in case the SPAWNOK disappeared
+ */
+let receivedSpawnNonces = {};
+
+/** Keeps track of unacknowledged WHEREIS and SPAWN requests. */
+let _unacknowledged: any = {};
+
+/**
+ * Handles a where-is request of peer `id`. Creates a nonce which gives the result in the where-is
+ * table. Also sets the request as unacknowledged. Then pushes a WHEREIS message.
  */
 async function whereisp2p(id: string, data: any) {
   debug("whereisp2p");
@@ -820,8 +851,7 @@ async function whereisp2p(id: string, data: any) {
 }
 
 /**
- * Handles a spawn request at peer `id`.
- * Creates a nonce which gives the result in the spawn table.
+ * Handles a spawn request at peer `id`. Creates a nonce which gives the result in the spawn table.
  * Then pushes a SPAWN message to the receiving peer.
  */
 async function spawnp2p(id: string, data: any) {
@@ -861,8 +891,7 @@ async function spawnp2p(id: string, data: any) {
 }
 
 /**
- * Add the function `f` as unacknowledged
- * WHEREIS request for `id` with nonce `uuid`.
+ * Add the function `f` as unacknowledged *WHEREIS* request for `id` with nonce `uuid`.
  */
 function addUnacknowledged(id: string, uuid, f) {
   if(!_unacknowledged[id]) {
@@ -872,8 +901,7 @@ function addUnacknowledged(id: string, uuid, f) {
 }
 
 /**
- * Remove the unacknowledged WHEREIS request for
- * `id` with nonce `uuid`.
+ * Remove the unacknowledged WHEREIS request for `id` with nonce `uuid`.
  */
 function removeUnacknowledged(id: string, uuid) {
   delete _unacknowledged[id][uuid];
@@ -888,13 +916,13 @@ function reissueUnacknowledged(id: string) {
   }
 }
 
+// -------------------------------------------------------------------------------------------------
 // HEALTH CHECK
 
 /**
- * Checks that the event queue does not get blocked.
- * The check is scheduled to run in `period` millisecond intervals.
- * If it takes much longer than that before the check runs,
- * this is reported, since it indicates blocking.
+ * Checks that the event queue does not get blocked. The check is scheduled to run in `period`
+ * millisecond intervals. If it takes much longer than that before the check runs, this is reported,
+ * since it indicates blocking.
  */
 function setupBlockingHealthChecker(period: number) {
     let lastHealth: number = Date.now();
@@ -923,12 +951,13 @@ function setupBlockingHealthChecker(period: number) {
     checkBlocking();
 }
 
+// -------------------------------------------------------------------------------------------------
 // ERROR HANDLING
 
 /**
  * Breaks down aggregate errors to their components.
- * Any known errors are reported.
- * Any unknown errors are reported and thrown.
+ *
+ * Any known errors are reported. Any unknown errors are reported and thrown.
  */
 function processExpectedNetworkErrors(err, source="unknown") {
     debug(`Error source: ${source}`);
@@ -1000,6 +1029,7 @@ function processExpectedNetworkErrors(err, source="unknown") {
     }
 }
 
+// -------------------------------------------------------------------------------------------------
 // INTERFACE
 
 export let p2p = {
