@@ -377,35 +377,16 @@ async function loadServiceCode() {
 
 
 async function getNetworkPeerId(rtHandlers) {
-  const nodeIdFile = argv[TroupeCliArg.Id] as string;
-  if (nodeIdFile) {
-    try {
-      let nodeIdObj = await readFile(nodeIdFile, 'utf-8')
-      process.on('unhandledRejection', (e) => p2p.processExpectedNetworkErrors(e, "unhandledRejection"))
-      process.on('uncaughtException', (e) => p2p.processExpectedNetworkErrors(e, "uncaughtException"))
-      return await p2p.startp2p(JSON.parse(nodeIdObj), rtHandlers);
-    } catch (err) {
-      logger.error("cannot load id file")
-      process.exit(1);
+  const localOnly = argv[TroupeCliArg.LocalOnly] || argv[TroupeCliArg.Persist];
+
+  if (localOnly) {
+    logger.info("Skipping network creation. Observe that all external IO operations will yield a runtime error.");
+    if (argv[TroupeCliArg.Persist]) {
+      logger.info("Running with persist flag.");
     }
-  } else {
-    try {
-      if (argv[TroupeCliArg.LocalOnly] || argv[TroupeCliArg.Persist]) {
-        logger.info("Skipping network creation. Observe that all external IO operations will yield a runtime error.");
-        if (argv[TroupeCliArg.Persist]) {
-          logger.info("Running with persist flag.");
-        }
-        //  OBS: 2018-07-22: we are jumping over the network creation
-        return null;
-      } else {
-        return await p2p.startp2p(null, rtHandlers);
-      }
-    } catch (err) {
-      logger.error("uncaught exception in the runtime");
-      console.error(err.stack);
-      process.exit(1);
-    }
+    return null;
   }
+  return await p2p.startp2p(rtHandlers);
 }
 
 

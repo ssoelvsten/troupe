@@ -84,7 +84,7 @@ import { kadDHT } from '@libp2p/kad-dht';
 
 import { Logger, mkLogger } from '../logger.mjs';
 
-import { port, bootstrappers, knownNodes, relays } from './config.mjs';
+import { port, id as nodeId, bootstrappers, knownNodes, relays } from './config.mjs';
 import { MessageType } from './MessageType.mjs';
 
 // -------------------------------------------------------------------------------------------------
@@ -130,7 +130,10 @@ let _rt = null;
  * Start the libp2p node that this peer will use. Also sets up the event queue block checker and the
  * connections to relays.
  */
-async function startp2p(nodeId, rt: any): Promise<String> {
+async function startp2p(rt: any): Promise<String> {
+  process.on('unhandledRejection', (e) => processExpectedNetworkErrors(e, "unhandledRejection"))
+  process.on('uncaughtException', (e) => processExpectedNetworkErrors(e, "uncaughtException"))
+
   // Load or create a private key
   let privateKey = await obtainPrivateKey(nodeId);
   let id: PeerId;
@@ -1022,8 +1025,8 @@ function processExpectedNetworkErrors(err, source="unknown") {
 // INTERFACE
 
 export let p2p = {
-  startp2p: (arg1, arg2) => {
-    return startp2p(arg1, arg2)
+  startp2p: (arg1) => {
+    return startp2p(arg1)
   },
   spawnp2p: (arg1, arg2) => {
     return spawnp2p(arg1, arg2)

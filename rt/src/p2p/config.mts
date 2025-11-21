@@ -20,7 +20,24 @@ const CONFIG_FILE = 'p2pconfig.json';
 
 /** Port to listen on. If a value is not provided by the CLI, then port 0, is used (i.e. whichever
  *  is picked by the operating system). */
-export const port = argv[TroupeCliArg.Port] || 0;
+export const port: number = argv[TroupeCliArg.Port] || 0;
+
+/** Identifier *string* to be used for the node. This value might be `null` if an arbitrary node
+ *  identifier should be used.
+ */
+export const id: string | null = (() => {
+  const idFile = argv[TroupeCliArg.Id];
+  if (!idFile || !existsSync(idFile)) {
+    return null;
+  }
+
+  try {
+    return JSON.parse(readFileSync(idFile, "utf-8"));
+  } catch (err) {
+    logger.error("cannot load id file");
+    process.exit(1);
+  }
+})();
 
 // -------------------------------------------------------------------------------------------------
 // Bootstrapping Nodes
