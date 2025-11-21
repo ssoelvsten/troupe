@@ -376,7 +376,7 @@ async function loadServiceCode() {
 }
 
 
-async function getNetworkPeerId(rtHandlers) {
+async function getNetworkPeerId() {
   const localOnly = argv[TroupeCliArg.LocalOnly] || argv[TroupeCliArg.Persist];
 
   if (localOnly) {
@@ -386,6 +386,14 @@ async function getNetworkPeerId(rtHandlers) {
     }
     return null;
   }
+
+  const rtHandlers = {
+    remoteSpawnOK,
+    spawnFromRemote,
+    receiveFromRemote,
+    whereisFromRemote
+  };
+
   return await p2p.startp2p(rtHandlers);
 }
 
@@ -394,12 +402,7 @@ export async function start(f) {
   // Set up p2p network
   await initTrustMap();
 
-  let peerid = await getNetworkPeerId({
-    remoteSpawnOK,
-    spawnFromRemote,
-    receiveFromRemote,
-    whereisFromRemote
-  });
+  let peerid = await getNetworkPeerId();
 
   if (peerid) {
     __p2pRunning = true;
