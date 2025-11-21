@@ -898,7 +898,7 @@ async function spawnp2p(id: string, data: any) {
 }
 
 /**
- * Add the function `f` as unacknowledged *WHEREIS* request for `id` with nonce `uuid`.
+ * Add the function `f` as unacknowledged *WHEREIS* or *SPAWN* request for `id` with nonce `uuid`.
  */
 function addUnacknowledged(id: string, uuid, f) {
   if(!_unacknowledged[id]) {
@@ -908,14 +908,14 @@ function addUnacknowledged(id: string, uuid, f) {
 }
 
 /**
- * Remove the unacknowledged WHEREIS request for `id` with nonce `uuid`.
+ * Remove the unacknowledged *WHEREIS* or *SPAWN* request for `id` with nonce `uuid`.
  */
 function removeUnacknowledged(id: string, uuid) {
   delete _unacknowledged[id][uuid];
 }
 
 /**
- * Rerun all unacknowledged WHEREIS requests for `id`.
+ * Rerun all unacknowledged *WHEREIS* or *SPAWN* requests for `id`.
  */
 function reissueUnacknowledged(id: string) {
   for(let uuid in _unacknowledged[id]) {
