@@ -85,7 +85,7 @@ import { kadDHT } from '@libp2p/kad-dht';
 import { Logger, mkLogger } from '../logger.mjs';
 
 import { port, id as nodeId, bootstrappers, knownNodes, relays } from './config.mjs';
-import { MessageType } from './MessageType.mjs';
+import { MessageType, Message } from './Message.mjs';
 
 // -------------------------------------------------------------------------------------------------
 // LOGGING AND DEBUGGING
@@ -130,7 +130,7 @@ let _rt = null;
  * Start the libp2p node that this peer will use. Also sets up the event queue block checker and the
  * connections to relays.
  */
-async function startp2p(rt: any): Promise<String> {
+async function startp2p(rt: any): Promise<string> {
   process.on('unhandledRejection', (e) => processExpectedNetworkErrors(e, "unhandledRejection"))
   process.on('uncaughtException', (e) => processExpectedNetworkErrors(e, "uncaughtException"))
 
@@ -463,8 +463,7 @@ function nPeers(): number {
  * input to the input handler.
  */
 function setupConnection(peerId: PeerId, stream): void {
-  let id: string = peerId.toString();
-  debug(`setupConnection with ${id}`);
+  debug(`setupConnection with ${peerId}`);
   const p = pushable({ objectMode : true });
 
   // Setup the pipe to send and receive messages
@@ -480,14 +479,14 @@ function setupConnection(peerId: PeerId, stream): void {
           try {
             for await (const message of source) {
               // Send any input to the input handler
-              inputHandler(id, message);
+              inputHandler(peerId, message);
             }
           } catch (err) {
             processExpectedNetworkErrors(err, "setupConnection/pipe");
           }
 
           // Hangs up when the connection closes
-          debug(`Hanging up connection to ${id}`);
+          debug(`Hanging up connection to ${peerId}`);
           try {
             await _node.hangUp(peerId);
           } catch (err) {
@@ -495,14 +494,14 @@ function setupConnection(peerId: PeerId, stream): void {
           }
 
           // Resends any unacknowledged WHEREIS and SPAWN requests for this peer
-          reissueUnacknowledged(id);
+          reissueUnacknowledged(peerId.toString());
         }
   );
 
   // Storing a reference to the pushable on the stream. We rely on the p2p library to keep track of
   // streams
   stream.p = p;
-  debug(`Connection set up with ${id}`);
+  debug(`Connection set up with ${peerId}`);
 }
 
 /**
@@ -520,7 +519,7 @@ function setupConnection(peerId: PeerId, stream): void {
  *
  * - TEST / other: Writes the input on the debug logger.
  */
-async function inputHandler(id, input) {
+async function inputHandler(peerId: PeerId, input: Message) {
   debug("Input handler");
   switch (input.messageType) {
     case (MessageType.SPAWN):
@@ -535,7 +534,7 @@ async function inputHandler(id, input) {
           let cachedAnswer = receivedSpawnNonces[input.spawnNonce];
 
           // Reply with SPAWNOK and return
-          pushWrap(id, {
+          pushWrap(peerId, {
             messageType: MessageType.SPAWNOK,
             spawnNonce: input.spawnNonce,
             message: cachedAnswer
@@ -544,10 +543,10 @@ async function inputHandler(id, input) {
         }
 
         // Inform the runtime
-        let runtimeAnswer = await _rt.spawnFromRemote(input.message, id);
+        let runtimeAnswer = await _rt.spawnFromRemote(input.message, peerId);
 
         // Reply with SPAWNOK
-        pushWrap(id, {
+        pushWrap(peerId, {
           messageType: MessageType.SPAWNOK,
           spawnNonce: input.spawnNonce,
           message: runtimeAnswer
@@ -556,10 +555,7 @@ async function inputHandler(id, input) {
 
         // Save the nonce and the answer for 10 minutes in case we get the same request again
         receivedSpawnNonces[input.spawnNonce] = runtimeAnswer;
-        function deleteSpawnNonce() {
-          delete receivedSpawnNonces[input.spawnNonce];
-        }
-        setTimeout(deleteSpawnNonce, 600000);
+        setTimeout(() => delete receivedSpawnNonces[input.spawnNonce], 600000);
       }
       break;
 
@@ -576,12 +572,12 @@ async function inputHandler(id, input) {
       break;
 
     case (MessageType.SEND):
-      debug(`Received SEND from ${id}`);
+      debug(`Received SEND from ${peerId}`);
       // Pass the message to the runtime
       _rt.receiveFromRemote(
         input.pid,
         input.message,
-        id
+        peerId.toString()
       );
       break;
 
@@ -591,7 +587,7 @@ async function inputHandler(id, input) {
       let runtimeAnswer = await _rt.whereisFromRemote(input.message);
 
       // Reply with WHEREISOK
-      pushWrap(id, {
+      pushWrap(peerId, {
         messageType: MessageType.WHEREISOK,
         whereisNonce : input.whereisNonce,
         message : runtimeAnswer
@@ -618,7 +614,7 @@ async function inputHandler(id, input) {
       break;
 
     default:
-      debug(`received data ${input.toString('utf8').replace('\n', '')}`);
+      debug(`received data ${(input as any).toString('utf8').replace('\n', '')}`);
       break;
   }
 }
@@ -697,25 +693,21 @@ async function dialRelay(relayAddr: string) {
 /**
  * Handles a send request to peer `id`. Just pushes a SEND message.
  */
-async function sendp2p(id: string, procId, obj) {
+async function sendp2p(id: string, procId: string, obj: any) {
   debug(`sendp2p`);
 
-  let data = {
+  pushWrap(peerIdFromString(id), {
     messageType: MessageType.SEND,
     pid: procId,
     message: obj
-  };
-
-  let peerId = peerIdFromString(id);
-  debug("Pushing SEND message");
-  pushWrap(peerId, data);
+  });
 }
 
 /**
  * Pushes `data` to a connection with `id`. First finds a pushable on a connection with `id`, then
  * pushes the data. Continues until the data is successfully pushed.
  */
-async function pushWrap(id: PeerId, data: any) {
+async function pushWrap(id: PeerId, data: Message) {
   while(true) {
     debug(`pushWrap`);
     let p = await getPushable(id);

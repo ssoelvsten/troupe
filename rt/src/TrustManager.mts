@@ -12,7 +12,7 @@ const logger = mkLogger('RTM', logLevel);
 
 export let _trustMap = {}
 
-async function loadTrustMap(trustMapFile) {
+async function loadTrustMap(trustMapFile: string) {
     try {
         let s = await readFile(trustMapFile, 'utf-8');
         let trustList = JSON.parse(s);
@@ -38,7 +38,7 @@ export async function initTrustMap() {
 }
 
 
-export function nodeTrustLevel(nodeid):Level {
+export function nodeTrustLevel(nodeid: string): Level {
     if (__nodeManager.isLocalNode(nodeid)) {
         return levels.ROOT
     }

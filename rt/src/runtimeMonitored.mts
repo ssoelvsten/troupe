@@ -161,7 +161,7 @@ async function spawnFromRemote(jsonObj, fromNode) {
  * @param {*} fromNode
  *    The node identity of the sender node
  */
-async function receiveFromRemote(pid, jsonObj, fromNode) {
+async function receiveFromRemote(pid: string, jsonObj: any, fromNode: string) {
   // Deserialize the data to runtime values, either directly or via the `troupec` compiler
   logger.debug(`* rt receiveFromRemote *  ${JSON.stringify(jsonObj)}`);
   const data = await DS.deserialize(nodeTrustLevel(fromNode), jsonObj);
@@ -186,7 +186,7 @@ async function receiveFromRemote(pid, jsonObj, fromNode) {
  * @param {*} message The data to send
  *
  */
-function sendMessageToRemote(toPid, message) {
+function sendMessageToRemote(toPid: any, message: LVal) {
   const node = toPid.node.nodeId;
   const pid = toPid.pid;
 

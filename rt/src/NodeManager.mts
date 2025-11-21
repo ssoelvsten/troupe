@@ -1,36 +1,31 @@
 'use strict'
 
 import * as fs from 'node:fs'
-import * as levels from "./Level.mjs";
 import { getCliArgs, TroupeCliArg } from './TroupeCliArgs.mjs';
 const argv = getCliArgs();
 
 
 class Node {
-    nodeId: any;
+    nodeId: string;
     constructor(nodeId) {
-        this.nodeId = nodeId;     
+        this.nodeId = nodeId;
     }
 }
 
 class NodeManager {
-    localNode: any;
-    levels: any
-    aliases: any;
-    
-    constructor () {
+    localNode: Node | null;
+    aliases: {[x in string]: string};
 
+    constructor () {
         let aliases = argv[TroupeCliArg.Aliases]
                         ? JSON.parse ( fs.readFileSync(argv[TroupeCliArg.Aliases] as string, 'utf8'))
                         : {}
 
-        
         this.localNode = null;
-        this.levels = levels;
-        this.aliases = aliases
+        this.aliases = aliases;
     }
 
-    setLocalPeerId (peerid)  {
+    setLocalPeerId (peerid: string | null)  {
         if (this.localNode != null) {
             console.log ("error: local port already set. quitting...");
             process.exit(1);
@@ -45,7 +40,7 @@ class NodeManager {
         return this.localNode.nodeId
     }
 
-    getNode(nodeName) {
+    getNode(nodeName: string) {
         if (nodeName.startsWith ("@")) {
             nodeName = this.aliases[nodeName.substring(1)];
         }
@@ -54,7 +49,7 @@ class NodeManager {
         return new Node (nodeName);        
     }
 
-    isLocalNode (id) {        
+    isLocalNode (id: string) {        
         if (id == "<null>") {
             return true;
         }
