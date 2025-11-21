@@ -83,7 +83,9 @@ import {v4 as uuidv4} from 'uuid';
 import { kadDHT } from '@libp2p/kad-dht';
 
 import { Logger, mkLogger } from '../logger.mjs';
+
 import { port, bootstrappers, knownNodes, relays } from './config.mjs';
+import { MessageType } from './MessageType.mjs';
 
 // -------------------------------------------------------------------------------------------------
 // LOGGING AND DEBUGGING
@@ -114,16 +116,6 @@ const KEEP_ALIVE = 'KEEP_ALIVE';
 
 /** Time-out for keep-alive messages to relay */
 const KEEP_ALIVE_TIMEOUT = 5000;
-
-/** Enum of Message tags */
-enum MessageType {
-  SPAWN = 0,
-  SPAWNOK,
-  SEND,
-  TEST,
-  WHEREIS,
-  WHEREISOK,
-};
 
 // -------------------------------------------------------------------------------------------------
 // SET-UP
