@@ -590,7 +590,7 @@ async function inputHandler(peerId: PeerId, input: Message) {
     case (MessageType.SPAWNOK):
       debug("Received SPAWN OK");
       // Find the call-back and give the message; otherwise report an error
-      let _cb = _spawnNonces[input.spawnNonce];
+      const _cb = _spawnNonces[input.spawnNonce];
       if(_cb) {
         delete _spawnNonces[input.spawnNonce]; // Clean-up
         _cb(null, input.message); // null means no errors
@@ -627,7 +627,7 @@ async function inputHandler(peerId: PeerId, input: Message) {
     case (MessageType.WHEREISOK):
       debug("Received WHEREISOK");
       // Find the call-back and give the message Otherwise report an error
-      let _cbw = _whereisNonces[input.whereisNonce];
+      const _cbw = _whereisNonces[input.whereisNonce];
       if(_cbw) {
         delete _whereisNonces [input.whereisNonce]; // Clean-up
         _cbw(null, input.message); // null means no errors
@@ -803,19 +803,19 @@ async function getPushable(id: PeerId, relayAddr=null) {
 // WHEREIS / SPAWN
 
 /** Stores call-backs for WHEREIS requests. */
-let _whereisNonces = {};
+let _whereisNonces: { [nonce in string]: (err: any, res: any) => void } = {};
 
 /** Stores call-backs for SPAWN requests. */
-let _spawnNonces = {};
+let _spawnNonces: { [nonce in string]: (err: any, res: any) => void } = {};
 
 /**
  * Stores received SPAWN nonces and the runtime answer for their reply. These are stored for 10
  * minutes in case the SPAWNOK disappeared
  */
-let receivedSpawnNonces = {};
+let receivedSpawnNonces: { [nonce in string]: any } = {};
 
 /** Keeps track of unacknowledged WHEREIS and SPAWN requests. */
-let _unacknowledged: any = {};
+let _unacknowledged: { [id in string]: { [nonce in string]: () => void } } = {};
 
 /**
  * Handles a where-is request of peer `id`. Creates a nonce which gives the result in the where-is
@@ -900,9 +900,9 @@ async function spawnp2p(id: string, data: any) {
 /**
  * Add the function `f` as unacknowledged *WHEREIS* or *SPAWN* request for `id` with nonce `uuid`.
  */
-function addUnacknowledged(id: string, uuid, f) {
+function addUnacknowledged(id: string, uuid: string, f: () => void) {
   if(!_unacknowledged[id]) {
-    _unacknowledged[id] = [];
+    _unacknowledged[id] = {};
   }
   _unacknowledged[id][uuid] = f;
 }
@@ -910,7 +910,7 @@ function addUnacknowledged(id: string, uuid, f) {
 /**
  * Remove the unacknowledged *WHEREIS* or *SPAWN* request for `id` with nonce `uuid`.
  */
-function removeUnacknowledged(id: string, uuid) {
+function removeUnacknowledged(id: string, uuid: string) {
   delete _unacknowledged[id][uuid];
 }
 
