@@ -284,6 +284,38 @@ async function obtainPrivateKey(nodeId): Promise<any> {
   return privateKey;
 }
 
+/**
+ * Checks that the event queue does not get blocked. The check is scheduled to run in `period`
+ * millisecond intervals. If it takes much longer than that before the check runs, this is reported,
+ * since it indicates blocking.
+ */
+function setupBlockingHealthChecker(period: number) {
+    let lastHealth: number = Date.now();
+    let healthCounter = 0;
+    let healthThreshold = Math.max(period * 1.25 , period + 50);
+    // AA: 2020-02-10;
+    // The event queue always has a fair bit of latency, so we adjust for
+    // the minimal expected latency here; the constant of 50 is an
+    // empirically derived value, but needs to be critically reevaluated
+    // as the system evolves
+
+    function checkBlocking() {
+      let now = Date.now()
+      // check and report if it has been too long since the last health check
+      // this could indicate that something is the event queue
+      if(now - lastHealth > healthThreshold) {
+        debug(`Potential blocking issue`);
+        debug(`Health check ${healthCounter} took this long ${now - lastHealth}`);
+      }
+      lastHealth = now;
+      healthCounter++;
+
+      // Run the check periodically
+      setTimeout(checkBlocking, period);
+    }
+    checkBlocking();
+}
+
 // -------------------------------------------------------------------------------------------------
 // DIAL
 
@@ -898,41 +930,6 @@ function reissueUnacknowledged(id: string) {
   for(let uuid in _unacknowledged[id]) {
     setImmediate(_unacknowledged[id][uuid]);
   }
-}
-
-// -------------------------------------------------------------------------------------------------
-// HEALTH CHECK
-
-/**
- * Checks that the event queue does not get blocked. The check is scheduled to run in `period`
- * millisecond intervals. If it takes much longer than that before the check runs, this is reported,
- * since it indicates blocking.
- */
-function setupBlockingHealthChecker(period: number) {
-    let lastHealth: number = Date.now();
-    let healthCounter = 0;
-    let healthThreshold = Math.max(period * 1.25 , period + 50);
-    // AA: 2020-02-10;
-    // The event queue always has a fair bit of latency, so we adjust for
-    // the minimal expected latency here; the constant of 50 is an
-    // empirically derived value, but needs to be critically reevaluated
-    // as the system evolves
-
-    function checkBlocking() {
-      let now = Date.now()
-      // check and report if it has been too long since the last health check
-      // this could indicate that something is the event queue
-      if(now - lastHealth > healthThreshold) {
-        debug(`Potential blocking issue`);
-        debug(`Health check ${healthCounter} took this long ${now - lastHealth}`);
-      }
-      lastHealth = now;
-      healthCounter++;
-
-      // Run the check periodically
-      setTimeout(checkBlocking, period);
-    }
-    checkBlocking();
 }
 
 // -------------------------------------------------------------------------------------------------
