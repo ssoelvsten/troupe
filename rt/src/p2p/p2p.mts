@@ -40,11 +40,9 @@ The messages themselves can be one of the six forms:
 
 3. SEND -- sending a message
 
-4. TEST -- for testing/development purposes
+4. WHEREIS -- asking for the address of a certain peer id
 
-5. WHEREIS -- asking for the address of a certain peer id
-
-6. WHEREISOK -- reply to the WHEREIS
+5. WHEREISOK -- reply to the WHEREIS
 
 Note on the code below: the code below uses the libp2p framework, and is
 partially grown out of the Chat example in that framework (to make sense of the
@@ -548,8 +546,6 @@ function setupConnection(peerId: PeerId, stream): void {
  * - WHEREIS: Asks the runtime where the peer is, and replies with WHEREISOK.
  *
  * - WHEREISOK: Gives the message to the call-back.
- *
- * - TEST / other: Writes the input on the debug logger.
  */
 async function inputHandler(peerId: PeerId, input: Message) {
   debug("Input handler");
@@ -638,11 +634,6 @@ async function inputHandler(peerId: PeerId, input: Message) {
       } else {
         error("Cannot find WHEREIS callback");
       }
-      break;
-
-    case (MessageType.TEST):
-      debug("Received TEST");
-      debug(input);
       break;
 
     default:

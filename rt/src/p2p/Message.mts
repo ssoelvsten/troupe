@@ -13,9 +13,6 @@ export enum MessageType {
   WHEREIS,
   /** Reply to the WHEREIS. */
   WHEREISOK,
-  /** Message printed to the console at the receiver. This is merely for testing/development
-   *  purposes. */
-  TEST,
 };
 
 /** Message for `SPAWN` */
@@ -63,15 +60,10 @@ export type WhereIsOkMessage = {
   message: string
 }
 
-/** Message for `TEST` */
-export type TestMessage = {
-  messageType: MessageType.TEST
-}
-
 /** Type of all messages. */
 export type Message = SpawnMessage
                     | SpawnOkMessage
                     | SendMessage
                     | WhereIsMessage
                     | WhereIsOkMessage
-                    | TestMessage;
+;
