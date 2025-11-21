@@ -7,11 +7,20 @@ import { getCliArgs, TroupeCliArg } from '../TroupeCliArgs.mjs';
 
 const logger = mkLogger ('p2p-config','info');
 
+const argv = getCliArgs();
+
 /** Name of the configuration file.
  *
  * @todo Merge this with the CLI arguments? That is, make the CLI argument the path to this file?
  */
 const CONFIG_FILE = 'p2pconfig.json';
+
+// -------------------------------------------------------------------------------------------------
+// Port and Identifier
+
+/** Port to listen on. If a value is not provided by the CLI, then port 0, is used (i.e. whichever
+ *  is picked by the operating system). */
+export const port = argv[TroupeCliArg.Port] || 0;
 
 // -------------------------------------------------------------------------------------------------
 // Bootstrapping Nodes
@@ -86,7 +95,7 @@ const configRelays = (() => {
 
 /** List of relay servers as provided through the CLI. */
 const cliRelays : string[] = (() => {
-  const arg = getCliArgs()[TroupeCliArg.Relay];
+  const arg = argv[TroupeCliArg.Relay];
   if (!arg) { return []; }
 
   const args = Array.isArray(arg) ? arg : [arg];

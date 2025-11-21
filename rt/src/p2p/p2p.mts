@@ -76,13 +76,14 @@ import map from 'it-map';
 import { fromString as uint8ArrayFromString } from 'uint8arrays/from-string';
 import { toString as uint8ArrayToString } from 'uint8arrays/to-string';
 import { pushable } from 'it-pushable';
-import { bootstrappers, knownNodes, relays } from './config.mjs';
 import { multiaddr } from '@multiformats/multiaddr';
 import { identify } from '@libp2p/identify';
 import { circuitRelayTransport } from '@libp2p/circuit-relay-v2';
-import { Logger, mkLogger } from '../logger.mjs';
 import {v4 as uuidv4} from 'uuid';
 import { kadDHT } from '@libp2p/kad-dht';
+
+import { Logger, mkLogger } from '../logger.mjs';
+import { port, bootstrappers, knownNodes, relays } from './config.mjs';
 
 // -------------------------------------------------------------------------------------------------
 // LOGGING AND DEBUGGING
@@ -98,10 +99,6 @@ const error = x => logger.error(x);
 
 // -------------------------------------------------------------------------------------------------
 // CONSTANTS
-
-/** Port to listen on. If a value is not provided by the CLI, then port 0, is used (i.e. whichever
- *  is picked by the operating system). */
-const PORT = argv[TroupeCliArg.Port] || 0;
 
 /** Protocol for peers to talk to each other */
 const PROTOCOL = "/troupe/1.0.0";
@@ -222,7 +219,7 @@ async function startp2p(nodeId, rt: any): Promise<String> {
 async function createLibp2p(_options) {
   const defaults = {
     addresses: {
-      listen: [`/ip4/0.0.0.0/tcp/${PORT}`]
+      listen: [`/ip4/0.0.0.0/tcp/${port}`]
     },
     connectionManager : {
       minConnections: 1,
