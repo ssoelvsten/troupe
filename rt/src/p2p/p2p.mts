@@ -550,44 +550,45 @@ function setupConnection(peerId: PeerId, stream): void {
 async function inputHandler(peerId: PeerId, input: Message) {
   debug("Input handler");
   switch (input.messageType) {
-    case (MessageType.SPAWN):
-      // Check if spawning is allowed; drop the message otherwise.
-      if(_rt.remoteSpawnOK()) {
-        debug("Received SPAWN");
+    case (MessageType.SPAWN): {
+      // Check if spawning is disallowed; drop the message if so.
+      if(!_rt.remoteSpawnOK()) { return; }
 
-        if(receivedSpawnNonces[input.spawnNonce]) {
-          // This is an already seen spawn request. Look up the reply and resend without spawning
-          // again
-          debug("This spawn was already received; replying again without spawning");
-          let cachedAnswer = receivedSpawnNonces[input.spawnNonce];
+      debug("Received SPAWN");
 
-          // Reply with SPAWNOK and return
-          pushWrap(peerId, {
-            messageType: MessageType.SPAWNOK,
-            spawnNonce: input.spawnNonce,
-            message: cachedAnswer
-          });
-          return;
-        }
+      if(receivedSpawnNonces[input.spawnNonce]) {
+        // This is an already seen spawn request. Look up the reply and resend without spawning
+        // again
+        debug("This spawn was already received; replying again without spawning");
+        let cachedAnswer = receivedSpawnNonces[input.spawnNonce];
 
-        // Inform the runtime
-        let runtimeAnswer = await _rt.spawnFromRemote(input.message, peerId);
-
-        // Reply with SPAWNOK
+        // Reply with SPAWNOK and return
         pushWrap(peerId, {
           messageType: MessageType.SPAWNOK,
           spawnNonce: input.spawnNonce,
-          message: runtimeAnswer
+          message: cachedAnswer
         });
-        debug("SPAWN replied");
-
-        // Save the nonce and the answer for 10 minutes in case we get the same request again
-        receivedSpawnNonces[input.spawnNonce] = runtimeAnswer;
-        setTimeout(() => delete receivedSpawnNonces[input.spawnNonce], 600000);
+        return;
       }
-      break;
 
-    case (MessageType.SPAWNOK):
+      // Inform the runtime
+      const runtimeAnswer = await _rt.spawnFromRemote(input.message, peerId);
+
+      // Reply with SPAWNOK
+      pushWrap(peerId, {
+        messageType: MessageType.SPAWNOK,
+        spawnNonce: input.spawnNonce,
+        message: runtimeAnswer
+      });
+      debug("SPAWN replied");
+
+      // Save the nonce and the answer for 10 minutes in case we get the same request again
+      receivedSpawnNonces[input.spawnNonce] = runtimeAnswer;
+      setTimeout(() => delete receivedSpawnNonces[input.spawnNonce], 600000);
+      break;
+    }
+
+    case (MessageType.SPAWNOK): {
       debug("Received SPAWN OK");
       // Find the call-back and give the message; otherwise report an error
       const _cb = _spawnNonces[input.spawnNonce];
@@ -598,8 +599,9 @@ async function inputHandler(peerId: PeerId, input: Message) {
         error("Cannot find SPAWN callback");
       }
       break;
+    }
 
-    case (MessageType.SEND):
+    case (MessageType.SEND): {
       debug(`Received SEND from ${peerId}`);
       // Pass the message to the runtime
       _rt.receiveFromRemote(
@@ -608,11 +610,12 @@ async function inputHandler(peerId: PeerId, input: Message) {
         peerId.toString()
       );
       break;
+    }
 
-    case (MessageType.WHEREIS):
+    case (MessageType.WHEREIS): {
       debug("Received WHEREIS");
       // Get the runtime to find the peer
-      let runtimeAnswer = await _rt.whereisFromRemote(input.message);
+      const runtimeAnswer = await _rt.whereisFromRemote(input.message);
 
       // Reply with WHEREISOK
       pushWrap(peerId, {
@@ -623,8 +626,9 @@ async function inputHandler(peerId: PeerId, input: Message) {
 
       debug("WHEREIS replied");
       break;
+    }
 
-    case (MessageType.WHEREISOK):
+    case (MessageType.WHEREISOK): {
       debug("Received WHEREISOK");
       // Find the call-back and give the message Otherwise report an error
       const _cbw = _whereisNonces[input.whereisNonce];
@@ -635,10 +639,12 @@ async function inputHandler(peerId: PeerId, input: Message) {
         error("Cannot find WHEREIS callback");
       }
       break;
+    }
 
-    default:
+    default: {
       debug(`received data ${(input as any).toString('utf8').replace('\n', '')}`);
       break;
+    }
   }
 }
 
