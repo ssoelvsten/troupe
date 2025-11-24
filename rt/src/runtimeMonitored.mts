@@ -135,8 +135,7 @@ async function spawnFromRemote(jsonObj, fromNode) {
   const tid =
     __sched.scheduleNewThread(
       f
-      , __unit //[f.env, __unit]
-      // , f.namespace
+      , __unit
       , lf.lev
       , lf.lev
     );
