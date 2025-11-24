@@ -102,9 +102,8 @@ async function spawnAtNode(nodeid, f) {
   }
 }
 
-let _allowRemoteSpawn = argv[TroupeCliArg.RSpawn];
 function remoteSpawnOK() {
-  return _allowRemoteSpawn;
+  return argv[TroupeCliArg.RSpawn];
 }
 
 
