@@ -60,51 +60,39 @@ import DCLabels (dcLabelExpToDCLabel)
 data LibAccess = LibAccess Basics.LibName Basics.VarName
    deriving (Eq, Show,Generic)
 
+instance Aeson.ToJSON Basics.LibName
+instance Aeson.ToJSON LibAccess
 
-data JSOutput = JSOutput { libs :: [LibAccess] 
+jsLoadLibs = vcat $ map text [
+  "this.libSet = new Set ()",
+  "this.libs = []",
+  "this.addLib = function (lib, decl) { if (!this.libSet.has (lib +'.'+decl)) { this.libSet.add (lib +'.'+decl); this.libs.push ({lib:lib, decl:decl})} }" ]
+
+addLibs xs = vcat $ nub (map addOneLib xs)
+  where addOneLib (LibAccess (Basics.LibName libname) varname) =
+          let args = (PP.doubleQuotes.PP.text) libname <+> text "," <+> (PP.doubleQuotes. PP.text) varname
+          in text "this.addLib " <+> PP.parens args
+
+
+data JSOutput = JSOutput { libs :: [LibAccess]
                          , fname:: Maybe String 
                          , code :: String 
                          , atoms :: [Basics.AtomName]
                          } deriving (Show, Generic)
 
-instance Aeson.ToJSON Basics.LibName 
-instance Aeson.ToJSON LibAccess
 instance Aeson.ToJSON JSOutput
-
-ppLibAccess :: LibAccess -> PP.Doc
-ppLibAccess (LibAccess (Basics.LibName libname) varname) = PP.braces $
-  PP.text "lib:" <+> (PP.doubleQuotes. PP.text) libname <+> PP.text "," <+>
-  PP.text "decl:" <+> (PP.doubleQuotes. PP.text) varname
-
-
-ppLibs :: [LibAccess] -> PP.Doc
-ppLibs libs = PP.brackets $
-                vcat $ PP.punctuate (text ",")
-                  $ map ppLibAccess (nub libs)
-
-jsLoadLibs = vcat $ map text [
-  "this.libSet = new Set ()",
-  "this.libs = []",
-  "this.addLib = function (lib, decl) { if (!this.libSet.has (lib +'.'+decl)) { this.libSet.add (lib +'.'+decl); this.libs.push ({lib:lib, decl:decl})} }",
-  "this.loadlibs = function (cb) { rt.linkLibs (this.libs, this, cb) }" ]
-                            
-      
-addOneLib (LibAccess (Basics.LibName libname) varname) =
-  let args = (PP.doubleQuotes.PP.text) libname <+> text "," <+> (PP.doubleQuotes. PP.text) varname
-  in text "this.addLib " <+> PP.parens args
-
-addLibs xs = vcat $ nub (map addOneLib xs)
 
 
 data TheState = TheState { freshCounter :: Integer
                          , frameSize    :: Int
-                         , sparseSlot    :: Int
+                         , sparseSlot   :: Int
                          , consts       :: Raw.Consts
                          , stHFN        :: IR.HFN }
 
 type RetKontText = PP.Doc
 
-type W = RWS Bool  ([LibAccess], [Basics.AtomName], [RetKontText]) TheState
+type WData = ([LibAccess], [Basics.AtomName], [RetKontText])
+type W = RWS Bool WData TheState
 
 
 initState = TheState { freshCounter = 0
@@ -149,45 +137,48 @@ instance Identifier Raw.Assignable where
 class ToJS a where
    toJS :: a -> W PP.Doc
 
+stack2PPDoc :: CompileMode -> Bool -> StackUnit -> (PP.Doc, WData)
+
+stack2PPDoc compileMode debugMode (ProgramStackUnit sp) =
+  let (fns, _, w@(libs, atoms, konts)) = runRWS (toJS sp) debugMode initState
+      inner = vcat $
+        [ jsLoadLibs
+        , addLibs libs
+        ]
+        ++ (fns:konts) ++
+        [ ]
+
+      outer = ("function Top (rt)" <+> PP.lbrace)
+        $$+ inner
+        $$ PP.rbrace
+        $$ PP.text "module.exports = Top"
+
+      ppDoc = case compileMode of CompileMode.Library    -> inner
+                                  _                      -> outer
+  in (ppDoc, w)
+
+stack2PPDoc _           debugMode su =
+  let (inner, _, w@(libs, _, konts)) = runRWS (toJS su) debugMode initState
+      ppDoc = vcat $ [ addLibs libs ] ++ (inner:konts)
+  in (ppDoc, w)
 
 
-irProg2JSString :: CompileMode -> Bool -> StackProgram -> String
-irProg2JSString compileMode debugOut ir =
-  let (fns, _, (_,_,konts)) = runRWS (toJS ir) debugOut initState
-      inner = vcat (fns:konts)
-      outer = vcat $
-        stdlib
-        ++
-        [ "function" <+> ppNamespaceName <+> text "(rt) {" ]
-        ++
-        [ nest 2 inner
-        , text "}" ]
-        ++
-        suffix
-  in      
-    PP.render $
-      case compileMode of
-         Normal -> outer
-         Export -> inner
+stack2JSString :: CompileMode -> Bool -> StackUnit -> String
+stack2JSString compileMode debugMode su =
+  let (ppDoc, _) = stack2PPDoc compileMode debugMode su
+  in PP.render ppDoc
 
 
-stack2JSString :: StackUnit -> String
-stack2JSString x =
-  let (inner, _, (libs, atoms, konts)) = runRWS (toJS x) False initState
-  in PP.render (addLibs libs $$ (vcat (inner:konts)))
-
-
-
-stack2JSON :: StackUnit -> ByteString
-stack2JSON (ProgramStackUnit _) = error "needs to be ported"
-stack2JSON x = 
-  let (inner, _, (libs, atoms, konts)) = runRWS (toJS x) False initState
+stack2JSON :: CompileMode -> Bool -> StackUnit -> ByteString
+stack2JSON compileMode debugMode su =
+  let (ppDoc, (libs, atoms, konts)) = stack2PPDoc compileMode debugMode su
+      fname = case su of FunStackUnit (FunDef (HFN n) _ _ _ _) -> Just n
+                         AtomStackUnit _                       -> Nothing
   in Aeson.encode $ JSOutput { libs = libs
-                             , fname = case x of FunStackUnit (FunDef (HFN n)_ _ _ _) -> Just n
-                                                 _ -> Nothing
-                             , atoms = atoms                              
-                             , code = PP.render (addLibs libs $$ (vcat (inner:konts))) 
-                             } 
+                             , fname = fname
+                             , atoms = atoms
+                             , code = PP.render ppDoc
+                             }
 
 
 instance ToJS StackUnit where
@@ -203,33 +194,11 @@ instance ToJS IR.VarAccess where
     return $ text fname 
 
 
--- instance (Identifier a) => ToJS a where 
---   toJS x = return $ ppId x
-
-ppNamespaceName = text "Top"  -- should be generating a new namespace per received blob
-
-
-irProg2JsWrapped prog = do
-    inner <- toJS prog
-    return $
-       text "function" <+> ppNamespaceName <+> text "(rt) {"
-       $$ nest 2 inner
-       $$ text "}"
-
-
-
 instance ToJS StackProgram where
   toJS (StackProgram atoms funs) = do
      jjA <- toJS atoms
-     (jjF, (libsF, atoms', _)) <- listen $ mapM toJS funs
-     
-     return $
-          vcat $ [ jsLoadLibs
-                 , addLibs libsF
-                 , jjA
-                 ] ++ jjF
-
-          
+     jjF <- mapM toJS funs
+     return $ vcat $ [jjA] ++ jjF
 
 
 instance ToJS C.Atoms where
@@ -270,7 +239,7 @@ instance ToJS FunDef where
        let lits = constsToJS consts
        jj <- toJS bb
        debug <- ask
-       let (irdeps, libdeps, atomdeps ) = IR.ppDeps irfdef
+       let (irdeps, libdeps, atomdeps ) = IR.ppDepsAsJSON irfdef
        sparseSlotIdxPP <- ppSparseSlotIdx
 
        return $
@@ -452,7 +421,7 @@ ir2js InvalidateSparseBit = return $
 {-- TERMINATORS --}
 
 
-tr2js (Call bb bb2) = do
+tr2js (StackExpand bb bb2) = do
     _frameSize <- gets frameSize
     _sparseSlot <- gets sparseSlot
     _consts <- gets consts
@@ -632,9 +601,6 @@ ppPosInfo :: GetPosInfo a => a -> PP.Doc
 ppPosInfo  = PP.doubleQuotes . text . show . posInfo
 
 pickle = PP.doubleQuotes.text.T.unpack.decodeUtf8.encode
-stdlib = [] -- "let runtime = require('../runtimeMonitored.js')"]
-suffix  = [ "module.exports = Top "]
-
 
 jsClosure var env f =
      vcat [ ppLet var <+> ((text "rt.mkVal") <> (PP.parens ((text "rt.RawClosure") <> (PP.parens (PP.hsep $ PP.punctuate "," [ppId env, text "this", text "this." PP.<> ppId f])))))

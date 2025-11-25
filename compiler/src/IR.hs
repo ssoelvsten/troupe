@@ -28,7 +28,6 @@ import           Data.Serialize            (Serialize)
 import qualified Data.Serialize            as Serialize
 import           GHC.Generics              (Generic)
 
-import           CompileMode
 import           Text.PrettyPrint.HughesPJ (hsep, nest, text, vcat, ($$), (<+>))
 import qualified Text.PrettyPrint.HughesPJ as PP
 import           TroupePositionInfo
@@ -91,7 +90,7 @@ data IRTerminator
   -- and then execute the second BB, which can refer to this variable and
   -- where PC is reset to the level before entering the first BB.
   -- Represents a "let x = ... in ..." format.
-  | Call VarName IRBBTree IRBBTree
+  | StackExpand VarName IRBBTree IRBBTree
   deriving (Eq,Show,Generic)
 
 
@@ -147,21 +146,23 @@ instance ComputesDependencies IRBBTree where
 instance ComputesDependencies IRTerminator where 
     dependencies (If _ bb1 bb2) = mapM_ dependencies [bb1, bb2]
     dependencies (AssertElseError _ bb1 _ _) = dependencies bb1
-    dependencies (Call _ t1 t2) = dependencies t1  >> dependencies t2
+    dependencies (StackExpand _ t1 t2) = dependencies t1  >> dependencies t2
 
     dependencies _              = return ()
 instance ComputesDependencies FunDef where
   dependencies (FunDef _ _ _ bb) = dependencies bb
 
 
-ppDeps :: ComputesDependencies a => a -> (PP.Doc , PP.Doc, PP.Doc)
-ppDeps a = let (ffs_0,lls_0, atoms_0) = execWriter  (dependencies a)               
-               (ffs, lls, aas) = (nub ffs_0, nub lls_0, nub atoms_0)
+ppDepsAsJSON :: ComputesDependencies a => a -> (PP.Doc , PP.Doc, PP.Doc)
+ppDepsAsJSON a = let (ffs_0,lls_0, atoms_0) = execWriter  (dependencies a)
+                     (ffs, lls, aas) = (nub ffs_0, nub lls_0, nub atoms_0)
 
-               format dd =
-                   let tt = map (PP.doubleQuotes . ppId) dd in 
-                   (PP.brackets.PP.hsep) (PP.punctuate PP.comma tt)
-            in ( format ffs, format lls , format aas )            
+                     format dd =
+                       let tt = map (PP.doubleQuotes . ppId) dd
+                       in (PP.brackets.PP.hsep) (PP.punctuate PP.comma tt)
+                 in ( format ffs, format lls , format aas )
+
+ppDeps a = ppDepsAsJSON a
 
 
 -----------------------------------------------------------
@@ -231,15 +232,15 @@ instance WellFormedIRCheck IRInst where
  wfir (Assign (VN x) e) = do checkId x
                              wfir e
  wfir (MkFunClosures _ fdefs) = mapM_ (\((VN x), _) -> checkId x) fdefs
- 
+
 
 instance WellFormedIRCheck IRTerminator where
   wfir (If _ bb1 bb2) = do
     wfir bb1
     wfir bb2
   wfir (AssertElseError _ bb _ _) = wfir bb
-  wfir (Call (VN x) bb1 bb2 ) = do 
-    checkId x 
+  wfir (StackExpand (VN x) bb1 bb2 ) = do
+    checkId x
     wfir bb1
     wfir bb2
 
@@ -442,7 +443,8 @@ ppIR (MkFunClosures varmap fdefs) =
 
     
 
-ppTr (Call vn bb1 bb2) = (ppId vn <+> text "= call" $$ nest 2 (ppBB bb1)) $$ (ppBB bb2)
+
+ppTr (StackExpand vn bb1 bb2) = (ppId vn <+> text "= call" $$ nest 2 (ppBB bb1)) $$ (ppBB bb2)
 
 
 ppTr (AssertElseError va ir va2 _) 

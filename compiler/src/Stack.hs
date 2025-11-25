@@ -30,7 +30,6 @@ import           Control.Monad.Writer
 import           Data.List
 import qualified Data.ByteString           as BS
 
-import           CompileMode
 import           Text.PrettyPrint.HughesPJ (hsep, nest, text, vcat, ($$), (<+>))
 import qualified Text.PrettyPrint.HughesPJ as PP
 import           TroupePositionInfo
@@ -47,7 +46,7 @@ data StackTerminator
   | If RawVar StackBBTree StackBBTree
   | LibExport VarAccess
   | Error RawVar PosInf
-  | Call  StackBBTree StackBBTree
+  | StackExpand  StackBBTree StackBBTree
   deriving (Eq, Show)
 
 
@@ -150,7 +149,7 @@ ppIR (MkFunClosures varmap fdefs) =
 ppIR (LabelGroup insts) = 
  text "group" $$ nest 2 (vcat (map ppIR insts))
 
-ppTr (Call bb1 bb2) = (text "= call" $$ nest 2 (ppBB bb1)) $$ (ppBB bb2)
+ppTr (StackExpand bb1 bb2) = (text "= call" $$ nest 2 (ppBB bb1)) $$ (ppBB bb2)
 
 
 -- ppTr (AssertElseError va ir va2 _) 

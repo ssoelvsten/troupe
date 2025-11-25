@@ -30,7 +30,6 @@ import           Control.Monad.Writer
 import           Data.List
 import qualified Data.ByteString           as BS
 
-import           CompileMode
 import           Text.PrettyPrint.HughesPJ (hsep, nest, text, vcat, ($$), (<+>))
 import qualified Text.PrettyPrint.HughesPJ as PP
 import           TroupePositionInfo
@@ -158,7 +157,7 @@ data RawTerminator
   | Error RawVar PosInf
   -- | Execute the first BB and then execute the second BB where
   -- PC is reset to the level before entering the first BB.
-  | Call RawBBTree RawBBTree
+  | StackExpand RawBBTree RawBBTree
   deriving (Eq, Show)
 
 
@@ -341,7 +340,7 @@ ppIR (MkFunClosures varmap fdefs) =
 -- ppIR (LevelOperations _ insts) = 
 --  text "level operation" $$ nest 2 (vcat (map ppIR insts))
 
-ppTr (Call bb1 bb2) = (text "call" $$ nest 4 (ppBB bb1)) $$ (ppBB bb2)
+ppTr (StackExpand bb1 bb2) = (text "call" $$ nest 4 (ppBB bb1)) $$ (ppBB bb2)
 
 
 -- ppTr (AssertElseError va ir va2 _) 

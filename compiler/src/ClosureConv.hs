@@ -201,7 +201,7 @@ cpsToIR (CPS.LetSimple vname@(VN ident) st kt) = do
 cpsToIR (CPS.LetRet (CPS.Cont arg kt') kt) = do
     t  <- cpsToIR kt
     t' <- local (insVar arg) (cpsToIR kt')
-    return $ CCIR.BB [] $ Call arg t t'
+    return $ CCIR.BB [] $ StackExpand arg t t'
 cpsToIR (CPS.LetFun fdefs kt) = do 
     let vnames_orig = map (\(CPS.Fun fname _) -> fname) fdefs
     let localExt = local (insVars vnames_orig)
@@ -224,9 +224,10 @@ cpsToIR (CPS.Halt v) = do
     (compileMode,_ , _ , _, _ ) <- ask 
     let constructor =
           case compileMode of
-              Normal -> CCIR.Ret
               -- Compiling library, then generate export instruction
-              Export -> CCIR.LibExport
+              CompileMode.Library -> CCIR.LibExport
+              -- Otherwise, keep it as a simple return
+              _                   -> CCIR.Ret
 
     return $ CCIR.BB [] $ constructor v'
 
@@ -275,8 +276,11 @@ closureConvert compileMode (CPS.Prog (C.Atoms atms) t) =
       (bb, (fdefs, _, consts_wo_levs)) = evalRWS (cpsToIR t) initEnv initState
       (argumentName, toplevel) =
          case compileMode of
-           Normal -> ("$$authorityarg", "main") -- passing authority through the argument to main 
-           Export -> ("$$dummy", "export")
+           -- Top level function of a library is named 'export'
+           CompileMode.Library     -> ("$$dummy", "export")
+           -- Passing authority through the argument to main
+           _                       -> ("$$authorityarg", "main")
+
 
       -- obs that our 'main' may have two names depending on the compilation mode; 2018-07-02; AA
       consts = (fst.unzip) consts_wo_levs
