@@ -204,17 +204,18 @@ function sendMessageToRemote(toPid: any, message: LVal) {
 
 async function whereisFromRemote(k, fromNode) {
   __sched.resumeLoopAsync()
-  // TODO (AA; 2018-10-20): Make use of the levels as they were recorded during
-  //                        the registration (instead of the bottom here)
-  //
-  // TODO (SS; 2025-11-26): Check whether `fromNode` is even allowed to know
-  //                        where `k` is?
 
   // Is `k` is unknown?
   if (!__theRegister[k]) { return undefined; }
 
+  const { data, level } = serialize(__theRegister[k], levels.BOT);
+
+  // Is `fromNode` not allowed to see `k`?
+  const trustLevel = nodeTrustLevel(fromNode);
+  if (!flowsTo(level, trustLevel)) { return undefined; }
+
   // Provide the identity of `k`.
-  return serialize(__theRegister[k], levels.BOT).data;
+  return data;
 }
 
 
