@@ -209,9 +209,12 @@ async function whereisFromRemote(k, fromNode) {
   //
   // TODO (SS; 2025-11-26): Check whether `fromNode` is even allowed to know
   //                        where `k` is?
-  if (__theRegister[k]) {
-    return serialize(__theRegister[k], levels.BOT).data;
-  }
+
+  // Is `k` is unknown?
+  if (!__theRegister[k]) { return undefined; }
+
+  // Provide the identity of `k`.
+  return serialize(__theRegister[k], levels.BOT).data;
 }
 
 
