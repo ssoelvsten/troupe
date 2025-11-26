@@ -41,9 +41,14 @@ export function BuiltinRegistry<TBase extends Constructor<UserRuntimeZero>>(Base
             }
 
 
-            // TODO: 2018-07-29: info flow checks
-            // this is needed, because registration
-            // is stateful
+            // TODO (AA; 2018-07-29): Info flow checks are needed, because
+            //                        registration is stateful
+            //
+            // TODO (SS; 2025-11-26): Registration of the same `k` twice
+            //                        may potentially leak information: a remote
+            //                        `whereis` can succeed the first time
+            //                        because it was `BOT` at the time but later
+            //                        fail after a re-registration.
 
             let k = arg.val[0].val;
             let v = arg.val[1];
