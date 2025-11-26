@@ -24,7 +24,7 @@ export let __theRegister: { [k in string]: LVal } = {}
 export function BuiltinRegistry<TBase extends Constructor<UserRuntimeZero>>(Base: TBase) {
     return class extends Base {
         register = mkBase((arg) => {            
-            let $r = this.runtime
+            const $r = this.runtime
             assertNormalState("register")
             assertIsNTuple(arg, 3);
             assertIsString(arg.val[0])
@@ -33,8 +33,7 @@ export function BuiltinRegistry<TBase extends Constructor<UserRuntimeZero>>(Base
             assertIsRootAuthority(arg.val[2]);
             
 
-            let ok_to_raise =
-                flowsTo($r.$t.bl, levels.BOT);
+            const ok_to_raise = flowsTo($r.$t.bl, levels.BOT);
             if (!ok_to_raise) {
                 $r.$t.threadError("Cannot raise trust level when the process is tainted\s" +
                     ` | blocking label: ${$r.$t.bl.stringRep()}`)
@@ -50,8 +49,8 @@ export function BuiltinRegistry<TBase extends Constructor<UserRuntimeZero>>(Base
             //                        because it was `BOT` at the time but later
             //                        fail after a re-registration.
 
-            let k = arg.val[0].val;
-            let v = arg.val[1];
+            const k = arg.val[0].val;
+            const v = arg.val[1];
 
             __theRegister[k] = v;
             return $r.ret(__unit);
