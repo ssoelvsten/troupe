@@ -31,7 +31,7 @@ export interface ParsedArgs {
     [TroupeCliArg.Trustmap]?: string;
     [TroupeCliArg.Id]?: string;
     [TroupeCliArg.LocalOnly]?: boolean;
-    [TroupeCliArg.Persist]?: boolean;
+    [TroupeCliArg.Persist]?: string;
     [TroupeCliArg.Aliases]?: string;
     [TroupeCliArg.Stdiolev]?: string;
     [TroupeCliArg.Port]?: number;
@@ -56,7 +56,7 @@ export function getCliArgs(): ParsedArgs {
             .option(TroupeCliArg.Trustmap, { alias: 'tm', type: 'string', describe: 'Path to the trustmap JSON file' })
             .option(TroupeCliArg.Id, { alias: 'i', type: 'string', describe: 'Path to the node ID file' })
             .option(TroupeCliArg.LocalOnly, { alias: 'l', type: 'boolean', default: false, describe: 'Run in local-only mode, skipping network creation' })
-            .option(TroupeCliArg.Persist, { alias: 'P', type: 'boolean', default: false, describe: 'Enable persistence mode' })
+            .option(TroupeCliArg.Persist, { alias: 'P', type: 'string', default: false, describe: 'Path to persisted output' })
             .option(TroupeCliArg.Aliases, { alias: 'a', type: 'string', describe: 'Path to the aliases JSON file' })
             .option(TroupeCliArg.Stdiolev, { type: 'string', describe: 'Security level for stdio operations' })
             .option(TroupeCliArg.Port, { type: 'number', describe: 'Network port for P2P communication' })
