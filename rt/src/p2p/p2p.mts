@@ -84,6 +84,7 @@ import { Logger, mkLogger } from '../logger.mjs';
 
 import { port, id as nodeId, bootstrappers, knownNodes, relays } from './config.mjs';
 import { MessageType, Message } from './Message.mjs';
+import { RuntimeHandlers } from './RuntimeHandlers.mjs';
 
 // -------------------------------------------------------------------------------------------------
 // LOGGING AND DEBUGGING
@@ -121,14 +122,14 @@ const KEEP_ALIVE_TIMEOUT = 5000;
 /** The libp2p node this peer uses */
 let _node: Libp2p = null;
 
-/** The runtime object */
-let _rt = null;
+/** The runtime handlers */
+let _rtHandlers: RuntimeHandlers  = null;
 
 /**
  * Start the libp2p node that this peer will use. Also sets up the event queue block checker and the
  * connections to relays.
  */
-async function startp2p(rt: any): Promise<string> {
+async function startp2p(rtHandlers: RuntimeHandlers): Promise<string> {
   process.on('unhandledRejection', (e) => processExpectedNetworkErrors(e, "unhandledRejection"))
   process.on('uncaughtException', (e) => processExpectedNetworkErrors(e, "uncaughtException"))
 
@@ -144,9 +145,9 @@ async function startp2p(rt: any): Promise<string> {
 
     await nodeListener.start();
 
-    // Save the libp2p node and runtime objects
+    // Save the libp2p node and runtime handlers
     _node = nodeListener;
-    _rt = rt;
+    _rtHandlers = rtHandlers;
 
     // Get the peer ID from the node
     id = nodeListener.peerId;
@@ -552,7 +553,7 @@ async function inputHandler(peerId: PeerId, input: Message) {
   switch (input.messageType) {
     case (MessageType.SPAWN): {
       // Check if spawning is disallowed; drop the message if so.
-      if(!_rt.remoteSpawnOK()) { return; }
+      if(!_rtHandlers[MessageType.SPAWN]) { return; }
 
       debug("Received SPAWN");
 
@@ -572,7 +573,7 @@ async function inputHandler(peerId: PeerId, input: Message) {
       }
 
       // Inform the runtime
-      const runtimeAnswer = await _rt.spawnFromRemote(input.message, peerId);
+      const runtimeAnswer = await _rtHandlers[MessageType.SPAWN](input.message, peerId.toString());
 
       // Reply with SPAWNOK
       pushWrap(peerId, {
@@ -604,18 +605,14 @@ async function inputHandler(peerId: PeerId, input: Message) {
     case (MessageType.SEND): {
       debug(`Received SEND from ${peerId}`);
       // Pass the message to the runtime
-      _rt.receiveFromRemote(
-        input.pid,
-        input.message,
-        peerId.toString()
-      );
+      _rtHandlers[MessageType.SEND](input.pid, input.message, peerId.toString());
       break;
     }
 
     case (MessageType.WHEREIS): {
       debug("Received WHEREIS");
       // Get the runtime to find the peer
-      const runtimeAnswer = await _rt.whereisFromRemote(input.message);
+      const runtimeAnswer = await _rtHandlers[MessageType.WHEREIS](input.message, peerId.toString());
 
       // Reply with WHEREISOK
       pushWrap(peerId, {

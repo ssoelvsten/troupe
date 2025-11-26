@@ -14,6 +14,8 @@ import * as levels from './Level.mjs'
 const { flowsTo, lub, glb } = levels
 import * as DS from './deserialize.mjs'
 import { p2p } from './p2p/p2p.mjs'
+import { MessageType } from './p2p/Message.mjs'
+import { RuntimeHandlers } from './p2p/RuntimeHandlers.mjs'
 import { closeReadline } from './builtins/stdio.mjs';
 import { __theRegister } from './builtins/whereis.mjs';
 import { assertIsFunction } from './Asserts.mjs'
@@ -101,11 +103,6 @@ async function spawnAtNode(nodeid, f) {
     }
   }
 }
-
-function remoteSpawnOK() {
-  return argv[TroupeCliArg.RSpawn];
-}
-
 
 /**
  *
@@ -205,10 +202,13 @@ function sendMessageToRemote(toPid: any, message: LVal) {
 }
 
 
-async function whereisFromRemote(k) {
+async function whereisFromRemote(k, fromNode) {
   __sched.resumeLoopAsync()
-  // TODO (AA; 2018-10-20): Make use of the levels as they were
-  // recorded during the registration (instead of the bottom here)
+  // TODO (AA; 2018-10-20): Make use of the levels as they were recorded during
+  //                        the registration (instead of the bottom here)
+  //
+  // TODO (SS; 2025-11-26): Check whether `fromNode` is even allowed to know
+  //                        where `k` is?
   if (__theRegister[k]) {
     return serialize(__theRegister[k], levels.BOT).data;
   }
@@ -386,10 +386,9 @@ async function getNetworkPeerId() {
   }
 
   const rtHandlers = {
-    remoteSpawnOK,
-    spawnFromRemote,
-    receiveFromRemote,
-    whereisFromRemote
+    [MessageType.SPAWN]:   argv[TroupeCliArg.RSpawn] ? spawnFromRemote : undefined,
+    [MessageType.SEND]:    receiveFromRemote,
+    [MessageType.WHEREIS]: whereisFromRemote,
   };
 
   return await p2p.startp2p(rtHandlers);
