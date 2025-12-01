@@ -1,12 +1,12 @@
-import {TroupeType} from './TroupeTypes.mjs'
+import { TroupeType } from './TroupeTypes.mjs'
 import { Level } from './Level.mjs'
 
 export interface TroupeRawValue {
     _troupeType: TroupeType;
-    dataLevel: Level ;
+    dataLevel: Level;
     stringRep (omitLevels?: boolean, taintRef?: any): string;
 }
 
 export interface TroupeAggregateRawValue extends TroupeRawValue {
-    dataLevel: Level
+    dataLevel: Level;
 }
