@@ -118,7 +118,7 @@ export class Scheduler implements SchedulerInterface {
 
         const halt = () => {
             this.__currentThread.raiseCurrentThreadPCToBlockingLev();
-            this.notifyMonitors();
+            this.notifyMonitors(this.__currentThread);
 
             const currT = this.__currentThread;
             const retVal = new LVal (currT.r0_val, lub(currT.bl, currT.r0_lev), lub(currT.bl, currT.r0_tlev));
@@ -187,25 +187,21 @@ export class Scheduler implements SchedulerInterface {
 
     /** Notify monitors about thread termination.
      *
-     * @todo During the call in `stopThreadWithErrorMessage`, the thread `t` is explicitly given. Yet
-     *       here, the `__currentThread` is always used.
-     *
      * @todo The type of `reason` changes depending on the type of `errorMsg`. Should we not instead
      *       have a tuple with the second value being `__unit`?
      */
-    notifyMonitors (errMsg : string | null = null) {
-        const mkVal = this.__currentThread.mkVal;
-        const ids = Object.keys(this.__currentThread.monitors);
+    notifyMonitors (t: Thread, errMsg : string | null = null) {
+        const ids = Object.keys(t.monitors);
         for (let i = 0; i < ids.length; i++) {
             const id = ids[i];
-            const toPid = this.__currentThread.monitors[id].pid;
-            const refUUID = this.__currentThread.monitors[id].uuid;
-            const thisPid = this.__currentThread.tid;
-            const statusVal = this.__currentThread.mkVal(errMsg !== null ? 1 : 0);
+            const toPid = t.monitors[id].pid;
+            const refUUID = t.monitors[id].uuid;
+            const thisPid = t.tid;
+            const statusVal = t.mkVal(errMsg !== null ? 1 : 0);
             const reason = errMsg !== null
                 ? statusVal
-                : mkTuple ([statusVal,  mkVal (errMsg)]);
-            const message = mkVal (mkTuple([ mkVal("DONE"), refUUID, thisPid, reason]));
+                : mkTuple ([statusVal, t.mkVal(errMsg)]);
+            const message = t.mkVal(mkTuple([t.mkVal("DONE"), refUUID, thisPid, reason]));
             // false flag means no need to return in the process
             this.rtObj.sendMessageNoChecks( toPid, message, false);
         }
@@ -213,7 +209,7 @@ export class Scheduler implements SchedulerInterface {
 
     /** Kill thread `t` with the error message `s` sent to its monitors. */
     stopThreadWithErrorMessage (t: Thread, errMsg: string) {
-        this.notifyMonitors(errMsg);
+        this.notifyMonitors(t, errMsg);
         delete this.__alive [t.tid.val.toString()];
     }
 
