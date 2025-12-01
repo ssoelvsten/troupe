@@ -3,7 +3,7 @@ import { LocalObject } from '../base/LocalObject.mjs'
 import * as levels from '../Level.mjs'
 import { mkLevel } from '../Level.mjs'
 import { assertIsAuthority, assertIsRootAuthority, assertIsNTuple, assertIsLocalObject, assertIsString, assertIsUnit, assertNormalState } from '../Asserts.mjs'
-import { __unit } from '../base/UnitVal.mjs';
+import { unitLVal } from '../base/unitLVal.mjs';
 import { getCliArgs, TroupeCliArg } from '../TroupeCliArgs.mjs';
 const argv = getCliArgs();
 
@@ -61,7 +61,7 @@ export function BuiltinStdIo<TBase extends Constructor<UserRuntimeZero>>(Base: T
 
             let out = arg.val[0].val._value;
             out.write(arg.val[1].stringRep(true) + "\n");
-            return this.runtime.ret(__unit);
+            return this.runtime.ret(unitLVal);
         });
 
         fprintlnWithLabels = mkBase((arg) => {
@@ -71,7 +71,7 @@ export function BuiltinStdIo<TBase extends Constructor<UserRuntimeZero>>(Base: T
             let out = arg.val[0].val._value;
             out.write(this.runtime.$t.mkCopy(arg.val[1]).stringRep(false) + "\n");
             // out.write((arg.val[1]).stringRep(false) + "\n");
-            return this.runtime.ret(__unit);
+            return this.runtime.ret(unitLVal);
         });
 
         fwrite = mkBase((arg) => {
@@ -81,7 +81,7 @@ export function BuiltinStdIo<TBase extends Constructor<UserRuntimeZero>>(Base: T
             assertIsString(arg.val[1]);
             let out = arg.val[0].val._value;
             out.write(arg.val[1].val);
-            return this.runtime.ret(__unit);
+            return this.runtime.ret(unitLVal);
         }, "fwrite");
 
         inputLine = mkBase((arg) => {

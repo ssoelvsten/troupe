@@ -2,7 +2,7 @@ import * as fs from 'node:fs';
 import chalk from 'chalk';
 import { v4 as uuidv4 } from 'uuid'
 import AggregateError from 'aggregate-error';
-import { __unit } from './base/UnitVal.mjs'
+import { unitLVal } from './base/unitLVal.mjs'
 import { Authority } from './base/Authority.mjs'
 import { Scheduler, ThreadType } from './Scheduler.mjs'
 import { MailboxProcessor } from './MailboxProcessor.mjs'
@@ -136,7 +136,7 @@ async function spawnFromRemote(jsonObj, fromNode) {
   const tid =
     __sched.scheduleNewThread(
       lf.val
-      , __unit
+      , unitLVal
       , lf.lev
       , lf.lev
     );
@@ -200,7 +200,7 @@ function sendMessageToRemote(toPid: any, message: LVal) {
 
   // we return unit to the call site at the thread level
   p2p.sendp2p(node, pid, data)
-  return $t().returnImmediateLValue(__unit);
+  return $t().returnImmediateLValue(unitLVal);
 }
 
 
@@ -240,7 +240,7 @@ function rt_sendMessageNochecks(lRecipientPid, message, ret = true) {
     __theMailbox.addMessage(nodeId, lRecipientPid, message, $t().pc);
 
     if (ret) {
-      return $t().returnImmediateLValue(__unit);
+      return $t().returnImmediateLValue(unitLVal);
     }
   } else {
     logger.debug ("* rt rt_send remote *"/*, recipientPid, message*/);
@@ -435,7 +435,7 @@ export async function start(f) {
 
     let service_arg =
       new LVal ( new RawRecord([ ["authority", serviceAuthority],
-                              ["options", __unit]]),
+                              ["options", unitLVal]]),
               levels.BOT);
     __sched.scheduleNewThread(__service['service']
           , service_arg

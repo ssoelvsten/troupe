@@ -7,7 +7,7 @@ import { loadLibsAsync } from '../loadLibsAsync.mjs';
 import * as levels from '../Level.mjs'
 import { BaseFunctionWithExplicitArg, ServiceFunction } from '../base/BaseFunction.mjs'
 import { Atom } from '../base/Atom.mjs'
-import { __unit } from '../base/UnitVal.mjs'
+import { unitLVal } from '../base/unitLVal.mjs'
 import { RuntimeInterface } from '../RuntimeInterface.mjs';
 import { RawRecord } from '../base/RawRecord.mjs'
 import { TroupeType } from '../base/TroupeTypes.mjs'
@@ -80,7 +80,7 @@ export class UserRuntimeZero {
     constructLVal =  (x,y,z) => new LVal (x,y,z) 
     mkVal : (x:any) => LVal = this.default_mkVal
     mkValPos : (x:any, pos:string) => LVal = this.default_mkValPos
-    __unit = __unit
+    __unit = unitLVal
     __unitbase = RawUnit
     Atom = Atom
 
@@ -258,7 +258,7 @@ export class UserRuntimeZero {
     }
 
 
-    libLoadingPseudoThread = new Thread(null, null, null, __unit, levels.BOT, levels.BOT, null, this, null);
+    libLoadingPseudoThread = new Thread(null, null, null, unitLVal, levels.BOT, levels.BOT, null, this, null);
     savedThread =  null ;// this.runtime.__sched.getCurrentThread();
     setLibloadMode() {
         this.mkVal = (x) => new LVal(x, levels.BOT);

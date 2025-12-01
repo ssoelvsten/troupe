@@ -2,7 +2,7 @@ import { UserRuntimeZero, Constructor, mkBase } from './UserRuntimeZero.mjs'
 import {lub} from '../Level.mjs'
 import { assertNormalState, assertIsFunction, assertIsNode } from '../Asserts.mjs'
 import { __nodeManager } from '../NodeManager.mjs';
-import { __unit } from '../base/UnitVal.mjs';
+import { unitLVal } from '../base/unitLVal.mjs';
 import {SYSTEM_PROCESS_STRING} from '../Constants.mjs'
 import { ProcessID } from '../base/process.mjs';
 
@@ -24,7 +24,7 @@ export function BuiltinSpawn<TBase extends Constructor<UserRuntimeZero>>(Base: T
 
             const spawnLocal = (func) => {
                 const tid = this.runtime.__sched.scheduleNewThread(
-                    func, __unit, this.runtime.$t.pc, this.runtime.$t.bl);
+                    func, unitLVal, this.runtime.$t.pc, this.runtime.$t.bl);
                 return this.runtime.$t.returnImmediateLValue(tid);
             }
 

@@ -2,7 +2,7 @@ import { UserRuntimeZero, Constructor, mkBase } from './UserRuntimeZero.mjs'
 import { LVal } from '../base/LVal.mjs';
 import * as levels from '../Level.mjs'
 import { assertIsNTuple, assertNormalState } from '../Asserts.mjs';
-import { __unit } from '../base/UnitVal.mjs';
+import { unitLVal } from '../base/unitLVal.mjs';
 import { getCliArgs, TroupeCliArg } from '../TroupeCliArgs.mjs';
 
 const {lub, flowsTo} = levels
@@ -67,7 +67,7 @@ export function BuiltinAdv <TBase extends Constructor<UserRuntimeZero>>(Base: TB
                     ` | block: ${this.runtime.$t.bl.stringRep()}\n` +
                     ` | value: ${x.stringRep()}`)
             }
-            return this.runtime.ret(__unit);
+            return this.runtime.ret(unitLVal);
         })
 
         cert = mkBase ((x) =>{
@@ -88,7 +88,7 @@ export function BuiltinAdv <TBase extends Constructor<UserRuntimeZero>>(Base: TB
                     ` | block: ${this.runtime.$t.bl.stringRep()}\n` +
                     ` | value: ${x.stringRep()}`)
             }
-            return this.runtime.ret(__unit);            
+            return this.runtime.ret(unitLVal);            
         })
 
         ladv = mkBase((x) => {
@@ -107,7 +107,7 @@ export function BuiltinAdv <TBase extends Constructor<UserRuntimeZero>>(Base: TB
                     ` | l_adv: ${l_adv.stringRep()} \n` +
                     ` | value: ${value.stringRep()}`)
             }
-            return this.runtime.ret(__unit);
+            return this.runtime.ret(unitLVal);
         })
          
     }

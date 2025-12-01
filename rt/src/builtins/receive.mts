@@ -5,7 +5,7 @@ import { RuntimeInterface } from '../RuntimeInterface.mjs';
 import { ReceiveTaintAction } from '../ReceiveTaintAction.mjs';
 import { LVal } from '../base/LVal.mjs';
 import { mkTuple } from '../base/ValuesUtil.mjs';
-import { __unit } from '../base/UnitVal.mjs';
+import { unitLVal } from '../base/unitLVal.mjs';
 import SandboxStatus from '../SandboxStatus.mjs';
 import { Thread } from '../Thread.mjs';
 import { debug } from 'console';
@@ -175,7 +175,7 @@ export function BuiltinReceive<TBase extends Constructor<UserRuntimeZero>>(Base:
           guardFrame.debugname = "<guardReturnFrame>"
           theThread.pushFrame ( guardFrame)
           guard_sp = theThread._sp 
-          return theThread.tailCall (f.val, __unit)
+          return theThread.tailCall (f.val, unitLVal)
 
         })
 

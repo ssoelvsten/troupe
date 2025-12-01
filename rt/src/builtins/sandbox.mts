@@ -1,7 +1,7 @@
 import { UserRuntimeZero, Constructor, mkBase } from './UserRuntimeZero.mjs'
 import { LVal, LValCopyAt } from '../base/LVal.mjs';
 import { assertNormalState, assertIsNTuple, assertIsNumber, assertIsFunction } from '../Asserts.mjs'
-import { __unit } from '../base/UnitVal.mjs';
+import { unitLVal } from '../base/unitLVal.mjs';
 import { getCliArgs, TroupeCliArg } from '../TroupeCliArgs.mjs';
 import { mkLogger } from '../logger.mjs'
 import SandboxStatus from '../SandboxStatus.mjs'
@@ -49,7 +49,7 @@ function setupSandbox($r:RuntimeInterface, delay, resumeState = null) {
 
     let trapper = () => {
         trapperInvoked = true;
-        retVal = __unit;
+        retVal = unitLVal;
     }
 
     theThread.handlerState = new SandboxStatus.INSANDBOX(trapper, theThread.pc);
@@ -115,7 +115,7 @@ function setupSandbox($r:RuntimeInterface, delay, resumeState = null) {
                     _sleepTO.pause()
                     theThread.returnSuspended(resumeKont(_sleepTO)) 
                 } else if (trapperInvoked) {
-                    theThread.returnSuspended(bad(__unit, resultLabel));                    
+                    theThread.returnSuspended(bad(unitLVal, resultLabel));                    
                 }
             }
 
@@ -146,7 +146,7 @@ export function BuiltinSandbox<TBase extends Constructor<UserRuntimeZero>>(Base:
             assertIsFunction(arg.val[1])
             let delay = arg.val[0];
             setupSandbox(this.runtime, delay)
-            return this.runtime.$t.tailCall ( arg.val[1].val, __unit)
+            return this.runtime.$t.tailCall ( arg.val[1].val, unitLVal)
         },
 
             // this.tailcall(arg.val[1], __unit);

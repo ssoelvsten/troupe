@@ -1,6 +1,6 @@
 import {UserRuntimeZero, Constructor, mkBase} from './UserRuntimeZero.mjs'
 import { assertNormalState, assertIsProcessId, assertIsString } from '../Asserts.mjs'
-import { __unit } from '../base/UnitVal.mjs';
+import { unitLVal } from '../base/unitLVal.mjs';
 
 export function BuiltinMonitors <TBase extends Constructor<UserRuntimeZero>> (Base:TBase) {
     
@@ -29,7 +29,7 @@ export function BuiltinMonitors <TBase extends Constructor<UserRuntimeZero>> (Ba
         demonitorlocal = mkBase((arg) => {
             assertIsString(arg);
             // mutates state; so we should be careful...
-            return this.runtime.ret(__unit);
+            return this.runtime.ret(unitLVal);
         })
     }
 }

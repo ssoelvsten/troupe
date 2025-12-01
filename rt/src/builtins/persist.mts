@@ -4,7 +4,7 @@ import * as levels from '../Level.mjs'
 import {deserialize} from '../deserialize.mjs'
 import * as fs from 'node:fs';
 import { assertIsNTuple, assertIsRootAuthority, assertIsString } from '../Asserts.mjs'
-import { __unit } from '../base/UnitVal.mjs';
+import { unitLVal } from '../base/unitLVal.mjs';
 
 export function BuiltinPersist<TBase extends Constructor<UserRuntimeZero>>(Base: TBase) {
     return class extends Base {
@@ -17,7 +17,7 @@ export function BuiltinPersist<TBase extends Constructor<UserRuntimeZero>>(Base:
             let data = arg[2];
             assertIsRootAuthority(auth);
             this.runtime.persist(data, "./out/saved." + file + ".persist.json")
-            return this.runtime.ret(__unit);
+            return this.runtime.ret(unitLVal);
         }, "save")
 
 

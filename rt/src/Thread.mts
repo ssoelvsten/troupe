@@ -10,7 +10,7 @@ import { mkLogger } from './logger.mjs'
 import { v4 as uuidv4} from 'uuid'
 import { TroupeType } from './base/TroupeTypes.mjs'
 import { RuntimeInterface } from './RuntimeInterface.mjs';
-import { __unit } from './base/UnitVal.mjs';
+import { unitLVal } from './base/unitLVal.mjs';
 import { Level } from './Level.mjs';
 import { SchedulerInterface } from './SchedulerInterface.mjs';
 import { getRuntimeObject } from './SysState.mjs';
@@ -167,7 +167,7 @@ export class SleepTimeout {
     afterTimeout () {
         let theThread = this.resumeThread;
         theThread.sleepTimeout = null; 
-        theThread.returnSuspended (__unit);
+        theThread.returnSuspended (unitLVal);
         let sched = getRuntimeObject().__sched
         sched.scheduleThread (theThread)
         sched.resumeLoopAsync()
@@ -589,7 +589,7 @@ export class Thread {
         }            
         this.pini_uuid = cap.prev;
 
-        return this.returnImmediateLValue (__unit); 
+        return this.returnImmediateLValue (unitLVal); 
     }
     
 
@@ -635,7 +635,7 @@ export class Thread {
         this.bl = levTo ;
         this.pini_uuid = cap.prev;
 
-        return this.returnImmediateLValue (__unit); 
+        return this.returnImmediateLValue (unitLVal); 
     }
 
     blockEndorseTo (auth, bl_to = this.pc) {
@@ -669,7 +669,7 @@ export class Thread {
         });
 
         this.bl = bl_to; // the actual downgrade
-        return this.returnImmediateLValue (__unit); 
+        return this.returnImmediateLValue (unitLVal); 
 
     }
 
@@ -702,7 +702,7 @@ export class Thread {
         });
 
         this.bl = bl_to; // the actual downgrade
-        return this.returnImmediateLValue (__unit); 
+        return this.returnImmediateLValue (unitLVal); 
     }
 
     raiseBlockingThreadLev (l) {                
@@ -845,7 +845,7 @@ export class Thread {
         this.mailbox.mclear = cap.data; // restoring the clearance level
         this.mailbox.caps = cap.prev;
 
-        return this.returnImmediateLValue(__unit);
+        return this.returnImmediateLValue(unitLVal);
     }
 }
 

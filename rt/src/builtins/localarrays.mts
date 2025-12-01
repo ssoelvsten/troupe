@@ -3,7 +3,7 @@ import { LVal } from '../base/LVal.mjs';
 import {lub, flowsTo} from '../Level.mjs'
 import { assertIsNumber, assertIsNTuple, assertIsLevel, assertIsLocalObject } from '../Asserts.mjs'
 import { LocalObject } from '../base/LocalObject.mjs';
-import { __unit } from '../base/UnitVal.mjs';
+import { unitLVal } from '../base/unitLVal.mjs';
 
 
 
@@ -63,7 +63,7 @@ export function BuiltinLocalArrays <TBase extends Constructor<UserRuntimeZero>> 
                 this.runtime.$t.threadError("Array index out of bounds")
             }
             rawArray [idx.val] = value
-            this.runtime.ret (__unit)
+            this.runtime.ret (unitLVal)
         })
     }
 }

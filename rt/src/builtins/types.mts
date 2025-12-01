@@ -4,7 +4,7 @@ import { LVal } from '../base/LVal.mjs';
 import { assertIsNTuple, assertIsRecord, assertIsString, assertIsUnit, assertNormalState } from '../Asserts.mjs'
 import { RawRecord } from "../base/RawRecord.mjs";
 import { lub } from '../Level.mjs';
-import { __unit } from '../base/UnitVal.mjs';
+import { unitLVal } from '../base/unitLVal.mjs';
 import { TroupeType } from '../base/TroupeTypes.mjs';
 
 export function BuiltinTypeInformation<TBase extends Constructor<UserRuntimeZero>>(Base: TBase) {

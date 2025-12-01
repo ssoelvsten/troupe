@@ -1,6 +1,6 @@
 import { UserRuntimeZero, Constructor, mkBase } from './UserRuntimeZero.mjs'
 import { assertNormalState, assertIsNTuple, assertIsAuthority, assertIsNumber, assertIsRootAuthority } from '../Asserts.mjs'
-import { __unit } from '../base/UnitVal.mjs';
+import { unitLVal } from '../base/unitLVal.mjs';
 
 
 export function BuiltinExit <TBase extends Constructor<UserRuntimeZero>>(Base: TBase) {
@@ -24,7 +24,7 @@ export function BuiltinExit <TBase extends Constructor<UserRuntimeZero>>(Base: T
             assertIsAuthority(arg);
             assertIsRootAuthority(arg);
             this.runtime.__sched.resetScheduler ()
-            return this.runtime.ret(__unit)
+            return this.runtime.ret(unitLVal)
             
         })
     }

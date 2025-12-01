@@ -4,7 +4,7 @@ import { LVal } from '../base/LVal.mjs';
 import { assertIsNTuple, assertIsRecord, assertIsString, assertIsUnit, assertNormalState } from '../Asserts.mjs'
 import { mkWithRecord } from '../base/ValuesUtil.mjs';
 import { lub } from '../Level.mjs';
-import { __unit } from '../base/UnitVal.mjs';
+import { unitLVal } from '../base/unitLVal.mjs';
 
 export function BuiltinRecordReflection<TBase extends Constructor<UserRuntimeZero>>(Base: TBase) {
     return class extends Base {        

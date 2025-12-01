@@ -6,7 +6,7 @@ const { lub, flowsTo } = levels
 import {deserialize} from '../deserialize.mjs'
 import { __nodeManager } from '../NodeManager.mjs';
 import { assertNormalState, assertIsNTuple, assertIsString, assertIsProcessId, assertIsAuthority, assertIsRootAuthority, assertIsNode } from '../Asserts.mjs';
-import { __unit } from '../base/UnitVal.mjs';
+import { unitLVal } from '../base/unitLVal.mjs';
 import { nodeTrustLevel } from '../TrustManager.mjs';
 import { LVal } from '../base/LVal.mjs'
 import {p2p} from '../p2p/p2p.mjs'
@@ -53,7 +53,7 @@ export function BuiltinRegistry<TBase extends Constructor<UserRuntimeZero>>(Base
             const v = arg.val[1];
 
             __theRegister[k] = v;
-            return $r.ret(__unit);
+            return $r.ret(unitLVal);
         }, "register")
 
 

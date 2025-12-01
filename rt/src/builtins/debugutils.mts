@@ -1,6 +1,6 @@
 import {UserRuntimeZero, Constructor, mkBase} from './UserRuntimeZero.mjs'
 import { assertIsString, assertIsNumber, assertIsNTuple } from '../Asserts.mjs'
-import { __unit } from '../base/UnitVal.mjs';
+import { unitLVal } from '../base/unitLVal.mjs';
 import { TroupeType } from '../base/TroupeTypes.mjs';
 
 
@@ -9,18 +9,18 @@ export function BuiltinDebugUtils <TBase extends Constructor<UserRuntimeZero>> (
         _setProcessDebuggingName = mkBase((arg) => {
             assertIsString(arg)
             this.runtime.$t.processDebuggingName = arg.val
-            return this.runtime.ret(__unit)
+            return this.runtime.ret(unitLVal)
         })
 
         debugpc = mkBase((arg) => {
             this.runtime.debug("");
             // this.runtime.$t.showStack()
-            return this.runtime.ret(__unit);
+            return this.runtime.ret(unitLVal);
         })
 
         _debug = mkBase ((arg) => {
             console.log (arg.stringRep(true))
-            return this.runtime.ret(__unit);
+            return this.runtime.ret(unitLVal);
         })
 
         _setFailureRate = mkBase((arg) => {
@@ -40,7 +40,7 @@ export function BuiltinDebugUtils <TBase extends Constructor<UserRuntimeZero>> (
                 default:
                     this.runtime.$t.threadError ("Invalid argument type in function _setFailureRate");
             }            
-            return this.runtime.ret(__unit);
+            return this.runtime.ret(unitLVal);
         })
     }
 }
