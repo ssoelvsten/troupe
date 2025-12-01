@@ -107,15 +107,11 @@ export class MbVal extends LVal {
 
 }
 
-
-export function listStringRep(x, omitLevels = false, taintRef = null) {
-  if (x.length == 0) {
-    return "";
-  }
-  let s = x[0].stringRep(omitLevels, taintRef);
-
-  for (let i = 1; i < x.length; i++) {
-    s += ", " + x[i].stringRep(omitLevels, taintRef );
-  }
-  return s;
+/** Creates the string representation of LValues `xs`.
+ *
+ *  This can be used for debugging and as an aid to create the string representation
+ *  of aggregate LValues.
+ */
+export function listStringRep(xs: LVal[], omitLevels: boolean = false, taintRef: any = null) {
+  return xs.map(x => x.stringRep(omitLevels, taintRef)).join(', ');
 }
