@@ -28,14 +28,6 @@ export enum ThreadType {
     Other  = 1
 }
 
-/** Enum for termination statuses. */
-enum TerminationStatus {
-    /** Thread finished its computation. */
-    OK  = 0,
-    /** Thread stopped early due to an error. */
-    ERR = 1
-}
-
 export class Scheduler implements SchedulerInterface {
     // Current thread state
 
@@ -194,7 +186,7 @@ export class Scheduler implements SchedulerInterface {
     \*************************************************************************************************/
 
     /** Notify monitors about thread termination. */
-    notifyMonitors (status = TerminationStatus.OK, errstr = null) {
+    notifyMonitors (errMsg : string | null = null) {
         let mkVal = this.__currentThread.mkVal;
         let ids = Object.keys(this.__currentThread.monitors);
         for (let i = 0; i < ids.length; i++) {
@@ -202,10 +194,10 @@ export class Scheduler implements SchedulerInterface {
             let toPid = this.__currentThread.monitors[id].pid;
             let refUUID = this.__currentThread.monitors[id].uuid;
             let thisPid = this.__currentThread.tid;
-            let statusVal = this.__currentThread.mkVal( status );
-            let reason = TerminationStatus.OK == status
+            let statusVal = this.__currentThread.mkVal(errMsg !== null ? 1 : 0);
+            let reason = errMsg !== null
                 ? statusVal
-                : mkTuple ([statusVal,  mkVal (errstr)]);
+                : mkTuple ([statusVal,  mkVal (errMsg)]);
             let message = mkVal (mkTuple([ mkVal("DONE"), refUUID, thisPid, reason]));
             // false flag means no need to return in the process
             this.rtObj.sendMessageNoChecks( toPid, message, false);
@@ -214,7 +206,7 @@ export class Scheduler implements SchedulerInterface {
 
     /** Kill thread `t` with the error message `s` sent to its monitors. */
     stopThreadWithErrorMessage (t: Thread, errMsg: string) {
-        this.notifyMonitors(TerminationStatus.ERR, errMsg);
+        this.notifyMonitors(errMsg);
         delete this.__alive [t.tid.val.toString()];
     }
 
