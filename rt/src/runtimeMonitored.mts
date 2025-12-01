@@ -112,13 +112,12 @@ async function spawnAtNode(nodeid, f) {
  * @param {*} jsonObj
  *    The payload function.
  *
- * @param {*} rtcb
- *    The callback to the networking runtime (e.g., p2p subsystem)
- *    that we invoke with the newly generated process id. This is
- *    needed to communicate the new pid to the spawner.
- *
  * @param {*} fromNode
  *    The identity of the node that initiates the spawning.
+ *
+ * @return
+ *    The newly generated process id. This is needed to
+ *    communicate the new pid to the spawner.
  */
 async function spawnFromRemote(jsonObj, fromNode) {
   logger.debug("spawn from remote");
