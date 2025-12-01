@@ -58,7 +58,9 @@ async function spawnAtNode(nodeid, f) {
   logger.debug(`* rt spawnAtNode  ${nodeid}`);
   let node = __nodeManager.getNode(nodeid.val);
 
-  // TODO (2018-09-24: AA): do the information flow check
+  // TODO (AA; 2018-09-24): do the information flow check
+  //
+  // TODO (SS; 2025-12-01): type check `f` to be a closure
 
   let { data, level } = serialize(f, lub($t().pc, nodeid.lev));
 
@@ -125,6 +127,9 @@ async function spawnFromRemote(jsonObj, fromNode) {
   logger.debug("spawn from remote");
 
   // Deserialize the given function.
+  //
+  // TODO (SS; 2025-12-01): check that the deserialized value actually is a
+  //                        Troupe closure.
   const lf = await DS.deserialize(nodeTrustLevel(fromNode), jsonObj);
 
   // Schedule `lf` as a new thread and start the scheduler (if it was idle).
