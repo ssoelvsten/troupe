@@ -105,9 +105,7 @@ async function spawnAtNode(nodeid, f) {
 }
 
 /**
- *
- * This function is invoked when someone spawns a thread
- * on our node.
+ * This function is invoked when someone spawns a thread on our node.
  *
  * @param {*} jsonObj
  *    The payload function.
@@ -116,8 +114,8 @@ async function spawnAtNode(nodeid, f) {
  *    The identity of the node that initiates the spawning.
  *
  * @return
- *    The newly generated process id. This is needed to
- *    communicate the new pid to the spawner.
+ *    The newly generated process id. This is needed to communicate the new pid
+ *    to the spawner.
  */
 async function spawnFromRemote(jsonObj, fromNode) {
   logger.debug("spawn from remote");
