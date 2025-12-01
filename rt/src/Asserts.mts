@@ -95,7 +95,7 @@ export function assertIsHandler(x: any) {
 
 export function assertIsUnit(x: any) {
     _thread().raiseBlockingThreadLev(x.tlev);
-    if (!x.val._is_unit) {
+    if (!x.val.isUnit) {
         err("value " + __stringRep(x) + " is not unit")
     }
 }

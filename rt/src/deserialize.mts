@@ -7,7 +7,7 @@ import { mkTuple, mkList } from './ValuesUtil.mjs';
 import { ProcessID } from './process.mjs';
 import { Authority } from './Authority.mjs';
 import { Atom } from './Atom.mjs';
-import { __unitbase }from './UnitBase.mjs'
+import RawUnit from './RawUnit.mjs'
 import { glb, mkLevel } from './Level.mjs';
 import { RuntimeInterface } from './RuntimeInterface.mjs';
 import { Record } from './Record.mjs';
@@ -279,7 +279,7 @@ async function reconstruct(jsonObj: any, compilerOutput: string | undefined, tru
                 case Ty.TroupeType.ATOM:
                     return new Atom(obj.atom, obj.creation_uuid);
                 case Ty.TroupeType.UNIT:
-                     return __unitbase;
+                     return RawUnit;
                 default:
                      return obj;
             }

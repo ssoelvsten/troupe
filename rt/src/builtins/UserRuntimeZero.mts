@@ -12,7 +12,7 @@ import { RuntimeInterface } from '../RuntimeInterface.mjs';
 import { Record } from '../Record.mjs'
 import { TroupeType } from '../TroupeTypes.mjs'
 import { RawClosure } from '../RawClosure.mjs'
-import { __unitbase } from '../UnitBase.mjs'
+import RawUnit from '../RawUnit.mjs'
 import { Thread } from '../Thread.mjs'
 import { TroupeRawValue } from '../TroupeRawValue.mjs'
 import { RawTuple } from '../RawTuple.mjs'
@@ -81,7 +81,7 @@ export class UserRuntimeZero {
     mkVal : (x:any) => LVal = this.default_mkVal
     mkValPos : (x:any, pos:string) => LVal = this.default_mkValPos
     __unit = __unit
-    __unitbase = __unitbase
+    __unitbase = RawUnit
     Atom = Atom
 
     constructor(runtime:RuntimeInterface) {                  
