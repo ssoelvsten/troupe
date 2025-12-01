@@ -1,6 +1,6 @@
 import { Thread, Capability } from './Thread.mjs';
 
-import { isListFlagSet, isTupleFlagSet } from './base/rawUtil.mjs';
+import { isListFlagSet, isTupleFlagSet, isUnit } from './base/rawUtil.mjs';
 import * as proc from './base/ProcessID.mjs';
 const ProcessID = proc.ProcessID;
 import { AbstractLevel } from './AbstractLevel.mjs';
@@ -95,7 +95,7 @@ export function assertIsHandler(x: any) {
 
 export function assertIsUnit(x: any) {
     _thread().raiseBlockingThreadLev(x.tlev);
-    if (!x.val.isUnit) {
+    if (!isUnit(x.val)) {
         err("value " + __stringRep(x) + " is not unit")
     }
 }
