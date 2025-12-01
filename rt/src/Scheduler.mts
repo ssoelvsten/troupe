@@ -194,18 +194,18 @@ export class Scheduler implements SchedulerInterface {
      *       have a tuple with the second value being `__unit`?
      */
     notifyMonitors (errMsg : string | null = null) {
-        let mkVal = this.__currentThread.mkVal;
-        let ids = Object.keys(this.__currentThread.monitors);
+        const mkVal = this.__currentThread.mkVal;
+        const ids = Object.keys(this.__currentThread.monitors);
         for (let i = 0; i < ids.length; i++) {
-            let id = ids[i];
-            let toPid = this.__currentThread.monitors[id].pid;
-            let refUUID = this.__currentThread.monitors[id].uuid;
-            let thisPid = this.__currentThread.tid;
-            let statusVal = this.__currentThread.mkVal(errMsg !== null ? 1 : 0);
-            let reason = errMsg !== null
+            const id = ids[i];
+            const toPid = this.__currentThread.monitors[id].pid;
+            const refUUID = this.__currentThread.monitors[id].uuid;
+            const thisPid = this.__currentThread.tid;
+            const statusVal = this.__currentThread.mkVal(errMsg !== null ? 1 : 0);
+            const reason = errMsg !== null
                 ? statusVal
                 : mkTuple ([statusVal,  mkVal (errMsg)]);
-            let message = mkVal (mkTuple([ mkVal("DONE"), refUUID, thisPid, reason]));
+            const message = mkVal (mkTuple([ mkVal("DONE"), refUUID, thisPid, reason]));
             // false flag means no need to return in the process
             this.rtObj.sendMessageNoChecks( toPid, message, false);
         }
