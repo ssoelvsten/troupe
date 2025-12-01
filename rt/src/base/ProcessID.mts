@@ -12,25 +12,28 @@ export function pid_equals (o1: LVal, o2: LVal) {
 }
 
 export class ProcessID implements TroupeRawValue {
-    _troupeType = TroupeType.PROCESS_ID
+    _troupeType = TroupeType.PROCESS_ID;
     uuid: any;
     pid: any;
     node: any;
-    stringRep: () => string;
-    equals: (o1: any, o2: any) => boolean;
-    dataLevel = BOT 
-    constructor(rt_uuid, pid, node) {      
+    dataLevel = BOT;
+
+    constructor(rt_uuid, pid, node) {
       this.uuid = rt_uuid;
       this.pid = pid;
-      this.node = node ; // getLocalNode();
-      this.equals = pid_equals;
-      this.stringRep = this.toString;
-    }   
-  
-    toString () {      
-      let x = this.pid.toString();
-      // console.log (x);
-      return x;
+      this.node = node;
+    }
+
+    equals(o1: any, o2: any): boolean {
+      return pid_equals(o1, o2);
+    }
+
+    toString () {
+      return this.pid.toString();
+    }
+
+    stringRep() {
+      return this.toString();
     }
 }
 
