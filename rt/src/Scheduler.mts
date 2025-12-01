@@ -185,7 +185,14 @@ export class Scheduler implements SchedulerInterface {
     Thread Termination
     \*************************************************************************************************/
 
-    /** Notify monitors about thread termination. */
+    /** Notify monitors about thread termination.
+     *
+     * @todo During the call in `stopThreadWithErrorMessage`, the thread `t` is explicitly given. Yet
+     *       here, the `__currentThread` is always used.
+     *
+     * @todo The type of `reason` changes depending on the type of `errorMsg`. Should we not instead
+     *       have a tuple with the second value being `__unit`?
+     */
     notifyMonitors (errMsg : string | null = null) {
         let mkVal = this.__currentThread.mkVal;
         let ids = Object.keys(this.__currentThread.monitors);
