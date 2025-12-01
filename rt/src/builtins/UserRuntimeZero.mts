@@ -1,6 +1,6 @@
 'use strict'
 import { runtimeEquals } from '../base/EqualityChecker.mjs'
-import { isListFlagSet, isTupleFlagSet, mkTuple, mkList, mkWithRecord, mkRecord, isRecord } from '../base/ValuesUtil.mjs'
+import { isListFlagSet, isTupleFlagSet, mkTuple, mkList, mkWithRecord, mkRecord, isRecord } from '../base/rawUtil.mjs'
 import { LVal, LValCopyAt, LCopyVal } from '../base/LVal.mjs'
 import { Nil, Cons, RawList } from '../base/RawList.mjs'
 import { loadLibsAsync } from '../loadLibsAsync.mjs';

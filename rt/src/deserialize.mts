@@ -3,7 +3,7 @@ import { strict as assert } from 'node:assert'
 import { spawn, ChildProcess } from 'child_process'
 import * as Ty from './base/TroupeTypes.mjs'
 import { LVal } from './base/LVal.mjs';
-import { mkTuple, mkList, mkRecord } from './base/ValuesUtil.mjs';
+import { mkTuple, mkList, mkRecord } from './base/rawUtil.mjs';
 import { ProcessID } from './base/ProcessID.mjs';
 import { Authority } from './base/Authority.mjs';
 import { Atom } from './base/Atom.mjs';

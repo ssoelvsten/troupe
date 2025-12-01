@@ -2,7 +2,7 @@
 import { UserRuntimeZero, Constructor, mkBase } from './UserRuntimeZero.mjs'
 import { LVal } from '../base/LVal.mjs';
 import { assertIsNTuple, assertIsRecord, assertIsString, assertIsUnit, assertNormalState } from '../Asserts.mjs'
-import { mkWithRecord } from '../base/ValuesUtil.mjs';
+import { mkWithRecord } from '../base/rawUtil.mjs';
 import { lub } from '../Level.mjs';
 import { unitLVal } from '../base/unitLVal.mjs';
 

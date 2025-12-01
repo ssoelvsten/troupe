@@ -5,7 +5,7 @@ import { unitLVal } from '../base/unitLVal.mjs';
 import { getCliArgs, TroupeCliArg } from '../TroupeCliArgs.mjs';
 import { mkLogger } from '../logger.mjs'
 import SandboxStatus from '../SandboxStatus.mjs'
-import { mkTuple } from '../base/ValuesUtil.mjs';
+import { mkTuple } from '../base/rawUtil.mjs';
 import { CALLSIZE, RETOFFSET, Thread } from '../Thread.mjs';
 import { RawClosure, SandboxResumption } from '../base/RawClosure.mjs';
 import { RuntimeInterface } from '../RuntimeInterface.mjs';

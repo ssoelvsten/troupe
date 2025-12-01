@@ -3,7 +3,7 @@
 import { v4 as uuidv4} from 'uuid'
 import { Thread } from './Thread.mjs';
 import runId from './runId.mjs';
-import { mkTuple } from './base/ValuesUtil.mjs';
+import { mkTuple } from './base/rawUtil.mjs';
 import { SchedulerInterface } from './SchedulerInterface.mjs';
 import { RuntimeInterface } from './RuntimeInterface.mjs';
 import { LVal } from './base/LVal.mjs'

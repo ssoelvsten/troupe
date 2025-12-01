@@ -4,7 +4,7 @@ import { flowsTo, lub, glb, BOT } from '../Level.mjs';
 import { RuntimeInterface } from '../RuntimeInterface.mjs';
 import { ReceiveTaintAction } from '../ReceiveTaintAction.mjs';
 import { LVal } from '../base/LVal.mjs';
-import { mkTuple } from '../base/ValuesUtil.mjs';
+import { mkTuple } from '../base/rawUtil.mjs';
 import { unitLVal } from '../base/unitLVal.mjs';
 import SandboxStatus from '../SandboxStatus.mjs';
 import { Thread } from '../Thread.mjs';
