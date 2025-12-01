@@ -1,5 +1,5 @@
 import { UserRuntimeZero, Constructor, mkBase } from './UserRuntimeZero.mjs'
-import { LVal } from '../Lval.mjs';
+import { LVal } from '../LVal.mjs';
 import * as levels from '../Level.mjs'
 import {deserialize} from '../deserialize.mjs'
 import * as fs from 'node:fs';

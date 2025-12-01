@@ -1,5 +1,5 @@
 import { UserRuntimeZero, Constructor, mkBase } from './UserRuntimeZero.mjs'
-import { LVal, LValCopyAt } from '../Lval.mjs';
+import { LVal, LValCopyAt } from '../LVal.mjs';
 import { assertNormalState, assertIsNTuple, assertIsNumber, assertIsFunction } from '../Asserts.mjs'
 import { __unit } from '../UnitVal.mjs';
 import { getCliArgs, TroupeCliArg } from '../TroupeCliArgs.mjs';

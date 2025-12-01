@@ -2,7 +2,7 @@ import * as levels from './Level.mjs'
 const lub = levels.lub;
 const flowsTo = levels.flowsTo
 import { DowngradeDimension, DowngradeKind, DowngradeResult, DowngradeErrorReason, ValidateDowngradeParams } from './DowngradeEnums.mjs';
-import { LVal, LValCopyAt } from './Lval.mjs';
+import { LVal, LValCopyAt } from './LVal.mjs';
 import { HandlerError, ImplementationError, StrThreadError } from './TroupeError.mjs';
 import { getCliArgs, TroupeCliArg } from './TroupeCliArgs.mjs';
 import { getDowngradeErrorMessage } from './DowngradeFormatter.mjs';

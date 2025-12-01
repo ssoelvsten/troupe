@@ -12,7 +12,7 @@
 import assert from 'assert'
 import { lub } from './Level.mjs';
 import * as Ty from './TroupeTypes.mjs'
-import { LVal } from './Lval.mjs';
+import { LVal } from './LVal.mjs';
 import { Level } from './Level.mjs';
 import { StopThreadError, ThreadError } from './TroupeError.mjs';
 import { getRuntimeObject } from './SysState.mjs';

@@ -1,5 +1,5 @@
 import {TroupeType} from './TroupeTypes.mjs'
-import {LVal} from './Lval.mjs'
+import {LVal} from './LVal.mjs'
 import { TroupeRawValue } from './TroupeRawValue.mjs';
 import * as proc from './process.mjs'
 import * as levels  from './Level.mjs'

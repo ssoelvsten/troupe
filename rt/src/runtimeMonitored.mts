@@ -7,7 +7,7 @@ import { Authority } from './Authority.mjs'
 import { Scheduler, ThreadType } from './Scheduler.mjs'
 import { MailboxProcessor } from './MailboxProcessor.mjs'
 import { RuntimeInterface } from './RuntimeInterface.mjs'
-import { LVal, MbVal } from './Lval.mjs'
+import { LVal, MbVal } from './LVal.mjs'
 import { ProcessID } from './process.mjs';
 import { UserRuntime } from './UserRuntime.mjs'
 import * as levels from './Level.mjs'

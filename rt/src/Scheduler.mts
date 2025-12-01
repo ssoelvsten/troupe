@@ -6,7 +6,7 @@ import runId from './runId.mjs';
 import { mkTuple } from './ValuesUtil.mjs';
 import { SchedulerInterface } from './SchedulerInterface.mjs';
 import { RuntimeInterface } from './RuntimeInterface.mjs';
-import { LVal } from './Lval.mjs'
+import { LVal } from './LVal.mjs'
 import { Level } from "./Level.mjs";
 import {ProcessID, pid_equals} from './process.mjs'
 import SandboxStatus from './SandboxStatus.mjs'

@@ -1,7 +1,7 @@
 'use strict'
 import { runtimeEquals } from '../EqualityChecker.mjs'
 import { isListFlagSet, isTupleFlagSet, mkTuple, mkList, mkWithRecord, mkRecord, isRecord } from '../ValuesUtil.mjs'
-import { LVal, LValCopyAt, LCopyVal } from '../Lval.mjs'
+import { LVal, LValCopyAt, LCopyVal } from '../LVal.mjs'
 import { Nil, Cons, RawList } from '../RawList.mjs'
 import { loadLibsAsync } from '../loadLibsAsync.mjs';
 import * as levels from '../Level.mjs'

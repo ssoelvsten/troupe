@@ -9,7 +9,7 @@ import { HandlerState as SandboxStatus }  from  './SandboxStatus.mjs' ;
 import { lub, flowsTo } from './Level.mjs'
 import * as levels from './Level.mjs'
 import { ReceiveTaintAction } from "./ReceiveTaintAction.mjs";
-import { LVal, MbVal } from "./Lval.mjs";
+import { LVal, MbVal } from "./LVal.mjs";
 import { MailboxInterface } from "./MailboxInterface.mjs";
 import { Level } from "./Level.mjs";
 import { Thread } from "./Thread.mjs";

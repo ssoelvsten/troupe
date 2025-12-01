@@ -1,4 +1,4 @@
-import { LCopyVal } from './Lval.mjs';
+import { LCopyVal } from './LVal.mjs';
 import { assertIsNTuple, assertIsAuthority, assertIsLevel } from './Asserts.mjs'
 import { __unit } from './UnitVal.mjs';
 import { lub, flowsTo, okToDeclassify, okToEndorse}  from './Level.mjs'

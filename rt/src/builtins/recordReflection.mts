@@ -1,6 +1,6 @@
 'use strict'
 import { UserRuntimeZero, Constructor, mkBase } from './UserRuntimeZero.mjs'
-import { LVal } from '../Lval.mjs';
+import { LVal } from '../LVal.mjs';
 import { assertIsNTuple, assertIsRecord, assertIsString, assertIsUnit, assertNormalState } from '../Asserts.mjs'
 import { mkWithRecord } from '../ValuesUtil.mjs';
 import { lub } from '../Level.mjs';

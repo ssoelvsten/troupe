@@ -1,6 +1,6 @@
 import {TroupeType} from './TroupeTypes.mjs'
 import {TroupeAggregateRawValue} from './TroupeRawValue.mjs'
-import {LVal, listStringRep} from './Lval.mjs'
+import {LVal, listStringRep} from './LVal.mjs'
 import { Level } from './Level.mjs'
 import * as levels from './Level.mjs'
 

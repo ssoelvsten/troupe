@@ -8,7 +8,7 @@ import { __nodeManager } from '../NodeManager.mjs';
 import { assertNormalState, assertIsNTuple, assertIsString, assertIsProcessId, assertIsAuthority, assertIsRootAuthority, assertIsNode } from '../Asserts.mjs';
 import { __unit } from '../UnitVal.mjs';
 import { nodeTrustLevel } from '../TrustManager.mjs';
-import { LVal } from '../Lval.mjs'
+import { LVal } from '../LVal.mjs'
 import {p2p} from '../p2p/p2p.mjs'
 import { getCliArgs, TroupeCliArg } from '../TroupeCliArgs.mjs';
 import { mkLogger } from '../logger.mjs'

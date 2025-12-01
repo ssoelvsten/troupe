@@ -3,7 +3,7 @@ import { assertNormalState, assertIsNTuple, assertIsLevel, assertIsList, assertI
 import { flowsTo, lub, glb, BOT } from '../Level.mjs';
 import { RuntimeInterface } from '../RuntimeInterface.mjs';
 import { ReceiveTaintAction } from '../ReceiveTaintAction.mjs';
-import { LVal } from '../Lval.mjs';
+import { LVal } from '../LVal.mjs';
 import { mkTuple } from '../ValuesUtil.mjs';
 import { __unit } from '../UnitVal.mjs';
 import SandboxStatus from '../SandboxStatus.mjs';
