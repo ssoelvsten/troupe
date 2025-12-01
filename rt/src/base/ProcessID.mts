@@ -1,14 +1,9 @@
 import { TroupeRawValue } from "./TroupeRawValue.mjs";
 import { TroupeType } from "./TroupeTypes.mjs";
 import { BOT } from '../Level.mjs'
-import { LVal } from "./LVal.mjs";
 
 export function pid_val_equals (v1: ProcessID, v2: ProcessID) {
   return v1.pid.toString() == v2.pid.toString();
-}
-
-export function pid_equals (o1: LVal, o2: LVal) {
-    return pid_val_equals(o1.val, o2.val);
 }
 
 export class ProcessID implements TroupeRawValue {
@@ -22,10 +17,6 @@ export class ProcessID implements TroupeRawValue {
       this.uuid = rt_uuid;
       this.pid = pid;
       this.node = node;
-    }
-
-    equals(o1: any, o2: any): boolean {
-      return pid_equals(o1, o2);
     }
 
     toString () {
