@@ -1,5 +1,6 @@
 import { LVal } from './Lval.mjs'
 import { RawList } from './RawList.mjs'
+import { RawRecord } from './RawRecord.mjs';
 import { RawTuple } from './RawTuple.mjs'
 
 export function isListFlagSet(x: any): x is RawList {
@@ -23,4 +24,23 @@ export function mkTuple(x: LVal[]) {
  */
 export function mkList(a: LVal[]) {
   return RawList.fromArray(a);
+}
+
+
+/**
+ * Takes an iterable of string-keys and LVal values and makes a new Troupe record
+ * object out of it.
+ */
+export function mkRecord(fields: Iterable<readonly [string, LVal]>): RawRecord {
+  return new RawRecord(fields);
+}
+
+
+/**
+ * Extends record `r` with the given `fields`.
+ */
+export function mkWithRecord(r: RawRecord, fields: Array<[string, LVal]>): RawRecord {
+  const a = Array.from(r.__obj);
+  const b = a.concat(fields);
+  return new RawRecord(b)
 }

@@ -38,14 +38,4 @@ export class RawRecord implements TroupeAggregateRawValue {
     get dataLevel () {
         return this._dataLevel
     }
-
-    static mkRecord(fields: Iterable<readonly [string, LVal]>): RawRecord {
-        return new RawRecord(fields)
-    }  
-
-    static mkWithRecord(r: RawRecord, fields: ConcatArray<[string, LVal]>): RawRecord {
-        let a = Array.from(r.__obj)
-        let b = a.concat(fields)
-        return new RawRecord(b)
-    }
 }

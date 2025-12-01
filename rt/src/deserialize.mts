@@ -3,14 +3,13 @@ import { strict as assert } from 'node:assert'
 import { spawn, ChildProcess } from 'child_process'
 import * as Ty from './TroupeTypes.mjs'
 import { LVal } from './Lval.mjs';
-import { mkTuple, mkList } from './ValuesUtil.mjs';
+import { mkTuple, mkList, mkRecord } from './ValuesUtil.mjs';
 import { ProcessID } from './process.mjs';
 import { Authority } from './Authority.mjs';
 import { Atom } from './Atom.mjs';
 import RawUnit from './RawUnit.mjs'
 import { glb, mkLevel } from './Level.mjs';
 import { RuntimeInterface } from './RuntimeInterface.mjs';
-import { RawRecord } from './RawRecord.mjs';
 import { RawClosure } from './RawClosure.mjs';
 import { Level, lub, BOT } from './Level.mjs';
 
@@ -256,7 +255,7 @@ async function reconstruct(jsonObj: any, compilerOutput: string | undefined, tru
                     for (let i = 0; i < obj.length; i++) {
                         a.push ([ obj[i][0], mkValue(obj[i][1]) ]);
                     }
-                    return RawRecord.mkRecord(a);
+                    return mkRecord(a);
                 case Ty.TroupeType.LIST:
                     return mkList(deserializeArray(obj));
                 case Ty.TroupeType.TUPLE:

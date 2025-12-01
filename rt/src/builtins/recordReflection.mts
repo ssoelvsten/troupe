@@ -2,7 +2,7 @@
 import { UserRuntimeZero, Constructor, mkBase } from './UserRuntimeZero.mjs'
 import { LVal } from '../Lval.mjs';
 import { assertIsNTuple, assertIsRecord, assertIsString, assertIsUnit, assertNormalState } from '../Asserts.mjs'
-import { RawRecord } from "../RawRecord.mjs";
+import { mkWithRecord } from '../ValuesUtil.mjs';
 import { lub } from '../Level.mjs';
 import { __unit } from '../UnitVal.mjs';
 
@@ -17,7 +17,7 @@ export function BuiltinRecordReflection<TBase extends Constructor<UserRuntimeZer
             let new_field_str = arg[1];
             let raw_newfield = new_field_str.val;
             let v = new LVal (arg[2].val, lub (arg[2].lev , new_field_str.lev));
-            let new_raw_rec = RawRecord.mkWithRecord (raw_rec, [[raw_newfield, v ]]);
+            let new_raw_rec = mkWithRecord (raw_rec, [[raw_newfield, v ]]);
             let ret_val = new LVal (new_raw_rec, lub (this.runtime.$t.pc, larg.lev, new_field_str.lev)); 
             return this.runtime.ret(ret_val);
         })

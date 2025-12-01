@@ -1,6 +1,6 @@
 'use strict'
 import { runtimeEquals } from '../EqualityChecker.mjs'
-import { isListFlagSet, isTupleFlagSet, mkTuple, mkList } from '../ValuesUtil.mjs'
+import { isListFlagSet, isTupleFlagSet, mkTuple, mkList, mkWithRecord, mkRecord } from '../ValuesUtil.mjs'
 import { LVal, LValCopyAt, LCopyVal } from '../Lval.mjs'
 import { Nil, Cons, RawList } from '../RawList.mjs'
 import { loadLibsAsync } from '../loadLibsAsync.mjs';
@@ -67,7 +67,7 @@ export class UserRuntimeZero {
     
     mkuuid: any
     // SimpleRT with array of labelled values as parameter
-    mkRecord = RawRecord.mkRecord    
+    mkRecord = mkRecord
     // SimpleRT with array of labelled values as parameter
     mkTuple = mkTuple
     // SimpleRT with array of labelled values as parameter
@@ -168,7 +168,7 @@ export class UserRuntimeZero {
 
     // SimpleRT
     withRecord(r: RawRecord, fields: Array<[string, LVal]>): RawRecord {
-        return RawRecord.mkWithRecord(r, fields)
+        return mkWithRecord(r, fields)
     }
 
     // SimpleRT
