@@ -9,7 +9,7 @@ import { BaseFunctionWithExplicitArg, ServiceFunction } from '../BaseFunction.mj
 import { Atom } from '../Atom.mjs'
 import { __unit } from '../UnitVal.mjs'
 import { RuntimeInterface } from '../RuntimeInterface.mjs';
-import { Record } from '../Record.mjs'
+import { RawRecord } from '../RawRecord.mjs'
 import { TroupeType } from '../TroupeTypes.mjs'
 import { RawClosure } from '../RawClosure.mjs'
 import RawUnit from '../RawUnit.mjs'
@@ -67,7 +67,7 @@ export class UserRuntimeZero {
     
     mkuuid: any
     // SimpleRT with array of labelled values as parameter
-    mkRecord = Record.mkRecord    
+    mkRecord = RawRecord.mkRecord    
     // SimpleRT with array of labelled values as parameter
     mkTuple = mkTuple
     // SimpleRT with array of labelled values as parameter
@@ -152,12 +152,12 @@ export class UserRuntimeZero {
     }
 
     // ComplexRT
-    getField(x: Record, f: string): LVal {
+    getField(x: RawRecord, f: string): LVal {
         return x.getField(f)
     }
 
     // SimpleRT
-    hasField(x: Record, f: string): boolean {
+    hasField(x: RawRecord, f: string): boolean {
         return x.hasField(f)
     }
 
@@ -167,8 +167,8 @@ export class UserRuntimeZero {
     }
 
     // SimpleRT
-    withRecord(r: Record, fields: Array<[string, LVal]>): Record {
-        return Record.mkWithRecord(r, fields)
+    withRecord(r: RawRecord, fields: Array<[string, LVal]>): RawRecord {
+        return RawRecord.mkWithRecord(r, fields)
     }
 
     // SimpleRT
@@ -187,7 +187,7 @@ export class UserRuntimeZero {
     }
 
     // SimpleRT
-    raw_recordSize(x: Record): number {
+    raw_recordSize(x: RawRecord): number {
         return x.__obj.size
     }
 

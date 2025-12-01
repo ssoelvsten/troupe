@@ -6,7 +6,7 @@ import * as levels from './Level.mjs'
 import { assertIsRecord } from './Asserts.mjs'
 
 
-export class Record implements TroupeAggregateRawValue {    
+export class RawRecord implements TroupeAggregateRawValue {    
     _troupeType = TroupeType.RECORD
     _dataLevel:  Level = levels.TOP  // TODO compute data level?
     __obj : Map<string, LVal>
@@ -39,13 +39,13 @@ export class Record implements TroupeAggregateRawValue {
         return this._dataLevel
     }
 
-    static mkRecord(fields: Iterable<readonly [string, LVal]>): Record {
-        return new Record(fields)
+    static mkRecord(fields: Iterable<readonly [string, LVal]>): RawRecord {
+        return new RawRecord(fields)
     }  
 
-    static mkWithRecord(r: Record, fields: ConcatArray<[string, LVal]>): Record {
+    static mkWithRecord(r: RawRecord, fields: ConcatArray<[string, LVal]>): RawRecord {
         let a = Array.from(r.__obj)
         let b = a.concat(fields)
-        return new Record(b)
+        return new RawRecord(b)
     }
 }

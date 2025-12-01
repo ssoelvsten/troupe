@@ -29,7 +29,7 @@ import { Console } from 'node:console'
 import { getCliArgs, TroupeCliArg } from './TroupeCliArgs.mjs';
 import { configureColors, isColorEnabled } from './colorConfig.mjs';
 import { mkLogger } from './logger.mjs'
-import { Record } from './Record.mjs';
+import { RawRecord } from './RawRecord.mjs';
 import { level } from 'winston';
 
 const readFile = fs.promises.readFile
@@ -434,7 +434,7 @@ export async function start(f) {
     const serviceAuthority = new LVal(new Authority(levels.ROOT), levels.BOT);
 
     let service_arg =
-      new LVal ( new Record([ ["authority", serviceAuthority],
+      new LVal ( new RawRecord([ ["authority", serviceAuthority],
                               ["options", __unit]]),
               levels.BOT);
     __sched.scheduleNewThread(__service['service']

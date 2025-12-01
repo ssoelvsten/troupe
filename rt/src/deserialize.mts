@@ -10,7 +10,7 @@ import { Atom } from './Atom.mjs';
 import RawUnit from './RawUnit.mjs'
 import { glb, mkLevel } from './Level.mjs';
 import { RuntimeInterface } from './RuntimeInterface.mjs';
-import { Record } from './Record.mjs';
+import { RawRecord } from './RawRecord.mjs';
 import { RawClosure } from './RawClosure.mjs';
 import { Level, lub, BOT } from './Level.mjs';
 
@@ -256,7 +256,7 @@ async function reconstruct(jsonObj: any, compilerOutput: string | undefined, tru
                     for (let i = 0; i < obj.length; i++) {
                         a.push ([ obj[i][0], mkValue(obj[i][1]) ]);
                     }
-                    return Record.mkRecord(a);
+                    return RawRecord.mkRecord(a);
                 case Ty.TroupeType.LIST:
                     return mkList(deserializeArray(obj));
                 case Ty.TroupeType.TUPLE:
