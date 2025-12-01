@@ -33,7 +33,10 @@ function __stringRep (v) {
     }
 }
 
-let err = x => _thread().threadError(x)
+function err (errorMessage: string, internal: boolean = false) {
+    _thread().threadError(errorMessage, internal);
+}
+
 export function assertIsAtom (x: any) {
     _thread().raiseBlockingThreadLev(x.tlev)
     if (x.val._troupeType != TroupeType.ATOM ) {
@@ -74,7 +77,7 @@ export function assertIsFunction(x: any, internal = false) {
 
 export function rawAssertIsFunction(x, internal = false) {
     if (x._troupeType != TroupeType.CLOSURE) {
-        _thread().threadError("value " + __stringRep(x) + " is not a function", internal)
+        err("value " + __stringRep(x) + " is not a function", internal)
     }
 }
 
