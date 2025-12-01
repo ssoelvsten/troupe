@@ -8,5 +8,4 @@ export interface TroupeRawValue {
 }
 
 export interface TroupeAggregateRawValue extends TroupeRawValue {
-    dataLevel: Level;
 }
