@@ -14,6 +14,10 @@ export function runtimeEquals(x: TroupeRawValue, y: TroupeRawValue): LVal {
     return new LVal(b, l, levels.BOT)
   }
 
+  function pidEquality(o1, o2) {
+    return baseBoolean(o1.toString() === o2.toString());
+  }
+
   function levelEquality(o1, o2) {
     return baseBoolean(levels.flowsTo(o1, o2) && levels.flowsTo(o2, o1))
   }
@@ -69,7 +73,7 @@ export function runtimeEquals(x: TroupeRawValue, y: TroupeRawValue): LVal {
     case TroupeType.ATOM:
       return baseBoolean(o1.atom == o2.atom);
     case TroupeType.PROCESS_ID:
-      return baseBoolean(proc.pid_val_equals(o1, o2));
+      return pidEquality(o1, o2);
     case TroupeType.LEVEL:
       return levelEquality(o1, o2);
     case TroupeType.AUTHORITY:
