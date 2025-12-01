@@ -127,7 +127,7 @@ async function spawnFromRemote(jsonObj, fromNode) {
   // Deserialize the given function.
   const lf = await DS.deserialize(nodeTrustLevel(fromNode), jsonObj);
 
-  // Schedule the function as a new thread.
+  // Schedule `lf` as a new thread and start the scheduler (if it was idle).
   const tid =
     __sched.scheduleNewThread(
       lf.val
@@ -135,13 +135,10 @@ async function spawnFromRemote(jsonObj, fromNode) {
       , lf.lev
       , lf.lev
     );
+  __sched.resumeLoopAsync();
 
   // The returned value has to be serialized since it is sent over p2p
-  const serObj = serialize(tid, levels.BOT).data;
-
-  // Invoke the scheduler to start processing the thread.
-  __sched.resumeLoopAsync();
-  return serObj;
+  return serialize(tid, levels.BOT).data;
 }
 
 
