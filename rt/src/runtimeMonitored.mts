@@ -107,6 +107,10 @@ async function spawnAtNode(nodeid, f) {
 /**
  * This function is invoked when someone spawns a thread on our node.
  *
+ * Since it is a new thread that is independent of the other ones already
+ * running, the *pc* and *bl* of this new thread only depends on the received
+ * value, not the one currently running (if any).
+ *
  * @param {*} jsonObj
  *    The payload function.
  *
@@ -119,25 +123,23 @@ async function spawnAtNode(nodeid, f) {
  */
 async function spawnFromRemote(jsonObj, fromNode) {
   logger.debug("spawn from remote");
-  // 2018-05-17: AA; note that this _only_ uses the lf.lev and
-  // is completely independent of the current thread's pc;
 
-  const nodeLev = nodeTrustLevel(fromNode);
+  // Deserialize the given function.
+  const lf = await DS.deserialize(nodeTrustLevel(fromNode), jsonObj);
 
-  const lf = await DS.deserialize(nodeLev, jsonObj);
-  const f = lf.val;
+  // Schedule the function as a new thread.
   const tid =
     __sched.scheduleNewThread(
-      f
+      lf.val
       , __unit
       , lf.lev
       , lf.lev
     );
 
-  // 2018-09-19: AA: because we need to send some info back, we have to invoke
-  // serialization.
+  // The returned value has to be serialized since it is sent over p2p
+  const serObj = serialize(tid, levels.BOT).data;
 
-  const serObj = serialize(tid, levels.BOT).data
+  // Invoke the scheduler to start processing the thread.
   __sched.resumeLoopAsync();
   return serObj;
 }
