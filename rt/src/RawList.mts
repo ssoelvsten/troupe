@@ -7,7 +7,6 @@ import * as levels from './Level.mjs'
 
 export abstract class RawList implements TroupeAggregateRawValue {    
     _troupeType = TroupeType.LIST;
-    isList = true ;
     isNil : boolean
 
     constructor() {

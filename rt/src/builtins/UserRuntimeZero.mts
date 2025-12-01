@@ -143,7 +143,7 @@ export class UserRuntimeZero {
 
     // SimpleRT
     raw_islist(x: TroupeRawValue): boolean {
-        return isListFlagSet(x) // TODO check _troupeType instead?
+        return isListFlagSet(x);
     }
 
     // SimpleRT

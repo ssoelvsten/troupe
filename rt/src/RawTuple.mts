@@ -7,7 +7,6 @@ import * as levels from './Level.mjs'
 export class RawTuple extends Array<LVal> implements TroupeAggregateRawValue {
   dataLevel: Level;
   _troupeType = TroupeType.TUPLE;
-  isTuple = true;
   stringRep = null;
 
   constructor(xs: LVal[]) {

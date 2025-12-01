@@ -2,6 +2,7 @@ import { LVal } from './Lval.mjs'
 import { RawList } from './RawList.mjs'
 import { RawRecord } from './RawRecord.mjs';
 import { RawTuple } from './RawTuple.mjs'
+import { TroupeType } from './TroupeTypes.mjs';
 
 /**
  * Takes an array of labelled values and makes a new Troupe tuple object out of it.
@@ -12,7 +13,7 @@ export function mkTuple(x: LVal[]) {
 
 /** Predicate of whether `x` is a Troupe tuple object. */
 export function isTupleFlagSet(x: any): x is RawTuple {
-  return x.isTuple === true;
+  return x._troupeType === TroupeType.TUPLE;
 }
 
 /**
@@ -24,7 +25,7 @@ export function mkList(a: LVal[]) {
 
 /** Predicate of whether `x` is a Troupe list object. */
 export function isListFlagSet(x: any): x is RawList {
-  return x.isList === true;
+  return x._troupeType === TroupeType.LIST;
 }
 
 /**
