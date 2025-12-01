@@ -2,12 +2,12 @@ import { LVal } from './Lval.mjs'
 import { RawList } from './RawList.mjs'
 import { RawTuple } from './RawTuple.mjs'
 
-export function isListFlagSet (x:any) {  
-  return (x.isList == true )
+export function isListFlagSet(x: any): x is RawList {
+  return x.isList === true;
 }
 
-export function isTupleFlagSet (x:any) {
-  return (x.isTuple == true)
+export function isTupleFlagSet(x: any): x is RawTuple {
+  return x.isTuple === true;
 }
 
 /**
