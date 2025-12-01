@@ -11,7 +11,8 @@ export class RawTuple extends Array<LVal> implements TroupeAggregateRawValue {
   stringRep = null;
 
   constructor(xs: LVal[]) {
-    super(...xs)
+    super(...xs);
+
     this.stringRep = function (omitLevels = false, taintRef = null) {
       return ("(" + listStringRep(xs, omitLevels, taintRef) + ")");
     };
