@@ -13,6 +13,11 @@ export class RawTuple extends Array<LVal> implements TroupeAggregateRawValue {
   constructor(xs: LVal[]) {
     super(...xs);
 
+    // HACK: This member definition is currently in the constructor to have
+    //       access to `xs`. One cannot move it out, since that would break
+    //       `xs.map` in `listStringRep(this, ...)`; the inherited `map` is
+    //       designed to use the child's (`RawTuple`) constructor rather than
+    //       the one of `super` (`Array`).
     this.stringRep = function (omitLevels = false, taintRef = null) {
       return `(${listStringRep(xs, omitLevels, taintRef)})`;
     };
