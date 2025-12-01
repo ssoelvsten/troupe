@@ -2,7 +2,13 @@ import { LVal } from './Lval.mjs'
 import { RawList } from './RawList.mjs'
 import { RawRecord } from './RawRecord.mjs';
 import { RawTuple } from './RawTuple.mjs'
+import { RawUnit } from './RawUnit.mjs';
 import { TroupeType } from './TroupeTypes.mjs';
+
+/** Predicate of whether `x` is the Troupe unit object. */
+export function isUnit(x: any): x is RawUnit {
+  return x._troupeType === TroupeType.UNIT;
+}
 
 /**
  * Takes an array of labelled values and makes a new Troupe tuple object out of it.
