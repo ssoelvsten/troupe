@@ -10,13 +10,13 @@ export class RawTuple extends Array<LVal> implements TroupeAggregateRawValue {
   isTuple = true;
   stringRep = null;
 
-  constructor(x: LVal[]) {
-    super(...x)
+  constructor(xs: LVal[]) {
+    super(...xs)
     this.stringRep = function (omitLevels = false, taintRef = null) {
-      return ("(" + listStringRep(x, omitLevels, taintRef) + ")");
+      return ("(" + listStringRep(xs, omitLevels, taintRef) + ")");
     };
 
-    let dataLevels = x.map(lv => lv.dataLevel);
+    let dataLevels = xs.map(x => x.dataLevel);
     this.dataLevel = levels.lubs.call(null, dataLevels);
   }
 }
