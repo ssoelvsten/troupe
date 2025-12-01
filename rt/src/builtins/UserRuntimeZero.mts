@@ -1,6 +1,6 @@
 'use strict'
 import { runtimeEquals } from '../EqualityChecker.mjs'
-import { isListFlagSet, isTupleFlagSet, mkTuple, mkList, mkWithRecord, mkRecord } from '../ValuesUtil.mjs'
+import { isListFlagSet, isTupleFlagSet, mkTuple, mkList, mkWithRecord, mkRecord, isRecord } from '../ValuesUtil.mjs'
 import { LVal, LValCopyAt, LCopyVal } from '../Lval.mjs'
 import { Nil, Cons, RawList } from '../RawList.mjs'
 import { loadLibsAsync } from '../loadLibsAsync.mjs';
@@ -148,7 +148,7 @@ export class UserRuntimeZero {
 
     // SimpleRT
     raw_istuple(x: TroupeRawValue): boolean {
-        return (x._troupeType == TroupeType.TUPLE)
+        return isTupleFlagSet(x);
     }
 
     // ComplexRT
@@ -163,7 +163,7 @@ export class UserRuntimeZero {
 
     // SimpleRT
     isRecord(x: TroupeRawValue): boolean {
-        return (x._troupeType == TroupeType.RECORD)
+        return isRecord(x);
     }
 
     // SimpleRT
