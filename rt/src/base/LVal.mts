@@ -4,6 +4,7 @@ import * as Ty from './TroupeTypes.mjs';
 import { TroupeRawValue } from './TroupeRawValue.mjs';
 
 export class LVal implements TroupeRawValue{
+    // TODO (SS; 2025-12-01): Make type of `val` generic (to improve type system).
     val: any;
     lev: Level;
     tlev: Level;
