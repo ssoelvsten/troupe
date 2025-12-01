@@ -3,14 +3,6 @@ import { RawList } from './RawList.mjs'
 import { RawRecord } from './RawRecord.mjs';
 import { RawTuple } from './RawTuple.mjs'
 
-export function isListFlagSet(x: any): x is RawList {
-  return x.isList === true;
-}
-
-export function isTupleFlagSet(x: any): x is RawTuple {
-  return x.isTuple === true;
-}
-
 /**
  * Takes an array of labelled values and makes a new Troupe tuple object out of it.
  */
@@ -18,6 +10,10 @@ export function mkTuple(x: LVal[]) {
   return new RawTuple(x)
 }
 
+/** Predicate of whether `x` is a Troupe tuple object. */
+export function isTupleFlagSet(x: any): x is RawTuple {
+  return x.isTuple === true;
+}
 
 /**
  * Takes an array of labelled values and makes a new Troupe list object out of it.
@@ -26,6 +22,10 @@ export function mkList(a: LVal[]) {
   return RawList.fromArray(a);
 }
 
+/** Predicate of whether `x` is a Troupe list object. */
+export function isListFlagSet(x: any): x is RawList {
+  return x.isList === true;
+}
 
 /**
  * Takes an iterable of string-keys and LVal values and makes a new Troupe record
