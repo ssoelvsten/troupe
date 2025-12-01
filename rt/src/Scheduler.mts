@@ -8,7 +8,7 @@ import { SchedulerInterface } from './SchedulerInterface.mjs';
 import { RuntimeInterface } from './RuntimeInterface.mjs';
 import { LVal } from './base/LVal.mjs'
 import { Level } from "./Level.mjs";
-import {ProcessID, pid_equals} from './base/process.mjs'
+import {ProcessID, pid_equals} from './base/ProcessID.mjs'
 import SandboxStatus from './SandboxStatus.mjs'
 import  {ThreadError, TroupeError} from './TroupeError.mjs'
 import  {lub} from './Level.mjs'

@@ -8,7 +8,7 @@ import { Scheduler, ThreadType } from './Scheduler.mjs'
 import { MailboxProcessor } from './MailboxProcessor.mjs'
 import { RuntimeInterface } from './RuntimeInterface.mjs'
 import { LVal, MbVal } from './base/LVal.mjs'
-import { ProcessID } from './base/process.mjs';
+import { ProcessID } from './base/ProcessID.mjs';
 import { UserRuntime } from './UserRuntime.mjs'
 import * as levels from './Level.mjs'
 const { flowsTo, lub, glb } = levels

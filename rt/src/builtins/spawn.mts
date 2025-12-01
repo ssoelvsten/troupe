@@ -4,7 +4,7 @@ import { assertNormalState, assertIsFunction, assertIsNode } from '../Asserts.mj
 import { __nodeManager } from '../NodeManager.mjs';
 import { unitLVal } from '../base/unitLVal.mjs';
 import {SYSTEM_PROCESS_STRING} from '../Constants.mjs'
-import { ProcessID } from '../base/process.mjs';
+import { ProcessID } from '../base/ProcessID.mjs';
 
 export function BuiltinSpawn<TBase extends Constructor<UserRuntimeZero>>(Base: TBase) {
     return class extends Base {

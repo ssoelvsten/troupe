@@ -4,7 +4,7 @@ import { spawn, ChildProcess } from 'child_process'
 import * as Ty from './base/TroupeTypes.mjs'
 import { LVal } from './base/LVal.mjs';
 import { mkTuple, mkList, mkRecord } from './base/ValuesUtil.mjs';
-import { ProcessID } from './base/process.mjs';
+import { ProcessID } from './base/ProcessID.mjs';
 import { Authority } from './base/Authority.mjs';
 import { Atom } from './base/Atom.mjs';
 import RawUnit from './base/RawUnit.mjs'

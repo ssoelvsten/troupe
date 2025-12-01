@@ -1,7 +1,7 @@
 'use strict'
 import { UserRuntimeZero, Constructor, mkBase } from './UserRuntimeZero.mjs'
 import * as levels from '../Level.mjs'
-import { ProcessID } from '../base/process.mjs';
+import { ProcessID } from '../base/ProcessID.mjs';
 const { lub, flowsTo } = levels
 import {deserialize} from '../deserialize.mjs'
 import { __nodeManager } from '../NodeManager.mjs';
