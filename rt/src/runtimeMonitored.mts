@@ -195,11 +195,12 @@ function sendMessageToRemote(toPid: any, message: LVal) {
                     ` | the trust level of the recepient node: ${trustLevel.stringRep()}\n` +
                     ` | the level of the information to send:  ${level.stringRep()}`,
                     false);
-  } else {
-    // we return unit to the call site at the thread level
-    p2p.sendp2p(node, pid, data)
-    return $t().returnImmediateLValue(__unit);
+    return;
   }
+
+  // we return unit to the call site at the thread level
+  p2p.sendp2p(node, pid, data)
+  return $t().returnImmediateLValue(__unit);
 }
 
 
