@@ -3,9 +3,9 @@ import { assertNormalState, assertIsNTuple, assertIsLevel, assertIsList, assertI
 import { flowsTo, lub, glb, BOT } from '../Level.mjs';
 import { RuntimeInterface } from '../RuntimeInterface.mjs';
 import { ReceiveTaintAction } from '../ReceiveTaintAction.mjs';
-import { LVal } from '../LVal.mjs';
-import { mkTuple } from '../ValuesUtil.mjs';
-import { __unit } from '../UnitVal.mjs';
+import { LVal } from '../base/LVal.mjs';
+import { mkTuple } from '../base/ValuesUtil.mjs';
+import { __unit } from '../base/UnitVal.mjs';
 import SandboxStatus from '../SandboxStatus.mjs';
 import { Thread } from '../Thread.mjs';
 import { debug } from 'console';

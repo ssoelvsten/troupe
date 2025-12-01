@@ -2,8 +2,8 @@ import {TroupeType} from './TroupeTypes.mjs'
 import {LVal} from './LVal.mjs'
 import { TroupeRawValue } from './TroupeRawValue.mjs';
 import * as proc from './process.mjs'
-import * as levels  from './Level.mjs'
-import { Level } from './Level.mjs';
+import * as levels  from '../Level.mjs'
+import { Level } from '../Level.mjs';
 
 /**
  * Compute deep equality of the given unlabelled raw values.

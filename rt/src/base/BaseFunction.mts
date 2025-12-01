@@ -1,7 +1,7 @@
 import {ClosureType, TroupeType} from './TroupeTypes.mjs'
 import {TroupeAggregateRawValue} from './TroupeRawValue.mjs'
-import * as levels from './Level.mjs' 
-import { getRuntimeObject } from './SysState.mjs'
+import * as levels from '../Level.mjs' 
+import { getRuntimeObject } from '../SysState.mjs'
 
 export function BaseFunctionWithExplicitArg(f, name = null) : TroupeAggregateRawValue{
   

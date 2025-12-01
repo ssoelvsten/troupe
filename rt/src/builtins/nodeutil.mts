@@ -1,5 +1,5 @@
 import { UserRuntimeZero, Constructor, mkBase } from './UserRuntimeZero.mjs'
-import { LVal } from '../LVal.mjs';
+import { LVal } from '../base/LVal.mjs';
 import { assertIsProcessId } from '../Asserts.mjs'
 
 /**

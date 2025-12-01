@@ -1,6 +1,6 @@
 import { TroupeRawValue } from "./TroupeRawValue.mjs";
 import { TroupeType } from "./TroupeTypes.mjs";
-import { BOT } from './Level.mjs'
+import { BOT } from '../Level.mjs'
 
 export function pid_equals (o1, o2) {
     let eq = o1.val.pid.toString() == o2.val.pid.toString();

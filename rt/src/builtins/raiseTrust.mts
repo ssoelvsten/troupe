@@ -1,7 +1,7 @@
 import { UserRuntimeZero, Constructor, mkBase } from './UserRuntimeZero.mjs'
-import { LCopyVal } from '../LVal.mjs';
+import { LCopyVal } from '../base/LVal.mjs';
 import { assertIsNTuple, assertIsAuthority, assertIsLevel, assertNormalState, assertIsString, assertIsRootAuthority } from '../Asserts.mjs'
-import { __unit } from '../UnitVal.mjs';
+import { __unit } from '../base/UnitVal.mjs';
 import * as levels from '../Level.mjs'
 import { __nodeManager } from '../NodeManager.mjs';
 import { nodeTrustLevel, _trustMap } from '../TrustManager.mjs';

@@ -1,5 +1,5 @@
-import { TroupeType } from "./TroupeTypes.mjs";
-import { TroupeRawValue } from "./TroupeRawValue.mjs";
+import { TroupeType } from "./base/TroupeTypes.mjs";
+import { TroupeRawValue } from "./base/TroupeRawValue.mjs";
 
 export abstract class AbstractLevel <T extends AbstractLevel<T>> 
  implements TroupeRawValue {

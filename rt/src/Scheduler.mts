@@ -3,12 +3,12 @@
 import { v4 as uuidv4} from 'uuid'
 import { Thread } from './Thread.mjs';
 import runId from './runId.mjs';
-import { mkTuple } from './ValuesUtil.mjs';
+import { mkTuple } from './base/ValuesUtil.mjs';
 import { SchedulerInterface } from './SchedulerInterface.mjs';
 import { RuntimeInterface } from './RuntimeInterface.mjs';
-import { LVal } from './LVal.mjs'
+import { LVal } from './base/LVal.mjs'
 import { Level } from "./Level.mjs";
-import {ProcessID, pid_equals} from './process.mjs'
+import {ProcessID, pid_equals} from './base/process.mjs'
 import SandboxStatus from './SandboxStatus.mjs'
 import  {ThreadError, TroupeError} from './TroupeError.mjs'
 import  {lub} from './Level.mjs'

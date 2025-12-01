@@ -1,10 +1,10 @@
 'use strict'
 import { UserRuntimeZero, Constructor, mkBase } from './UserRuntimeZero.mjs'
-import { LVal } from '../LVal.mjs';
+import { LVal } from '../base/LVal.mjs';
 import { assertIsNTuple, assertIsRecord, assertIsString, assertIsUnit, assertNormalState } from '../Asserts.mjs'
-import { mkWithRecord } from '../ValuesUtil.mjs';
+import { mkWithRecord } from '../base/ValuesUtil.mjs';
 import { lub } from '../Level.mjs';
-import { __unit } from '../UnitVal.mjs';
+import { __unit } from '../base/UnitVal.mjs';
 
 export function BuiltinRecordReflection<TBase extends Constructor<UserRuntimeZero>>(Base: TBase) {
     return class extends Base {        

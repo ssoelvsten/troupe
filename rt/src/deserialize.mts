@@ -1,16 +1,16 @@
 "use strict";
 import { strict as assert } from 'node:assert'
 import { spawn, ChildProcess } from 'child_process'
-import * as Ty from './TroupeTypes.mjs'
-import { LVal } from './LVal.mjs';
-import { mkTuple, mkList, mkRecord } from './ValuesUtil.mjs';
-import { ProcessID } from './process.mjs';
-import { Authority } from './Authority.mjs';
-import { Atom } from './Atom.mjs';
-import RawUnit from './RawUnit.mjs'
+import * as Ty from './base/TroupeTypes.mjs'
+import { LVal } from './base/LVal.mjs';
+import { mkTuple, mkList, mkRecord } from './base/ValuesUtil.mjs';
+import { ProcessID } from './base/process.mjs';
+import { Authority } from './base/Authority.mjs';
+import { Atom } from './base/Atom.mjs';
+import RawUnit from './base/RawUnit.mjs'
 import { glb, mkLevel } from './Level.mjs';
 import { RuntimeInterface } from './RuntimeInterface.mjs';
-import { RawClosure } from './RawClosure.mjs';
+import { RawClosure } from './base/RawClosure.mjs';
 import { Level, lub, BOT } from './Level.mjs';
 
 // OBS: The variables below with `__` prefixes are all global! This is because the callback and

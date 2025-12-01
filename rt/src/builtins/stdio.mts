@@ -1,9 +1,9 @@
 import { UserRuntimeZero, Constructor, mkBase } from './UserRuntimeZero.mjs'
-import { LocalObject } from '../LocalObject.mjs'
+import { LocalObject } from '../base/LocalObject.mjs'
 import * as levels from '../Level.mjs'
 import { mkLevel } from '../Level.mjs'
 import { assertIsAuthority, assertIsRootAuthority, assertIsNTuple, assertIsLocalObject, assertIsString, assertIsUnit, assertNormalState } from '../Asserts.mjs'
-import { __unit } from '../UnitVal.mjs';
+import { __unit } from '../base/UnitVal.mjs';
 import { getCliArgs, TroupeCliArg } from '../TroupeCliArgs.mjs';
 const argv = getCliArgs();
 

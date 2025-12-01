@@ -2,13 +2,13 @@ import * as fs from 'node:fs';
 import chalk from 'chalk';
 import { v4 as uuidv4 } from 'uuid'
 import AggregateError from 'aggregate-error';
-import { __unit } from './UnitVal.mjs'
-import { Authority } from './Authority.mjs'
+import { __unit } from './base/UnitVal.mjs'
+import { Authority } from './base/Authority.mjs'
 import { Scheduler, ThreadType } from './Scheduler.mjs'
 import { MailboxProcessor } from './MailboxProcessor.mjs'
 import { RuntimeInterface } from './RuntimeInterface.mjs'
-import { LVal, MbVal } from './LVal.mjs'
-import { ProcessID } from './process.mjs';
+import { LVal, MbVal } from './base/LVal.mjs'
+import { ProcessID } from './base/process.mjs';
 import { UserRuntime } from './UserRuntime.mjs'
 import * as levels from './Level.mjs'
 const { flowsTo, lub, glb } = levels
@@ -29,7 +29,7 @@ import { Console } from 'node:console'
 import { getCliArgs, TroupeCliArg } from './TroupeCliArgs.mjs';
 import { configureColors, isColorEnabled } from './colorConfig.mjs';
 import { mkLogger } from './logger.mjs'
-import { RawRecord } from './RawRecord.mjs';
+import { RawRecord } from './base/RawRecord.mjs';
 import { level } from 'winston';
 
 const readFile = fs.promises.readFile

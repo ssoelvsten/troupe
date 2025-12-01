@@ -1,6 +1,6 @@
 import {TroupeType} from './TroupeTypes.mjs'
 import {TroupeRawValue} from './TroupeRawValue.mjs'
-import * as levels from './Level.mjs'
+import * as levels from '../Level.mjs'
 
 export class LocalObject implements TroupeRawValue {
     _troupeType : TroupeType

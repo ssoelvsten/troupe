@@ -1,5 +1,5 @@
 import { MessageType } from './Message.mjs'
-import { LVal } from '../LVal.mjs'
+import { LVal } from '../base/LVal.mjs'
 
 /**
  * Handler for `SPAWN` messages.

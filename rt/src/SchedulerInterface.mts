@@ -1,5 +1,5 @@
 import { Thread } from "./Thread.mjs";
-import { LVal } from './LVal.mjs'
+import { LVal } from './base/LVal.mjs'
 import { Level } from "./Level.mjs";
 
 export interface SchedulerInterface {

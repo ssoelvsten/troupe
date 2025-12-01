@@ -1,10 +1,10 @@
 import { UserRuntimeZero, Constructor, mkBase } from './UserRuntimeZero.mjs'
-import { LVal } from '../LVal.mjs';
+import { LVal } from '../base/LVal.mjs';
 import * as levels from '../Level.mjs'
 import {deserialize} from '../deserialize.mjs'
 import * as fs from 'node:fs';
 import { assertIsNTuple, assertIsRootAuthority, assertIsString } from '../Asserts.mjs'
-import { __unit } from '../UnitVal.mjs';
+import { __unit } from '../base/UnitVal.mjs';
 
 export function BuiltinPersist<TBase extends Constructor<UserRuntimeZero>>(Base: TBase) {
     return class extends Base {

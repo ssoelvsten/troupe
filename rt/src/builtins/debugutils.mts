@@ -1,7 +1,7 @@
 import {UserRuntimeZero, Constructor, mkBase} from './UserRuntimeZero.mjs'
 import { assertIsString, assertIsNumber, assertIsNTuple } from '../Asserts.mjs'
-import { __unit } from '../UnitVal.mjs';
-import { TroupeType } from '../TroupeTypes.mjs';
+import { __unit } from '../base/UnitVal.mjs';
+import { TroupeType } from '../base/TroupeTypes.mjs';
 
 
 export function BuiltinDebugUtils <TBase extends Constructor<UserRuntimeZero>> (Base:TBase) {

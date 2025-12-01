@@ -2,15 +2,15 @@ import * as levels from './Level.mjs'
 const lub = levels.lub;
 const flowsTo = levels.flowsTo
 import { DowngradeDimension, DowngradeKind, DowngradeResult, DowngradeErrorReason, ValidateDowngradeParams } from './DowngradeEnums.mjs';
-import { LVal, LValCopyAt } from './LVal.mjs';
+import { LVal, LValCopyAt } from './base/LVal.mjs';
 import { HandlerError, ImplementationError, StrThreadError } from './TroupeError.mjs';
 import { getCliArgs, TroupeCliArg } from './TroupeCliArgs.mjs';
 import { getDowngradeErrorMessage } from './DowngradeFormatter.mjs';
 import { mkLogger } from './logger.mjs'
 import { v4 as uuidv4} from 'uuid'
-import { TroupeType } from './TroupeTypes.mjs'
+import { TroupeType } from './base/TroupeTypes.mjs'
 import { RuntimeInterface } from './RuntimeInterface.mjs';
-import { __unit } from './UnitVal.mjs';
+import { __unit } from './base/UnitVal.mjs';
 import { Level } from './Level.mjs';
 import { SchedulerInterface } from './SchedulerInterface.mjs';
 import { getRuntimeObject } from './SysState.mjs';

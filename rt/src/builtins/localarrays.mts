@@ -1,9 +1,9 @@
 import {UserRuntimeZero, Constructor, mkBase} from './UserRuntimeZero.mjs'
-import { LVal } from '../LVal.mjs';
+import { LVal } from '../base/LVal.mjs';
 import {lub, flowsTo} from '../Level.mjs'
 import { assertIsNumber, assertIsNTuple, assertIsLevel, assertIsLocalObject } from '../Asserts.mjs'
-import { LocalObject } from '../LocalObject.mjs';
-import { __unit } from '../UnitVal.mjs';
+import { LocalObject } from '../base/LocalObject.mjs';
+import { __unit } from '../base/UnitVal.mjs';
 
 
 

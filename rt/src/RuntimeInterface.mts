@@ -1,6 +1,6 @@
 import { SchedulerInterface } from "./SchedulerInterface.mjs";
 import { Thread } from "./Thread.mjs";
-import { LVal } from './LVal.mjs'
+import { LVal } from './base/LVal.mjs'
 import { MailboxInterface } from "./MailboxInterface.mjs";
 
 export interface RuntimeInterface {

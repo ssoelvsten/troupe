@@ -1,4 +1,4 @@
-import { BOT } from './Level.mjs'
+import { BOT } from '../Level.mjs'
 import { TroupeType } from './TroupeTypes.mjs';
 import { TroupeRawValue } from './TroupeRawValue.mjs'
 

@@ -1,8 +1,8 @@
 'use strict'
 import { UserRuntimeZero, Constructor, mkBase } from './UserRuntimeZero.mjs'
-import { LVal } from '../LVal.mjs';
+import { LVal } from '../base/LVal.mjs';
 import { assertIsList } from '../Asserts.mjs'
-import { mkTuple } from '../ValuesUtil.mjs'
+import { mkTuple } from '../base/ValuesUtil.mjs'
 import { lub } from '../Level.mjs';
 
 export function BuiltinListToTuple<TBase extends Constructor<UserRuntimeZero>>(Base: TBase) {

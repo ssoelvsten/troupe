@@ -1,6 +1,6 @@
 'use strict'
 import { UserRuntimeZero, Constructor, mkBase } from './UserRuntimeZero.mjs'
-import { LVal } from '../LVal.mjs';
+import { LVal } from '../base/LVal.mjs';
 
 
 export function BuiltinToString<TBase extends Constructor<UserRuntimeZero>>(Base: TBase) {

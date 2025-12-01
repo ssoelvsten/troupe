@@ -1,18 +1,18 @@
 import { Thread, Capability } from './Thread.mjs';
 
-import { isListFlagSet, isTupleFlagSet } from './ValuesUtil.mjs';
-import * as proc from './process.mjs';
+import { isListFlagSet, isTupleFlagSet } from './base/ValuesUtil.mjs';
+import * as proc from './base/process.mjs';
 const ProcessID = proc.ProcessID;
 import { AbstractLevel } from './AbstractLevel.mjs';
 import { Level } from './Level.mjs';
-import { Authority } from './Authority.mjs'
+import { Authority } from './base/Authority.mjs'
 import * as levels from './Level.mjs'; 
-import { TroupeType } from './TroupeTypes.mjs';
+import { TroupeType } from './base/TroupeTypes.mjs';
 const actsFor = levels.actsFor;
 
 import { getRuntimeObject } from './SysState.mjs';
 import { __nodeManager } from './NodeManager.mjs';
-import { TroupeAggregateRawValue, TroupeRawValue } from './TroupeRawValue.mjs';
+import { TroupeAggregateRawValue, TroupeRawValue } from './base/TroupeRawValue.mjs';
 // import { LVal } from './Lval';
 
 function _thread() {

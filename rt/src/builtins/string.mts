@@ -1,5 +1,5 @@
 import {UserRuntimeZero, Constructor, mkBase} from './UserRuntimeZero.mjs'
-import { LVal } from '../LVal.mjs';
+import { LVal } from '../base/LVal.mjs';
 import { assertIsString, assertIsNTuple, assertIsNumber } from '../Asserts.mjs'
 import { lub } from '../Level.mjs';
 

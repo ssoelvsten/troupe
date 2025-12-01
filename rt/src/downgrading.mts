@@ -1,6 +1,6 @@
-import { LCopyVal } from './LVal.mjs';
+import { LCopyVal } from './base/LVal.mjs';
 import { assertIsNTuple, assertIsAuthority, assertIsLevel } from './Asserts.mjs'
-import { __unit } from './UnitVal.mjs';
+import { __unit } from './base/UnitVal.mjs';
 import { lub, flowsTo, okToDeclassify, okToEndorse}  from './Level.mjs'
 import { DowngradeResult, DowngradeDimension, DowngradeErrorReason } from './DowngradeEnums.mjs';
 import {

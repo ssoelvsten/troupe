@@ -1,7 +1,7 @@
 import { assertIsHandler, assertIsNTuple, assertIsFunction } from "./Asserts.mjs";
-import { mkTuple } from "./ValuesUtil.mjs";
+import { mkTuple } from "./base/ValuesUtil.mjs";
 import { SchedulerInterface } from "./SchedulerInterface.mjs";
-import { __unit } from "./UnitVal.mjs";
+import { __unit } from "./base/UnitVal.mjs";
 import { RuntimeInterface } from "./RuntimeInterface.mjs";
 import { mkLogger } from './logger.mjs'
 import { getCliArgs, TroupeCliArg } from './TroupeCliArgs.mjs';
@@ -9,7 +9,7 @@ import { HandlerState as SandboxStatus }  from  './SandboxStatus.mjs' ;
 import { lub, flowsTo } from './Level.mjs'
 import * as levels from './Level.mjs'
 import { ReceiveTaintAction } from "./ReceiveTaintAction.mjs";
-import { LVal, MbVal } from "./LVal.mjs";
+import { LVal, MbVal } from "./base/LVal.mjs";
 import { MailboxInterface } from "./MailboxInterface.mjs";
 import { Level } from "./Level.mjs";
 import { Thread } from "./Thread.mjs";

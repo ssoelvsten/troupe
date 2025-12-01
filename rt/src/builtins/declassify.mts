@@ -1,5 +1,5 @@
 import { UserRuntimeZero, Constructor, mkBase } from './UserRuntimeZero.mjs'
-import { __unit } from '../UnitVal.mjs';
+import { __unit } from '../base/UnitVal.mjs';
 import { downgrader } from '../downgrading.mjs';
 import { DowngradeDimension } from '../DowngradeEnums.mjs';
 

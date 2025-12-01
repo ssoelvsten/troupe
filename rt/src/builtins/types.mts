@@ -1,11 +1,11 @@
 'use strict'
 import { UserRuntimeZero, Constructor, mkBase } from './UserRuntimeZero.mjs'
-import { LVal } from '../LVal.mjs';
+import { LVal } from '../base/LVal.mjs';
 import { assertIsNTuple, assertIsRecord, assertIsString, assertIsUnit, assertNormalState } from '../Asserts.mjs'
-import { RawRecord } from "../RawRecord.mjs";
+import { RawRecord } from "../base/RawRecord.mjs";
 import { lub } from '../Level.mjs';
-import { __unit } from '../UnitVal.mjs';
-import { TroupeType } from '../TroupeTypes.mjs';
+import { __unit } from '../base/UnitVal.mjs';
+import { TroupeType } from '../base/TroupeTypes.mjs';
 
 export function BuiltinTypeInformation<TBase extends Constructor<UserRuntimeZero>>(Base: TBase) {
     return class extends Base {        

@@ -1,7 +1,7 @@
 import { UserRuntimeZero, Constructor, mkBase } from './UserRuntimeZero.mjs'
 import { assertIsUnit } from '../Asserts.mjs'
 import { BOT } from '../Level.mjs';
-import { LVal } from '../LVal.mjs';
+import { LVal } from '../base/LVal.mjs';
 
 export function BuiltinThread<TBase extends Constructor<UserRuntimeZero>>(Base: TBase) {
   return class extends Base {

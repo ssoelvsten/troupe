@@ -2,9 +2,9 @@ import { UserRuntimeZero, Constructor, mkBase } from './UserRuntimeZero.mjs'
 import {lub} from '../Level.mjs'
 import { assertNormalState, assertIsFunction, assertIsNode } from '../Asserts.mjs'
 import { __nodeManager } from '../NodeManager.mjs';
-import { __unit } from '../UnitVal.mjs';
+import { __unit } from '../base/UnitVal.mjs';
 import {SYSTEM_PROCESS_STRING} from '../Constants.mjs'
-import { ProcessID } from '../process.mjs';
+import { ProcessID } from '../base/process.mjs';
 
 export function BuiltinSpawn<TBase extends Constructor<UserRuntimeZero>>(Base: TBase) {
     return class extends Base {
