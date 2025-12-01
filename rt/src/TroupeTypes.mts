@@ -59,13 +59,3 @@ export function getTroupeType (x:any) {
 
   throw new Error (`Cannot identify troupe type for value ${x.toString()} of type ${typeof x}`);
 }
-
-/*
-export function isBaseType (t:TroupeType) {
-  return t <= TroupeType.ATOM
-}
-
-export function isAggregate(t:TroupeType) {
-  return t >= TroupeType.CLOSURE
-}
-*/
