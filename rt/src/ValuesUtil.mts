@@ -36,7 +36,6 @@ export function mkRecord(fields: Iterable<readonly [string, LVal]>): RawRecord {
   return new RawRecord(fields);
 }
 
-
 /**
  * Extends record `r` with the given `fields`.
  */
@@ -44,4 +43,9 @@ export function mkWithRecord(r: RawRecord, fields: Array<[string, LVal]>): RawRe
   const a = Array.from(r.__obj);
   const b = a.concat(fields);
   return new RawRecord(b)
+}
+
+/** Predicate of whether `x` is a Troupe record object. */
+export function isRecord(x: any): x is RawRecord {
+  return x._troupeType === TroupeType.RECORD;
 }
