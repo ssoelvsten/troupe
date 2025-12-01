@@ -1,4 +1,4 @@
-import { LVal, listStringRep} from './Lval.mjs'
+import { LVal } from './Lval.mjs'
 import { RawList } from './RawList.mjs'
 import { RawTuple } from './RawTuple.mjs'
 
