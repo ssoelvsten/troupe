@@ -41,3 +41,24 @@ export function ServiceFunction (f, name=null) : TroupeAggregateRawValue {
   closure.dataLevel = levels.BOT; 
   return closure;  
 }
+
+
+export function SandboxResumption(f) : TroupeAggregateRawValue {
+  let closure: any = () => {
+    return f();
+  };
+
+  closure.fun = f // TODO: redundant?
+  closure._troupeType = TroupeType.CLOSURE;
+  closure._closureType = ClosureType.SANDBOXKONT;
+  closure.stringRep  = (omitLevels = false ) => {
+    return "<sandboxkont>";
+  };
+
+  closure.dataLevel = levels.BOT;
+  closure.toString = () => {
+    return ("<sandboxkont>")
+  };
+
+  return closure;
+}

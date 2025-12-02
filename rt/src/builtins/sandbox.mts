@@ -7,7 +7,7 @@ import { mkLogger } from '../logger.mjs'
 import SandboxStatus from '../SandboxStatus.mjs'
 import { mkTuple } from '../base/rawUtil.mjs';
 import { CALLSIZE, RETOFFSET, Thread } from '../Thread.mjs';
-import { RawClosure, SandboxResumption } from '../base/RawClosure.mjs';
+import { SandboxResumption } from '../base/LocalFunction.mjs';
 import { RuntimeInterface } from '../RuntimeInterface.mjs';
 
 const argv = getCliArgs();
