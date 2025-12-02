@@ -4,8 +4,8 @@ import { RawValue } from "./RawValue.mjs";
 import { TroupeType } from "./TroupeTypes.mjs";
 
 export class RawAuthority implements RawValue {
+    _troupeType: TroupeType.AUTHORITY = TroupeType.AUTHORITY;
     authorityLevel: Level;
-    _troupeType = TroupeType.AUTHORITY;
     dataLevel = BOT;
 
     constructor (authorityLevel: Level) {

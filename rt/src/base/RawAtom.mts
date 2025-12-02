@@ -8,7 +8,7 @@ let rt_uuid = runId
 export class RawAtom implements RawValue  {
   atom: string;
   creation_uuid: string;
-  _troupeType = TroupeType.ATOM;
+  _troupeType: TroupeType.ATOM = TroupeType.ATOM;
   dataLevel = levels.BOT;
 
   constructor (name: string, creation_uuid = rt_uuid) {

@@ -3,7 +3,7 @@ import { TroupeType } from "./TroupeTypes.mjs";
 import { BOT } from '../Level.mjs'
 
 export class RawProcessID implements RawValue {
-    _troupeType = TroupeType.PROCESS_ID;
+    _troupeType:TroupeType.PROCESS_ID = TroupeType.PROCESS_ID;
     uuid: string | null;
     pid: string;
 
