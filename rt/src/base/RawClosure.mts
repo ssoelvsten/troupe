@@ -1,8 +1,17 @@
-import {RawAggregate} from './RawValue.mjs'
+import {RawFunction} from './RawValue.mjs'
 import {ClosureType, TroupeType} from './TroupeTypes.mjs'
 
-export function RawClosure (env: any, nm: any, fn: any) : RawAggregate {
-  const closure:any = () => fn(env);
+export interface RawClosure extends RawFunction {
+  env: any;
+  namespace: any;
+  (any): any;
+
+  _troupeType: TroupeType.CLOSURE;
+  _closureType: ClosureType.REGULARFN;
+}
+
+export function RawClosure (env: any, nm: any, fn: any) : RawClosure {
+  const closure : RawClosure = () => fn(env);
 
   closure.env = env
   closure.namespace = nm

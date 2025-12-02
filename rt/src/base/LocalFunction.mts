@@ -1,10 +1,18 @@
 import {ClosureType, TroupeType} from './TroupeTypes.mjs'
-import {RawAggregate} from './RawValue.mjs'
+import {RawFunction} from './RawValue.mjs'
 import * as levels from '../Level.mjs'
 import { getRuntimeObject } from '../SysState.mjs'
 
-export function BuiltinFunction(fn: (LVal) => any, name: string | null = null) : RawAggregate {
-  const closure : any = () => fn(getRuntimeObject().$t.arg_as_lval);
+export interface BuiltinFunction extends RawFunction {
+  env: null;
+  (LVal): any;
+
+  _troupeType: TroupeType.CLOSURE;
+  _closureType: ClosureType.BUILTINFN;
+}
+
+export function BuiltinFunction(fn: (LVal) => any, name: string | null = null) : BuiltinFunction {
+  const closure : BuiltinFunction = () => fn(getRuntimeObject().$t.arg_as_lval);
 
   closure.env = null;
   // TODO: closure.namespace = ???;
@@ -20,8 +28,16 @@ export function BuiltinFunction(fn: (LVal) => any, name: string | null = null) :
 }
 
 
-export function ServiceFunction(fn: () => any, name: string | null = null) : RawAggregate {
-  const closure : any = () => fn();
+export interface ServiceFunction extends RawFunction {
+  env: null;
+  (): any;
+
+  _troupeType: TroupeType.CLOSURE;
+  _closureType: ClosureType.SERVICEFN;
+}
+
+export function ServiceFunction(fn: () => any, name: string | null = null) : ServiceFunction {
+  const closure : ServiceFunction = () => fn();
 
   closure.env = null;
   // TODO: closure.namespace = ???;
@@ -37,8 +53,15 @@ export function ServiceFunction(fn: () => any, name: string | null = null) : Raw
 }
 
 
-export function SandboxResumption(fn: () => any) : RawAggregate {
-  const closure: any = () => fn();
+export interface SandboxResumption extends RawFunction {
+  (): any;
+
+  _troupeType: TroupeType.CLOSURE;
+  _closureType: ClosureType.SANDBOXKONT;
+}
+
+export function SandboxResumption(fn: () => any) : SandboxResumption {
+  const closure: SandboxResumption = () => fn();
 
   // TODO: closure.env = ???;
   // TODO: closure.namespace = ???;

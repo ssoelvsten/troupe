@@ -1,4 +1,4 @@
-import { TroupeType } from './TroupeTypes.mjs'
+import { ClosureType, TroupeType } from './TroupeTypes.mjs'
 import { Level } from '../Level.mjs'
 
 /**
@@ -18,4 +18,11 @@ export interface RawValue {
 }
 
 export interface RawAggregate extends RawValue {
+}
+
+export interface RawFunction extends RawValue {
+    fun: (x?: any) => any;
+    (x?: any): any;
+
+    _closureType: ClosureType;
 }
