@@ -5,7 +5,7 @@ import * as levels from '../Level.mjs'
 
 let rt_uuid = runId
 
-export class Atom implements TroupeRawValue  {
+export class RawAtom implements TroupeRawValue  {
   atom: string 
   creation_uuid: any;
   _troupeType = TroupeType.ATOM

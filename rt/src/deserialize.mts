@@ -6,7 +6,7 @@ import { isLVal, LVal } from './base/LVal.mjs';
 import { mkTuple, mkList, mkRecord } from './base/rawUtil.mjs';
 import { RawProcessID } from './base/RawProcessID.mjs';
 import { RawAuthority } from './base/RawAuthority.mjs';
-import { Atom } from './base/Atom.mjs';
+import { RawAtom } from './base/RawAtom.mjs';
 import RawUnit from './base/RawUnit.mjs'
 import { glb, mkLevel } from './Level.mjs';
 import { RuntimeInterface } from './RuntimeInterface.mjs';
@@ -179,7 +179,7 @@ async function reconstruct(jsonObj: any, compilerOutput: string | undefined, tru
             }
         }
         let argNames  = Array.from(atomSet);
-        let argValues = argNames.map(argName => {return new Atom(argName)})
+        let argValues = argNames.map(argName => {return new RawAtom(argName)})
         argNames.unshift('rt');
         argNames.push(nsFun);
         // Observe that there is some serious level of reflection going on in here.
@@ -276,7 +276,7 @@ async function reconstruct(jsonObj: any, compilerOutput: string | undefined, tru
                 case Ty.TroupeType.LVAL:
                     return mkValue(obj);
                 case Ty.TroupeType.ATOM:
-                    return new Atom(obj.atom, obj.creation_uuid);
+                    return new RawAtom(obj.atom, obj.creation_uuid);
                 case Ty.TroupeType.UNIT:
                      return RawUnit;
                 default:

@@ -6,7 +6,7 @@ import { Nil, Cons, RawList } from '../base/RawList.mjs'
 import { loadLibsAsync } from '../loadLibsAsync.mjs';
 import * as levels from '../Level.mjs'
 import { BuiltinFunction, ServiceFunction } from '../base/LocalFunction.mjs'
-import { Atom } from '../base/Atom.mjs'
+import { RawAtom } from '../base/RawAtom.mjs'
 import { unitLVal } from '../base/unitLVal.mjs'
 import { RuntimeInterface } from '../RuntimeInterface.mjs';
 import { RawRecord } from '../base/RawRecord.mjs'
@@ -82,7 +82,7 @@ export class UserRuntimeZero {
     mkValPos : (x:any, pos:string) => LVal = this.default_mkValPos
     __unit = unitLVal
     __unitbase = RawUnit
-    Atom = Atom
+    Atom = RawAtom
 
     constructor(runtime:RuntimeInterface) {                  
         this.runtime = runtime
