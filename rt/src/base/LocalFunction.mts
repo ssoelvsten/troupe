@@ -16,13 +16,8 @@ export function BuiltinFunction(fn: (LVal) => any, name: string | null = null) :
   closure._closureType = ClosureType.BUILTINFN;
   closure.dataLevel = levels.BOT;
 
-  closure.stringRep = () => {
-    if (name) {
-      return `<basefun:${name}>`;
-    } else {
-      return "<basefun:_>";
-    }
-  };
+  closure.stringRep = (ol = false, tr = null) => `<basefun:${name || "_"}>`;
+  closure.toString  = closure.stringRep;
 
   return closure;
 }
@@ -38,13 +33,8 @@ export function ServiceFunction(fn: () => any, name: string | null = null) : Raw
   closure._closureType = ClosureType.SERVICEFN;
   closure.dataLevel = levels.BOT;
 
-  closure.stringRep = () => {
-    if (name) {
-      return `<basefun:${name}>`;
-    } else {
-      return "<basefun:_>";
-    }
-  }
+  closure.stringRep = (ol = false, tr = null) => `<basefun:${name || "_"}>`;
+  closure.toString  = closure.stringRep;
 
   return closure;
 }
@@ -62,13 +52,8 @@ export function SandboxResumption(fn: () => any) : RawAggregate {
   closure._closureType = ClosureType.SANDBOXKONT;
   closure.dataLevel = levels.BOT;
 
-  closure.stringRep  = (omitLevels = false) => {
-    return "<sandboxkont>";
-  };
-
-  closure.toString = () => {
-    return "<sandboxkont>";
-  };
+  closure.stringRep = (ol = false, tr = null) => "<sandboxkont>";
+  closure.toString  = closure.stringRep;
 
   return closure;
 }

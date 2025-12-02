@@ -13,12 +13,8 @@ export function RawClosure (env: any, nm: any, fn: any) : RawAggregate {
   closure._closureType = ClosureType.REGULARFN
   closure.dataLevel = env.__dataLevel
 
-  closure.stringRep  = (omitLevels = false ) => {
-    return "fn => .."
-  }
+  closure.stringRep = (ol = false, tr = null) => "fn => ..";
+  closure.toString  = () => `[RawClosure]${fn.toString()}`;
 
-  closure.toString = () => {
-    return ("[RawClosure]" + fn.toString ())
-  }
   return closure;
 }
