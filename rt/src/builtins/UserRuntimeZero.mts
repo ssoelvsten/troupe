@@ -5,7 +5,7 @@ import { LVal, LValCopyAt, LCopyVal } from '../base/LVal.mjs'
 import { Nil, Cons, RawList } from '../base/RawList.mjs'
 import { loadLibsAsync } from '../loadLibsAsync.mjs';
 import * as levels from '../Level.mjs'
-import { BuiltinFunction, ServiceFunction } from '../base/BaseFunction.mjs'
+import { BuiltinFunction, ServiceFunction } from '../base/LocalFunction.mjs'
 import { Atom } from '../base/Atom.mjs'
 import { unitLVal } from '../base/unitLVal.mjs'
 import { RuntimeInterface } from '../RuntimeInterface.mjs';
