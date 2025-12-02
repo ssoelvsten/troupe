@@ -9,7 +9,7 @@ import { Level } from '../Level.mjs';
  * Compute deep equality of the given unlabelled raw values.
  * The returned value label is the join of all visited nested labelled values.
  */
-export function runtimeEquals(x: TroupeRawValue, y: TroupeRawValue): LVal {
+export function isEqual(x: TroupeRawValue, y: TroupeRawValue): LVal {
   function baseBoolean(b: boolean, l: Level = levels.BOT) {
     return new LVal(b, l, levels.BOT)
   }
@@ -29,7 +29,7 @@ export function runtimeEquals(x: TroupeRawValue, y: TroupeRawValue): LVal {
     // Join of the labels of values compared so far
     let l = levels.BOT
     for (let j = 0; j < o1.length; j++) {
-      let z = runtimeEquals(o1[j].val, o2[j].val);
+      let z = isEqual(o1[j].val, o2[j].val);
       l = levels.lub(l, z.lev, o1[j].lev, o2[j].lev)
       if (!z.val) {
         return baseBoolean(false, l)
@@ -49,7 +49,7 @@ export function runtimeEquals(x: TroupeRawValue, y: TroupeRawValue): LVal {
     for (let [k, v] of o1.__obj.entries()) {
       if (o2.__obj.has(k)) {
         let u = o2.__obj.get(k);
-        let z = runtimeEquals(v.val, u.val);
+        let z = isEqual(v.val, u.val);
         l = levels.lub(l, z.lev, v.lev, u.lev);
         if (!z.val) {
           return baseBoolean(false, l)

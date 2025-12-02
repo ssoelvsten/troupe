@@ -1,5 +1,5 @@
 'use strict'
-import { runtimeEquals } from '../base/EqualityChecker.mjs'
+import { isEqual } from '../base/rawEquals.mjs'
 import { isList, isTuple, mkTuple, mkList, mkWithRecord, mkRecord, isRecord } from '../base/rawUtil.mjs'
 import { LVal, LValCopyAt, LCopyVal } from '../base/LVal.mjs'
 import { Nil, Cons, RawList } from '../base/RawList.mjs'
@@ -118,12 +118,12 @@ export class UserRuntimeZero {
 
     // ComplexRT
     eq(x: TroupeRawValue, y: TroupeRawValue): LVal {
-        return runtimeEquals(x, y)
+        return isEqual(x, y)
     }
 
     // ComplexRT
     neq(x: TroupeRawValue, y: TroupeRawValue): LVal {
-        let b = runtimeEquals(x, y);
+        let b = isEqual(x, y);
         b.val = !b.val;
         return b;
     }
