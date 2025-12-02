@@ -6,17 +6,17 @@ import * as levels from '../Level.mjs'
 let rt_uuid = runId
 
 export class RawAtom implements TroupeRawValue  {
-  atom: string 
+  atom: string;
   creation_uuid: any;
-  _troupeType = TroupeType.ATOM
-  dataLevel = levels.BOT
-  
-  constructor (name:string, creation_uuid = rt_uuid) {
-    this.atom = name; 
-    this.creation_uuid = creation_uuid    
+  _troupeType = TroupeType.ATOM;
+  dataLevel = levels.BOT;
+
+  constructor (name: string, creation_uuid = rt_uuid) {
+    this.atom = name;
+    this.creation_uuid = creation_uuid;
   }
 
-  stringRep (_omitLevels = false) {
-      return this.atom
-  }  
+  stringRep (omitLevels: boolean = false, taintRef: any = null) {
+      return this.atom;
+  }
 }
