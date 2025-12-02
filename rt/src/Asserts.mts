@@ -1,6 +1,6 @@
 import { Thread, Capability } from './Thread.mjs';
 
-import { isListFlagSet, isTupleFlagSet, isUnit } from './base/rawUtil.mjs';
+import { isList, isTuple, isUnit } from './base/rawUtil.mjs';
 import * as proc from './base/ProcessID.mjs';
 const ProcessID = proc.ProcessID;
 import { AbstractLevel } from './AbstractLevel.mjs';
@@ -106,7 +106,7 @@ export function assertIsUnit(x: any) {
 
 export function assertIsListOrTuple(x: any) {
     _thread().raiseBlockingThreadLev(x.lev);;
-    if (!((isListFlagSet(x.val) || isTupleFlagSet(x.val)))) {
+    if (!((isList(x.val) || isTuple(x.val)))) {
         err("value " + __stringRep(x) + " is not a list or tuple")
     }
 }
@@ -117,14 +117,14 @@ export function assertIsList(x: any) {
 }
 
 export function rawAssertIsList (x:any) {
-    if (!isListFlagSet(x)) {
+    if (!isList(x)) {
         err("value " + __stringRep(x) + " is not a list")
     }
 }
 
 export function assertIsNTuple(x: any, n: number) {
     _thread().raiseBlockingThreadLev(x.lev);
-    if (!(Array.isArray(x.val) && isTupleFlagSet(x.val) && x.val.length == n)) {
+    if (!(Array.isArray(x.val) && isTuple(x.val) && x.val.length == n)) {
         err("value " + __stringRep(x) + " is not a " + n + "-tuple")
     }
 }
@@ -132,13 +132,13 @@ export function assertIsNTuple(x: any, n: number) {
 
 export function assertIsNTupleR3 (x:TroupeRawValue, lev:Level, tlev:Level, n:number) {
     _thread().raiseBlockingThreadLev(lev);
-    if (!(Array.isArray(x) && isTupleFlagSet(x) && x.length == n)) {
+    if (!(Array.isArray(x) && isTuple(x) && x.length == n)) {
         err("value " + __stringRep(x) + " is not a " + n + "-tuple")
     }
 }
 
 export function rawAssertIsTuple (x)  {
-    if (!(Array.isArray(x) && isTupleFlagSet(x) )) {
+    if (!(Array.isArray(x) && isTuple(x) )) {
         err("value " + __stringRep(x) + " is not a tuple")
     } 
 }
