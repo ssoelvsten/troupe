@@ -10,6 +10,7 @@ export function BuiltinFunction(fn: (LVal) => any, name: string | null = null) :
   };
 
   closure.env = null;
+  // TODO: closure.namespace = ???;
   closure.fun = fn; // TODO: 2025-07-28;AA (this is likely redundant)
   closure._troupeType = TroupeType.CLOSURE;
   closure._closureType = ClosureType.BUILTINFN;
@@ -31,6 +32,7 @@ export function ServiceFunction(fn: () => any, name: string | null = null) : Raw
   const closure : any = () => fn();
 
   closure.env = null;
+  // TODO: closure.namespace = ???;
   closure.fun = fn; // TODO: 2025-07-28;AA (this is likely redundant)
   closure._troupeType = TroupeType.CLOSURE;
   closure._closureType = ClosureType.SERVICEFN;
@@ -53,6 +55,8 @@ export function SandboxResumption(fn: () => any) : RawAggregate {
     return fn();
   };
 
+  // TODO: closure.env = ???;
+  // TODO: closure.namespace = ???;
   closure.fun = fn; // TODO: redundant?
   closure._troupeType = TroupeType.CLOSURE;
   closure._closureType = ClosureType.SANDBOXKONT;
