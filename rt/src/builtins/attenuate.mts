@@ -1,7 +1,7 @@
 import { UserRuntimeZero, Constructor, mkBuiltin } from './UserRuntimeZero.mjs'
 import { LVal } from '../base/LVal.mjs';
 import * as levels from '../Level.mjs'
-import { RawAuthority } from '../base/RawAuthority.mjs';
+import { mkAuthority } from '../base/rawUtil.mjs';
 import { assertIsNTuple, assertIsAuthority, assertIsLevel } from '../Asserts.mjs'
 const {lub, flowsTo} = levels 
 
@@ -21,7 +21,7 @@ export function BuiltinAttenuate<TBase extends Constructor<UserRuntimeZero>>(Bas
             // todo: 2018-10-18: AA; are we missing anything?
             let l_meta = lub(this.runtime.$t.pc, arg.lev, authFrom.lev, levTo.lev)
             let l_auth = ok_to_attenuate ? levTo.val : levels.BOT;
-            let r = new LVal(new RawAuthority(l_auth), l_meta)
+            let r = new LVal(mkAuthority(l_auth), l_meta)
 
             return this.runtime.ret(r)
         }, "attenuate")

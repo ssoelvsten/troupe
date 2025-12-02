@@ -1,6 +1,6 @@
 'use strict'
 import { isEqual } from '../base/rawEquals.mjs'
-import { isList, isTuple, mkTuple, mkList, mkWithRecord, mkRecord, isRecord } from '../base/rawUtil.mjs'
+import { isList, isTuple, mkTuple, mkList, mkWithRecord, mkRecord, isRecord, mkUnit } from '../base/rawUtil.mjs'
 import { LVal, LValCopyAt, LCopyVal } from '../base/LVal.mjs'
 import { Nil, Cons, RawList } from '../base/RawList.mjs'
 import { loadLibsAsync } from '../loadLibsAsync.mjs';
@@ -12,7 +12,6 @@ import { RuntimeInterface } from '../RuntimeInterface.mjs';
 import { RawRecord } from '../base/RawRecord.mjs'
 import { TroupeType } from '../base/TroupeTypes.mjs'
 import { RawClosure } from '../base/RawClosure.mjs'
-import RawUnit from '../base/RawUnit.mjs'
 import { Thread } from '../Thread.mjs'
 import { RawValue } from '../base/RawValue.mjs'
 import { RawTuple } from '../base/RawTuple.mjs'
@@ -81,7 +80,7 @@ export class UserRuntimeZero {
     mkVal : (x:any) => LVal = this.default_mkVal
     mkValPos : (x:any, pos:string) => LVal = this.default_mkValPos
     __unit = unitLVal
-    __unitbase = RawUnit
+    __unitbase = mkUnit();
     Atom = RawAtom
 
     constructor(runtime:RuntimeInterface) {                  

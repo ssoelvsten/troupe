@@ -3,12 +3,11 @@ import chalk from 'chalk';
 import { v4 as uuidv4 } from 'uuid'
 import AggregateError from 'aggregate-error';
 import { unitLVal } from './base/unitLVal.mjs'
-import { RawAuthority } from './base/RawAuthority.mjs'
+import { mkAuthority, mkProcessID } from './base/rawUtil.mjs';
 import { Scheduler, ThreadType } from './Scheduler.mjs'
 import { MailboxProcessor } from './MailboxProcessor.mjs'
 import { RuntimeInterface } from './RuntimeInterface.mjs'
 import { LVal, MbVal } from './base/LVal.mjs'
-import { RawProcessID } from './base/RawProcessID.mjs';
 import { UserRuntime } from './UserRuntime.mjs'
 import * as levels from './Level.mjs'
 const { flowsTo, lub, glb } = levels
@@ -88,7 +87,7 @@ async function spawnAtNode(nodeid, f) {
   try {
     let body1 = await p2p.spawnp2p(node.nodeId, data);
     let body = await DS.deserialize(nodeTrustLevel(node.nodeId), body1);
-    let pid = new RawProcessID(body.val.uuid, body.val.pid, body.val.node);
+    let pid = mkProcessID(body.val.uuid, body.val.pid, body.val.node);
     theThread.returnSuspended(new LVal(pid, body.lev));
 
     __sched.scheduleThread(theThread);
@@ -167,7 +166,7 @@ async function receiveFromRemote(pid: string, jsonObj: any, fromNode: string) {
 
   // If successful, add the deserialized message to the mailbox of said process.
   const fromNodeId = $t().mkVal(fromNode);
-  const toPid = new LVal(new RawProcessID(runId, pid, __nodeManager.getLocalNode()), data.lev);
+  const toPid = new LVal(mkProcessID(runId, pid, __nodeManager.getLocalNode()), data.lev);
   __theMailbox.addMessage(fromNodeId, toPid, data.val, data.lev);
   __sched.resumeLoopAsync();
 }
@@ -431,7 +430,7 @@ export async function start(f) {
   await loadServiceCode();
 
   if (__p2pRunning) {
-    const serviceAuthority = new LVal(new RawAuthority(levels.ROOT), levels.BOT);
+    const serviceAuthority = new LVal(mkAuthority(levels.ROOT), levels.BOT);
 
     let service_arg =
       new LVal ( new RawRecord([ ["authority", serviceAuthority],
@@ -445,7 +444,7 @@ export async function start(f) {
   }
 
   // Set up 'main' thread
-  const mainAuthority = new LVal(new RawAuthority(levels.ROOT), levels.BOT);
+  const mainAuthority = new LVal(mkAuthority(levels.ROOT), levels.BOT);
 
   await __userRuntime.linkLibs(f);
 

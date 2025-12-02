@@ -3,11 +3,7 @@ import { strict as assert } from 'node:assert'
 import { spawn, ChildProcess } from 'child_process'
 import * as Ty from './base/TroupeTypes.mjs'
 import { isLVal, LVal } from './base/LVal.mjs';
-import { mkTuple, mkList, mkRecord } from './base/rawUtil.mjs';
-import { RawProcessID } from './base/RawProcessID.mjs';
-import { RawAuthority } from './base/RawAuthority.mjs';
-import { RawAtom } from './base/RawAtom.mjs';
-import RawUnit from './base/RawUnit.mjs'
+import { mkTuple, mkList, mkRecord, mkAtom, mkUnit, mkAuthority, mkProcessID } from './base/rawUtil.mjs';
 import { glb, mkLevel } from './Level.mjs';
 import { RuntimeInterface } from './RuntimeInterface.mjs';
 import { RawClosure } from './base/RawClosure.mjs';
@@ -179,7 +175,7 @@ async function reconstruct(jsonObj: any, compilerOutput: string | undefined, tru
             }
         }
         let argNames  = Array.from(atomSet);
-        let argValues = argNames.map(argName => {return new RawAtom(argName)})
+        let argValues = argNames.map(argName => {return mkAtom(argName)})
         argNames.unshift('rt');
         argNames.push(nsFun);
         // Observe that there is some serious level of reflection going on in here.
@@ -267,18 +263,18 @@ async function reconstruct(jsonObj: any, compilerOutput: string | undefined, tru
                 case Ty.TroupeType.STRING:
                     return obj;
                 case Ty.TroupeType.PROCESS_ID:
-                    return new RawProcessID(obj.uuid, obj.pid, obj.node)
+                    return mkProcessID(obj.uuid, obj.pid, obj.node)
                 case Ty.TroupeType.AUTHORITY:
                     // Attenuate authority based on the trust level of the sender
-                    return new RawAuthority(_trustGLB(mkLevel(obj.authorityLevel)));
+                    return mkAuthority(_trustGLB(mkLevel(obj.authorityLevel)));
                 case Ty.TroupeType.LEVEL:
                     return mkLevel(obj.lev);
                 case Ty.TroupeType.LVAL:
                     return mkValue(obj);
                 case Ty.TroupeType.ATOM:
-                    return new RawAtom(obj.atom, obj.creation_uuid);
+                    return mkAtom(obj.atom, obj.creation_uuid);
                 case Ty.TroupeType.UNIT:
-                     return RawUnit;
+                     return mkUnit();
                 default:
                      return obj;
             }

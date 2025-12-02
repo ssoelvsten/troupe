@@ -1,9 +1,27 @@
+import { Level } from '../Level.mjs';
 import { LVal } from './LVal.mjs'
+import { RawAtom } from './RawAtom.mjs';
+import { RawAuthority } from './RawAuthority.mjs';
 import { RawList } from './RawList.mjs'
+import { RawProcessID } from './RawProcessID.mjs';
 import { RawRecord } from './RawRecord.mjs';
 import { RawTuple } from './RawTuple.mjs'
-import { RawUnit } from './RawUnit.mjs';
+import rawUnit, { RawUnit } from './RawUnit.mjs';
 import { TroupeType } from './TroupeTypes.mjs';
+
+/** Combined type of (almost) all possible raw values. */
+export type Raw =
+  // Base types
+  RawUnit | boolean | number | string | RawProcessID | RawAuthority | RawAtom |
+  // Aggregate types (TODO: RawClosure)
+  RawTuple | RawList | RawRecord;
+
+/**
+ * Returns the (raw) Troupe unit object.
+ */
+export function mkUnit(): RawUnit {
+  return rawUnit;
+}
 
 /** Predicate of whether `x` is the Troupe unit object. */
 export function isUnit(x: any): x is RawUnit {
@@ -11,7 +29,45 @@ export function isUnit(x: any): x is RawUnit {
 }
 
 /**
- * Takes an array of labelled values and makes a new Troupe tuple object out of it.
+ * Combines a `uuid` and process and node identifiers into a new Troupe process
+ * id object.
+ */
+export function mkProcessID(uuid: string | null, pid: string, node: any) {
+  return new RawProcessID(uuid, pid, node);
+}
+
+/** Predicate of whether `x` is a Troupe process id object. */
+export function isProcessID(x : any) : x is RawProcessID {
+  return x._troupeType === TroupeType.PROCESS_ID;
+}
+
+/**
+ * Creates a new Troupe authority object at the given level.
+ */
+export function mkAuthority(authorityLevel: Level): RawAuthority {
+  return new RawAuthority(authorityLevel);
+}
+
+/** Predicate of whether `x` is a Troupe authority object. */
+export function isAuthority(x: any) : x is RawAuthority {
+  return x._troupeType === TroupeType.AUTHORITY;
+}
+
+/**
+ * Combines a `name` and an origin `uuid` in a new Troupe atom object.
+ */
+export function mkAtom(name: string, uuid?: string) {
+  return new RawAtom(name, uuid);
+}
+
+/** Predicate of whether `x` is a Troupe atom object. */
+export function isAtom(x: any) : x is RawAtom {
+  return x._troupeType === TroupeType.ATOM;
+}
+
+/**
+ * Takes an array of labelled values and makes a new Troupe tuple object out of
+ * it.
  */
 export function mkTuple(x: LVal[]) {
   return new RawTuple(x)
@@ -23,7 +79,8 @@ export function isTuple(x: any): x is RawTuple {
 }
 
 /**
- * Takes an array of labelled values and makes a new Troupe list object out of it.
+ * Takes an array of labelled values and makes a new Troupe list object out of
+ * it.
  */
 export function mkList(a: LVal[]) {
   return RawList.fromArray(a);

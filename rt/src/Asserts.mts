@@ -1,11 +1,8 @@
 import { Thread, Capability } from './Thread.mjs';
 
-import { isList, isTuple, isUnit } from './base/rawUtil.mjs';
-import * as proc from './base/RawProcessID.mjs';
-const ProcessID = proc.RawProcessID;
+import { isAuthority, isList, isProcessID, isTuple, isUnit } from './base/rawUtil.mjs';
 import { AbstractLevel } from './AbstractLevel.mjs';
 import { Level } from './Level.mjs';
-import { RawAuthority } from './base/RawAuthority.mjs'
 import * as levels from './Level.mjs'; 
 import { TroupeType } from './base/TroupeTypes.mjs';
 const actsFor = levels.actsFor;
@@ -207,7 +204,7 @@ export function assertIsNode(x: any) {
 
 export function assertIsProcessId(x: any) {
     _thread().raiseBlockingThreadLev(x.tlev);
-    if (!(x.val instanceof ProcessID)) {
+    if (!(isProcessID(x.val))) {
         err("value " + __stringRep(x) + " is not a process id")
     }
 }
@@ -244,14 +241,14 @@ export function assertIsRootAuthority(x: any) {
 
 export function assertIsAuthority(x: any) {
     _thread().raiseBlockingThreadLev(x.tlev);
-    if (!(x.val instanceof RawAuthority)) {
+    if (!(isAuthority(x.val))) {
         err("value " + __stringRep(x) + " is not a authority");
     }
 }
 
 export function assertIsAuthorityR3(x, lev, tlev) {
     _thread().raiseBlockingThreadLev(x.tlev);
-    if (!(x instanceof RawAuthority)){
+    if (!(isAuthority(x))){
         err("value " + __stringRep(x) + " is not a authority");
     }
 }
