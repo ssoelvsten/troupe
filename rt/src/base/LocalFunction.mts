@@ -3,14 +3,13 @@ import {RawAggregate} from './RawValue.mjs'
 import * as levels from '../Level.mjs' 
 import { getRuntimeObject } from '../SysState.mjs'
 
-export function BuiltinFunction(f, name = null) : RawAggregate {
-  
+export function BuiltinFunction(fn: (LVal) => any, name: string | null = null) : RawAggregate {
   let closure : any = () => {
     let thread = getRuntimeObject().$t;
-    return f (thread.arg_as_lval);
+    return fn (thread.arg_as_lval);
   }
   closure.env = null;
-  closure.fun = f // TODO: 2025-07-28;AA (this is likely redundant) 
+  closure.fun = fn // TODO: 2025-07-28;AA (this is likely redundant) 
   closure._troupeType = TroupeType.CLOSURE; 
   closure._closureType = ClosureType.BUILTINFN;
   closure.stringRep = () => {
@@ -25,10 +24,10 @@ export function BuiltinFunction(f, name = null) : RawAggregate {
 }
 
   
-export function ServiceFunction (f, name=null) : RawAggregate {  
-  let closure : any = () => f ();
+export function ServiceFunction(fn: () => any, name: string | null = null) : RawAggregate {
+  let closure : any = () => fn();
   closure.env = null;
-  closure.fun = f // TODO: 2025-07-28;AA (this is likely redundant)  
+  closure.fun = fn // TODO: 2025-07-28;AA (this is likely redundant)
   closure._troupeType = TroupeType.CLOSURE; 
   closure._closureType = ClosureType.SERVICEFN;
   closure.stringRep = () => {
@@ -43,12 +42,12 @@ export function ServiceFunction (f, name=null) : RawAggregate {
 }
 
 
-export function SandboxResumption(f) : RawAggregate {
+export function SandboxResumption(fn: () => any) : RawAggregate {
   let closure: any = () => {
-    return f();
+    return fn();
   };
 
-  closure.fun = f // TODO: redundant?
+  closure.fun = fn // TODO: redundant?
   closure._troupeType = TroupeType.CLOSURE;
   closure._closureType = ClosureType.SANDBOXKONT;
   closure.stringRep  = (omitLevels = false ) => {
