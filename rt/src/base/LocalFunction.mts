@@ -1,6 +1,6 @@
 import {ClosureType, TroupeType} from './TroupeTypes.mjs'
 import {RawFunction} from './RawValue.mjs'
-import * as levels from '../Level.mjs'
+import {BOT} from '../Level.mjs'
 import { getRuntimeObject } from '../SysState.mjs'
 
 export interface BuiltinFunction extends RawFunction {
@@ -19,7 +19,7 @@ export function BuiltinFunction(fn: (LVal) => any, name: string | null = null) :
   closure.fun = fn; // TODO: 2025-07-28;AA (this is likely redundant)
   closure._troupeType = TroupeType.CLOSURE;
   closure._closureType = ClosureType.BUILTINFN;
-  closure.dataLevel = levels.BOT;
+  closure.dataLevel = BOT;
 
   closure.stringRep = (ol = false, tr = null) => `<basefun:${name || "_"}>`;
   closure.toString  = closure.stringRep;
@@ -44,7 +44,7 @@ export function ServiceFunction(fn: () => any, name: string | null = null) : Ser
   closure.fun = fn; // TODO: 2025-07-28;AA (this is likely redundant)
   closure._troupeType = TroupeType.CLOSURE;
   closure._closureType = ClosureType.SERVICEFN;
-  closure.dataLevel = levels.BOT;
+  closure.dataLevel = BOT;
 
   closure.stringRep = (ol = false, tr = null) => `<basefun:${name || "_"}>`;
   closure.toString  = closure.stringRep;
@@ -68,7 +68,7 @@ export function SandboxResumption(fn: () => any) : SandboxResumption {
   closure.fun = fn; // TODO: redundant?
   closure._troupeType = TroupeType.CLOSURE;
   closure._closureType = ClosureType.SANDBOXKONT;
-  closure.dataLevel = levels.BOT;
+  closure.dataLevel = BOT;
 
   closure.stringRep = (ol = false, tr = null) => "<sandboxkont>";
   closure.toString  = closure.stringRep;
