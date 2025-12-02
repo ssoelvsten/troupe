@@ -1,8 +1,8 @@
 import { Thread, Capability } from './Thread.mjs';
 
 import { isList, isTuple, isUnit } from './base/rawUtil.mjs';
-import * as proc from './base/ProcessID.mjs';
-const ProcessID = proc.ProcessID;
+import * as proc from './base/RawProcessID.mjs';
+const ProcessID = proc.RawProcessID;
 import { AbstractLevel } from './AbstractLevel.mjs';
 import { Level } from './Level.mjs';
 import { RawAuthority } from './base/RawAuthority.mjs'

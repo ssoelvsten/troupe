@@ -8,7 +8,7 @@ import { SchedulerInterface } from './SchedulerInterface.mjs';
 import { RuntimeInterface } from './RuntimeInterface.mjs';
 import { LVal } from './base/LVal.mjs'
 import { Level } from "./Level.mjs";
-import { ProcessID } from './base/ProcessID.mjs'
+import { RawProcessID } from './base/RawProcessID.mjs'
 import SandboxStatus from './SandboxStatus.mjs'
 import  {ThreadError, TroupeError} from './TroupeError.mjs'
 import  {lub} from './Level.mjs'
@@ -114,7 +114,7 @@ export class Scheduler implements SchedulerInterface {
     {
         // Create a new process ID at the given level.
         const pid = tType === ThreadType.System ? SYSTEM_PROCESS_STRING : uuidv4();
-        const tid = new LVal(new ProcessID(this.rt_uuid, pid, this.__node), pc);
+        const tid = new LVal(new RawProcessID(this.rt_uuid, pid, this.__node), pc);
 
         const halt = () => {
             this.__currentThread.raiseCurrentThreadPCToBlockingLev();

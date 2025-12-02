@@ -2,7 +2,7 @@ import { TroupeRawValue } from "./TroupeRawValue.mjs";
 import { TroupeType } from "./TroupeTypes.mjs";
 import { BOT } from '../Level.mjs'
 
-export class ProcessID implements TroupeRawValue {
+export class RawProcessID implements TroupeRawValue {
     _troupeType = TroupeType.PROCESS_ID;
     uuid: any;
     pid: any;
@@ -23,4 +23,3 @@ export class ProcessID implements TroupeRawValue {
       return this.toString();
     }
 }
-

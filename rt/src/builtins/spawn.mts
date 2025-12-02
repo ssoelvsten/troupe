@@ -4,14 +4,14 @@ import { assertNormalState, assertIsFunction, assertIsNode } from '../Asserts.mj
 import { __nodeManager } from '../NodeManager.mjs';
 import { unitLVal } from '../base/unitLVal.mjs';
 import {SYSTEM_PROCESS_STRING} from '../Constants.mjs'
-import { ProcessID } from '../base/ProcessID.mjs';
+import { RawProcessID } from '../base/RawProcessID.mjs';
 
 export function BuiltinSpawn<TBase extends Constructor<UserRuntimeZero>>(Base: TBase) {
     return class extends Base {
         _getSystemProcess = mkBuiltin ((arg) => {
             assertIsNode(arg.val)
             let node = __nodeManager.getNode(arg.val)
-            let pid = new ProcessID (null, SYSTEM_PROCESS_STRING, node)
+            let pid = new RawProcessID (null, SYSTEM_PROCESS_STRING, node)
             return this.runtime.$t.mkVal (pid);
         })
 

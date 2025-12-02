@@ -1,7 +1,7 @@
 'use strict'
 import { UserRuntimeZero, Constructor, mkBuiltin } from './UserRuntimeZero.mjs'
 import * as levels from '../Level.mjs'
-import { ProcessID } from '../base/ProcessID.mjs';
+import { RawProcessID } from '../base/RawProcessID.mjs';
 const { lub, flowsTo } = levels
 import {deserialize} from '../deserialize.mjs'
 import { __nodeManager } from '../NodeManager.mjs';
@@ -92,7 +92,7 @@ export function BuiltinRegistry<TBase extends Constructor<UserRuntimeZero>>(Base
                     try {
                         let body1 = await p2p.whereisp2p(n, k);
                         let body = await deserialize(nodeTrustLevel(n), body1);
-                        let pid = new ProcessID(body.val.uuid, body.val.pid, body.val.node);
+                        let pid = new RawProcessID(body.val.uuid, body.val.pid, body.val.node);
 
                         theThread.returnSuspended(theThread.mkValWithLev(pid, body.lev));
                         __sched.scheduleThread(theThread);

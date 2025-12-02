@@ -8,7 +8,7 @@ import { Scheduler, ThreadType } from './Scheduler.mjs'
 import { MailboxProcessor } from './MailboxProcessor.mjs'
 import { RuntimeInterface } from './RuntimeInterface.mjs'
 import { LVal, MbVal } from './base/LVal.mjs'
-import { ProcessID } from './base/ProcessID.mjs';
+import { RawProcessID } from './base/RawProcessID.mjs';
 import { UserRuntime } from './UserRuntime.mjs'
 import * as levels from './Level.mjs'
 const { flowsTo, lub, glb } = levels
@@ -88,7 +88,7 @@ async function spawnAtNode(nodeid, f) {
   try {
     let body1 = await p2p.spawnp2p(node.nodeId, data);
     let body = await DS.deserialize(nodeTrustLevel(node.nodeId), body1);
-    let pid = new ProcessID(body.val.uuid, body.val.pid, body.val.node);
+    let pid = new RawProcessID(body.val.uuid, body.val.pid, body.val.node);
     theThread.returnSuspended(new LVal(pid, body.lev));
 
     __sched.scheduleThread(theThread);
@@ -167,7 +167,7 @@ async function receiveFromRemote(pid: string, jsonObj: any, fromNode: string) {
 
   // If successful, add the deserialized message to the mailbox of said process.
   const fromNodeId = $t().mkVal(fromNode);
-  const toPid = new LVal(new ProcessID(runId, pid, __nodeManager.getLocalNode()), data.lev);
+  const toPid = new LVal(new RawProcessID(runId, pid, __nodeManager.getLocalNode()), data.lev);
   __theMailbox.addMessage(fromNodeId, toPid, data.val, data.lev);
   __sched.resumeLoopAsync();
 }
