@@ -14,7 +14,7 @@ import { TroupeType } from '../base/TroupeTypes.mjs'
 import { RawClosure } from '../base/RawClosure.mjs'
 import RawUnit from '../base/RawUnit.mjs'
 import { Thread } from '../Thread.mjs'
-import { TroupeRawValue } from '../base/TroupeRawValue.mjs'
+import { RawValue } from '../base/RawValue.mjs'
 import { RawTuple } from '../base/RawTuple.mjs'
 import { Level } from '../Level.mjs'
 import { rawAssertNotZero } from '../Asserts.mjs'
@@ -108,7 +108,7 @@ export class UserRuntimeZero {
     }
 
     // SpecialRT
-    rawErrorPos(x: TroupeRawValue, pos: string) {
+    rawErrorPos(x: RawValue, pos: string) {
         if (pos != '') {
             this.runtime.$t.threadError(x + " at " + pos);
         } else {
@@ -117,12 +117,12 @@ export class UserRuntimeZero {
     }
 
     // ComplexRT
-    eq(x: TroupeRawValue, y: TroupeRawValue): LVal {
+    eq(x: RawValue, y: RawValue): LVal {
         return isEqual(x, y)
     }
 
     // ComplexRT
-    neq(x: TroupeRawValue, y: TroupeRawValue): LVal {
+    neq(x: RawValue, y: RawValue): LVal {
         let b = isEqual(x, y);
         b.val = !b.val;
         return b;
@@ -137,17 +137,17 @@ export class UserRuntimeZero {
     rawAssertNotZero = rawAssertNotZero
 
     // ComplexRT
-    raw_indexTuple(x: TroupeRawValue, y: number): LVal {
+    raw_indexTuple(x: RawValue, y: number): LVal {
         return x[y];
     }
 
     // SimpleRT
-    raw_islist(x: TroupeRawValue): boolean {
+    raw_islist(x: RawValue): boolean {
         return isList(x);
     }
 
     // SimpleRT
-    raw_istuple(x: TroupeRawValue): boolean {
+    raw_istuple(x: RawValue): boolean {
         return isTuple(x);
     }
 
@@ -162,7 +162,7 @@ export class UserRuntimeZero {
     }
 
     // SimpleRT
-    isRecord(x: TroupeRawValue): boolean {
+    isRecord(x: RawValue): boolean {
         return isRecord(x);
     }
 

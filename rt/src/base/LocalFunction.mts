@@ -1,9 +1,9 @@
 import {ClosureType, TroupeType} from './TroupeTypes.mjs'
-import {TroupeAggregateRawValue} from './TroupeRawValue.mjs'
+import {RawAggregate} from './RawValue.mjs'
 import * as levels from '../Level.mjs' 
 import { getRuntimeObject } from '../SysState.mjs'
 
-export function BuiltinFunction(f, name = null) : TroupeAggregateRawValue {
+export function BuiltinFunction(f, name = null) : RawAggregate {
   
   let closure : any = () => {
     let thread = getRuntimeObject().$t;
@@ -25,7 +25,7 @@ export function BuiltinFunction(f, name = null) : TroupeAggregateRawValue {
 }
 
   
-export function ServiceFunction (f, name=null) : TroupeAggregateRawValue {  
+export function ServiceFunction (f, name=null) : RawAggregate {  
   let closure : any = () => f ();
   closure.env = null;
   closure.fun = f // TODO: 2025-07-28;AA (this is likely redundant)  
@@ -43,7 +43,7 @@ export function ServiceFunction (f, name=null) : TroupeAggregateRawValue {
 }
 
 
-export function SandboxResumption(f) : TroupeAggregateRawValue {
+export function SandboxResumption(f) : RawAggregate {
   let closure: any = () => {
     return f();
   };

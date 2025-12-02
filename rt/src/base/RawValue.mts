@@ -11,11 +11,11 @@ export interface TaintRef {
     lev: Level
 }
 
-export interface TroupeRawValue {
+export interface RawValue {
     _troupeType: TroupeType;
     dataLevel: Level;
     stringRep (omitLevels?: boolean, taintRef?: TaintRef): string;
 }
 
-export interface TroupeAggregateRawValue extends TroupeRawValue {
+export interface RawAggregate extends RawValue {
 }

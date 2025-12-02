@@ -1,9 +1,9 @@
 import { Level, BOT } from "../Level.mjs";
 
-import { TroupeRawValue } from "./TroupeRawValue.mjs";
+import { RawValue } from "./RawValue.mjs";
 import { TroupeType } from "./TroupeTypes.mjs";
 
-export class RawAuthority implements TroupeRawValue {
+export class RawAuthority implements RawValue {
     authorityLevel: Level;
     _troupeType = TroupeType.AUTHORITY;
     dataLevel = BOT;

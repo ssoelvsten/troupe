@@ -1,12 +1,12 @@
 import {TroupeType} from './TroupeTypes.mjs'
-import {TroupeAggregateRawValue} from './TroupeRawValue.mjs'
+import {RawAggregate} from './RawValue.mjs'
 import {LVal, listStringRep} from './LVal.mjs'
 import { Level } from '../Level.mjs'
 import * as levels from '../Level.mjs'
 import { assertIsRecord } from '../Asserts.mjs'
 
 
-export class RawRecord implements TroupeAggregateRawValue {    
+export class RawRecord implements RawAggregate {    
     _troupeType = TroupeType.RECORD
     _dataLevel:  Level = levels.TOP  // TODO compute data level?
     __obj : Map<string, LVal>

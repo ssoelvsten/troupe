@@ -1,7 +1,7 @@
-import {TroupeAggregateRawValue} from './TroupeRawValue.mjs'
+import {RawAggregate} from './RawValue.mjs'
 import {ClosureType, TroupeType} from './TroupeTypes.mjs'
 
-export function RawClosure (e, _t, f) : TroupeAggregateRawValue { 
+export function RawClosure (e, _t, f) : RawAggregate { 
   let closure:any = () => {    
     return f (e)
   }

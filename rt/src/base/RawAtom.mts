@@ -1,11 +1,11 @@
 import runId from "../runId.mjs"
 import { TroupeType } from "./TroupeTypes.mjs"
-import { TroupeRawValue } from "./TroupeRawValue.mjs";
+import { RawValue } from "./RawValue.mjs";
 import * as levels from '../Level.mjs'
 
 let rt_uuid = runId
 
-export class RawAtom implements TroupeRawValue  {
+export class RawAtom implements RawValue  {
   atom: string;
   creation_uuid: any;
   _troupeType = TroupeType.ATOM;

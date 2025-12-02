@@ -1,6 +1,6 @@
 import {TroupeType} from './TroupeTypes.mjs'
 import {LVal} from './LVal.mjs'
-import { TroupeRawValue } from './TroupeRawValue.mjs';
+import { RawValue } from './RawValue.mjs';
 import * as proc from './RawProcessID.mjs'
 import * as levels  from '../Level.mjs'
 import { Level } from '../Level.mjs';
@@ -9,7 +9,7 @@ import { Level } from '../Level.mjs';
  * Compute deep equality of the given unlabelled raw values.
  * The returned value label is the join of all visited nested labelled values.
  */
-export function isEqual(x: TroupeRawValue, y: TroupeRawValue): LVal {
+export function isEqual(x: RawValue, y: RawValue): LVal {
   function baseBoolean(b: boolean, l: Level = levels.BOT) {
     return new LVal(b, l, levels.BOT)
   }

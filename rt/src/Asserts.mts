@@ -12,7 +12,7 @@ const actsFor = levels.actsFor;
 
 import { getRuntimeObject } from './SysState.mjs';
 import { __nodeManager } from './NodeManager.mjs';
-import { TroupeAggregateRawValue, TroupeRawValue } from './base/TroupeRawValue.mjs';
+import { RawAggregate, RawValue } from './base/RawValue.mjs';
 // import { LVal } from './Lval';
 
 function _thread() {
@@ -130,7 +130,7 @@ export function assertIsNTuple(x: any, n: number) {
 }
 
 
-export function assertIsNTupleR3 (x:TroupeRawValue, lev:Level, tlev:Level, n:number) {
+export function assertIsNTupleR3 (x:RawValue, lev:Level, tlev:Level, n:number) {
     _thread().raiseBlockingThreadLev(lev);
     if (!(Array.isArray(x) && isTuple(x) && x.length == n)) {
         err("value " + __stringRep(x) + " is not a " + n + "-tuple")
