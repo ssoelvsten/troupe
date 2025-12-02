@@ -28,6 +28,21 @@ export function isUnit(x: any): x is RawUnit {
   return x._troupeType === TroupeType.UNIT;
 }
 
+/** Predicate of whether `x` is a boolean value. */
+export function isBoolean(x: any) : x is boolean {
+  return typeof x === "boolean";
+}
+
+/** Predicate of whether `x` is a number. */
+export function isNumber(x: any) : x is number {
+  return typeof x === "number";
+}
+
+/** Predicate of whether `x` is a string. */
+export function isString(x: any) : x is string {
+  return typeof x === "string";
+}
+
 /**
  * Combines a `uuid` and process and node identifiers into a new Troupe process
  * id object.

@@ -1,6 +1,6 @@
 import { Thread, Capability } from './Thread.mjs';
 
-import { isAuthority, isList, isProcessID, isTuple, isUnit } from './base/rawUtil.mjs';
+import { isAuthority, isBoolean, isList, isNumber, isProcessID, isString, isTuple, isUnit } from './base/rawUtil.mjs';
 import { AbstractLevel } from './AbstractLevel.mjs';
 import { Level } from './Level.mjs';
 import * as levels from './Level.mjs'; 
@@ -42,27 +42,27 @@ export function assertIsAtom (x: any) {
 }
 
 export function rawAssertIsNumber (x) {
-    if (typeof x != 'number') {
+    if (!isNumber(x)) {
         err("value " + __stringRep(x) + " is not a number")
     }
 }
 
 export function assertIsNumber(x: any) {
     _thread().raiseBlockingThreadLev(x.tlev)
-    if (typeof x.val != 'number') {
+    if (!isNumber(x.val)) {
         err("value " + __stringRep(x) + " is not a number")
     }
 }
 
 export function assertIsBoolean(x: any) {
     _thread().raiseBlockingThreadLev(x.tlev);
-    if (typeof x.val != 'boolean') {
+    if (!isBoolean(x.val)) {
         err("value " + __stringRep(x) + " is not a boolean")
     }
 }
 
 export function rawAssertIsBoolean(x:any) {
-    if (typeof x != 'boolean') {
+    if (!isBoolean(x)) {
         err("value " + __stringRep(x) + " is not a boolean")
     }
 }
@@ -172,13 +172,13 @@ export function rawAssertIsRecord (x: any) {
 
 export function assertIsString(x: any) {
     _thread().raiseBlockingThreadLev(x.tlev);
-    if (typeof x.val != 'string') {
+    if (!isString(x.val)) {
         err("value " + __stringRep(x) + " is not a string")
     }
 }
 
 export function rawAssertIsString(x:any) {
-    if (typeof x != 'string') {
+    if (!isString(x)) {
         err("value " + __stringRep(x) + " is not a string")
     } 
 }
@@ -192,7 +192,7 @@ export function rawAssertNotZero(x:any) {
 
 export function assertIsNode(x: any) {
     _thread().raiseBlockingThreadLev(x.tlev);
-    if (typeof x.val != 'string') {
+    if (!isString(x.val)) {
         err("value " + __stringRep(x) + " is not a node string") // todo: check for it being a proper nodeid format?
     }
     if (x.val.startsWith("@")) {
