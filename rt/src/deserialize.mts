@@ -2,7 +2,7 @@
 import { strict as assert } from 'node:assert'
 import { spawn, ChildProcess } from 'child_process'
 import * as Ty from './base/TroupeTypes.mjs'
-import { LVal } from './base/LVal.mjs';
+import { isLVal, LVal } from './base/LVal.mjs';
 import { mkTuple, mkList, mkRecord } from './base/rawUtil.mjs';
 import { ProcessID } from './base/ProcessID.mjs';
 import { Authority } from './base/Authority.mjs';
@@ -238,7 +238,7 @@ async function reconstruct(jsonObj: any, compilerOutput: string | undefined, tru
     }
 
     function mkValue(arg: { val: any; lev: any; tlev: any; troupeType: Ty.TroupeType; }) {
-        assert(Ty.isLVal(arg));
+        assert(isLVal(arg));
         const obj = arg.val;
         const lev = mkLevel(arg.lev);
         const tlev = mkLevel(arg.tlev);

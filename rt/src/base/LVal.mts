@@ -108,6 +108,13 @@ export class MbVal extends LVal {
 
 }
 
+/** Identifies whether a value `x` is LVal(ish). */
+export function isLVal(x) {
+    return (typeof x.val != "undefined" &&
+            typeof x.lev != "undefined" &&
+            typeof x.tlev != "undefined" );
+}
+
 /** Creates the string representation of LValues `xs`.
  *
  *  This can be used for debugging and as an aid to create the string representation

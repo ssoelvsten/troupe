@@ -12,7 +12,7 @@
 import assert from 'assert'
 import { lub } from './Level.mjs';
 import * as Ty from './base/TroupeTypes.mjs'
-import { LVal } from './base/LVal.mjs';
+import { isLVal, LVal } from './base/LVal.mjs';
 import { Level } from './Level.mjs';
 import { StopThreadError, ThreadError } from './TroupeError.mjs';
 import { getRuntimeObject } from './SysState.mjs';
@@ -54,7 +54,7 @@ export function serialize(w:LVal, pclev:Level) {
     let level = pclev;
 
     function walk(lval:LVal) {
-        assert(Ty.isLVal(lval));
+        assert(isLVal(lval));
 
         level = lub(level, lval.lev); // 2018-09-24: AA: is this the only place 
         // where we need to check the level of the message?

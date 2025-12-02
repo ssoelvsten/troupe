@@ -30,12 +30,6 @@ export const enum ClosureType {
   SERVICEFN = 3    
 }
 
-export function isLVal(x) {
-  return   (typeof x.val != "undefined" &&
-            typeof x.lev != "undefined" && 
-            typeof x.tlev != "undefined" );
-}
-
 export function isSerializableClosure (ct: ClosureType)  {
   return (ct === ClosureType.REGULARFN);
 }
