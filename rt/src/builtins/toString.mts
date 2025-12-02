@@ -6,7 +6,7 @@ import { LVal } from '../base/LVal.mjs';
 export function BuiltinToString<TBase extends Constructor<UserRuntimeZero>>(Base: TBase) {
     return class extends Base {
         toString = mkBuiltin((arg) => {
-            let taintRef = { lev: this.runtime.$t.pc };
+            const taintRef = { lev: this.runtime.$t.pc };
             let s = this.runtime.$t.mkCopy(arg).stringRep
                 (true,  // omit labels
                     taintRef  // accumulate taint into this reference
