@@ -1,4 +1,4 @@
-import { UserRuntimeZero, Constructor, mkBase } from './UserRuntimeZero.mjs'
+import { UserRuntimeZero, Constructor, mkBuiltin } from './UserRuntimeZero.mjs'
 import { LVal } from '../base/LVal.mjs';
 import * as levels from '../Level.mjs'
 import { Authority } from '../base/Authority.mjs';
@@ -8,7 +8,7 @@ const {lub, flowsTo} = levels
 
 export function BuiltinAttenuate<TBase extends Constructor<UserRuntimeZero>>(Base: TBase) {
     return class extends Base {
-        attenuate = mkBase((arg) => {
+        attenuate = mkBuiltin((arg) => {
             assertIsNTuple(arg, 2);
             let argv = arg.val;
             let authFrom = argv[0];

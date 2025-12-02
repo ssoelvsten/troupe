@@ -1,4 +1,4 @@
-import {UserRuntimeZero, Constructor, mkBase} from './UserRuntimeZero.mjs'
+import {UserRuntimeZero, Constructor, mkBuiltin} from './UserRuntimeZero.mjs'
 import { LVal } from '../base/LVal.mjs';
 import {lub, flowsTo} from '../Level.mjs'
 import { assertIsNumber, assertIsNTuple, assertIsLevel, assertIsLocalObject } from '../Asserts.mjs'
@@ -9,7 +9,7 @@ import { unitLVal } from '../base/unitLVal.mjs';
 
 export function BuiltinLocalArrays <TBase extends Constructor<UserRuntimeZero>> (Base:TBase) {
     return class extends Base {
-        arrayCreate = mkBase((arg) => {
+        arrayCreate = mkBuiltin((arg) => {
             assertIsNTuple(arg, 3)
             let lev = arg.val[0]
             let size = arg.val[1]
@@ -27,7 +27,7 @@ export function BuiltinLocalArrays <TBase extends Constructor<UserRuntimeZero>> 
             return this.runtime.ret (this.mkVal (new LocalObject(obj)))
         })
 
-        arrayGet = mkBase((arg) => {
+        arrayGet = mkBuiltin((arg) => {
             assertIsNTuple(arg, 2)
             let obj = arg.val[0]
             let idx = arg.val[1]
@@ -44,7 +44,7 @@ export function BuiltinLocalArrays <TBase extends Constructor<UserRuntimeZero>> 
             return this.runtime.ret ( new LVal (u.val, lub (this.runtime.$t.bl, u.lev, lev, obj.lev)))
         })
 
-        arraySet = mkBase((arg) => {
+        arraySet = mkBuiltin((arg) => {
             assertIsNTuple(arg, 3)
             let obj = arg.val[0]
             let idx = arg.val[1]

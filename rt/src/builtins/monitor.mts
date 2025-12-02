@@ -1,11 +1,11 @@
-import {UserRuntimeZero, Constructor, mkBase} from './UserRuntimeZero.mjs'
+import {UserRuntimeZero, Constructor, mkBuiltin} from './UserRuntimeZero.mjs'
 import { assertNormalState, assertIsProcessId, assertIsString } from '../Asserts.mjs'
 import { unitLVal } from '../base/unitLVal.mjs';
 
 export function BuiltinMonitors <TBase extends Constructor<UserRuntimeZero>> (Base:TBase) {
     
     return class extends Base {
-        monitorlocal = mkBase((arg) => {
+        monitorlocal = mkBuiltin((arg) => {
             assertNormalState("monitor");
             this.runtime.$t.raiseCurrentThreadPC(arg.lev);
             assertIsProcessId(arg);
@@ -26,7 +26,7 @@ export function BuiltinMonitors <TBase extends Constructor<UserRuntimeZero>> (Ba
         })
 
 
-        demonitorlocal = mkBase((arg) => {
+        demonitorlocal = mkBuiltin((arg) => {
             assertIsString(arg);
             // mutates state; so we should be careful...
             return this.runtime.ret(unitLVal);

@@ -1,4 +1,4 @@
-import { UserRuntimeZero, Constructor, mkBase } from './UserRuntimeZero.mjs'
+import { UserRuntimeZero, Constructor, mkBuiltin } from './UserRuntimeZero.mjs'
 import { LCopyVal } from '../base/LVal.mjs';
 import { assertIsNTuple, assertIsAuthority, assertIsLevel, assertNormalState, assertIsString, assertIsRootAuthority } from '../Asserts.mjs'
 import { unitLVal } from '../base/unitLVal.mjs';
@@ -11,7 +11,7 @@ const { lub, flowsTo } = levels
 export function BuiltinRaiseTrust<TBase extends Constructor<UserRuntimeZero>>(Base: TBase) {
     return class extends Base {
 
-        raiseTrust = mkBase((arg) => {
+        raiseTrust = mkBuiltin((arg) => {
             assertNormalState("raise trust");
             assertIsNTuple(arg, 3)
 

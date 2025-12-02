@@ -1,5 +1,5 @@
 'use strict'
-import { UserRuntimeZero, Constructor, mkBase } from './UserRuntimeZero.mjs'
+import { UserRuntimeZero, Constructor, mkBuiltin } from './UserRuntimeZero.mjs'
 import * as levels from '../Level.mjs'
 import { ProcessID } from '../base/ProcessID.mjs';
 const { lub, flowsTo } = levels
@@ -23,7 +23,7 @@ export let __theRegister: { [k in string]: LVal } = {}
 
 export function BuiltinRegistry<TBase extends Constructor<UserRuntimeZero>>(Base: TBase) {
     return class extends Base {
-        register = mkBase((arg) => {            
+        register = mkBuiltin((arg) => {            
             const $r = this.runtime
             assertNormalState("register")
             assertIsNTuple(arg, 3);
@@ -58,7 +58,7 @@ export function BuiltinRegistry<TBase extends Constructor<UserRuntimeZero>>(Base
 
 
 
-        whereis = mkBase((arg) => {            
+        whereis = mkBuiltin((arg) => {            
             let $r = this.runtime
             assertNormalState("whereis")
             assertIsNTuple(arg, 2);

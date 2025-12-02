@@ -1,11 +1,11 @@
-import { UserRuntimeZero, Constructor, mkBase } from './UserRuntimeZero.mjs'
+import { UserRuntimeZero, Constructor, mkBuiltin } from './UserRuntimeZero.mjs'
 import { assertNormalState, assertIsNTuple, assertIsAuthority, assertIsNumber, assertIsRootAuthority } from '../Asserts.mjs'
 import { unitLVal } from '../base/unitLVal.mjs';
 
 
 export function BuiltinExit <TBase extends Constructor<UserRuntimeZero>>(Base: TBase) {
     return class extends Base {
-        exit = mkBase((arg) => {
+        exit = mkBuiltin((arg) => {
             let $r = this.runtime
             assertNormalState("exit");
             assertIsNTuple(arg, 2);
@@ -19,7 +19,7 @@ export function BuiltinExit <TBase extends Constructor<UserRuntimeZero>>(Base: T
 
         }, "exit")
 
-        _resetScheduler = mkBase((arg) => {
+        _resetScheduler = mkBuiltin((arg) => {
             assertNormalState("exit");
             assertIsAuthority(arg);
             assertIsRootAuthority(arg);

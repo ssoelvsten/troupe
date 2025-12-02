@@ -1,4 +1,4 @@
-import { UserRuntimeZero, Constructor, mkBase } from './UserRuntimeZero.mjs'
+import { UserRuntimeZero, Constructor, mkBuiltin } from './UserRuntimeZero.mjs'
 import { LVal } from '../base/LVal.mjs';
 import * as levels from '../Level.mjs'
 import { assertIsNTuple, assertNormalState } from '../Asserts.mjs';
@@ -43,13 +43,13 @@ const argv = getCliArgs();
 
 export function BuiltinAdv <TBase extends Constructor<UserRuntimeZero>>(Base: TBase) {
     return class extends Base {
-        mkSecret = mkBase((x) => {
+        mkSecret = mkBuiltin((x) => {
             // debug ("making secret " + x.val)
             this.runtime.$t.invalidateSparseBit()
             return this.runtime.ret(new LVal(x.val, levels.TOP))
         })
 
-        adv = mkBase((x) => {
+        adv = mkBuiltin((x) => {
             assertNormalState("baseDisclose");
             
             // Check if running in network mode (i.e., NOT local-only)
@@ -70,7 +70,7 @@ export function BuiltinAdv <TBase extends Constructor<UserRuntimeZero>>(Base: TB
             return this.runtime.ret(unitLVal);
         })
 
-        cert = mkBase ((x) =>{
+        cert = mkBuiltin ((x) =>{
             assertNormalState("baseCertify");
             
             // Check if running in network mode (i.e., NOT local-only)
@@ -91,7 +91,7 @@ export function BuiltinAdv <TBase extends Constructor<UserRuntimeZero>>(Base: TB
             return this.runtime.ret(unitLVal);            
         })
 
-        ladv = mkBase((x) => {
+        ladv = mkBuiltin((x) => {
             assertNormalState("ladv");
             assertIsNTuple(x, 2)
             let l_adv = x.val[0] 

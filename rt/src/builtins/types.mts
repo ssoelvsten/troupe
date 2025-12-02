@@ -1,5 +1,5 @@
 'use strict'
-import { UserRuntimeZero, Constructor, mkBase } from './UserRuntimeZero.mjs'
+import { UserRuntimeZero, Constructor, mkBuiltin } from './UserRuntimeZero.mjs'
 import { LVal } from '../base/LVal.mjs';
 import { assertIsNTuple, assertIsRecord, assertIsString, assertIsUnit, assertNormalState } from '../Asserts.mjs'
 import { RawRecord } from "../base/RawRecord.mjs";
@@ -10,7 +10,7 @@ import { TroupeType } from '../base/TroupeTypes.mjs';
 export function BuiltinTypeInformation<TBase extends Constructor<UserRuntimeZero>>(Base: TBase) {
     return class extends Base {        
 	// returns a string containing the type information 
-        getType = mkBase((larg) => {
+        getType = mkBuiltin((larg) => {
 	     let _t = "unknown" // 2024-03-18; todo: add proper type	
 	     switch (larg.val._troupeType) {
 		case TroupeType.UNIT: 

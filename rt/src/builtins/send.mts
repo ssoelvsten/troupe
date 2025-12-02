@@ -1,10 +1,10 @@
-import { UserRuntimeZero, Constructor, mkBase } from './UserRuntimeZero.mjs'
+import { UserRuntimeZero, Constructor, mkBuiltin } from './UserRuntimeZero.mjs'
 import { assertNormalState, assertIsNTuple, assertIsProcessId } from '../Asserts.mjs'
 
 
 export function BuiltinSend<TBase extends Constructor<UserRuntimeZero>>(Base: TBase) {
     return class extends Base {
-        send = mkBase((larg) => {
+        send = mkBuiltin((larg) => {
             let $r = this.runtime
             $r.$t.raiseCurrentThreadPCToBlockingLev();
             assertNormalState("send")

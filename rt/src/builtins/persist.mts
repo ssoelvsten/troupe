@@ -1,4 +1,4 @@
-import { UserRuntimeZero, Constructor, mkBase } from './UserRuntimeZero.mjs'
+import { UserRuntimeZero, Constructor, mkBuiltin } from './UserRuntimeZero.mjs'
 import { LVal } from '../base/LVal.mjs';
 import * as levels from '../Level.mjs'
 import {deserialize} from '../deserialize.mjs'
@@ -8,7 +8,7 @@ import { unitLVal } from '../base/unitLVal.mjs';
 
 export function BuiltinPersist<TBase extends Constructor<UserRuntimeZero>>(Base: TBase) {
     return class extends Base {
-        save = mkBase((larg) => {
+        save = mkBuiltin((larg) => {
             assertIsNTuple(larg, 3);
             this.runtime.$t.raiseCurrentThreadPC(larg.lev);
             let arg = larg.val;
@@ -21,7 +21,7 @@ export function BuiltinPersist<TBase extends Constructor<UserRuntimeZero>>(Base:
         }, "save")
 
 
-        restore = mkBase((arg) => {
+        restore = mkBuiltin((arg) => {
             assertIsString(arg)
             let theThread = this.runtime.$t;
             let file = arg;

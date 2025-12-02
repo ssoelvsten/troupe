@@ -1,12 +1,12 @@
 'use strict'
-import { UserRuntimeZero, Constructor, mkBase } from './UserRuntimeZero.mjs'
+import { UserRuntimeZero, Constructor, mkBuiltin } from './UserRuntimeZero.mjs'
 import { LVal } from '../base/LVal.mjs';
 import { assertIsUnit, assertNormalState } from '../Asserts.mjs'
 
 
 export function BuiltinGetTime<TBase extends Constructor<UserRuntimeZero>>(Base: TBase) {
     return class extends Base {
-        getTime = mkBase((arg) => {
+        getTime = mkBuiltin((arg) => {
             assertNormalState("getTime")
             assertIsUnit(arg)
             let d = new Date()
@@ -15,7 +15,7 @@ export function BuiltinGetTime<TBase extends Constructor<UserRuntimeZero>>(Base:
             return this.runtime.ret(v)
         })
 
-        getNanoTime = mkBase((arg) => {
+        getNanoTime = mkBuiltin((arg) => {
             assertIsUnit(arg)
             let t = process.hrtime.bigint()
             let v = new LVal(t, this.runtime.$t.pc);

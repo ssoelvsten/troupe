@@ -1,10 +1,10 @@
-import {UserRuntimeZero, Constructor, mkBase} from './UserRuntimeZero.mjs'
+import {UserRuntimeZero, Constructor, mkBuiltin} from './UserRuntimeZero.mjs'
 import { assertIsNumber } from '../Asserts.mjs'
 import { unitLVal } from '../base/unitLVal.mjs'
 import { SleepTimeout } from '../Thread.mjs'
 export function BuiltinSleep <TBase extends Constructor<UserRuntimeZero>> (Base:TBase) {
     return class extends Base {
-        sleep = mkBase((arg) => {
+        sleep = mkBuiltin((arg) => {
             let $r = this.runtime
             assertIsNumber (arg);
             let delay = arg.val; 

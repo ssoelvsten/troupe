@@ -1,4 +1,4 @@
-import { UserRuntimeZero, Constructor, mkBase } from './UserRuntimeZero.mjs'
+import { UserRuntimeZero, Constructor, mkBuiltin } from './UserRuntimeZero.mjs'
 import { LVal, LValCopyAt } from '../base/LVal.mjs';
 import { assertNormalState, assertIsNTuple, assertIsNumber, assertIsFunction } from '../Asserts.mjs'
 import { unitLVal } from '../base/unitLVal.mjs';
@@ -137,7 +137,7 @@ function setupSandbox($r:RuntimeInterface, delay, resumeState = null) {
 
 export function BuiltinSandbox<TBase extends Constructor<UserRuntimeZero>>(Base: TBase) {
     return class extends Base {
-        sandbox = mkBase((arg) => {
+        sandbox = mkBuiltin((arg) => {
             // return new Error ("not ported to new raw representation")
             // /*
             debug(`calling sandbox`)

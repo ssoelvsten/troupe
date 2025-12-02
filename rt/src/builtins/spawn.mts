@@ -1,4 +1,4 @@
-import { UserRuntimeZero, Constructor, mkBase } from './UserRuntimeZero.mjs'
+import { UserRuntimeZero, Constructor, mkBuiltin } from './UserRuntimeZero.mjs'
 import {lub} from '../Level.mjs'
 import { assertNormalState, assertIsFunction, assertIsNode } from '../Asserts.mjs'
 import { __nodeManager } from '../NodeManager.mjs';
@@ -8,14 +8,14 @@ import { ProcessID } from '../base/ProcessID.mjs';
 
 export function BuiltinSpawn<TBase extends Constructor<UserRuntimeZero>>(Base: TBase) {
     return class extends Base {
-        _getSystemProcess = mkBase ((arg) => {
+        _getSystemProcess = mkBuiltin ((arg) => {
             assertIsNode(arg.val)
             let node = __nodeManager.getNode(arg.val)
             let pid = new ProcessID (null, SYSTEM_PROCESS_STRING, node)
             return this.runtime.$t.mkVal (pid);
         })
 
-        spawn = mkBase((larg) => {
+        spawn = mkBuiltin((larg) => {
             assertNormalState("spawn")
             // debug ("* rt rt_spawn *", larg.val, larg.lev);
             // console.log ("SPAWN ARGS", larg)

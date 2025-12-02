@@ -1,4 +1,4 @@
-import { UserRuntimeZero, Constructor, mkBase } from './UserRuntimeZero.mjs'
+import { UserRuntimeZero, Constructor, mkBuiltin } from './UserRuntimeZero.mjs'
 import { LocalObject } from '../base/LocalObject.mjs'
 import * as levels from '../Level.mjs'
 import { mkLevel } from '../Level.mjs'
@@ -39,7 +39,7 @@ export function closeReadline() {
 
 export function BuiltinStdIo<TBase extends Constructor<UserRuntimeZero>>(Base: TBase) {
     return class extends Base {
-        getStdout = mkBase((arg) => {
+        getStdout = mkBuiltin((arg) => {
             assertIsAuthority(arg)
             let sufficentAuthority = flowsTo(__stdio_lev, arg.val.authorityLevel)
             if (sufficentAuthority) {
@@ -54,7 +54,7 @@ export function BuiltinStdIo<TBase extends Constructor<UserRuntimeZero>>(Base: T
             
         })
 
-        fprintln = mkBase((arg) => {
+        fprintln = mkBuiltin((arg) => {
             assertNormalState("fprintln")
             assertIsNTuple(arg, 2);
             assertIsLocalObject(arg.val[0]);
@@ -64,7 +64,7 @@ export function BuiltinStdIo<TBase extends Constructor<UserRuntimeZero>>(Base: T
             return this.runtime.ret(unitLVal);
         });
 
-        fprintlnWithLabels = mkBase((arg) => {
+        fprintlnWithLabels = mkBuiltin((arg) => {
             assertNormalState("fprintlnWithLabels")
             assertIsNTuple(arg, 2);
             assertIsLocalObject(arg.val[0]);
@@ -74,7 +74,7 @@ export function BuiltinStdIo<TBase extends Constructor<UserRuntimeZero>>(Base: T
             return this.runtime.ret(unitLVal);
         });
 
-        fwrite = mkBase((arg) => {
+        fwrite = mkBuiltin((arg) => {
             assertNormalState("fwrite")
             assertIsNTuple(arg, 2);
             assertIsLocalObject(arg.val[0]);
@@ -84,7 +84,7 @@ export function BuiltinStdIo<TBase extends Constructor<UserRuntimeZero>>(Base: T
             return this.runtime.ret(unitLVal);
         }, "fwrite");
 
-        inputLine = mkBase((arg) => {
+        inputLine = mkBuiltin((arg) => {
             assertNormalState("inputLine")
             assertIsUnit(arg)
             let theThread = this.runtime.$t;
@@ -103,7 +103,7 @@ export function BuiltinStdIo<TBase extends Constructor<UserRuntimeZero>>(Base: T
             }
         }, "inputLine")
 
-        rt_question = mkBase((arg) => {
+        rt_question = mkBuiltin((arg) => {
             assertNormalState("rt_question")
             readline.removeListener('line', lineListener);
             let theThread = this.runtime.$t;

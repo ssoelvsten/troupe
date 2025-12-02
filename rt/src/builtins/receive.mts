@@ -1,4 +1,4 @@
-import { UserRuntimeZero, Constructor, mkBase, mkService } from './UserRuntimeZero.mjs'
+import { UserRuntimeZero, Constructor, mkBuiltin, mkService } from './UserRuntimeZero.mjs'
 import { assertNormalState, assertIsNTuple, assertIsLevel, assertIsList, assertIsAtom, assertIsNumber, assertIsUnit, assertIsFunction } from '../Asserts.mjs'
 import { flowsTo, lub, glb, BOT } from '../Level.mjs';
 import { RuntimeInterface } from '../RuntimeInterface.mjs';
@@ -77,7 +77,7 @@ function _receiveFromMailbox ($r:RuntimeInterface, lowb, highb, handlers) {
 
 export function BuiltinReceive<TBase extends Constructor<UserRuntimeZero>>(Base: TBase) {
     return class extends Base {
-        peek = mkBase (arg => {
+        peek = mkBuiltin (arg => {
           assertIsNTuple(arg, 3)
           assertIsNumber(arg.val[0])
           assertIsLevel (arg.val[1])
@@ -91,7 +91,7 @@ export function BuiltinReceive<TBase extends Constructor<UserRuntimeZero>>(Base:
               i.val, lowb.val, highb.val )
         })
 
-        consume = mkBase (arg => {
+        consume = mkBuiltin (arg => {
           assertIsNTuple(arg, 3)
           assertIsNumber(arg.val[0])
           assertIsLevel (arg.val[1])
@@ -131,7 +131,7 @@ export function BuiltinReceive<TBase extends Constructor<UserRuntimeZero>>(Base:
           return this.runtime.__mbox.consume ( consume_l, i.val, lowb.val, highb.val )
         })
 
-        guard = mkBase (arg => {
+        guard = mkBuiltin (arg => {
           assertIsNTuple(arg, 3)
           let f = arg.val[0]
           let taintLimitArg = arg.val[1]

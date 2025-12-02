@@ -3,7 +3,7 @@ import {TroupeAggregateRawValue} from './TroupeRawValue.mjs'
 import * as levels from '../Level.mjs' 
 import { getRuntimeObject } from '../SysState.mjs'
 
-export function BaseFunctionWithExplicitArg(f, name = null) : TroupeAggregateRawValue{
+export function BuiltinFunction(f, name = null) : TroupeAggregateRawValue {
   
   let closure : any = () => {
     let thread = getRuntimeObject().$t;

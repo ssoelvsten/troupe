@@ -5,7 +5,7 @@ import { LVal, LValCopyAt, LCopyVal } from '../base/LVal.mjs'
 import { Nil, Cons, RawList } from '../base/RawList.mjs'
 import { loadLibsAsync } from '../loadLibsAsync.mjs';
 import * as levels from '../Level.mjs'
-import { BaseFunctionWithExplicitArg, ServiceFunction } from '../base/BaseFunction.mjs'
+import { BuiltinFunction, ServiceFunction } from '../base/BaseFunction.mjs'
 import { Atom } from '../base/Atom.mjs'
 import { unitLVal } from '../base/unitLVal.mjs'
 import { RuntimeInterface } from '../RuntimeInterface.mjs';
@@ -43,8 +43,8 @@ class LibEnv {
 }
 
 
-export function mkBase(f,name=null) {
-    return BaseFunctionWithExplicitArg(f,name)
+export function mkBuiltin(f,name=null) {
+    return BuiltinFunction(f,name)
 }
 
 export function mkService(f, name = null) {

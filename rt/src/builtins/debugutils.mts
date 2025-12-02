@@ -1,4 +1,4 @@
-import {UserRuntimeZero, Constructor, mkBase} from './UserRuntimeZero.mjs'
+import {UserRuntimeZero, Constructor, mkBuiltin} from './UserRuntimeZero.mjs'
 import { assertIsString, assertIsNumber, assertIsNTuple } from '../Asserts.mjs'
 import { unitLVal } from '../base/unitLVal.mjs';
 import { TroupeType } from '../base/TroupeTypes.mjs';
@@ -6,24 +6,24 @@ import { TroupeType } from '../base/TroupeTypes.mjs';
 
 export function BuiltinDebugUtils <TBase extends Constructor<UserRuntimeZero>> (Base:TBase) {
     return class extends Base {
-        _setProcessDebuggingName = mkBase((arg) => {
+        _setProcessDebuggingName = mkBuiltin((arg) => {
             assertIsString(arg)
             this.runtime.$t.processDebuggingName = arg.val
             return this.runtime.ret(unitLVal)
         })
 
-        debugpc = mkBase((arg) => {
+        debugpc = mkBuiltin((arg) => {
             this.runtime.debug("");
             // this.runtime.$t.showStack()
             return this.runtime.ret(unitLVal);
         })
 
-        _debug = mkBase ((arg) => {
+        _debug = mkBuiltin ((arg) => {
             console.log (arg.stringRep(true))
             return this.runtime.ret(unitLVal);
         })
 
-        _setFailureRate = mkBase((arg) => {
+        _setFailureRate = mkBuiltin((arg) => {
             let _tt = arg.getTroupeType;
             switch (_tt) {
                 case TroupeType.NUMBER:

@@ -1,4 +1,4 @@
-import { UserRuntimeZero, Constructor, mkBase } from './UserRuntimeZero.mjs'
+import { UserRuntimeZero, Constructor, mkBuiltin } from './UserRuntimeZero.mjs'
 import { LVal } from '../base/LVal.mjs';
 import { assertIsProcessId } from '../Asserts.mjs'
 
@@ -9,7 +9,7 @@ import { assertIsProcessId } from '../Asserts.mjs'
 
 export function BuiltinNodeUtils<TBase extends Constructor<UserRuntimeZero>>(Base: TBase) {
     return class extends Base {
-        node = mkBase((arg) => {
+        node = mkBuiltin((arg) => {
             assertIsProcessId(arg);
             let data = arg.val;
             let nodeId = data.node.nodeId;

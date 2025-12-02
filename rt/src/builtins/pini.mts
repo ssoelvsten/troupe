@@ -1,4 +1,4 @@
-import {UserRuntimeZero, Constructor, mkBase} from './UserRuntimeZero.mjs'
+import {UserRuntimeZero, Constructor, mkBuiltin} from './UserRuntimeZero.mjs'
 import * as levels from '../Level.mjs'
 import { assertNormalState, assertIsAuthority, assertIsCapability, assertIsNTuple, assertIsLevel } from '../Asserts.mjs'
 const flowsTo = levels.flowsTo;
@@ -9,27 +9,27 @@ export function BuiltinPini <TBase extends Constructor<UserRuntimeZero>> (Base:T
     
     return class extends Base {
 
-        pcpush = mkBase((arg) => {
+        pcpush = mkBuiltin((arg) => {
             assertNormalState("pcpush")
             assertIsAuthority(arg);
             return this.runtime.$t.pcpinipush(arg, "pcpush");
         })
 
 
-        pcpop = mkBase((arg) => {
+        pcpop = mkBuiltin((arg) => {
             assertNormalState("pcpop");
             assertIsCapability(arg);
             return this.runtime.$t.pcpop(arg)
         })
 
 
-        pinipush = mkBase((arg) => {
+        pinipush = mkBuiltin((arg) => {
             // assertNormalState("pinipush");
             assertIsAuthority(arg);
             return this.runtime.$t.pcpinipush(arg, "pinipush");
         })
 
-        pinipushto = mkBase((arg) => {
+        pinipushto = mkBuiltin((arg) => {
             assertIsNTuple(arg, 2)
             assertIsAuthority(arg.val[0])
             assertIsLevel(arg.val[1])
@@ -43,30 +43,30 @@ export function BuiltinPini <TBase extends Constructor<UserRuntimeZero>> (Base:T
             }
         })
 
-        pinipop = mkBase((arg) => {
+        pinipop = mkBuiltin((arg) => {
             // assertNormalState("pinipop");
             assertIsCapability(arg)
             return this.runtime.$t.pinipop(arg);
         })
 
-        blockdecl = mkBase((arg) => {
+        blockdecl = mkBuiltin((arg) => {
             assertIsAuthority(arg);
             return this.runtime.$t.blockDeclassifyTo(arg)
         })
 
-        blockdeclto = mkBase((arg) => {
+        blockdeclto = mkBuiltin((arg) => {
             assertIsNTuple(arg, 2);
             assertIsAuthority(arg.val[0])
             assertIsLevel(arg.val[1]);
             return this.runtime.$t.blockDeclassifyTo(arg.val[0], arg.val[1].val)
         })
 
-        blockendorse = mkBase ((arg) => {
+        blockendorse = mkBuiltin ((arg) => {
             assertIsAuthority(arg);
             return this.runtime.$t.blockEndorseTo(arg);
         })
 
-        blockendorseto = mkBase((arg) => {
+        blockendorseto = mkBuiltin((arg) => {
             assertIsNTuple(arg, 2);
             assertIsAuthority(arg.val[0])
             assertIsLevel(arg.val[1]);

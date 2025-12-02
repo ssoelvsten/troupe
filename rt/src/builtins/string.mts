@@ -1,4 +1,4 @@
-import {UserRuntimeZero, Constructor, mkBase} from './UserRuntimeZero.mjs'
+import {UserRuntimeZero, Constructor, mkBuiltin} from './UserRuntimeZero.mjs'
 import { LVal } from '../base/LVal.mjs';
 import { assertIsString, assertIsNTuple, assertIsNumber } from '../Asserts.mjs'
 import { lub } from '../Level.mjs';
@@ -6,7 +6,7 @@ import { lub } from '../Level.mjs';
 
 export function BuiltinString <TBase extends Constructor<UserRuntimeZero>> (Base:TBase) {
     return class extends Base {
-        charCodeAtWithDefault = mkBase (arg => {
+        charCodeAtWithDefault = mkBuiltin (arg => {
             assertIsNTuple(arg, 3); 
             assertIsString(arg.val[0])
             assertIsNumber(arg.val[1]);
@@ -23,13 +23,13 @@ export function BuiltinString <TBase extends Constructor<UserRuntimeZero>> (Base
 
         })
 
-        strlen = mkBase (arg => {
+        strlen = mkBuiltin (arg => {
             assertIsString(arg);
             let s: string  = arg.val ;
             return this.runtime.ret (new LVal (s.length, arg.lev))
         })
 
-        substring = mkBase (arg => {
+        substring = mkBuiltin (arg => {
             assertIsNTuple(arg, 3)
             assertIsString(arg.val[0])
             assertIsNumber(arg.val[1])
