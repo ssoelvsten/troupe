@@ -36,8 +36,8 @@ export function isLVal(x) {
             typeof x.tlev != "undefined" );
 }
 
-export function isSerializableClosure (ct)  {
-  return (ct == ClosureType.REGULARFN);
+export function isSerializableClosure (ct: ClosureType)  {
+  return (ct === ClosureType.REGULARFN);
 }
 
 export function getTypeForBasicValue (x:any) {
