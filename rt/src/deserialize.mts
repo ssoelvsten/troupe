@@ -5,7 +5,7 @@ import * as Ty from './base/TroupeTypes.mjs'
 import { isLVal, LVal } from './base/LVal.mjs';
 import { mkTuple, mkList, mkRecord } from './base/rawUtil.mjs';
 import { ProcessID } from './base/ProcessID.mjs';
-import { Authority } from './base/Authority.mjs';
+import { RawAuthority } from './base/RawAuthority.mjs';
 import { Atom } from './base/Atom.mjs';
 import RawUnit from './base/RawUnit.mjs'
 import { glb, mkLevel } from './Level.mjs';
@@ -270,7 +270,7 @@ async function reconstruct(jsonObj: any, compilerOutput: string | undefined, tru
                     return new ProcessID(obj.uuid, obj.pid, obj.node)
                 case Ty.TroupeType.AUTHORITY:
                     // Attenuate authority based on the trust level of the sender
-                    return new Authority(_trustGLB(mkLevel(obj.authorityLevel)));
+                    return new RawAuthority(_trustGLB(mkLevel(obj.authorityLevel)));
                 case Ty.TroupeType.LEVEL:
                     return mkLevel(obj.lev);
                 case Ty.TroupeType.LVAL:

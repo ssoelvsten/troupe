@@ -5,7 +5,7 @@ import * as proc from './base/ProcessID.mjs';
 const ProcessID = proc.ProcessID;
 import { AbstractLevel } from './AbstractLevel.mjs';
 import { Level } from './Level.mjs';
-import { Authority } from './base/Authority.mjs'
+import { RawAuthority } from './base/RawAuthority.mjs'
 import * as levels from './Level.mjs'; 
 import { TroupeType } from './base/TroupeTypes.mjs';
 const actsFor = levels.actsFor;
@@ -244,14 +244,14 @@ export function assertIsRootAuthority(x: any) {
 
 export function assertIsAuthority(x: any) {
     _thread().raiseBlockingThreadLev(x.tlev);
-    if (!(x.val instanceof Authority)) {
+    if (!(x.val instanceof RawAuthority)) {
         err("value " + __stringRep(x) + " is not a authority");
     }
 }
 
 export function assertIsAuthorityR3(x, lev, tlev) {
     _thread().raiseBlockingThreadLev(x.tlev);
-    if (!(x instanceof Authority)){
+    if (!(x instanceof RawAuthority)){
         err("value " + __stringRep(x) + " is not a authority");
     }
 }

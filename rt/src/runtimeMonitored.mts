@@ -3,7 +3,7 @@ import chalk from 'chalk';
 import { v4 as uuidv4 } from 'uuid'
 import AggregateError from 'aggregate-error';
 import { unitLVal } from './base/unitLVal.mjs'
-import { Authority } from './base/Authority.mjs'
+import { RawAuthority } from './base/RawAuthority.mjs'
 import { Scheduler, ThreadType } from './Scheduler.mjs'
 import { MailboxProcessor } from './MailboxProcessor.mjs'
 import { RuntimeInterface } from './RuntimeInterface.mjs'
@@ -431,7 +431,7 @@ export async function start(f) {
   await loadServiceCode();
 
   if (__p2pRunning) {
-    const serviceAuthority = new LVal(new Authority(levels.ROOT), levels.BOT);
+    const serviceAuthority = new LVal(new RawAuthority(levels.ROOT), levels.BOT);
 
     let service_arg =
       new LVal ( new RawRecord([ ["authority", serviceAuthority],
@@ -445,7 +445,7 @@ export async function start(f) {
   }
 
   // Set up 'main' thread
-  const mainAuthority = new LVal(new Authority(levels.ROOT), levels.BOT);
+  const mainAuthority = new LVal(new RawAuthority(levels.ROOT), levels.BOT);
 
   await __userRuntime.linkLibs(f);
 
