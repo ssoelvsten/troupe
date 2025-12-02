@@ -4,10 +4,7 @@ import * as levels from '../Level.mjs'
 import { getRuntimeObject } from '../SysState.mjs'
 
 export function BuiltinFunction(fn: (LVal) => any, name: string | null = null) : RawAggregate {
-  const closure : any = () => {
-    let thread = getRuntimeObject().$t;
-    return fn (thread.arg_as_lval);
-  };
+  const closure : any = () => fn(getRuntimeObject().$t.arg_as_lval);
 
   closure.env = null;
   // TODO: closure.namespace = ???;
@@ -41,9 +38,7 @@ export function ServiceFunction(fn: () => any, name: string | null = null) : Raw
 
 
 export function SandboxResumption(fn: () => any) : RawAggregate {
-  const closure: any = () => {
-    return fn();
-  };
+  const closure: any = () => fn();
 
   // TODO: closure.env = ???;
   // TODO: closure.namespace = ???;

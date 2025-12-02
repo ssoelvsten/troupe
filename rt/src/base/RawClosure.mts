@@ -2,9 +2,7 @@ import {RawAggregate} from './RawValue.mjs'
 import {ClosureType, TroupeType} from './TroupeTypes.mjs'
 
 export function RawClosure (env: any, nm: any, fn: any) : RawAggregate {
-  const closure:any = () => {
-    return fn (env)
-  }
+  const closure:any = () => fn(env);
 
   closure.env = env
   closure.namespace = nm
