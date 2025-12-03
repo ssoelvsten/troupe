@@ -306,6 +306,7 @@ instance WellFormedIRCheck IRExpr where
                      , "newlabel"                     
                      , "node"
                      , "_pc"
+                     , "_bl"
                      , "pcpop"
                      , "peek"
                      , "pinipush"
