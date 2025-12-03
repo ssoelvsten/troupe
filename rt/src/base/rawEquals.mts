@@ -7,7 +7,10 @@ import { Level } from '../Level.mjs';
 
 /**
  * Compute deep equality of the given unlabelled raw values.
+ *
  * The returned value label is the join of all visited nested labelled values.
+ *
+ * @todo: restrict the type of `x` and `y` to `Raw` in `rawUtil.mts`.
  */
 export function isEqual(x: RawValue, y: RawValue): LVal {
   function baseBoolean(b: boolean, l: Level = levels.BOT) {
