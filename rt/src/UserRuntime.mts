@@ -28,6 +28,7 @@ import { BuiltinSandbox } from './builtins/sandbox.mjs'
 import { BuiltinLocalArrays } from './builtins/localarrays.mjs'
 import { RuntimeAssert } from './builtins/runtimeassert.mjs'
 import { BuiltinService } from './builtins/service.mjs'
+import { BuiltinHash } from './builtins/hash.mjs'
 import { BuiltinString } from './builtins/string.mjs'
 import { BuiltinRecordReflection } from './builtins/recordReflection.mjs'
 import { BuiltinTypeInformation } from './builtins/types.mjs'
@@ -50,6 +51,7 @@ export const UserRuntime =
     BuiltinThread(
     BuiltinStringToInt(
     BuiltinToString(
+    BuiltinHash(
     BuiltinGetTime(
     BuiltinAdv(
     BuiltinExit(
@@ -67,4 +69,4 @@ export const UserRuntime =
     BuiltinRecordReflection(
     BuiltinTypeInformation(
     BuiltinStdIo(UserRuntimeZero)
-    ))))))))))))))))))))))))))))));
+    )))))))))))))))))))))))))))))));
