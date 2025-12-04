@@ -1,0 +1,2 @@
+(* NOTE: Failure in this test does NOT necessarily mean there is an error. *)
+sha256 false

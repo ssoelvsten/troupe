@@ -330,6 +330,8 @@ instance WellFormedIRCheck IRExpr where
                      , "_servicetest"
                      , "_setProcessDebuggingName"
                      , "_setFailureRate"
+                     , "sha256"
+                     , "sha256L"
                      , "sleep"
                      , "spawn"
                      , "sqrt"
