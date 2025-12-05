@@ -1,4 +1,4 @@
-import { LCopyVal } from './base/LVal.mjs';
+import { LVal } from './base/LVal.mjs';
 import { assertIsNTuple, assertIsAuthority, assertIsLevel } from './Asserts.mjs'
 import { unitLVal } from './base/unitLVal.mjs';
 import { lub, flowsTo, okToDeclassify, okToEndorse}  from './Level.mjs'
@@ -43,7 +43,7 @@ export function downgrader (runtime, dimension:DowngradeDimension, isNMIFC: bool
                 dg_f(levFrom, lev_to, auth.val.authorityLevel, bl, isNMIFC)
 
             if (ok_to_downgrade_result.kind === "SUCCESS") {
-                let r = new LCopyVal(data, lub(lev_to, pc, arg.lev, auth.lev));
+                const r = LVal.copyUnsafe(data, lub(lev_to, pc, arg.lev, auth.lev));
                 return runtime.ret(r)
             } else {
                 let errorMessage = "";

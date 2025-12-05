@@ -1,5 +1,4 @@
 import { UserRuntimeZero, Constructor, mkBuiltin } from './UserRuntimeZero.mjs'
-import { LCopyVal } from '../base/LVal.mjs';
 import { assertIsNTuple, assertIsAuthority, assertIsLevel, assertNormalState, assertIsString, assertIsRootAuthority } from '../Asserts.mjs'
 import { unitLVal } from '../base/unitLVal.mjs';
 import * as levels from '../Level.mjs'

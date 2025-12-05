@@ -26,6 +26,14 @@ export class LVal implements RawValue {
         return new LVal(x.val, levels.lub(x.lev, lev), tlev);
     }
 
+    /**
+     * Creates a copy of `x` with new levels, `lev` and `tlev`. This is unsafe,
+     * as `x.lev`, resp. `x.tlev`, may not flow to `lev`, resp. `tlev`.
+     */
+    static copyUnsafe(x: LVal, lev: Level, tlev: Level | null = null) {
+        return new LVal(x.val, lev, tlev);
+    }
+
     get _troupeType() : Ty.TroupeType.LVAL {
         return Ty.TroupeType.LVAL;
     }
@@ -74,13 +82,6 @@ export class LVal implements RawValue {
             : `${output}@${this.lev.stringRep()}%${this.tlev.stringRep()}`;
     }
 }
-
-export class LCopyVal extends LVal {
-    constructor (x:LVal, l1:Level, l2:Level = null) {
-        super(x.val, l1, l2);
-    }
-}
-
 
 export class MbVal extends LVal {
 }
