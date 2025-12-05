@@ -6,12 +6,12 @@ import { DowngradeDimension } from '../DowngradeEnums.mjs';
 export function BuiltinDeclassify<TBase extends Constructor<UserRuntimeZero>>(Base: TBase) {
     return class extends Base {
         endorse = mkBuiltin
-            ( downgrader (this.runtime, DowngradeDimension.INTEGRITY, false)
+            ( downgrader (this.runtime, DowngradeDimension.Integrity, false)
             , "endorse")
 
 
         declassify = mkBuiltin
-            ( downgrader (this.runtime, DowngradeDimension.CONFIDENTIALITY, false)
+            ( downgrader (this.runtime, DowngradeDimension.Confidentiality, false)
             , "declassify")
     }
 }

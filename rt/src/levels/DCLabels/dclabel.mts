@@ -267,8 +267,8 @@ export class DCLevelSystem extends AbstractLevelSystem<DCLabel> {
 
 
             
-            if (kind === DowngradeKind.VALUE && !this.flowsTo(bl, l_to)) {
-                return DowngradeError(DowngradeErrorReason.BLOCKING_LEVEL_MISMATCH);
+            if (kind === DowngradeKind.Value && !this.flowsTo(bl, l_to)) {
+                return DowngradeError(DowngradeErrorReason.BlockingLevelMismatch);
             }
 
             /* 
@@ -280,14 +280,14 @@ export class DCLevelSystem extends AbstractLevelSystem<DCLabel> {
             */
 
             switch (dimension) {
-                case DowngradeDimension.INTEGRITY:
+                case DowngradeDimension.Integrity:
                     if (!l_from.confidentiality.equals(l_to.confidentiality)) {
-                        return DowngradeError(DowngradeErrorReason.CONFIDENTIALITY_MISMATCH);
+                        return DowngradeError(DowngradeErrorReason.ConfidentialityMismatch);
                     }
                     break;
-                case DowngradeDimension.CONFIDENTIALITY:
+                case DowngradeDimension.Confidentiality:
                     if (!l_from.integrity.equals(l_to.integrity)) {
-                        return DowngradeError(DowngradeErrorReason.INTEGRITY_MISMATCH);
+                        return DowngradeError(DowngradeErrorReason.IntegrityMismatch);
                     }
                     break;
                 default:
@@ -305,15 +305,15 @@ export class DCLevelSystem extends AbstractLevelSystem<DCLabel> {
                     , l_to.integrity)            
                 
             if (!(enough_confidentiality && enough_integrity)) {
-                return DowngradeError(DowngradeErrorReason.INSUFFICIENT_AUTHORITY);
+                return DowngradeError(DowngradeErrorReason.InsufficientAuthority);
             }
             
             return DowngradeResultSuccess;
         }
      )}
 
-    okToEndorse = this.okToDowngradeGeneric (DowngradeKind.VALUE, DowngradeDimension.INTEGRITY)
-    okToDeclassify = this.okToDowngradeGeneric (DowngradeKind.VALUE, DowngradeDimension.CONFIDENTIALITY)
+    okToEndorse = this.okToDowngradeGeneric (DowngradeKind.Value, DowngradeDimension.Integrity)
+    okToDeclassify = this.okToDowngradeGeneric (DowngradeKind.Value, DowngradeDimension.Confidentiality)
     okToDowngrade (kind: DowngradeKind, dimension: DowngradeDimension) {
         return this.okToDowngradeGeneric(kind, dimension);
     }

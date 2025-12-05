@@ -2,21 +2,21 @@ import { Level } from './Level.mjs';
 
 
 export enum DowngradeKind {
-	VALUE = 1,
-	BLOCKING = 2,
-	MAILBOX = 3
+	Value = 1,
+	Blocking = 2,
+	Mailbox = 3
 }
     
 export enum DowngradeDimension {
-	CONFIDENTIALITY = 1,
-	INTEGRITY = 2,
+	Confidentiality = 1,
+	Integrity = 2,
 }
 
 export enum DowngradeErrorReason {
-	INTEGRITY_MISMATCH = 1,
-	CONFIDENTIALITY_MISMATCH = 2,
-	INSUFFICIENT_AUTHORITY = 3,
-	BLOCKING_LEVEL_MISMATCH = 4
+	IntegrityMismatch = 1,
+	ConfidentialityMismatch = 2,
+	InsufficientAuthority = 3,
+	BlockingLevelMismatch = 4
 }
 
 export type SuccessfulDowngradeResult = {

@@ -557,8 +557,8 @@ export class Thread {
             levFrom,
             levTo,
             authorityLevel: auth.val.authorityLevel,
-            downgradeKind: DowngradeKind.BLOCKING,
-            downgradeDimension: DowngradeDimension.CONFIDENTIALITY,
+            downgradeKind: DowngradeKind.Blocking,
+            downgradeDimension: DowngradeDimension.Confidentiality,
             blockLevel: this.bl,
             operationDescription: "pini declassification"
         });
@@ -611,8 +611,8 @@ export class Thread {
             levFrom,
             levTo,
             authorityLevel: auth.val.authorityLevel,
-            downgradeKind: DowngradeKind.BLOCKING,
-            downgradeDimension: DowngradeDimension.CONFIDENTIALITY,
+            downgradeKind: DowngradeKind.Blocking,
+            downgradeDimension: DowngradeDimension.Confidentiality,
             operationDescription: "pini declassification"
         });
         
@@ -647,8 +647,8 @@ export class Thread {
             levFrom: current_bl,
             levTo: bl_to,
             authorityLevel: auth.val.authorityLevel,
-            downgradeKind: DowngradeKind.BLOCKING,
-            downgradeDimension: DowngradeDimension.INTEGRITY,
+            downgradeKind: DowngradeKind.Blocking,
+            downgradeDimension: DowngradeDimension.Integrity,
             blockLevel: current_bl,
             operationDescription: "blocking level integrity"
         });
@@ -680,8 +680,8 @@ export class Thread {
             levFrom: current_bl,
             levTo: bl_to,
             authorityLevel: auth.val.authorityLevel,
-            downgradeKind: DowngradeKind.BLOCKING,
-            downgradeDimension: DowngradeDimension.CONFIDENTIALITY,
+            downgradeKind: DowngradeKind.Blocking,
+            downgradeDimension: DowngradeDimension.Confidentiality,
             blockLevel: current_bl,
             operationDescription: "blocking level declassification"
         });
@@ -815,8 +815,8 @@ export class Thread {
             levFrom: currentMboxBoostLevel,
             levTo: targetMboxBoostLevel,
             authorityLevel: auth.val.authorityLevel,
-            downgradeKind: DowngradeKind.MAILBOX,
-            downgradeDimension: DowngradeDimension.CONFIDENTIALITY,
+            downgradeKind: DowngradeKind.Mailbox,
+            downgradeDimension: DowngradeDimension.Confidentiality,
             blockLevel: this.bl
         });       
         

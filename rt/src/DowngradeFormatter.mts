@@ -58,10 +58,10 @@ function getBlockDowngradeErrorMessageForReason(
     authorityLevel: Level
 ): string {
     switch (reason) {
-        case DowngradeErrorReason.INTEGRITY_MISMATCH: return formatIntegrityMismatchMsg(operationDescription, levFrom, levTo);
-        case DowngradeErrorReason.CONFIDENTIALITY_MISMATCH: return formatConfidentialityMismatchMsg(operationDescription, levFrom, levTo);
-        case DowngradeErrorReason.BLOCKING_LEVEL_MISMATCH: return formatPiniBlockingLevelMismatchMsg(operationDescription, levFrom, levTo);
-        case DowngradeErrorReason.INSUFFICIENT_AUTHORITY: return formatPiniInsufficientAuthorityMsg(operationDescription, levFrom, authorityLevel, levTo);
+        case DowngradeErrorReason.IntegrityMismatch: return formatIntegrityMismatchMsg(operationDescription, levFrom, levTo);
+        case DowngradeErrorReason.ConfidentialityMismatch: return formatConfidentialityMismatchMsg(operationDescription, levFrom, levTo);
+        case DowngradeErrorReason.BlockingLevelMismatch: return formatPiniBlockingLevelMismatchMsg(operationDescription, levFrom, levTo);
+        case DowngradeErrorReason.InsufficientAuthority: return formatPiniInsufficientAuthorityMsg(operationDescription, levFrom, authorityLevel, levTo);
         default:
             const _exhaustiveBlockReason: never = reason;
             throw new ImplementationError(`Unexpected reason for BLOCKING: ${_exhaustiveBlockReason}`);
@@ -78,10 +78,10 @@ function getMailboxDowngradeErrorMessageForReason(
     currentBlockingLevelForCheck: Level
 ): string {
     switch (reason) {
-        case DowngradeErrorReason.INTEGRITY_MISMATCH: return formatIntegrityMismatchMsg(operationDescription, levFrom, levTo);
-        case DowngradeErrorReason.CONFIDENTIALITY_MISMATCH: return formatConfidentialityMismatchMsg(operationDescription, levFrom, levTo);
-        case DowngradeErrorReason.BLOCKING_LEVEL_MISMATCH: return formatMboxBlockingLevelMismatchMsg(currentBlockingLevelForCheck, levTo);
-        case DowngradeErrorReason.INSUFFICIENT_AUTHORITY: return formatMboxInsufficientAuthorityMsg(authorityLevel, levFrom, levTo);
+        case DowngradeErrorReason.IntegrityMismatch: return formatIntegrityMismatchMsg(operationDescription, levFrom, levTo);
+        case DowngradeErrorReason.ConfidentialityMismatch: return formatConfidentialityMismatchMsg(operationDescription, levFrom, levTo);
+        case DowngradeErrorReason.BlockingLevelMismatch: return formatMboxBlockingLevelMismatchMsg(currentBlockingLevelForCheck, levTo);
+        case DowngradeErrorReason.InsufficientAuthority: return formatMboxInsufficientAuthorityMsg(authorityLevel, levFrom, levTo);
         default:
             const _exhaustiveMboxReason: never = reason;
             throw new ImplementationError(`Unexpected reason for MAILBOX: ${_exhaustiveMboxReason}`);
@@ -97,15 +97,15 @@ function getValueDowngradeErrorMessageForReason(
     authorityLevel: Level,
     currentBlockingLevelForCheck: Level
 ): string {
-    if (reason === DowngradeErrorReason.BLOCKING_LEVEL_MISMATCH && currentBlockingLevelForCheck === null) {
+    if (reason === DowngradeErrorReason.BlockingLevelMismatch && currentBlockingLevelForCheck === null) {
         throw new ImplementationError("Internal inconsistency: currentBlockingLevelForCheck is null for VALUE kind with BLOCKING_LEVEL_MISMATCH reason.");
     }
     switch (reason) {
-        case DowngradeErrorReason.INTEGRITY_MISMATCH: return formatIntegrityMismatchMsg(operationDescription, levFrom, levTo);
-        case DowngradeErrorReason.CONFIDENTIALITY_MISMATCH: return formatConfidentialityMismatchMsg(operationDescription, levFrom, levTo);
-        case DowngradeErrorReason.BLOCKING_LEVEL_MISMATCH:
+        case DowngradeErrorReason.IntegrityMismatch: return formatIntegrityMismatchMsg(operationDescription, levFrom, levTo);
+        case DowngradeErrorReason.ConfidentialityMismatch: return formatConfidentialityMismatchMsg(operationDescription, levFrom, levTo);
+        case DowngradeErrorReason.BlockingLevelMismatch:
             return formatPiniBlockingLevelMismatchMsg(operationDescription, currentBlockingLevelForCheck!, levTo);
-        case DowngradeErrorReason.INSUFFICIENT_AUTHORITY: return formatValueInsufficientAuthorityMsg(operationDescription, levFrom, authorityLevel, levTo);
+        case DowngradeErrorReason.InsufficientAuthority: return formatValueInsufficientAuthorityMsg(operationDescription, levFrom, authorityLevel, levTo);
         default:
             const _exhaustiveValueReason: never = reason;
             throw new ImplementationError(`Unexpected reason for VALUE: ${_exhaustiveValueReason}`);
@@ -117,18 +117,18 @@ export function getDowngradeErrorMessage(params: ValidateDowngradeParams, reason
     let opDesc = params.operationDescription; // Allow opDesc to be potentially modified
 
     switch (downgradeKind) {
-        case DowngradeKind.BLOCKING:
+        case DowngradeKind.Blocking:
             if (typeof opDesc !== 'string') {
                 throw new ImplementationError("operationDescription is required for BLOCKING downgradeKind.");
             }
             return getBlockDowngradeErrorMessageForReason(reason, opDesc, levFrom, levTo, authorityLevel);
-        case DowngradeKind.MAILBOX:
+        case DowngradeKind.Mailbox:
             opDesc = "lowering mailbox clearance"; // Standardize opDesc for mailbox
             if (currentBlockingLevelForCheck === null) {
                 throw new ImplementationError("currentBlockingLevelForCheck is required for MAILBOX downgradeKind.");
             }
             return getMailboxDowngradeErrorMessageForReason(reason, opDesc, levFrom, levTo, authorityLevel, currentBlockingLevelForCheck);
-        case DowngradeKind.VALUE:
+        case DowngradeKind.Value:
             opDesc = opDesc || "value downgrade"; // Default opDesc for value
             return getValueDowngradeErrorMessageForReason(reason, opDesc, levFrom, levTo, authorityLevel, currentBlockingLevelForCheck);
         default:

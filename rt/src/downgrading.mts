@@ -13,10 +13,10 @@ import {
 
 function stringOfDowngrader (d) {
     switch (d) {
-        case DowngradeDimension.CONFIDENTIALITY: {
+        case DowngradeDimension.Confidentiality: {
             return "declassification"
         }
-        case DowngradeDimension.INTEGRITY: {
+        case DowngradeDimension.Integrity: {
             return "endorsement"
         }
     }
@@ -38,7 +38,7 @@ export function downgrader (runtime, dimension:DowngradeDimension, isNMIFC: bool
             const downgradeKindString = stringOfDowngrader (dimension)
 
             const dg_f = 
-                dimension == DowngradeDimension.CONFIDENTIALITY ? okToDeclassify : okToEndorse;
+                dimension == DowngradeDimension.Confidentiality ? okToDeclassify : okToEndorse;
             const ok_to_downgrade_result: DowngradeResult =
                 dg_f(levFrom, lev_to, auth.val.authorityLevel, bl, isNMIFC)
 
@@ -48,16 +48,16 @@ export function downgrader (runtime, dimension:DowngradeDimension, isNMIFC: bool
             } else {
                 let errorMessage = "";
                 switch (ok_to_downgrade_result.reason) {
-                    case DowngradeErrorReason.INTEGRITY_MISMATCH:
+                    case DowngradeErrorReason.IntegrityMismatch:
                         errorMessage = formatIntegrityMismatchMsg(downgradeKindString, levFrom, lev_to);
                         break;
-                    case DowngradeErrorReason.CONFIDENTIALITY_MISMATCH:
+                    case DowngradeErrorReason.ConfidentialityMismatch:
                         errorMessage = formatConfidentialityMismatchMsg(downgradeKindString, levFrom, lev_to);
                         break;
-                    case DowngradeErrorReason.BLOCKING_LEVEL_MISMATCH:
+                    case DowngradeErrorReason.BlockingLevelMismatch:
                         errorMessage = formatPiniBlockingLevelMismatchMsg(downgradeKindString, bl, lev_to);
                         break;
-                    case DowngradeErrorReason.INSUFFICIENT_AUTHORITY:
+                    case DowngradeErrorReason.InsufficientAuthority:
                         errorMessage = formatValueInsufficientAuthorityMsg(downgradeKindString, levFrom, auth.val.authorityLevel, lev_to);
                         break;
                     default:
