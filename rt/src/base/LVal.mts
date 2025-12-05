@@ -17,6 +17,15 @@ export class LVal implements RawValue {
         this.tlev = tlev == null ? lev : tlev;
     }
 
+    /**
+     * Safe copy of `x` while safely raising the level based on `x`, `lev` and
+     * `tlev`.
+     */
+    static copy(x: LVal, lev: Level, tlev: Level | null = null) {
+        tlev = tlev || levels.lub(x.tlev, lev);
+        return new LVal(x.val, levels.lub(x.lev, lev), tlev);
+    }
+
     get _troupeType() : Ty.TroupeType.LVAL {
         return Ty.TroupeType.LVAL;
     }
@@ -63,16 +72,6 @@ export class LVal implements RawValue {
         return omitLevels
             ? output
             : `${output}@${this.lev.stringRep()}%${this.tlev.stringRep()}`;
-    }
-}
-
-
-export class LValCopyAt extends LVal {
-    constructor (x:LVal, l:Level, l2 = null) {
-        if (l2 == null) {
-            l2 = levels.lub(x.tlev,l)
-        }
-        super(x.val, levels.lub(x.lev, l), l2);
     }
 }
 

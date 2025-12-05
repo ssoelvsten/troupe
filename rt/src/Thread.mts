@@ -2,7 +2,7 @@ import * as levels from './Level.mjs'
 const lub = levels.lub;
 const flowsTo = levels.flowsTo
 import { DowngradeDimension, DowngradeKind, DowngradeResult, DowngradeErrorReason, ValidateDowngradeParams } from './DowngradeEnums.mjs';
-import { LVal, LValCopyAt } from './base/LVal.mjs';
+import { LVal } from './base/LVal.mjs';
 import { HandlerError, ImplementationError, StrThreadError } from './TroupeError.mjs';
 import { getCliArgs, TroupeCliArg } from './TroupeCliArgs.mjs';
 import { getDowngradeErrorMessage } from './DowngradeFormatter.mjs';
@@ -466,7 +466,7 @@ export class Thread {
     
     returnSuspended (arg) {       
         // console.log("RET", this._sp)
-        let rv = new LValCopyAt (arg, this.pc);
+        let rv = LVal.copy(arg, this.pc);
         this.next = () => {            
             return this.returnImmediateLValue (rv);
         }
@@ -737,8 +737,7 @@ export class Thread {
     }
 
     mkCopy (x) {
-        return new LValCopyAt (x, this.pc);
-        // return new LVal(x.val, lub(x.lev, this.pc), lub (x.tlev, this.pc) )
+        return LVal.copy(x, this.pc);
     }
 
     

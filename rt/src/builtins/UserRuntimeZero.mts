@@ -1,7 +1,7 @@
 'use strict'
 import { isEqual } from '../base/rawEquals.mjs'
 import { isList, isTuple, mkTuple, mkList, mkWithRecord, mkRecord, isRecord, mkUnit } from '../base/rawUtil.mjs'
-import { LVal, LValCopyAt, LCopyVal } from '../base/LVal.mjs'
+import { LVal, LCopyVal } from '../base/LVal.mjs'
 import { Nil, Cons, RawList } from '../base/RawList.mjs'
 import { loadLibsAsync } from '../loadLibsAsync.mjs';
 import * as levels from '../Level.mjs'

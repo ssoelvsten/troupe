@@ -1,5 +1,5 @@
 import { UserRuntimeZero, Constructor, mkBuiltin } from './UserRuntimeZero.mjs'
-import { LVal, LValCopyAt } from '../base/LVal.mjs';
+import { LVal } from '../base/LVal.mjs';
 import { assertNormalState, assertIsNTuple, assertIsNumber, assertIsFunction } from '../Asserts.mjs'
 import { unitLVal } from '../base/unitLVal.mjs';
 import { getCliArgs, TroupeCliArg } from '../TroupeCliArgs.mjs';
@@ -17,7 +17,7 @@ const logger = mkLogger('MBX', logLevel);
 const debug = x => logger.debug(x)
 
 function rt_raisedToLev(x, y) {
-    return new LValCopyAt(x, y)
+    return LVal.copy(x, y)
 }
 
 
