@@ -1,40 +1,58 @@
+/**
+ * Enum value to identify/encode the different Troupe objects.
+ */
 export const enum TroupeType {
-  UNIT=0,
-  BOOLEAN=1,
-  NUMBER=2,
-  STRING=3,
-  PROCESS_ID=4,
-  LEVEL=5,
-  AUTHORITY=6,
-  CAPABILITY=7,
-  ATOM=8,  
-  /* up until this point only base types */  
+  // --------------------------------------------------------------------------
+  // base types
+  UNIT       = 0,
+  BOOLEAN    = 1,
+  NUMBER     = 2,
+  STRING     = 3,
+  PROCESS_ID = 4,
+  LEVEL      = 5,
+  AUTHORITY  = 6,
+  CAPABILITY = 7,
+  ATOM       = 8,
 
-  /* aggregate types */
-  CLOSURE=100,
-  LVAL=101,        // TODO: AA; 2020-03-03 ; this should be only used for transports;
-  TUPLE=102,
-  LIST=103,
-  RECORD=104, 
-  /* meaningless to serialize */
-  LOCALOBJECT=200
+  // --------------------------------------------------------------------------
+  // aggregate types
+  CLOSURE = 100,
+  LVAL    = 101, // TODO (AA; 2020-03-03): should be only used for transports
+  TUPLE   = 102,
+  LIST    = 103,
+  RECORD  = 104,
+
+  // --------------------------------------------------------------------------
+  // unserializable objects type
+  LOCALOBJECT = 200
 }
 
-export const enum ClosureType { 
-  /* okay to serialize */
-  REGULARFN = 0,         
+/**
+ * Enum value to identify the diffrent types of Troupe objects, i.e. Troupe
+ * objects with `TroupeType.CLOSURE`.
+ */
+export const enum ClosureType {
+  // okay to serialize
+  REGULARFN   = 0,
 
-  /* meaningless to serialize */
-  BUILTINFN = 1,       
-  SANDBOXKONT = 2  ,
-  SERVICEFN = 3    
+  // not to be serialized
+  BUILTINFN   = 1,
+  SANDBOXKONT = 2,
+  SERVICEFN   = 3,
 }
 
-export function isSerializableClosure (ct: ClosureType)  {
+/**
+ * Identifies whether the given closure type, `ct`, is intended for
+ * serialization.
+ */
+export function isSerializableClosure(ct: ClosureType) : boolean  {
   return (ct === ClosureType.REGULARFN);
 }
 
-export function getTroupeType (x: any) : TroupeType {
+/**
+ * Infer the `TroupeType` of a given object.
+ */
+export function getTroupeType(x: any) : TroupeType {
   // Troupe Types
   if (x._troupeType !== undefined) {
     return x._troupeType;
