@@ -30,7 +30,7 @@ export class LVal implements RawValue {
         this.tlev = tlev == null ? lev : tlev;
         this.posInfo = posInfo;
         if (val._troupeType == undefined) {
-            this.__troupeType = Ty.getTypeForBasicValue(val);
+            this.__troupeType = Ty.getTroupeType(val);
             this.dlev = this.lev;
         } else {
             this.__troupeType = val._troupeType;

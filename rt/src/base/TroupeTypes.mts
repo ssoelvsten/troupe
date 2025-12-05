@@ -34,7 +34,13 @@ export function isSerializableClosure (ct: ClosureType)  {
   return (ct === ClosureType.REGULARFN);
 }
 
-export function getTypeForBasicValue (x:any) {
+export function getTroupeType (x: any) : TroupeType {
+  // Troupe Types
+  if (x._troupeType !== undefined) {
+    return x._troupeType;
+  }
+
+  // JavaScript types
   switch (typeof(x)) {
     case 'number':
       return TroupeType.NUMBER
@@ -42,14 +48,8 @@ export function getTypeForBasicValue (x:any) {
       return TroupeType.BOOLEAN
     case 'string':
       return TroupeType.STRING
-  }  
-  throw new Error (`Cannot identify troupe type for value ${JSON.stringify(x)}  of type ${typeof x}`);
-}
-
-export function getTroupeType (x:any) {  
-  if (x._troupeType != undefined) { 
-    return x._troupeType;
   }
 
-  throw new Error (`Cannot identify troupe type for value ${x.toString()} of type ${typeof x}`);
+  // Must be something non-Troupe!
+  throw new Error (`Cannot identify troupe type for value ${JSON.stringify(x)}  of type ${typeof x}`);
 }
