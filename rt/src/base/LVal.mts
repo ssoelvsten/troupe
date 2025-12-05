@@ -3,7 +3,7 @@ import { Level } from "../Level.mjs";
 import * as Ty from './TroupeTypes.mjs';
 import { RawValue } from './RawValue.mjs';
 
-export class LVal implements RawValue{
+export class LVal implements RawValue {
     // TODO (SS; 2025-12-01): Make type of `val` generic (to improve type system).
     val: any;
     lev: Level;
@@ -11,36 +11,36 @@ export class LVal implements RawValue{
     dlev: Level;
     posInfo: string;
 
-    /* 2020-06-06: AA   
+    /* 2020-06-06: AA
 
-       Observe that we only need the type information here only because of the 
+       Observe that we only need the type information here only because of the
        base type such as booleans, strings, and numbers; becauase we cannot attach
-       properties to them in JS. 
+       properties to them in JS.
 
-       The main downside of duplicating the type information is the duplication of 
+       The main downside of duplicating the type information is the duplication of
        this information during serialization
     */
-    __troupeType : Ty.TroupeType 
-    
-    constructor(v:any, l:Level, tlev:Level = null, posInfo:string = null) {
-        this.val = v;
-        this.lev = l;
-        this.tlev = tlev == null?l:tlev;
+    __troupeType : Ty.TroupeType;
+
+    constructor(val : any, lev : Level, tlev : Level | null = null, posInfo : string = null) {
+        this.val = val;
+        this.lev = lev;
+        this.tlev = tlev == null ? lev : tlev;
         this.posInfo = posInfo;
-        if (v._troupeType == undefined) {
-            this.__troupeType = Ty.getTypeForBasicValue(v)
-            this.dlev = this.lev
+        if (val._troupeType == undefined) {
+            this.__troupeType = Ty.getTypeForBasicValue(val);
+            this.dlev = this.lev;
         } else {
-            this.__troupeType = v._troupeType                 
-            this.dlev = levels.lub (this.lev, v.dataLevel)
-        } 
+            this.__troupeType = val._troupeType;
+            this.dlev = levels.lub(this.lev, val.dataLevel);
+        }
     }
 
     get _troupeType() : Ty.TroupeType.LVAL {
-        return Ty.TroupeType.LVAL
+        return Ty.TroupeType.LVAL;
     }
     get troupeType () : Ty.TroupeType {
-        return this.__troupeType
+        return this.__troupeType;
     }
 
     get dataLevel () : Level {
@@ -48,27 +48,27 @@ export class LVal implements RawValue{
     }
 
     get closureType () : Ty.ClosureType | null  {
-        return (this.troupeType == Ty.TroupeType.CLOSURE 
-                    ? this.val._closureType 
-                    : null
-               )
-    }    
+        return this.troupeType == Ty.TroupeType.CLOSURE
+            ? this.val._closureType
+            : null;
+    }
+
     stringRep(omitLevels?: boolean, taintRef?: any) {
       let v = this.val;
       let l = this.lev;
       let t = "";
       if (v.stringRep != undefined) { // 2018-05-17; AA; ugly hack!
-          t = v.stringRep(omitLevels, taintRef)
+          t = v.stringRep(omitLevels, taintRef);
       } else {
           if (typeof v === 'string') {
-              t = "\"" + v.toString() + "\""
+              t = `"${v.toString()}"`;
           } else {
               t = v.toString();
           }
       }
 
       if (l.stringRep == undefined) {
-          console.log("undefined strringrep", l);
+          console.log("undefined stringrep", l);
       }
 
       let s = t;
@@ -78,7 +78,7 @@ export class LVal implements RawValue{
       }
 
       if (taintRef) {
-          taintRef.lev = levels.lub (taintRef.lev, l);
+          taintRef.lev = levels.lub(taintRef.lev, l);
       }
 
       return s;
@@ -89,28 +89,27 @@ export class LVal implements RawValue{
 export class LValCopyAt extends LVal {
     constructor (x:LVal, l:Level, l2 = null) {
         if (l2 == null) {
-            l2 = levels.lub (x.tlev,l)
+            l2 = levels.lub(x.tlev,l)
         }
-        super (x.val, levels.lub (x.lev, l), l2);
+        super(x.val, levels.lub(x.lev, l), l2);
     }
 }
 
 export class LCopyVal extends LVal {
     constructor (x:LVal, l1:Level, l2:Level = null) {
-        super (x.val, l1, l2);
+        super(x.val, l1, l2);
     }
 }
 
 
 export class MbVal extends LVal {
-
 }
 
 /** Identifies whether a value `x` is LVal(ish). */
 export function isLVal(x) {
     return (typeof x.val != "undefined" &&
             typeof x.lev != "undefined" &&
-            typeof x.tlev != "undefined" );
+            typeof x.tlev != "undefined");
 }
 
 /** Creates the string representation of LValues `xs`.
