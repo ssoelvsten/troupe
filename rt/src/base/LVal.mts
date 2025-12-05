@@ -36,18 +36,18 @@ export class LVal implements RawValue{
         } 
     }
 
-    get _troupeType() {
+    get _troupeType() : Ty.TroupeType.LVAL {
         return Ty.TroupeType.LVAL
     }
-    get troupeType () {        
+    get troupeType () : Ty.TroupeType {
         return this.__troupeType
     }
 
-    get dataLevel () {
+    get dataLevel () : Level {
         return this.dlev;
     }
 
-    get closureType ()  {
+    get closureType () : Ty.ClosureType | null  {
         return (this.troupeType == Ty.TroupeType.CLOSURE 
                     ? this.val._closureType 
                     : null
