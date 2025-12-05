@@ -29,20 +29,7 @@ Additionally, we pipe the connection to a drain sink that does the following:
    the publishable object from the lookup table. This should ensure that if we
    we want to communicate with that node later, we will dialing to that node.
 
-The messages themselves can be one of the six forms:
-
-1. Spawn -- spawning on a remote node
-
-2. SpawnReply -- reply to the Spawn (we did not have an analogue of this in express
-   runtime because express was giving up the possibility of sending response to
-   a given request, here we are doing it manually by maintaining a spawnNonce
-   map).
-
-3. Send -- sending a message
-
-4. WhereIs -- asking for the address of a certain peer id
-
-5. WhereIsReply -- reply to the WhereIs
+The messages themselves can be one of the forms as documented in `Message.mts`.
 
 Note on the code below: the code below uses the libp2p framework, and is
 partially grown out of the Chat example in that framework (to make sense of the
@@ -536,17 +523,7 @@ function setupConnection(peerId: PeerId, stream): void {
 }
 
 /**
- * Handles the different input types:
- *
- * - Spawn: Checks whether remote spawn are allowed, informs the runtime and replies SpawnReply.
- *
- * - SpawnReply: Gives the message to the call-back.
- *
- * - Send: Passes the message to the runtime.
- *
- * - WhereIs: Asks the runtime where the peer is, and replies with WhereIsReply.
- *
- * - WhereIsReply: Gives the message to the call-back.
+ * Handles the different input types by parsing them along to the runtime when necessary.
  */
 async function inputHandler(peerId: PeerId, input: Message) {
   debug("Input handler");
