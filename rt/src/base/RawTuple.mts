@@ -5,7 +5,7 @@ import { TroupeType } from './TroupeTypes.mjs';
 import * as levels from '../Level.mjs'
 
 export class RawTuple extends Array<LVal> implements RawAggregate {
-  _troupeType: TroupeType.TUPLE = TroupeType.TUPLE;
+  _troupeType: TroupeType.Tuple = TroupeType.Tuple;
   dataLevel: Level;
   stringRep = null;
 

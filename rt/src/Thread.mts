@@ -68,7 +68,7 @@ export class Capability<T> {
         this.data = l;
         this.prev = p // provides scoping control; needs better name; AA; 2020-02-08
         this.dataLevel = dataLevel
-        this._troupeType = TroupeType.CAPABILITY
+        this._troupeType = TroupeType.Capability
     }
     stringRep() : string {
         return this.uid;

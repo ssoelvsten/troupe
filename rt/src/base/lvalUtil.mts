@@ -26,18 +26,18 @@ export function hash(x: LVal,
 
     switch (x.troupeType) {
     // JavaScript basic types
-    case TroupeType.BOOLEAN:
-    case TroupeType.NUMBER:
-    case TroupeType.STRING:
+    case TroupeType.Boolean:
+    case TroupeType.Number:
+    case TroupeType.String:
         // Treat the same way as Troupe basic types
 
     // Troupe basic types
-    case TroupeType.UNIT:
-    case TroupeType.PROCESS_ID:
-    case TroupeType.LEVEL:
-    case TroupeType.AUTHORITY:
-    case TroupeType.CAPABILITY:
-    case TroupeType.ATOM:
+    case TroupeType.Unit:
+    case TroupeType.ProcessId:
+    case TroupeType.Level:
+    case TroupeType.Authority:
+    case TroupeType.Capability:
+    case TroupeType.Atom:
         // Since the `LVal::stringRep()` includes type information, e.g. `"`
         // around strings, we can merely hash the value's string
         // representation.
@@ -47,13 +47,13 @@ export function hash(x: LVal,
         return new LVal(hasher.digest(encoding), taintRef.lev, BOT);
 
     // Troupe function type (closure)
-    case TroupeType.CLOSURE:
+    case TroupeType.Closure:
         // TODO (SS; 2025-12-04): For closures, we need to hash the source
         //                        code in some way, i.e., the IR string.
         throw new Error(`hash(x: TroupeClosure) requires hashing the IR`);
 
     // Troupe local object
-    case TroupeType.LOCALOBJECT:
+    case TroupeType.LocalObject:
         // TODO (SS; 2025-12-05): What should we do for local objects?
         throw new Error(`hash(x: LocalObject) is not hasheable`)
 
@@ -69,17 +69,17 @@ export function hash(x: LVal,
 export function isHasheable(x: LVal): boolean {
     switch (x.troupeType) {
     // Troupe function type (closure)
-    case TroupeType.CLOSURE:
+    case TroupeType.Closure:
         return false;
 
     // Troupe aggregate types
-    case TroupeType.TUPLE:
-    case TroupeType.LIST:
-    case TroupeType.RECORD:
+    case TroupeType.Tuple:
+    case TroupeType.List:
+    case TroupeType.Record:
         return false;
 
     // Troupe local objects
-    case TroupeType.LOCALOBJECT:
+    case TroupeType.LocalObject:
         return false;
 
     default:

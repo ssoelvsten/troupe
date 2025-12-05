@@ -73,19 +73,19 @@ export function isEqual(x: RawValue, y: RawValue): LVal {
   let o2: any = y
 
   switch (x._troupeType) {
-    case TroupeType.ATOM:
+    case TroupeType.Atom:
       return baseBoolean(o1.atom == o2.atom);
-    case TroupeType.PROCESS_ID:
+    case TroupeType.ProcessId:
       return pidEquality(o1, o2);
-    case TroupeType.LEVEL:
+    case TroupeType.Level:
       return levelEquality(o1, o2);
-    case TroupeType.AUTHORITY:
+    case TroupeType.Authority:
       return levelEquality(o1.authorityLevel, o2.authorityLevel);
-    case TroupeType.LIST:
+    case TroupeType.List:
       return arrayEquality(o1.toArray(), o2.toArray());
-    case TroupeType.TUPLE:
+    case TroupeType.Tuple:
       return arrayEquality(o1, o2)
-    case TroupeType.RECORD:
+    case TroupeType.Record:
       return recordEquality(o1, o2)
     default:
       return baseBoolean(o1 == o2)

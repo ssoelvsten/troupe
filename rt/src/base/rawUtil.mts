@@ -25,7 +25,7 @@ export function mkUnit(): RawUnit {
 
 /** Predicate of whether `x` is the Troupe unit object. */
 export function isUnit(x: any): x is RawUnit {
-  return x._troupeType === TroupeType.UNIT;
+  return x._troupeType === TroupeType.Unit;
 }
 
 /** Predicate of whether `x` is a boolean value. */
@@ -53,7 +53,7 @@ export function mkProcessID(uuid: string | null, pid: string, node: any) {
 
 /** Predicate of whether `x` is a Troupe process id object. */
 export function isProcessID(x : any) : x is RawProcessID {
-  return x._troupeType === TroupeType.PROCESS_ID;
+  return x._troupeType === TroupeType.ProcessId;
 }
 
 /**
@@ -65,7 +65,7 @@ export function mkAuthority(authorityLevel: Level): RawAuthority {
 
 /** Predicate of whether `x` is a Troupe authority object. */
 export function isAuthority(x: any) : x is RawAuthority {
-  return x._troupeType === TroupeType.AUTHORITY;
+  return x._troupeType === TroupeType.Authority;
 }
 
 /**
@@ -77,7 +77,7 @@ export function mkAtom(name: string, uuid?: string) {
 
 /** Predicate of whether `x` is a Troupe atom object. */
 export function isAtom(x: any) : x is RawAtom {
-  return x._troupeType === TroupeType.ATOM;
+  return x._troupeType === TroupeType.Atom;
 }
 
 /**
@@ -90,7 +90,7 @@ export function mkTuple(x: LVal[]) {
 
 /** Predicate of whether `x` is a Troupe tuple object. */
 export function isTuple(x: any): x is RawTuple {
-  return x._troupeType === TroupeType.TUPLE;
+  return x._troupeType === TroupeType.Tuple;
 }
 
 /**
@@ -103,7 +103,7 @@ export function mkList(a: LVal[]) {
 
 /** Predicate of whether `x` is a Troupe list object. */
 export function isList(x: any): x is RawList {
-  return x._troupeType === TroupeType.LIST;
+  return x._troupeType === TroupeType.List;
 }
 
 /**
@@ -125,5 +125,5 @@ export function mkWithRecord(r: RawRecord, fields: Array<[string, LVal]>): RawRe
 
 /** Predicate of whether `x` is a Troupe record object. */
 export function isRecord(x: any): x is RawRecord {
-  return x._troupeType === TroupeType.RECORD;
+  return x._troupeType === TroupeType.Record;
 }

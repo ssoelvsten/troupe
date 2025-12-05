@@ -245,35 +245,35 @@ async function reconstruct(jsonObj: any, compilerOutput: string | undefined, tru
 
         function value() {
             switch (arg.troupeType) {
-                case Ty.TroupeType.RECORD:
+                case Ty.TroupeType.Record:
                     // for records, the serialization format is  [[key, value_json], ...]
                     let a = [];
                     for (let i = 0; i < obj.length; i++) {
                         a.push ([ obj[i][0], mkValue(obj[i][1]) ]);
                     }
                     return mkRecord(a);
-                case Ty.TroupeType.LIST:
+                case Ty.TroupeType.List:
                     return mkList(deserializeArray(obj));
-                case Ty.TroupeType.TUPLE:
+                case Ty.TroupeType.Tuple:
                     return mkTuple(deserializeArray(obj));
-                case Ty.TroupeType.CLOSURE:
+                case Ty.TroupeType.Closure:
                     return mkClosure(obj.ClosureID);
-                case Ty.TroupeType.NUMBER:
-                case Ty.TroupeType.BOOLEAN:
-                case Ty.TroupeType.STRING:
+                case Ty.TroupeType.Number:
+                case Ty.TroupeType.Boolean:
+                case Ty.TroupeType.String:
                     return obj;
-                case Ty.TroupeType.PROCESS_ID:
+                case Ty.TroupeType.ProcessId:
                     return mkProcessID(obj.uuid, obj.pid, obj.node)
-                case Ty.TroupeType.AUTHORITY:
+                case Ty.TroupeType.Authority:
                     // Attenuate authority based on the trust level of the sender
                     return mkAuthority(_trustGLB(mkLevel(obj.authorityLevel)));
-                case Ty.TroupeType.LEVEL:
+                case Ty.TroupeType.Level:
                     return mkLevel(obj.lev);
-                case Ty.TroupeType.LVAL:
+                case Ty.TroupeType.LVal:
                     return mkValue(obj);
-                case Ty.TroupeType.ATOM:
+                case Ty.TroupeType.Atom:
                     return mkAtom(obj.atom, obj.creation_uuid);
-                case Ty.TroupeType.UNIT:
+                case Ty.TroupeType.Unit:
                      return mkUnit();
                 default:
                      return obj;

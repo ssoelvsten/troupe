@@ -7,7 +7,7 @@ import { assertIsRecord } from '../Asserts.mjs'
 
 
 export class RawRecord implements RawAggregate {    
-    _troupeType: TroupeType.RECORD = TroupeType.RECORD
+    _troupeType: TroupeType.Record = TroupeType.Record
     _dataLevel:  Level = levels.TOP  // TODO compute data level?
     __obj : Map<string, LVal>
 

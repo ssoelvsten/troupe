@@ -7,8 +7,8 @@ export interface BuiltinFunction extends RawFunction {
   env: null;
   (LVal): any;
 
-  _troupeType: TroupeType.CLOSURE;
-  _closureType: ClosureType.BUILTINFN;
+  _troupeType: TroupeType.Closure;
+  _closureType: ClosureType.BuiltinFn;
 }
 
 export function BuiltinFunction(fn: (LVal) => any, name: string | null = null) : BuiltinFunction {
@@ -17,8 +17,8 @@ export function BuiltinFunction(fn: (LVal) => any, name: string | null = null) :
   closure.env = null;
   // TODO: closure.namespace = ???;
   closure.fun = fn; // TODO: 2025-07-28;AA (this is likely redundant)
-  closure._troupeType = TroupeType.CLOSURE;
-  closure._closureType = ClosureType.BUILTINFN;
+  closure._troupeType = TroupeType.Closure;
+  closure._closureType = ClosureType.BuiltinFn;
   closure.dataLevel = BOT;
 
   closure.stringRep = (ol = false, tr = null) => `<basefun:${name || "_"}>`;
@@ -32,8 +32,8 @@ export interface ServiceFunction extends RawFunction {
   env: null;
   (): any;
 
-  _troupeType: TroupeType.CLOSURE;
-  _closureType: ClosureType.SERVICEFN;
+  _troupeType: TroupeType.Closure;
+  _closureType: ClosureType.ServiceFn;
 }
 
 export function ServiceFunction(fn: () => any, name: string | null = null) : ServiceFunction {
@@ -42,8 +42,8 @@ export function ServiceFunction(fn: () => any, name: string | null = null) : Ser
   closure.env = null;
   // TODO: closure.namespace = ???;
   closure.fun = fn; // TODO: 2025-07-28;AA (this is likely redundant)
-  closure._troupeType = TroupeType.CLOSURE;
-  closure._closureType = ClosureType.SERVICEFN;
+  closure._troupeType = TroupeType.Closure;
+  closure._closureType = ClosureType.ServiceFn;
   closure.dataLevel = BOT;
 
   closure.stringRep = (ol = false, tr = null) => `<basefun:${name || "_"}>`;
@@ -56,8 +56,8 @@ export function ServiceFunction(fn: () => any, name: string | null = null) : Ser
 export interface SandboxResumption extends RawFunction {
   (): any;
 
-  _troupeType: TroupeType.CLOSURE;
-  _closureType: ClosureType.SANDBOXKONT;
+  _troupeType: TroupeType.Closure;
+  _closureType: ClosureType.SandboxKont;
 }
 
 export function SandboxResumption(fn: () => any) : SandboxResumption {
@@ -66,8 +66,8 @@ export function SandboxResumption(fn: () => any) : SandboxResumption {
   // TODO: closure.env = ???;
   // TODO: closure.namespace = ???;
   closure.fun = fn; // TODO: redundant?
-  closure._troupeType = TroupeType.CLOSURE;
-  closure._closureType = ClosureType.SANDBOXKONT;
+  closure._troupeType = TroupeType.Closure;
+  closure._closureType = ClosureType.SandboxKont;
   closure.dataLevel = BOT;
 
   closure.stringRep = (ol = false, tr = null) => "<sandboxkont>";

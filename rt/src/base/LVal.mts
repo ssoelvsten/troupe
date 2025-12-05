@@ -34,8 +34,8 @@ export class LVal implements RawValue {
         return new LVal(x.val, lev, tlev);
     }
 
-    get _troupeType() : Ty.TroupeType.LVAL {
-        return Ty.TroupeType.LVAL;
+    get _troupeType() : Ty.TroupeType.LVal {
+        return Ty.TroupeType.LVal;
     }
 
     get troupeType () : Ty.TroupeType {
@@ -49,7 +49,7 @@ export class LVal implements RawValue {
     }
 
     get closureType () : Ty.ClosureType | null  {
-        return this.troupeType == Ty.TroupeType.CLOSURE
+        return this.troupeType == Ty.TroupeType.Closure
             ? this.val._closureType
             : null;
     }

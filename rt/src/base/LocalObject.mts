@@ -8,7 +8,7 @@ export class LocalObject implements RawValue {
     dataLevel = levels.ROOT// 2025-05-25; AA; consider rethinking what this should be...
 
     constructor (v:Object) {
-        this._troupeType = TroupeType.LOCALOBJECT
+        this._troupeType = TroupeType.LocalObject
         this._value = v
     }
 

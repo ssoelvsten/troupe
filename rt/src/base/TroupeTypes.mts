@@ -4,27 +4,27 @@
 export const enum TroupeType {
   // --------------------------------------------------------------------------
   // base types
-  UNIT       = 0,
-  BOOLEAN    = 1,
-  NUMBER     = 2,
-  STRING     = 3,
-  PROCESS_ID = 4,
-  LEVEL      = 5,
-  AUTHORITY  = 6,
-  CAPABILITY = 7,
-  ATOM       = 8,
+  Unit       = 0,
+  Boolean    = 1,
+  Number     = 2,
+  String     = 3,
+  ProcessId = 4,
+  Level      = 5,
+  Authority  = 6,
+  Capability = 7,
+  Atom       = 8,
 
   // --------------------------------------------------------------------------
   // aggregate types
-  CLOSURE = 100,
-  LVAL    = 101, // TODO (AA; 2020-03-03): should be only used for transports
-  TUPLE   = 102,
-  LIST    = 103,
-  RECORD  = 104,
+  Closure = 100,
+  LVal    = 101, // TODO (AA; 2020-03-03): should be only used for transports
+  Tuple   = 102,
+  List    = 103,
+  Record  = 104,
 
   // --------------------------------------------------------------------------
   // unserializable objects type
-  LOCALOBJECT = 200
+  LocalObject = 200
 }
 
 /**
@@ -33,12 +33,12 @@ export const enum TroupeType {
  */
 export const enum ClosureType {
   // okay to serialize
-  REGULARFN   = 0,
+  RegularFn   = 0,
 
   // not to be serialized
-  BUILTINFN   = 1,
-  SANDBOXKONT = 2,
-  SERVICEFN   = 3,
+  BuiltinFn   = 1,
+  SandboxKont = 2,
+  ServiceFn   = 3,
 }
 
 /**
@@ -46,7 +46,7 @@ export const enum ClosureType {
  * serialization.
  */
 export function isSerializableClosure(ct: ClosureType) : boolean  {
-  return (ct === ClosureType.REGULARFN);
+  return (ct === ClosureType.RegularFn);
 }
 
 /**
@@ -61,11 +61,11 @@ export function getTroupeType(x: any) : TroupeType {
   // JavaScript types
   switch (typeof(x)) {
     case 'number':
-      return TroupeType.NUMBER
+      return TroupeType.Number
     case 'boolean':
-      return TroupeType.BOOLEAN
+      return TroupeType.Boolean
     case 'string':
-      return TroupeType.STRING
+      return TroupeType.String
   }
 
   // Must be something non-Troupe!

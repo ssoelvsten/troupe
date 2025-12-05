@@ -70,13 +70,13 @@ export function serialize(w:LVal, pclev:Level) {
         
 
         switch (_tt) {
-            case Ty.TroupeType.RECORD:
+            case Ty.TroupeType.Record:
                 jsonObj = [];
                 for (let [k,v] of x.__obj.entries()) {
                     jsonObj.push ([k, walk(v)])
                 }
                 break;
-            case Ty.TroupeType.LIST:
+            case Ty.TroupeType.List:
                 jsonObj = [];
                 let y = x.toArray()
                 
@@ -84,13 +84,13 @@ export function serialize(w:LVal, pclev:Level) {
                     jsonObj.push(walk(y[i]));
                 }
                 break;
-            case Ty.TroupeType.TUPLE:
+            case Ty.TroupeType.Tuple:
                 jsonObj = [];                                                
                 for (let i = 0; i < x.length; i++) {
                     jsonObj.push(walk(x[i]));
                 }
                 break;
-            case Ty.TroupeType.CLOSURE:
+            case Ty.TroupeType.Closure:
                 if (!Ty.isSerializableClosure (lval.closureType)) {
                     throw new UnserializableObjectError (lval)
                 }
@@ -157,19 +157,19 @@ export function serialize(w:LVal, pclev:Level) {
                     }
                 }
                 break;
-            case Ty.TroupeType.LEVEL:
+            case Ty.TroupeType.Level:
                 jsonObj = { lev: x.toJSON(), isLevel: true };
                 break;
-            case Ty.TroupeType.LVAL:
+            case Ty.TroupeType.LVal:
                 jsonObj = walk(x);
                 break;
-            case Ty.TroupeType.AUTHORITY:
+            case Ty.TroupeType.Authority:
                 jsonObj = { authorityLevel: x.authorityLevel.toJSON() }
                 break;
-            case Ty.TroupeType.ATOM:
+            case Ty.TroupeType.Atom:
                 jsonObj = { atom: x.atom, creation_uuid: x.creation_uuid };
                 break;
-            case Ty.TroupeType.LOCALOBJECT: 
+            case Ty.TroupeType.LocalObject: 
                 throw new UnserializableObjectError (lval)
             default:
                 jsonObj = x;

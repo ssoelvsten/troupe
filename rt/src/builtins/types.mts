@@ -13,41 +13,41 @@ export function BuiltinTypeInformation<TBase extends Constructor<UserRuntimeZero
         getType = mkBuiltin((larg) => {
 	     let _t = "unknown" // 2024-03-18; todo: add proper type	
 	     switch (larg.val._troupeType) {
-		case TroupeType.UNIT: 
+		case TroupeType.Unit: 
 			_t = "unit";
 			break;
-		case TroupeType.BOOLEAN: 
+		case TroupeType.Boolean: 
 			_t = "boolean";
 			break;
-		case TroupeType.NUMBER: 
+		case TroupeType.Number: 
 			_t = "number";
 			break;
 				
-		case TroupeType.STRING: 
+		case TroupeType.String: 
 			_t = "string";
 			break;
-		case TroupeType.PROCESS_ID: 
+		case TroupeType.ProcessId: 
 			_t = "process_id";
 			break;
-		case TroupeType.LEVEL: 
+		case TroupeType.Level: 
 			_t = "level";
 			break;
-		case TroupeType.AUTHORITY: 
+		case TroupeType.Authority: 
 			_t = "authority";
 			break;
-		case TroupeType.CLOSURE: 
+		case TroupeType.Closure: 
 			_t = "function";
 			break;
-		case TroupeType.TUPLE: 
+		case TroupeType.Tuple: 
 			_t = "tuple";
 			break;
-		case TroupeType.LIST: 
+		case TroupeType.List: 
 			_t = "list";
 			break;
-		case TroupeType.RECORD: 
+		case TroupeType.Record: 
 			_t = "record";
 			break;
-		case TroupeType.LOCALOBJECT: 
+		case TroupeType.LocalObject: 
 			_t = "localobject";
 			break;
 		default:

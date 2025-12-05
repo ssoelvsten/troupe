@@ -36,7 +36,7 @@ function err (errorMessage: string, internal: boolean = false) {
 
 export function assertIsAtom (x: any) {
     _thread().raiseBlockingThreadLev(x.tlev)
-    if (x.val._troupeType != TroupeType.ATOM ) {
+    if (x.val._troupeType != TroupeType.Atom ) {
         err ("value " + __stringRep(x) + " is not an atom")        
     }
 }
@@ -73,7 +73,7 @@ export function assertIsFunction(x: any, internal = false) {
 }
 
 export function rawAssertIsFunction(x, internal = false) {
-    if (x._troupeType != TroupeType.CLOSURE) {
+    if (x._troupeType != TroupeType.Closure) {
         err("value " + __stringRep(x) + " is not a function", internal)
     }
 }
@@ -81,14 +81,14 @@ export function rawAssertIsFunction(x, internal = false) {
 
 export function assertIsLocalObject(x: any) {
     _thread().raiseBlockingThreadLev(x.tlev);
-    if (x.val._troupeType != TroupeType.LOCALOBJECT) {
+    if (x.val._troupeType != TroupeType.LocalObject) {
         err("value " + __stringRep(x) + " is not a local object")
     }
 }
 
 export function assertIsHandler(x: any) {
     _thread().raiseBlockingThreadLev(x.tlev);
-    if (x.val._troupeType != TroupeType.CLOSURE) {
+    if (x.val._troupeType != TroupeType.Closure) {
         err("value " + __stringRep(x) + " is not a handler")
     }
 }
@@ -159,13 +159,13 @@ export function rawAssertRecordHasField (x, field: string) {
 
 export function assertIsRecord (x: any) {
     _thread().raiseBlockingThreadLev(x.lev);
-    if (x.val._troupeType != TroupeType.RECORD) {
+    if (x.val._troupeType != TroupeType.Record) {
         err (`value ${__stringRep(x)} is not a record`)
     }
 }
 
 export function rawAssertIsRecord (x: any) {
-    if (x._troupeType != TroupeType.RECORD) {
+    if (x._troupeType != TroupeType.Record) {
         err (`value ${__stringRep(x)} is not a record`)
     }
 }

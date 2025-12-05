@@ -26,11 +26,11 @@ export function BuiltinDebugUtils <TBase extends Constructor<UserRuntimeZero>> (
         _setFailureRate = mkBuiltin((arg) => {
             let _tt = arg.getTroupeType;
             switch (_tt) {
-                case TroupeType.NUMBER:
+                case TroupeType.Number:
                     this.runtime.$t.failureRate = arg.val
                     this.runtime.$t.failureStartTime = 0;
                     break;
-                case TroupeType.TUPLE:
+                case TroupeType.Tuple:
                     assertIsNTuple(arg, 2)
                     assertIsNumber (arg.val[0])
                     assertIsNumber (arg.val[1])

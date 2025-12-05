@@ -4,7 +4,7 @@ import { RawValue } from "./base/RawValue.mjs";
 export abstract class AbstractLevel <T extends AbstractLevel<T>> 
  implements RawValue {
   isLevel: boolean = true ;
-  _troupeType: TroupeType = TroupeType.LEVEL
+  _troupeType: TroupeType = TroupeType.Level
   abstract dataLevel;
   abstract stringRep (): string 
 }

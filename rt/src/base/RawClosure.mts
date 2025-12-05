@@ -6,8 +6,8 @@ export interface RawClosure extends RawFunction {
   namespace: any;
   (any): any;
 
-  _troupeType: TroupeType.CLOSURE;
-  _closureType: ClosureType.REGULARFN;
+  _troupeType: TroupeType.Closure;
+  _closureType: ClosureType.RegularFn;
 }
 
 export function RawClosure (env: any, nm: any, fn: any) : RawClosure {
@@ -16,8 +16,8 @@ export function RawClosure (env: any, nm: any, fn: any) : RawClosure {
   closure.env = env
   closure.namespace = nm
   closure.fun = fn
-  closure._troupeType = TroupeType.CLOSURE
-  closure._closureType = ClosureType.REGULARFN
+  closure._troupeType = TroupeType.Closure
+  closure._closureType = ClosureType.RegularFn
   closure.dataLevel = env.__dataLevel
 
   closure.stringRep = (ol = false, tr = null) => "fn => ..";
