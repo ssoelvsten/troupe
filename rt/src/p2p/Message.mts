@@ -6,13 +6,13 @@ export enum MessageType {
    *
    * @note We did not have an analogue of this in express runtime because express was giving up the
    *       possibility of sending response to a given request. */
-  SpawnOk,
+  SpawnReply,
   /** Sending a message to a remote node. */
   Send,
   /** Asking for the address of a certain peer id. */
   WhereIs,
   /** Reply to the `WhereIs`. */
-  WhereIsOk,
+  WhereIsReply,
 };
 
 /** Message for `Spawn` */
@@ -24,9 +24,9 @@ export type SpawnMessage = {
   message: any,
 };
 
-/** Message for `SpawnOk` */
-export type SpawnOkMessage = {
-  messageType: MessageType.SpawnOk,
+/** Message for `SpawnReply` */
+export type SpawnReplyMessage = {
+  messageType: MessageType.SpawnReply,
   /** Unique number only used once to identify a specific spawn. */
   spawnNonce: string,
   /** Response for a `Spawn`; if `null` everything is ok. */
@@ -51,9 +51,9 @@ export type WhereIsMessage = {
   message: string
 }
 
-/** Message for `WhereIsOk` */
-export type WhereIsOkMessage = {
-  messageType: MessageType.WhereIsOk,
+/** Message for `WhereIsReply` */
+export type WhereIsReplyMessage = {
+  messageType: MessageType.WhereIsReply,
   /** Unique number used once to identify a specific `WhereIs` request. */
   whereisNonce: string,
   /** Address for requested peer. */
@@ -62,8 +62,8 @@ export type WhereIsOkMessage = {
 
 /** Type of all messages. */
 export type Message = SpawnMessage
-                    | SpawnOkMessage
+                    | SpawnReplyMessage
                     | SendMessage
                     | WhereIsMessage
-                    | WhereIsOkMessage
+                    | WhereIsReplyMessage
 ;

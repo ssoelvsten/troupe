@@ -33,7 +33,7 @@ The messages themselves can be one of the six forms:
 
 1. Spawn -- spawning on a remote node
 
-2. SpawnOk -- reply to the Spawn (we did not have an analogue of this in express
+2. SpawnReply -- reply to the Spawn (we did not have an analogue of this in express
    runtime because express was giving up the possibility of sending response to
    a given request, here we are doing it manually by maintaining a spawnNonce
    map).
@@ -42,7 +42,7 @@ The messages themselves can be one of the six forms:
 
 4. WhereIs -- asking for the address of a certain peer id
 
-5. WhereIsOk -- reply to the WhereIs
+5. WhereIsReply -- reply to the WhereIs
 
 Note on the code below: the code below uses the libp2p framework, and is
 partially grown out of the Chat example in that framework (to make sense of the
@@ -538,15 +538,15 @@ function setupConnection(peerId: PeerId, stream): void {
 /**
  * Handles the different input types:
  *
- * - Spawn: Checks whether remote spawn are allowed, informs the runtime and replies SpawnOk.
+ * - Spawn: Checks whether remote spawn are allowed, informs the runtime and replies SpawnReply.
  *
- * - SpawnOk: Gives the message to the call-back.
+ * - SpawnReply: Gives the message to the call-back.
  *
  * - Send: Passes the message to the runtime.
  *
- * - WhereIs: Asks the runtime where the peer is, and replies with WhereIsOk.
+ * - WhereIs: Asks the runtime where the peer is, and replies with WhereIsReply.
  *
- * - WhereIsOk: Gives the message to the call-back.
+ * - WhereIsReply: Gives the message to the call-back.
  */
 async function inputHandler(peerId: PeerId, input: Message) {
   debug("Input handler");
@@ -563,9 +563,9 @@ async function inputHandler(peerId: PeerId, input: Message) {
         debug("This spawn was already received; replying again without spawning");
         let cachedAnswer = receivedSpawnNonces[input.spawnNonce];
 
-        // Reply with SpawnOk and return
+        // Reply with SpawnReply and return
         pushWrap(peerId, {
-          messageType: MessageType.SpawnOk,
+          messageType: MessageType.SpawnReply,
           spawnNonce: input.spawnNonce,
           message: cachedAnswer
         });
@@ -575,9 +575,9 @@ async function inputHandler(peerId: PeerId, input: Message) {
       // Inform the runtime
       const runtimeAnswer = await _rtHandlers[MessageType.Spawn](input.message, peerId.toString());
 
-      // Reply with SpawnOk
+      // Reply with SpawnReply
       pushWrap(peerId, {
-        messageType: MessageType.SpawnOk,
+        messageType: MessageType.SpawnReply,
         spawnNonce: input.spawnNonce,
         message: runtimeAnswer
       });
@@ -589,7 +589,7 @@ async function inputHandler(peerId: PeerId, input: Message) {
       break;
     }
 
-    case (MessageType.SpawnOk): {
+    case (MessageType.SpawnReply): {
       debug("Received Spawn OK");
       // Find the call-back and give the message; otherwise report an error
       const _cb = _spawnNonces[input.spawnNonce];
@@ -614,9 +614,9 @@ async function inputHandler(peerId: PeerId, input: Message) {
       // Get the runtime to find the peer
       const runtimeAnswer = await _rtHandlers[MessageType.WhereIs](input.message, peerId.toString());
 
-      // Reply with WhereIsOk
+      // Reply with WhereIsReply
       pushWrap(peerId, {
-        messageType: MessageType.WhereIsOk,
+        messageType: MessageType.WhereIsReply,
         whereisNonce : input.whereisNonce,
         message : runtimeAnswer
       });
@@ -625,8 +625,8 @@ async function inputHandler(peerId: PeerId, input: Message) {
       break;
     }
 
-    case (MessageType.WhereIsOk): {
-      debug("Received WhereIsOk");
+    case (MessageType.WhereIsReply): {
+      debug("Received WhereIsReply");
       // Find the call-back and give the message Otherwise report an error
       const _cbw = _whereisNonces[input.whereisNonce];
       if(_cbw) {
@@ -813,7 +813,7 @@ let _spawnNonces: { [nonce in string]: (err: any, res: any) => void } = {};
 
 /**
  * Stores received Spawn nonces and the runtime answer for their reply. These are stored for 10
- * minutes in case the SpawnOk disappeared
+ * minutes in case the SpawnReply disappeared
  */
 let receivedSpawnNonces: { [nonce in string]: any } = {};
 
