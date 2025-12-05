@@ -54,35 +54,32 @@ export class LVal implements RawValue {
     }
 
     stringRep(omitLevels?: boolean, taintRef?: any) {
-      let v = this.val;
-      let l = this.lev;
-      let t = "";
-      if (v.stringRep != undefined) { // 2018-05-17; AA; ugly hack!
-          t = v.stringRep(omitLevels, taintRef);
-      } else {
-          if (typeof v === 'string') {
-              t = `"${v.toString()}"`;
-          } else {
-              t = v.toString();
-          }
-      }
+        let output = "";
 
-      if (l.stringRep == undefined) {
-          console.log("undefined stringrep", l);
-      }
+        // HACK (AA; 2018-05-17): Branch on JavaScript builtins based on the
+        //                        existence of `stringRep`.
+        //
+        // TODO (SS; 2025-12-05): We can simplify the stuff below to
+        //                        `v.toString(omitLevels, taintRef)` if we
+        //                        rename `stringRep` to `toString`; JavaScript
+        //                        supports calling functions with more
+        //                        arguments than it was defined with.
+        if (this.val.stringRep != undefined) {
+            output = this.val.stringRep(omitLevels, taintRef);
+        } else if (typeof this.val === 'string') {
+            output = `"${this.val.toString()}"`;
+        } else {
+            output = this.val.toString();
+        }
 
-      let s = t;
+        if (taintRef) {
+            taintRef.lev = levels.lub(taintRef.lev, this.lev);
+        }
 
-      if (!omitLevels) {
-          s = s + "@" + l.stringRep() + "%" + this.tlev.stringRep();
-      }
-
-      if (taintRef) {
-          taintRef.lev = levels.lub(taintRef.lev, l);
-      }
-
-      return s;
-  }
+        return omitLevels
+            ? output
+            : `${output}@${this.lev.stringRep()}%${this.tlev.stringRep()}`;
+    }
 }
 
 
