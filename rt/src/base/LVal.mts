@@ -8,7 +8,6 @@ export class LVal implements RawValue {
     val: any;
     lev: Level;
     tlev: Level;
-    dlev: Level;
     posInfo: string;
 
     constructor(val : any, lev : Level, tlev : Level | null = null, posInfo : string = null) {
@@ -18,11 +17,6 @@ export class LVal implements RawValue {
         this.lev = lev;
         this.tlev = tlev == null ? lev : tlev;
         this.posInfo = posInfo;
-        if (val._troupeType == undefined) {
-            this.dlev = this.lev;
-        } else {
-            this.dlev = levels.lub(this.lev, val.dataLevel);
-        }
     }
 
     get _troupeType() : Ty.TroupeType.LVAL {
@@ -34,7 +28,9 @@ export class LVal implements RawValue {
     }
 
     get dataLevel () : Level {
-        return this.dlev;
+        return this.val.dataLevel
+            ? levels.lub(this.lev, this.val.dataLevel)
+            : this.lev;
     }
 
     get closureType () : Ty.ClosureType | null  {
