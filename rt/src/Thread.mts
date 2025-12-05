@@ -119,14 +119,6 @@ class Mailbox extends Array<MbVal> {
     }
 }
 
-class ThreadState {
-  callStack: any [] 
-  constructor (s: any []) {
-     this.callStack = s
-  }
-}
-
-
 export class SleepTimeout {    
     sleepingUntil  : number 
     timeoutObject  : any;
