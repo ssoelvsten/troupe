@@ -11,17 +11,6 @@ export class LVal implements RawValue {
     dlev: Level;
     posInfo: string;
 
-    /* 2020-06-06: AA
-
-       Observe that we only need the type information here only because of the
-       base type such as booleans, strings, and numbers; becauase we cannot attach
-       properties to them in JS.
-
-       The main downside of duplicating the type information is the duplication of
-       this information during serialization
-    */
-    __troupeType : Ty.TroupeType;
-
     constructor(val : any, lev : Level, tlev : Level | null = null, posInfo : string = null) {
         // TODO (2025-12-05): If `v` is another `LVal` do a copy of that object or
         //                    throw an error
@@ -30,10 +19,8 @@ export class LVal implements RawValue {
         this.tlev = tlev == null ? lev : tlev;
         this.posInfo = posInfo;
         if (val._troupeType == undefined) {
-            this.__troupeType = Ty.getTroupeType(val);
             this.dlev = this.lev;
         } else {
-            this.__troupeType = val._troupeType;
             this.dlev = levels.lub(this.lev, val.dataLevel);
         }
     }
@@ -41,8 +28,9 @@ export class LVal implements RawValue {
     get _troupeType() : Ty.TroupeType.LVAL {
         return Ty.TroupeType.LVAL;
     }
+
     get troupeType () : Ty.TroupeType {
-        return this.__troupeType;
+        return Ty.getTroupeType(this.val);
     }
 
     get dataLevel () : Level {
