@@ -1,60 +1,60 @@
 /** Enum with message tags to be used when peers send messages to each other. */
 export enum MessageType {
   /** Spawning a function on a remote node. */
-  SPAWN = 0,
-  /** Reply to the SPAWN
+  Spawn = 0,
+  /** Reply to the Spawn
    *
    * @note We did not have an analogue of this in express runtime because express was giving up the
    *       possibility of sending response to a given request. */
-  SPAWNOK,
+  SpawnOk,
   /** Sending a message to a remote node. */
-  SEND,
+  Send,
   /** Asking for the address of a certain peer id. */
-  WHEREIS,
-  /** Reply to the WHEREIS. */
-  WHEREISOK,
+  WhereIs,
+  /** Reply to the `WhereIs`. */
+  WhereIsOk,
 };
 
-/** Message for `SPAWN` */
+/** Message for `Spawn` */
 export type SpawnMessage = {
-  messageType: MessageType.SPAWN,
+  messageType: MessageType.Spawn,
   /** Unique number only used once to identify a specific spawn. */
   spawnNonce: string,
   /** Serialized function to be spawned. */
   message: any,
 };
 
-/** Message for `SPAWNOK` */
+/** Message for `SpawnOk` */
 export type SpawnOkMessage = {
-  messageType: MessageType.SPAWNOK,
+  messageType: MessageType.SpawnOk,
   /** Unique number only used once to identify a specific spawn. */
   spawnNonce: string,
-  /** Response for a `SPAWN`; if `null` everything is ok. */
+  /** Response for a `Spawn`; if `null` everything is ok. */
   message: any | null,
 }
 
-/** Message for `SEND` */
+/** Message for `Send` */
 export type SendMessage = {
-  messageType: MessageType.SEND,
+  messageType: MessageType.Send,
   /** Process identifier who should receive the value. */
   pid: string,
   /** Serialized value to be sent to `pid`. */
   message: any,
 }
 
-/** Message for `WHEREIS` */
+/** Message for `WhereIs` */
 export type WhereIsMessage = {
-  messageType: MessageType.WHEREIS,
-  /** Unique number used once to identify a specific `WHEREIS` request. */
+  messageType: MessageType.WhereIs,
+  /** Unique number used once to identify a specific `WhereIs` request. */
   whereisNonce: string,
   /** Identifier for peer. */
   message: string
 }
 
-/** Message for `WHEREISOK` */
+/** Message for `WhereIsOk` */
 export type WhereIsOkMessage = {
-  messageType: MessageType.WHEREISOK,
-  /** Unique number used once to identify a specific `WHEREIS` request. */
+  messageType: MessageType.WhereIsOk,
+  /** Unique number used once to identify a specific `WhereIs` request. */
   whereisNonce: string,
   /** Address for requested peer. */
   message: string

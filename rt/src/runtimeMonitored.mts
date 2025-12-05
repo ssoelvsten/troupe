@@ -391,9 +391,9 @@ async function getNetworkPeerId() {
   }
 
   const rtHandlers = {
-    [MessageType.SPAWN]:   argv[TroupeCliArg.RSpawn] ? spawnFromRemote : undefined,
-    [MessageType.SEND]:    receiveFromRemote,
-    [MessageType.WHEREIS]: whereisFromRemote,
+    [MessageType.Spawn]:   argv[TroupeCliArg.RSpawn] ? spawnFromRemote : undefined,
+    [MessageType.Send]:    receiveFromRemote,
+    [MessageType.WhereIs]: whereisFromRemote,
   };
 
   return await p2p.startp2p(rtHandlers);
