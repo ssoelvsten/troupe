@@ -43,13 +43,13 @@ const argv = getCliArgs();
 
 export function BuiltinAdv <TBase extends Constructor<UserRuntimeZero>>(Base: TBase) {
     return class extends Base {
-        mkSecret = mkBuiltin((x) => {
+        mkSecret = mkBuiltin((x: LVal) => {
             // debug ("making secret " + x.val)
             this.runtime.$t.invalidateSparseBit()
             return this.runtime.ret(new LVal(x.val, levels.TOP))
         })
 
-        adv = mkBuiltin((x) => {
+        adv = mkBuiltin((x: LVal) => {
             assertNormalState("baseDisclose");
             
             // Check if running in network mode (i.e., NOT local-only)
@@ -70,7 +70,7 @@ export function BuiltinAdv <TBase extends Constructor<UserRuntimeZero>>(Base: TB
             return this.runtime.ret(unitLVal);
         })
 
-        cert = mkBuiltin ((x) =>{
+        cert = mkBuiltin ((x: LVal) =>{
             assertNormalState("baseCertify");
             
             // Check if running in network mode (i.e., NOT local-only)
@@ -91,7 +91,7 @@ export function BuiltinAdv <TBase extends Constructor<UserRuntimeZero>>(Base: TB
             return this.runtime.ret(unitLVal);            
         })
 
-        ladv = mkBuiltin((x) => {
+        ladv = mkBuiltin((x: LVal) => {
             assertNormalState("ladv");
             assertIsNTuple(x, 2)
             let l_adv = x.val[0] 
