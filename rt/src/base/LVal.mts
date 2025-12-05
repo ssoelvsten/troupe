@@ -23,6 +23,8 @@ export class LVal implements RawValue {
     __troupeType : Ty.TroupeType;
 
     constructor(val : any, lev : Level, tlev : Level | null = null, posInfo : string = null) {
+        // TODO (2025-12-05): If `v` is another `LVal` do a copy of that object or
+        //                    throw an error
         this.val = val;
         this.lev = lev;
         this.tlev = tlev == null ? lev : tlev;
