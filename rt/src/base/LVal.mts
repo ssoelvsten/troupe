@@ -1,15 +1,14 @@
 import * as levels from '../Level.mjs'
 import { Level } from "../Level.mjs";
 import * as Ty from './TroupeTypes.mjs';
-import { RawValue } from './RawValue.mjs';
+import { RawFunction, RawValue } from './RawValue.mjs';
 
-export class LVal implements RawValue {
-    // TODO (SS; 2025-12-01): Make type of `val` generic (to improve type system).
-    val: any;
+export class LVal<T = any> implements RawValue {
+    val: T;
     lev: Level;
     tlev: Level;
 
-    constructor(val : any, lev : Level, tlev : Level | null = null) {
+    constructor(val : T, lev : Level, tlev : Level | null = null) {
         // TODO (2025-12-05): If `v` is another `LVal` do a copy of that object or
         //                    throw an error
         this.val = val;
@@ -21,7 +20,7 @@ export class LVal implements RawValue {
      * Safe copy of `x` while safely raising the level based on `x`, `lev` and
      * `tlev`.
      */
-    static copy(x: LVal, lev: Level, tlev: Level | null = null) {
+    static copy<T = any>(x: LVal<T>, lev: Level, tlev: Level | null = null) {
         tlev = tlev || levels.lub(x.tlev, lev);
         return new LVal(x.val, levels.lub(x.lev, lev), tlev);
     }
@@ -30,7 +29,7 @@ export class LVal implements RawValue {
      * Creates a copy of `x` with new levels, `lev` and `tlev`. This is unsafe,
      * as `x.lev`, resp. `x.tlev`, may not flow to `lev`, resp. `tlev`.
      */
-    static copyUnsafe(x: LVal, lev: Level, tlev: Level | null = null) {
+    static copyUnsafe<T = any>(x: LVal<T>, lev: Level, tlev: Level | null = null) {
         return new LVal(x.val, lev, tlev);
     }
 
@@ -43,14 +42,14 @@ export class LVal implements RawValue {
     }
 
     get dataLevel () : Level {
-        return this.val.dataLevel
-            ? levels.lub(this.lev, this.val.dataLevel)
+        return (this.val as RawValue).dataLevel
+            ? levels.lub(this.lev, (this.val as any).dataLevel)
             : this.lev;
     }
 
     get closureType () : Ty.ClosureType | null  {
         return this.troupeType == Ty.TroupeType.Closure
-            ? this.val._closureType
+            ? (this.val as RawFunction)._closureType
             : null;
     }
 
@@ -65,8 +64,8 @@ export class LVal implements RawValue {
         //                        rename `stringRep` to `toString`; JavaScript
         //                        supports calling functions with more
         //                        arguments than it was defined with.
-        if (this.val.stringRep != undefined) {
-            output = this.val.stringRep(omitLevels, taintRef);
+        if ((this.val as RawValue).stringRep != undefined) {
+            output = (this.val as RawValue).stringRep(omitLevels, taintRef);
         } else if (typeof this.val === 'string') {
             output = `"${this.val.toString()}"`;
         } else {
