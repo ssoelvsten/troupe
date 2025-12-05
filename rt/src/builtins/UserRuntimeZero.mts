@@ -78,7 +78,6 @@ export class UserRuntimeZero {
     RawClosure = RawClosure    
     constructLVal =  (x,y,z) => new LVal (x,y,z) 
     mkVal : (x:any) => LVal = this.default_mkVal
-    mkValPos : (x:any, pos:string) => LVal = this.default_mkValPos
     __unit = unitLVal
     __unitbase = mkUnit();
     Atom = RawAtom
@@ -248,10 +247,6 @@ export class UserRuntimeZero {
         return this.runtime.$t.mkVal(x)        
     }
 
-    default_mkValPos(x,p) {
-        return this.runtime.$t.mkValPos(x, p)
-    }
-
     mkCopy (x):LVal {
         return this.runtime.$t.mkCopy(x)
     }
@@ -261,7 +256,6 @@ export class UserRuntimeZero {
     savedThread =  null ;// this.runtime.__sched.getCurrentThread();
     setLibloadMode() {
         this.mkVal = (x) => new LVal(x, levels.BOT);
-        this.mkValPos = (x, pos) => new LVal(x, levels.BOT, levels.BOT, pos);
         this.Env = LibEnv;
         this.savedThread = this.runtime.__sched.setCurrentThread(this.libLoadingPseudoThread);
     }
@@ -269,7 +263,6 @@ export class UserRuntimeZero {
 
     setNormalMode() {
         this.mkVal = this.default_mkVal;
-        this.mkValPos = this.default_mkValPos
         this.Env = RtEnv;
         this.runtime.__sched.setCurrentThread(this.savedThread);
     }

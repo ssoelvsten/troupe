@@ -720,14 +720,8 @@ export class Thread {
             // automaticaly every time we raise the PC level.
     }
 
-
-
     mkVal(x) {
         return new LVal(x, this.pc, this.pc );
-    }
-
-    mkValPos(x: any, pos: string) {
-        return new LVal (x, this.pc, this.pc, pos);
     }
 
     /*
