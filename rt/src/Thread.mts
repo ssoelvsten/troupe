@@ -2,7 +2,7 @@ import * as levels from './Level.mjs'
 const lub = levels.lub;
 const flowsTo = levels.flowsTo
 import { DowngradeDimension, DowngradeKind, DowngradeResult, DowngradeErrorReason, ValidateDowngradeParams } from './DowngradeEnums.mjs';
-import { LVal } from './base/LVal.mjs';
+import { LVal, MbVal } from './base/LVal.mjs';
 import { HandlerError, ImplementationError, StrThreadError } from './TroupeError.mjs';
 import { getCliArgs, TroupeCliArg } from './TroupeCliArgs.mjs';
 import { getDowngradeErrorMessage } from './DowngradeFormatter.mjs';
@@ -91,39 +91,33 @@ class  MboxClearance {
 }
 
 
-class Mailbox extends Array {
-    mclear : MboxClearance ;
-    caps : string;
+class Mailbox extends Array<MbVal> {
+    mclear: MboxClearance;
+    caps: string | null;
 
-    peek_cache_index : number 
-    peek_cache_position: number 
-    peek_cache_lowb  : Level 
-    peek_cache_highb : Level 
-    
+    peek_cache_index: number | null;
+    peek_cache_position: number | null;
+    peek_cache_lowb: Level | null;
+    peek_cache_highb: Level | null;
 
-    constructor () {
-        super ()
+    constructor() {
+        super();
+
         this.mclear = new MboxClearance (levels.BOT, levels.BOT);
         this.caps = null;
-
-        this.peek_cache_index = null; 
-        this.peek_cache_position = null;    
-        this.peek_cache_lowb  = null; 
-        this.peek_cache_highb = null
+        this.resetPeekCache();
     }
-    newMessage (x) {
+
+    newMessage(x: MbVal): void {
         this.push(x);
     }
 
-
-    resetPeekCache ()  {
+    resetPeekCache(): void {
         this.peek_cache_index = null;
-        this.peek_cache_lowb  = null; 
-        this.peek_cache_position = null;    
-        this.peek_cache_lowb  = null; 
-        this.peek_cache_highb = null
+        this.peek_cache_lowb  = null;
+        this.peek_cache_position = null;
+        this.peek_cache_highb = null;
     }
-
 }
 
 class ThreadState {
