@@ -75,19 +75,18 @@ export class Capability<T> {
     }
 }
 
-class  MboxClearance {
-  boost_level: any; 
-  pc_at_creation: any; 
-  constructor (lclear:any, pc:any) {
+class MboxClearance {
+  boost_level: Level;
+  pc_at_creation: Level;
+
+  constructor (lclear: Level, pc: Level) {
     this.boost_level = lclear;
     this.pc_at_creation = pc;
   }
 
   stringRep () {
-    return this.boost_level.stringRep ()
+    return this.boost_level.stringRep();
   }
-
-  
 }
 
 
