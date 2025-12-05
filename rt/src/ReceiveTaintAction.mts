@@ -1,4 +1,4 @@
 export enum ReceiveTaintAction {
-    KEEP = 0,
-    DROP
+    Keep = 0,
+    Drop
 }
