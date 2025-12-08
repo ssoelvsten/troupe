@@ -1,11 +1,12 @@
-/** Enum with message tags to be used when peers send messages to each other. */
+/** Enum with message tags to be used when peers send messages to each other.
+ *
+ * @note We did not have in Express the ability to respond to a request (see
+ *       the `Reply` messages types).
+ */
 export enum MessageType {
   /** Spawning a function on a remote node. */
   Spawn = 0,
-  /** Reply to the Spawn
-   *
-   * @note We did not have an analogue of this in express runtime because express was giving up the
-   *       possibility of sending response to a given request. */
+  /** Reply to the Spawn*/
   SpawnReply,
   /** Sending a message to a remote node. */
   Send,
