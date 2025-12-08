@@ -921,7 +921,7 @@ function reissueUnacknowledged(id: string) {
  *
  * Any known errors are reported. Any unknown errors are reported and thrown.
  */
-export function processExpectedNetworkErrors(err, source="unknown") {
+function processExpectedNetworkErrors(err, source="unknown") {
     debug(`Error source: ${source}`);
     if(err instanceof AggregateError) {
       for(const e of err.errors ) {
