@@ -85,7 +85,7 @@ async function spawnAtNode(nodeid, f) {
   //--------------------------------------------------
 
   try {
-    let body1 = await p2p.spawnp2p(node.nodeId, data);
+    let body1 = await p2p.spawn(node.nodeId, data);
     let body = await DS.deserialize(nodeTrustLevel(node.nodeId), body1);
     let pid = mkProcessID(body.val.uuid, body.val.pid, body.val.node);
     theThread.returnSuspended(new LVal(pid, body.lev));
@@ -198,7 +198,7 @@ function sendMessageToRemote(toPid: any, message: LVal) {
   }
 
   // we return unit to the call site at the thread level
-  p2p.sendByValuep2p(node, pid, data)
+  p2p.sendByValue(node, pid, data)
   return $t().returnImmediateLValue(unitLVal);
 }
 
@@ -338,7 +338,7 @@ async function cleanupAsync() {
   if (__p2pRunning) {
     try {
       logger.debug("stopping p2p")
-      await p2p.stopp2p()
+      await p2p.stop()
       logger.debug("p2p stop OK")
     } catch (err) {
       logger.debug(`p2p stop failed ${err}`)
@@ -396,7 +396,7 @@ async function getNetworkPeerId() {
     [MessageType.WhereIs]:     whereisFromRemote,
   };
 
-  return await p2p.startp2p(rtHandlers);
+  return await p2p.start(rtHandlers);
 }
 
 

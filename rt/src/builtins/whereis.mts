@@ -96,7 +96,7 @@ export function BuiltinRegistry<TBase extends Constructor<UserRuntimeZero>>(Base
             } else {
                 (async () => {
                     try {
-                        let body1 = await p2p.whereisp2p(n, k);
+                        let body1 = await p2p.whereis(n, k);
                         let body = await deserialize(nodeTrustLevel(n), body1);
                         let pid = mkProcessID(body.val.uuid, body.val.pid, body.val.node);
 
