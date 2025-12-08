@@ -18,7 +18,7 @@ export enum MessageType {
 /** Message for `Spawn` */
 export type SpawnMessage = {
   messageType: MessageType.Spawn,
-  /** Unique number only used once to identify a specific spawn. */
+  /** Unique `uuid` only used once to identify a specific spawn. */
   spawnNonce: string,
   /** Serialized function to be spawned. */
   message: any,
@@ -27,7 +27,7 @@ export type SpawnMessage = {
 /** Message for `SpawnReply` */
 export type SpawnReplyMessage = {
   messageType: MessageType.SpawnReply,
-  /** Unique number only used once to identify a specific spawn. */
+  /** Unique `uuid` only used once to identify a specific spawn. */
   spawnNonce: string,
   /** Response for a `Spawn`; if `null` everything is ok. */
   message: any | null,
@@ -45,7 +45,7 @@ export type SendMessage = {
 /** Message for `WhereIs` */
 export type WhereIsMessage = {
   messageType: MessageType.WhereIs,
-  /** Unique number used once to identify a specific `WhereIs` request. */
+  /** Unique `uuid` used once to identify a specific `WhereIs` request. */
   whereisNonce: string,
   /** Identifier for peer. */
   message: string
@@ -54,7 +54,7 @@ export type WhereIsMessage = {
 /** Message for `WhereIsReply` */
 export type WhereIsReplyMessage = {
   messageType: MessageType.WhereIsReply,
-  /** Unique number used once to identify a specific `WhereIs` request. */
+  /** Unique `uuid` used once to identify a specific `WhereIs` request. */
   whereisNonce: string,
   /** Address for requested peer. */
   message: string
