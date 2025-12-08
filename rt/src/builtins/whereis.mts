@@ -69,6 +69,11 @@ export function BuiltinRegistry<TBase extends Constructor<UserRuntimeZero>>(Base
 
             let __sched = $r.__sched
 
+            // TODO (SS; 2025-12-08): This seems like a P2P handler that should
+            //                        be placed in `runtimeMonitored.mts`. Or
+            //                        maybe it's the other way around: the
+            //                        handlers in that file should be moved out?
+
             // let n = dealias(arg.val[0].val);    
             let n = __nodeManager.getNode(arg.val[0].val).nodeId;
             
