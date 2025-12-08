@@ -12,6 +12,7 @@ import { LVal } from '../base/LVal.mjs'
 import {p2p} from '../p2p/p2p.mjs'
 import { getCliArgs, TroupeCliArg } from '../TroupeCliArgs.mjs';
 import { mkLogger } from '../logger.mjs'
+import { RawProcessID } from '../base/RawProcessID.mjs';
 
 const argv = getCliArgs();
 const logLevel = argv[TroupeCliArg.Debug] ? 'debug': 'info'
@@ -19,7 +20,7 @@ const logger = mkLogger('RTM', logLevel);
 
 const debug = x => logger.debug(x)
 
-export let __theRegister: { [k in string]: LVal } = {}
+export let __theRegister: { [k in string]: LVal<RawProcessID> } = {}
 
 export function BuiltinRegistry<TBase extends Constructor<UserRuntimeZero>>(Base: TBase) {
     return class extends Base {
