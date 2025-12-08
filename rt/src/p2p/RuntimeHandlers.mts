@@ -1,5 +1,4 @@
 import { MessageType } from './Message.mjs'
-import { LVal } from '../base/LVal.mjs'
 
 /**
  * Handler for `Spawn` messages.
@@ -7,7 +6,7 @@ import { LVal } from '../base/LVal.mjs'
  * @returns The `LVal` to be sent back with a `SpawnReply`.
  */
 type RuntimeSpawnHandler =
-  (f: any, peerId: string) => Promise<LVal>;
+  (f: any, peerId: string) => Promise<any>;
 
 /**
  * Handler for `Send` messages.
@@ -22,7 +21,7 @@ type RuntimeSendHandler =
  *          This value is to be sent back with a `WhereIsReply`.
  */
 type RuntimeWhereIsHandler =
-  (x: string, peerId: string) => Promise<string | undefined>;
+  (x: string, peerId: string) => Promise<any | undefined>;
 
 export type RuntimeHandlers = {
   /**
