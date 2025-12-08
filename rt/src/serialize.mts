@@ -61,15 +61,8 @@ export function serialize(w:LVal, pclev:Level) {
 
         let jsonObj;
         let x = lval.val;
-        
 
-
-        let _tt = lval.troupeType
-
-        
-        
-
-        switch (_tt) {
+        switch (lval.troupeType) {
             case Ty.TroupeType.Record:
                 jsonObj = [];
                 for (let [k,v] of x.__obj.entries()) {
@@ -185,7 +178,7 @@ export function serialize(w:LVal, pclev:Level) {
             val: jsonObj
             , lev: lval.lev.toJSON()
             , tlev: lval.tlev.toJSON()
-            , troupeType: _tt               
+            , troupeType: lval.troupeType
         };
     }
 
