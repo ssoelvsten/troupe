@@ -198,7 +198,7 @@ function sendMessageToRemote(toPid: any, message: LVal) {
   }
 
   // we return unit to the call site at the thread level
-  p2p.sendp2p(node, pid, data)
+  p2p.sendByValuep2p(node, pid, data)
   return $t().returnImmediateLValue(unitLVal);
 }
 
@@ -391,9 +391,9 @@ async function getNetworkPeerId() {
   }
 
   const rtHandlers = {
-    [MessageType.Spawn]:   argv[TroupeCliArg.RSpawn] ? spawnFromRemote : undefined,
-    [MessageType.Send]:    receiveFromRemote,
-    [MessageType.WhereIs]: whereisFromRemote,
+    [MessageType.Spawn]:       argv[TroupeCliArg.RSpawn] ? spawnFromRemote : undefined,
+    [MessageType.SendByValue]: receiveFromRemote,
+    [MessageType.WhereIs]:     whereisFromRemote,
   };
 
   return await p2p.startp2p(rtHandlers);

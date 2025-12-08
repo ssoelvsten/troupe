@@ -29,16 +29,16 @@ export type RuntimeHandlers = {
    * Callback for a request to spawn a new Troupe thread on this machine. If
    *  remote spawning is disabled, then this handler is `undefined`.
    */
-  [MessageType.Spawn]   : RuntimeSpawnHandler | undefined,
+  [MessageType.Spawn]      : RuntimeSpawnHandler | undefined,
 
   /**
    * Callback for a message sent to a process on this machine.
    */
-  [MessageType.Send]    : RuntimeSendHandler,
+  [MessageType.SendByValue] : RuntimeSendHandler,
 
   /**
    * Callback for a `whereis` message sent to this machine.
    */
-  [MessageType.WhereIs] : RuntimeWhereIsHandler,
+  [MessageType.WhereIs]     : RuntimeWhereIsHandler,
 };
 

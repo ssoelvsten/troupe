@@ -579,10 +579,10 @@ async function inputHandler(peerId: PeerId, input: Message) {
       break;
     }
 
-    case (MessageType.Send): {
+    case (MessageType.SendByValue): {
       debug(`Received Send from ${peerId}`);
       // Pass the message to the runtime
-      _rtHandlers[MessageType.Send](input.pid, input.message, peerId.toString());
+      _rtHandlers[MessageType.SendByValue](input.pid, input.message, peerId.toString());
       break;
     }
 
@@ -694,13 +694,13 @@ async function dialRelay(relayAddr: string) {
 // SEND
 
 /**
- * Handles a send request to peer `id`. Just pushes a Send message.
+ * Handles a send (by value) request to peer `id`. Just pushes a Send message.
  */
-async function sendp2p(id: string, procId: string, obj: any) {
+async function sendByValuep2p(id: string, procId: string, obj: any) {
   debug(`sendp2p`);
 
   pushWrap(peerIdFromString(id), {
-    messageType: MessageType.Send,
+    messageType: MessageType.SendByValue,
     pid: procId,
     message: obj
   });
@@ -991,8 +991,8 @@ export let p2p = {
   spawnp2p: (arg1, arg2) => {
     return spawnp2p(arg1, arg2)
   },
-  sendp2p: (arg1, arg2, arg3) => {
-    return sendp2p(arg1, arg2, arg3)
+  sendByValuep2p: (arg1, arg2, arg3) => {
+    return sendByValuep2p(arg1, arg2, arg3)
   },
   whereisp2p: (arg1, arg2) => {
     return whereisp2p(arg1, arg2)

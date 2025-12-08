@@ -8,8 +8,8 @@ export enum MessageType {
   Spawn = 0,
   /** Reply to the Spawn*/
   SpawnReply,
-  /** Sending a message to a remote node. */
-  Send,
+  /** Sending a message to a remote node with the value directly included. */
+  SendByValue,
   /** Asking for the address of a certain peer id. */
   WhereIs,
   /** Reply to the `WhereIs`. */
@@ -35,8 +35,8 @@ export type SpawnReplyMessage = {
 }
 
 /** Message for `Send` */
-export type SendMessage = {
-  messageType: MessageType.Send,
+export type SendByValueMessage = {
+  messageType: MessageType.SendByValue,
   /** Process identifier who should receive the value. */
   pid: string,
   /** Serialized value to be sent to `pid`. */
@@ -64,7 +64,7 @@ export type WhereIsReplyMessage = {
 /** Type of all messages. */
 export type Message = SpawnMessage
                     | SpawnReplyMessage
-                    | SendMessage
+                    | SendByValueMessage
                     | WhereIsMessage
                     | WhereIsReplyMessage
 ;
