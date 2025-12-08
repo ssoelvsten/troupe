@@ -10,11 +10,11 @@ import { CONJ_OPERATOR
     } from './dcl_pp_config.mjs'
 
 export class Category {
-    toJSON(): any {
+    toJSON(): string[] {
         return [...this.labels];
     }
 
-    static fromJSON (o:[string]) : Category {
+    static fromJSON (o: string[]) : Category {
         return new Category (new Set(o));
     }
 
@@ -34,14 +34,14 @@ export class Category {
 }
 
 export class CNF {
-    toJSON() {
+    toJSON(): string[][] {
         return [...this.categories].map (x => x.toJSON())
     }
 
-    static fromJSON (o:[[string]]): CNF  {
+    static fromJSON (o: string[][]): CNF  {
         return (new CNF (new Set (o.map (x => Category.fromJSON(x)))))
     }
-    
+
     categories: Set<Category>
     constructor(c: Set<Category>) {
         this.categories = c
