@@ -12,7 +12,7 @@ import { UserRuntime } from './UserRuntime.mjs'
 import * as levels from './Level.mjs'
 const { flowsTo, lub, glb } = levels
 import * as DS from './deserialize.mjs'
-import { p2p } from './p2p/p2p.mjs'
+import * as p2p from './p2p/p2p.mjs'
 import { MessageType } from './p2p/Message.mjs'
 import { RuntimeHandlers } from './p2p/RuntimeHandlers.mjs'
 import { closeReadline } from './builtins/stdio.mjs';

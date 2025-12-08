@@ -9,7 +9,7 @@ import { assertNormalState, assertIsNTuple, assertIsString, assertIsProcessId, a
 import { unitLVal } from '../base/unitLVal.mjs';
 import { nodeTrustLevel } from '../TrustManager.mjs';
 import { LVal } from '../base/LVal.mjs'
-import {p2p} from '../p2p/p2p.mjs'
+import * as p2p from '../p2p/p2p.mjs'
 import { getCliArgs, TroupeCliArg } from '../TroupeCliArgs.mjs';
 import { mkLogger } from '../logger.mjs'
 import { RawProcessID } from '../base/RawProcessID.mjs';

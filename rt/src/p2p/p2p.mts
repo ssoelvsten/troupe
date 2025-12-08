@@ -116,7 +116,7 @@ let _rtHandlers: RuntimeHandlers  = null;
  * Start the libp2p node that this peer will use. Also sets up the event queue block checker and the
  * connections to relays.
  */
-async function startp2p(rtHandlers: RuntimeHandlers): Promise<string> {
+export async function startp2p(rtHandlers: RuntimeHandlers): Promise<string> {
   process.on('unhandledRejection', (e) => processExpectedNetworkErrors(e, "unhandledRejection"))
   process.on('uncaughtException', (e) => processExpectedNetworkErrors(e, "uncaughtException"))
 
@@ -300,6 +300,16 @@ function setupBlockingHealthChecker(period: number) {
       setTimeout(checkBlocking, period);
     }
     checkBlocking();
+}
+
+// -------------------------------------------------------------------------------------------------
+// SHUTDOWN
+
+/**
+ * Shut down the P2P layer
+ */
+export async function stopp2p(): Promise<void> {
+  await _node.stop();
 }
 
 // -------------------------------------------------------------------------------------------------
@@ -696,7 +706,7 @@ async function dialRelay(relayAddr: string) {
 /**
  * Handles a send (by value) request to peer `id`. Just pushes a Send message.
  */
-async function sendByValuep2p(id: string, procId: string, obj: any) {
+export async function sendByValuep2p(id: string, procId: string, obj: any) {
   debug(`sendp2p`);
 
   pushWrap(peerIdFromString(id), {
@@ -801,7 +811,7 @@ let _unacknowledged: { [id in string]: { [nonce in string]: () => void } } = {};
  * Handles a where-is request of peer `id`. Creates a nonce which gives the result in the where-is
  * table. Also sets the request as unacknowledged. Then pushes a WhereIs message.
  */
-async function whereisp2p(id: string, data: any) {
+export async function whereisp2p(id: string, data: any) {
   debug("whereisp2p");
 
   // Create a nonce
@@ -841,7 +851,7 @@ async function whereisp2p(id: string, data: any) {
  * Handles a spawn request at peer `id`. Creates a nonce which gives the result in the spawn table.
  * Then pushes a Spawn message to the receiving peer.
  */
-async function spawnp2p(id: string, data: any) {
+export async function spawnp2p(id: string, data: any) {
   debug("spawnp2p");
 
   // Create a nonce
@@ -911,7 +921,7 @@ function reissueUnacknowledged(id: string) {
  *
  * Any known errors are reported. Any unknown errors are reported and thrown.
  */
-function processExpectedNetworkErrors(err, source="unknown") {
+export function processExpectedNetworkErrors(err, source="unknown") {
     debug(`Error source: ${source}`);
     if(err instanceof AggregateError) {
       for(const e of err.errors ) {
@@ -979,28 +989,4 @@ function processExpectedNetworkErrors(err, source="unknown") {
         throw err;
       }
     }
-}
-
-// -------------------------------------------------------------------------------------------------
-// INTERFACE
-
-export let p2p = {
-  startp2p: (arg1) => {
-    return startp2p(arg1)
-  },
-  spawnp2p: (arg1, arg2) => {
-    return spawnp2p(arg1, arg2)
-  },
-  sendByValuep2p: (arg1, arg2, arg3) => {
-    return sendByValuep2p(arg1, arg2, arg3)
-  },
-  whereisp2p: (arg1, arg2) => {
-    return whereisp2p(arg1, arg2)
-  },
-  stopp2p: async () => {
-    return await _node.stop()
-  },
-  processExpectedNetworkErrors: (arg1, arg2) => {
-    return processExpectedNetworkErrors(arg1, arg2)
-  },
 }
