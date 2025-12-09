@@ -181,7 +181,7 @@ async function receiveFromRemote(pid: string, jsonObj: any, fromNode: string) {
  * @param {*} message The data to send
  *
  */
-function sendMessageToRemote(toPid: any, message: LVal) {
+function sendMessageToRemote(toPid: any, message: LVal, ret: boolean = true) {
   const node = toPid.node.nodeId;
   const pid = toPid.pid;
 
@@ -197,9 +197,12 @@ function sendMessageToRemote(toPid: any, message: LVal) {
     return;
   }
 
-  // we return unit to the call site at the thread level
-  p2p.sendByValue(node, pid, data)
-  return $t().returnImmediateLValue(unitLVal);
+  p2p.sendByValue(node, pid, data);
+
+  // we return unit to the call site at the thread level (if requested).
+  if (ret) {
+    return $t().returnImmediateLValue(unitLVal);
+  }
 }
 
 
@@ -243,7 +246,7 @@ function rt_sendMessageNochecks(lRecipientPid, message, ret = true) {
     }
   } else {
     logger.debug ("* rt rt_send remote *"/*, recipientPid, message*/);
-    return sendMessageToRemote(recipientPid, message)
+    return sendMessageToRemote(recipientPid, message, ret);
   }
 }
 
