@@ -201,7 +201,7 @@ export class Scheduler implements SchedulerInterface {
                 : mkTuple ([statusVal, t.mkVal(errMsg)]);
             const message = t.mkVal(mkTuple([t.mkVal("DONE"), refUUID, thisPid, reason]));
             // false flag means no need to return in the process
-            this.rtObj.sendByValue( toPid, message, false);
+            this.rtObj.sendByValue(toPid, message);
         }
     }
 

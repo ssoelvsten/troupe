@@ -2,6 +2,7 @@ import { UserRuntimeZero, Constructor, mkBuiltin } from './UserRuntimeZero.mjs'
 import { assertNormalState, assertIsNTuple, assertIsProcessId } from '../Asserts.mjs'
 import { LVal } from '../base/LVal.mjs';
 import { RawProcessID } from '../base/RawProcessID.mjs';
+import { unitLVal } from '../base/unitLVal.mjs';
 
 
 export function BuiltinSend<TBase extends Constructor<UserRuntimeZero>>(Base: TBase) {
@@ -18,7 +19,8 @@ export function BuiltinSend<TBase extends Constructor<UserRuntimeZero>>(Base: TB
 
             this.runtime.$t.raiseProgramCounter(toPid.lev); // this feels a bit odd.
 
-            return this.runtime.sendByValue(toPid, message);
+            this.runtime.sendByValue(toPid, message);
+            return this.runtime.$t.returnImmediateLValue(unitLVal);
         }, "send");
     }
 }

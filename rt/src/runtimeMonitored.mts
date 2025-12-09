@@ -304,7 +304,7 @@ class RuntimeObject implements RuntimeInterface {
     return new LVal(levels.fromSingleTag(x), $t().pc);
   }
 
-  sendByValue(toPid: LVal<RawProcessID>, message: LVal, ret: boolean = true) {
+  sendByValue(toPid: LVal<RawProcessID>, message: LVal) {
     const isLocalPid = toPid.val.uuid.toString() == runId.toString();
 
     if (isLocalPid) {
@@ -312,10 +312,6 @@ class RuntimeObject implements RuntimeInterface {
     } else {
       logger.debug ("* rt rt_send remote *"/*, recipientPid, message*/);
       sendByValueToRemote(toPid, message);
-    }
-
-    if (ret) {
-      return $t().returnImmediateLValue(unitLVal);
     }
   }
 
