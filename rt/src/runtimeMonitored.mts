@@ -226,63 +226,6 @@ async function whereisFromRemote(k, fromNode) {
   return data;
 }
 
-
-// TODO (AA; 2020-05-19): consider moving these two functions somewhere else
-function rt_mkuuid() {
-  let pid = uuidv4();
-  let uuidval = $t().mkVal(pid);
-  return uuidval;
-}
-
-function rt_sendByValue(toPid: LVal<RawProcessID>, message: LVal, ret: boolean = true) {
-  const isLocalPid = toPid.val.uuid.toString() == runId.toString();
-
-  if (isLocalPid) {
-    sendByValueToLocal(toPid, message);
-  } else {
-    logger.debug ("* rt rt_send remote *"/*, recipientPid, message*/);
-    sendByValueToRemote(toPid, message);
-  }
-
-  if (ret) {
-    return $t().returnImmediateLValue(unitLVal);
-  }
-}
-
-
-function rt_debug (s) {
-  function formatToN(s, n) {
-    if (s.length < n) {
-      let j = s.length;
-      for (; j < n; j++) {
-        s = s + " ";
-      }
-    }
-    return s;
-  }
-
-  const tid = $t().tidErrorStringRep();
-  const pc = $t().pc.stringRep();
-  const bl = $t().bl.stringRep();
-  const handler_state = $t().handlerState.toString();
-  rt_xconsole.log(
-    chalk.red(formatToN("PID:" + tid, 50)),
-    chalk.red(formatToN("PC:" + pc, 20)),
-    chalk.red(formatToN("BL:" + bl, 20)),
-    chalk.red(formatToN("HN" + handler_state, 20)),
-    chalk.red(formatToN("_sp:" + $t()._sp, 20)),
-    s
-  );
-}
-
-function rt_mkLabel(x) {
-  return new LVal(levels.fromSingleTag(x), $t().pc);
-}
-
-function rt_ret (arg) {
-  return $t().returnImmediateLValue(arg);
-}
-
 // TODO: Clean up the mess below...
 let __sched: Scheduler
 let __theMailbox: MailboxProcessor
@@ -318,13 +261,77 @@ class RuntimeObject implements RuntimeInterface {
     __userRuntime = new UserRuntime(this);
   }
 
-  ret         = rt_ret;
-  debug       = rt_debug;
-  spawnAtNode = spawnAtNode;
-  rt_mkuuid   = rt_mkuuid;
-  mkLabel     = rt_mkLabel;
-  sendByValue = rt_sendByValue;
-  cleanup     = cleanupAsync;
+  ret (arg) {
+    return $t().returnImmediateLValue(arg);
+  }
+
+  debug (s) {
+    function formatToN(s, n) {
+      if (s.length < n) {
+        let j = s.length;
+        for (; j < n; j++) {
+          s = s + " ";
+        }
+      }
+      return s;
+    }
+
+    const tid = $t().tidErrorStringRep();
+    const pc = $t().pc.stringRep();
+    const bl = $t().bl.stringRep();
+    const handler_state = $t().handlerState.toString();
+    rt_xconsole.log(
+      chalk.red(formatToN("PID:" + tid, 50)),
+      chalk.red(formatToN("PC:" + pc, 20)),
+      chalk.red(formatToN("BL:" + bl, 20)),
+      chalk.red(formatToN("HN" + handler_state, 20)),
+      chalk.red(formatToN("_sp:" + $t()._sp, 20)),
+      s
+    );
+  }
+
+  async spawnAtNode(nodeId, fn) {
+    return await spawnAtNode(nodeId, fn);
+  }
+
+  rt_mkuuid() {
+    const pid = uuidv4();
+    const uuidval = $t().mkVal(pid);
+    return uuidval;
+  }
+
+  mkLabel(x) {
+    return new LVal(levels.fromSingleTag(x), $t().pc);
+  }
+
+  sendByValue(toPid: LVal<RawProcessID>, message: LVal, ret: boolean = true) {
+    const isLocalPid = toPid.val.uuid.toString() == runId.toString();
+
+    if (isLocalPid) {
+      sendByValueToLocal(toPid, message);
+    } else {
+      logger.debug ("* rt rt_send remote *"/*, recipientPid, message*/);
+      sendByValueToRemote(toPid, message);
+    }
+
+    if (ret) {
+      return $t().returnImmediateLValue(unitLVal);
+    }
+  }
+
+  async cleanup() {
+    closeReadline()
+    DS.stopCompiler();
+    if (__p2pRunning) {
+      try {
+        logger.debug("stopping p2p")
+        await p2p.stop()
+        logger.debug("p2p stop OK")
+      } catch (err) {
+        logger.debug(`p2p stop failed ${err}`)
+      }
+    }
+  }
 
   persist(obj, path) {
     let jsonObj = serialize(obj, $t().pc).data;
@@ -332,31 +339,17 @@ class RuntimeObject implements RuntimeInterface {
   }
 }
 
-let __rtObj = new RuntimeObject();
+const __rtObj = new RuntimeObject();
 DS.setRuntimeObj(__rtObj.__userRuntime);
 setRuntimeObject(__rtObj)
 
-async function cleanupAsync() {
-  closeReadline()
-  DS.stopCompiler();
-  if (__p2pRunning) {
-    try {
-      logger.debug("stopping p2p")
-      await p2p.stop()
-      logger.debug("p2p stop OK")
-    } catch (err) {
-      logger.debug(`p2p stop failed ${err}`)
-    }
-  }
-}
-
-// 2020-02-09; AA; ugly ugly hack
+// HACK (2020-02-09; AA)
 function bulletProofSigint() {
   process.removeAllListeners("SIGINT");
   process.on('SIGINT', () => {
     logger.debug("SIGINT");
     (async () => {
-      await cleanupAsync()
+      await __rtObj.cleanup()
       process.exit(0);
     })()
   })
