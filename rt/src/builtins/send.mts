@@ -1,29 +1,24 @@
 import { UserRuntimeZero, Constructor, mkBuiltin } from './UserRuntimeZero.mjs'
 import { assertNormalState, assertIsNTuple, assertIsProcessId } from '../Asserts.mjs'
+import { LVal } from '../base/LVal.mjs';
+import { RawProcessID } from '../base/RawProcessID.mjs';
 
 
 export function BuiltinSend<TBase extends Constructor<UserRuntimeZero>>(Base: TBase) {
     return class extends Base {
-        send = mkBuiltin((larg) => {
-            let $r = this.runtime
-            $r.$t.raiseProgramCounterToBlockingLevel();
-            assertNormalState("send")
-            $r.$t.raiseProgramCounter(larg.lev);
-            assertIsNTuple(larg, 2);
-            assertIsProcessId(larg.val[0]);
-            let arg = larg.val;
-            // we need to check whether the recipient process is local
-            // if yes, then we just proceed by adding the message to the
-            // local mailbox; otherwise we need to proceed to serialization
-            // external call.
+        send = mkBuiltin((arg) => {
+            this.runtime.$t.raiseProgramCounterToBlockingLevel();
+            assertNormalState("send");
+            this.runtime.$t.raiseProgramCounter(arg.lev);
+            assertIsNTuple(arg, 2);
+            assertIsProcessId(arg.val[0]);
 
-            let lRecipientPid = arg[0];
-            // debug ("* rt rt_send *", lRecipientPid);
-            $r.$t.raiseProgramCounter(lRecipientPid.lev); // this feels a bit odd.
-            let message = arg[1];
+            const toPid: LVal<RawProcessID> = arg.val[0];
+            const message: LVal = arg.val[1];
 
-            return $r.sendByValue(lRecipientPid, message)
+            this.runtime.$t.raiseProgramCounter(toPid.lev); // this feels a bit odd.
 
+            return this.runtime.sendByValue(toPid, message);
         }, "send");
     }
 }
