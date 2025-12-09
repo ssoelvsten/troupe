@@ -189,8 +189,7 @@ function sendMessageToRemote(toPid: any, message: LVal): void {
   if (!flowsTo(level, trustLevel)) {
     $t().threadError("Illegal trust flow when sending information to a remote node\n" +
                     ` | the trust level of the recepient node: ${trustLevel.stringRep()}\n` +
-                    ` | the level of the information to send:  ${level.stringRep()}`,
-                    false);
+                    ` | the level of the information to send:  ${level.stringRep()}`);
     return;
   }
 
