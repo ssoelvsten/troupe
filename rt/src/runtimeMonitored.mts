@@ -228,10 +228,6 @@ async function whereisFromRemote(k, fromNode) {
 
 
 // TODO (AA; 2020-05-19): consider moving these two functions somewhere else
-function isLocalPid(pid) {
-  return pid.uuid.toString() == runId.toString();;
-}
-
 function rt_mkuuid() {
   let pid = uuidv4();
   let uuidval = $t().mkVal(pid);
@@ -239,9 +235,10 @@ function rt_mkuuid() {
 }
 
 function rt_sendByValue(lRecipientPid: LVal<RawProcessID>, message: LVal, ret: boolean = true) {
-  let recipientPid = lRecipientPid.val;
+  const recipientPid = lRecipientPid.val;
+  const isLocalPid = recipientPid.uuid.toString() == runId.toString();
 
-  if (isLocalPid(recipientPid)) {
+  if (isLocalPid) {
     sendByValueToLocal(lRecipientPid, message);
   } else {
     logger.debug ("* rt rt_send remote *"/*, recipientPid, message*/);
