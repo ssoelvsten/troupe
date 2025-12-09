@@ -178,7 +178,7 @@ async function receiveFromRemote(pid: string, jsonObj: any, fromNode: string) {
  * @param {*} message The data to send
  *
  */
-function sendMessageToRemote(toPid: any, message: LVal, ret: boolean = true) {
+function sendMessageToRemote(toPid: any, message: LVal): void {
   const node = toPid.node.nodeId;
   const pid = toPid.pid;
 
@@ -195,11 +195,6 @@ function sendMessageToRemote(toPid: any, message: LVal, ret: boolean = true) {
   }
 
   p2p.sendByValue(node, pid, data);
-
-  // we return unit to the call site at the thread level (if requested).
-  if (ret) {
-    return $t().returnImmediateLValue(unitLVal);
-  }
 }
 
 
@@ -237,13 +232,13 @@ function rt_sendMessageNochecks(lRecipientPid, message, ret = true) {
   if (isLocalPid(recipientPid)) {
     let nodeId = $t().mkVal(__nodeManager.getNodeId());
     __theMailbox.addMessage(nodeId, lRecipientPid, message, $t().pc);
-
-    if (ret) {
-      return $t().returnImmediateLValue(unitLVal);
-    }
   } else {
     logger.debug ("* rt rt_send remote *"/*, recipientPid, message*/);
-    return sendMessageToRemote(recipientPid, message, ret);
+    return sendMessageToRemote(recipientPid, message);
+  }
+
+  if (ret) {
+    return $t().returnImmediateLValue(unitLVal);
   }
 }
 
