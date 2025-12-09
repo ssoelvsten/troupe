@@ -134,13 +134,6 @@ export function assertIsRootAuthority(x: LVal) {
     }
 }
 
-export function assertIsAuthorityR3(x: LVal, lev: Level, tlev: Level) {
-    _thread().raiseBlockingLevel(x.tlev);
-    if (!(isAuthority(x))){
-        err(`value ${__stringRep(x)} is not a authority`);
-    }
-}
-
 // CAPABILITY
 
 export function assertIsCapability(x: LVal) {
@@ -214,13 +207,6 @@ export function assertIsNTuple(x: LVal, n: number) {
     rawAssertIsNTuple(x.val, n);
 }
 
-export function assertIsNTupleR3(x: RawValue, lev: Level, tlev: Level, n: number) {
-    _thread().raiseBlockingLevel(lev);
-    if (!(Array.isArray(x) && isTuple(x) && x.length == n)) {
-        err(`value ${__stringRep(x)} is not a ${n}-tuple`);
-    }
-}
-
 /**
  * Assumes `x` is a tuple and asserts it has at least length `n`.
  */
@@ -279,17 +265,6 @@ export function assertIsLocalObject(x: any) {
 // ----------------------------------------------------------------------------
 // Other...
 
-export function rawAssertIsListOrTuple(x: any) {
-    if (!((isList(x) || isTuple(x)))) {
-        err(`value ${__stringRep(x)} is not a list or tuple`);
-    }
-}
-
-export function assertIsListOrTuple(x: LVal) {
-    _thread().raiseBlockingLevel(x.lev);
-    rawAssertIsListOrTuple(x.val);
-}
-
 export function assertIsNode(x: LVal) {
     _thread().raiseBlockingLevel(x.tlev);
     if (!isString(x.val)) {
@@ -320,11 +295,6 @@ export function assertDeclassificationAllowed(s: string) {
     if (!_thread().handlerState.declassificationAllowed()) {
         err(`invalid handler state in ${s}: declassification prohibited in handler pattern matching`);
     }
-}
-
-export function assertPairAreNumbers(x: any, y: any) {
-    assertIsNumber(x);
-    assertIsNumber(y);
 }
 
 export function rawAssertPairsAreStringsOrNumbers (x:any, y:any) {
