@@ -179,9 +179,9 @@ async function receiveFromRemote(pid: string, jsonObj: any, fromNode: string) {
  * @param {*} message The data to send
  *
  */
-function sendByValueToRemote(toPid: RawProcessID, message: LVal): void {
-  const node = toPid.node.nodeId;
-  const pid = toPid.pid;
+function sendByValueToRemote(toPid: LVal<RawProcessID>, message: LVal): void {
+  const node = toPid.val.node.nodeId;
+  const pid = toPid.val.pid;
 
   const { data, level } = serialize(new MbVal(message, $t().pc), $t().pc);
 
@@ -234,15 +234,14 @@ function rt_mkuuid() {
   return uuidval;
 }
 
-function rt_sendByValue(lRecipientPid: LVal<RawProcessID>, message: LVal, ret: boolean = true) {
-  const recipientPid = lRecipientPid.val;
-  const isLocalPid = recipientPid.uuid.toString() == runId.toString();
+function rt_sendByValue(toPid: LVal<RawProcessID>, message: LVal, ret: boolean = true) {
+  const isLocalPid = toPid.val.uuid.toString() == runId.toString();
 
   if (isLocalPid) {
-    sendByValueToLocal(lRecipientPid, message);
+    sendByValueToLocal(toPid, message);
   } else {
     logger.debug ("* rt rt_send remote *"/*, recipientPid, message*/);
-    sendByValueToRemote(recipientPid, message);
+    sendByValueToRemote(toPid, message);
   }
 
   if (ret) {
