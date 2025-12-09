@@ -197,6 +197,18 @@ function sendByValueToRemote(toPid: RawProcessID, message: LVal): void {
   p2p.sendByValue(node, pid, data);
 }
 
+/**
+ * Sends the provided message to a local process. Since the local machine is fully.
+ * trusted, this includes no checks.
+ *
+ * @param {*} toPid   The pid of the remote process
+ * @param {*} message The data to send
+ */
+function sendByValueToLocal(toPid: LVal<RawProcessID>, message: LVal): void {
+  const nodeId = $t().mkVal(__nodeManager.getNodeId());
+  __theMailbox.addMessage(nodeId, toPid, message, $t().pc);
+}
+
 
 async function whereisFromRemote(k, fromNode) {
   __sched.resumeLoopAsync()
@@ -230,8 +242,7 @@ function rt_sendByValue(lRecipientPid: LVal<RawProcessID>, message: LVal, ret: b
   let recipientPid = lRecipientPid.val;
 
   if (isLocalPid(recipientPid)) {
-    let nodeId = $t().mkVal(__nodeManager.getNodeId());
-    __theMailbox.addMessage(nodeId, lRecipientPid, message, $t().pc);
+    sendByValueToLocal(lRecipientPid, message);
   } else {
     logger.debug ("* rt rt_send remote *"/*, recipientPid, message*/);
     sendByValueToRemote(recipientPid, message);
