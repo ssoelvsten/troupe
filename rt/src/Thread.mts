@@ -586,7 +586,7 @@ export class Thread {
 
         debug (`Current pc level is ${this.pc.stringRep()}`)
 
-        this.raiseBlockingThreadLev(this.pc); // maintaining the invariant that the blocking level is as high as the pc level       
+        this.raiseBlockingLevel(this.pc); // maintaining the invariant that the blocking level is as high as the pc level       
         
         let cap: Capability<any> = cap_lval.val;        
         let {bl, pc, auth, purpose} = cap.data;
@@ -690,19 +690,19 @@ export class Thread {
         return this.returnImmediateLValue (unitLVal); 
     }
 
-    raiseBlockingThreadLev (l) {                
-        this.bl = lub (this.bl, l)        
+    raiseBlockingLevel(l) {
+        this.bl = lub (this.bl, l);
     }
 
-    raiseCurrentThreadPCToBlockingLev () {        
-        this.pc = lub(this.pc, this.bl ) ;
+    raiseProgramCounterToBlockingLevel() {
+        this.pc = lub(this.pc, this.bl );
     }
 
-    raiseCurrentThreadPC (l)  {        
-        this.pc = lub( this.pc, l )        
-        this.raiseBlockingThreadLev(this.pc); 
-            // 2018-11-29: AA; observe that we are raise the blocking level
-            // automaticaly every time we raise the PC level.
+    raiseProgramCounter(l)  {
+        // 2018-11-29: AA; we are raise the blocking level
+        // automaticaly every time we raise the PC level.
+        this.pc = lub( this.pc, l);
+        this.raiseBlockingLevel(this.pc);
     }
 
     mkVal(x) {
@@ -751,7 +751,7 @@ export class Thread {
             throw new StrThreadError(this, s);
           }
         } else {
-          this.raiseCurrentThreadPC(this.handlerState.lev);
+          this.raiseProgramCounter(this.handlerState.lev);
           throw new HandlerError (this, s) //  "HandlerError" 
         }
     }

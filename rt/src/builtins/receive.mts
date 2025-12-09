@@ -139,7 +139,7 @@ export function BuiltinReceive<TBase extends Constructor<UserRuntimeZero>>(Base:
           assertIsFunction(f)
           assertIsLevel(taintLimitArg)
           let theThread = this.runtime.$t
-          theThread.raiseCurrentThreadPC(lub (f.lev, taintLimitArg.lev, taintLimitArg.val))
+          theThread.raiseProgramCounter(lub (f.lev, taintLimitArg.lev, taintLimitArg.val))
 
           let tntLim = theThread.bl 
           let guard_sp : number = null 

@@ -115,7 +115,7 @@ export class Scheduler implements SchedulerInterface {
         const tid = new LVal(mkProcessID(this.rt_uuid, pid, this.__node), pc);
 
         const halt = () => {
-            this.__currentThread.raiseCurrentThreadPCToBlockingLev();
+            this.__currentThread.raiseProgramCounterToBlockingLevel();
             this.notifyMonitors(this.__currentThread);
 
             const currT = this.__currentThread;

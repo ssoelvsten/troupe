@@ -240,7 +240,7 @@ export class UserRuntimeZero {
     }
 
     assertOrError(x) {
-        this.runtime.$t.raiseBlockingThreadLev(x.lev);
+        this.runtime.$t.raiseBlockingLevel(x.lev);
     }
 
     default_mkVal(x) {

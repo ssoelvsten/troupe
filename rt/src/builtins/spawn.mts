@@ -19,7 +19,7 @@ export function BuiltinSpawn<TBase extends Constructor<UserRuntimeZero>>(Base: T
             assertNormalState("spawn")
             // debug ("* rt rt_spawn *", larg.val, larg.lev);
             // console.log ("SPAWN ARGS", larg)
-            this.runtime.$t.raiseCurrentThreadPC(larg.lev);
+            this.runtime.$t.raiseProgramCounter(larg.lev);
             let arg = larg.val;
 
             const spawnLocal = (func) => {
@@ -31,7 +31,7 @@ export function BuiltinSpawn<TBase extends Constructor<UserRuntimeZero>>(Base: T
             if (Array.isArray(arg)) {
                 if (__nodeManager.isLocalNode(arg[0].val)) { // check if we are at the same node or note
                     // debug ("SAME NODE")
-                    this.runtime.$t.raiseCurrentThreadPC(lub(arg[0].lev, arg[1].lev));
+                    this.runtime.$t.raiseProgramCounter(lub(arg[0].lev, arg[1].lev));
                     assertIsFunction(arg[1]);
                     return spawnLocal(arg[1].val)
                 } else {

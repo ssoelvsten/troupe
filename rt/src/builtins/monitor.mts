@@ -7,7 +7,7 @@ export function BuiltinMonitors <TBase extends Constructor<UserRuntimeZero>> (Ba
     return class extends Base {
         monitorlocal = mkBuiltin((arg) => {
             assertNormalState("monitor");
-            this.runtime.$t.raiseCurrentThreadPC(arg.lev);
+            this.runtime.$t.raiseProgramCounter(arg.lev);
             assertIsProcessId(arg);
 
             let tid = arg.val;

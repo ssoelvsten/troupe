@@ -10,7 +10,7 @@ export function BuiltinPersist<TBase extends Constructor<UserRuntimeZero>>(Base:
     return class extends Base {
         save = mkBuiltin((larg) => {
             assertIsNTuple(larg, 3);
-            this.runtime.$t.raiseCurrentThreadPC(larg.lev);
+            this.runtime.$t.raiseProgramCounter(larg.lev);
             let arg = larg.val;
             let auth = arg[0]; 
             let file = arg[1].val;

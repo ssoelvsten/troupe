@@ -6,9 +6,9 @@ export function BuiltinSend<TBase extends Constructor<UserRuntimeZero>>(Base: TB
     return class extends Base {
         send = mkBuiltin((larg) => {
             let $r = this.runtime
-            $r.$t.raiseCurrentThreadPCToBlockingLev();
+            $r.$t.raiseProgramCounterToBlockingLevel();
             assertNormalState("send")
-            $r.$t.raiseCurrentThreadPC(larg.lev);
+            $r.$t.raiseProgramCounter(larg.lev);
             assertIsNTuple(larg, 2);
             assertIsProcessId(larg.val[0]);
             let arg = larg.val;
@@ -19,7 +19,7 @@ export function BuiltinSend<TBase extends Constructor<UserRuntimeZero>>(Base: TB
 
             let lRecipientPid = arg[0];
             // debug ("* rt rt_send *", lRecipientPid);
-            $r.$t.raiseCurrentThreadPC(lRecipientPid.lev); // this feels a bit odd.
+            $r.$t.raiseProgramCounter(lRecipientPid.lev); // this feels a bit odd.
             let message = arg[1];
 
             return $r.sendByValue(lRecipientPid, message)

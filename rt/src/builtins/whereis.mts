@@ -65,8 +65,8 @@ export function BuiltinRegistry<TBase extends Constructor<UserRuntimeZero>>(Base
             assertIsNTuple(arg, 2);
             assertIsNode(arg.val[0]);
             assertIsString(arg.val[1]);
-            $r.$t.raiseBlockingThreadLev(arg.val[0].lev);
-            $r.$t.raiseBlockingThreadLev(arg.val[1].lev);
+            $r.$t.raiseBlockingLevel(arg.val[0].lev);
+            $r.$t.raiseBlockingLevel(arg.val[1].lev);
 
             let __sched = $r.__sched
 

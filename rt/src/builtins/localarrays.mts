@@ -34,7 +34,7 @@ export function BuiltinLocalArrays <TBase extends Constructor<UserRuntimeZero>> 
             assertIsNumber (idx)
             let {lev, size, rawArray, def } = obj.val._value
             assertIsLocalObject(obj)
-            this.runtime.$t.raiseBlockingThreadLev(lub(idx.lev, size.lev))
+            this.runtime.$t.raiseBlockingLevel(lub(idx.lev, size.lev))
 
             if (idx.val >= size.val) {
                 this.runtime.$t.threadError("Array index out of bounds")
@@ -52,7 +52,7 @@ export function BuiltinLocalArrays <TBase extends Constructor<UserRuntimeZero>> 
             assertIsLocalObject(obj)
             assertIsNumber (idx)
             let {lev, size, rawArray} = obj.val._value
-            this.runtime.$t.raiseBlockingThreadLev(lub(size.lev,idx.lev,obj.lev))
+            this.runtime.$t.raiseBlockingLevel(lub(size.lev,idx.lev,obj.lev))
             let l1 = lub(idx.lev, obj.lev, this.runtime.$t.bl)
             if (!flowsTo (l1, lev)) {
                 this.runtime.$t.threadError ("Information influencing the write to this array is too high:\n" + 

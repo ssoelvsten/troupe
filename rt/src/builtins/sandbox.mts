@@ -27,7 +27,7 @@ function setupSandbox($r:RuntimeInterface, delay, resumeState = null) {
     let done = false;
     let trapperInvoked = false;
     let retVal = null;
-    $r.$t.raiseCurrentThreadPC(delay.lev);
+    $r.$t.raiseProgramCounter(delay.lev);
 
     let threadState = theThread.exportState()
     let guard = () => {        
