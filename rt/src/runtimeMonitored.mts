@@ -75,14 +75,11 @@ async function spawnAtNode(nodeid, f) {
      return;
   }
 
-
-  // 0. we assume that the node is different from
-  //    the local node
+  // 0. we assume that the node is different from the local node
   // 1. we make a connection to the remote node
   // 2. we send the serialized version of f
   // 3. we wait for the reply (should be a pid)
   // 4. we return the obtained pid
-  //--------------------------------------------------
 
   try {
     let body1 = await p2p.spawn(node.nodeId, data);
