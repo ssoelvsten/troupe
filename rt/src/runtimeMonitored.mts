@@ -421,7 +421,7 @@ export async function start(f) {
 
   // ---------------------------------------------------------------------------
   // Initialise 'scheduler' for Troupe code execution
-  __sched.initScheduler(__nodeManager.getLocalNode() , !__p2pRunning, cleanupAsync);
+  __sched.initScheduler(__nodeManager.getLocalNode() , !__p2pRunning);
 
   // ---------------------------------------------------------------------------
   // Set up 'service' thread

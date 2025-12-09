@@ -50,7 +50,6 @@ export class Scheduler implements SchedulerInterface {
     // Runtime dependencies
     rtObj : RuntimeInterface
     __stopWhenAllThreadsAreDone: boolean;
-    __stopRuntime: () => void;
 
     /*************************************************************************************************\
     Scheduler state
@@ -68,10 +67,9 @@ export class Scheduler implements SchedulerInterface {
 
     /** Initialisation of the scheduler based on the p2p layer, e.g. the `node` identifier and
      *  the scheduler should proceed despite all threads being done. */
-    initScheduler(node, stopWhenAllThreadsAreDone, stopRuntime) {
+    initScheduler(node, stopWhenAllThreadsAreDone) {
         this.__node = node;
         this.__stopWhenAllThreadsAreDone = stopWhenAllThreadsAreDone;
-        this.__stopRuntime = stopRuntime;
     }
 
     /** Kill all threads except the current one, staying ready for spawning new threads.
@@ -278,7 +276,7 @@ export class Scheduler implements SchedulerInterface {
 
         // If everything is done, and the node should not persist, then terminate.
         if (this.__stopWhenAllThreadsAreDone && Object.keys(this.__alive).length == 0) {
-            this.__stopRuntime();
+            this.rtObj.cleanup();
         }
     }
 
