@@ -10,101 +10,118 @@ const actsFor = levels.actsFor;
 import { getRuntimeObject } from './SysState.mjs';
 import { __nodeManager } from './NodeManager.mjs';
 import { RawAggregate, RawValue } from './base/RawValue.mjs';
+import { LVal } from './base/LVal.mjs';
 // import { LVal } from './Lval';
 
 function _thread() {
-    return getRuntimeObject().__sched.getCurrentThread()
+    return getRuntimeObject().__sched.getCurrentThread();
 }
 
-function __stringRep (v) {
+function __stringRep(v: any) {
     if (v.stringRep) {
-        return v.stringRep()
+        return v.stringRep();
+    } else if (typeof v === 'string') {
+        return `"${v.toString()}"`;
     } else {
-        let t=""
-        if (typeof v === 'string') {
-            t = "\"" + v.toString() + "\""
-        } else {
-            t = v.toString();
-        }
-        return t
+        return v.toString();
     }
 }
 
-function err (errorMessage: string, internal: boolean = false) {
+function err(errorMessage: string, internal: boolean = false) {
     _thread().threadError(errorMessage, internal);
 }
 
-export function assertIsAtom (x: any) {
-    _thread().raiseBlockingLevel(x.tlev)
-    if (x.val._troupeType != TroupeType.Atom ) {
-        err ("value " + __stringRep(x) + " is not an atom")        
+export function rawAssertIsAtom(x: any) {
+    if (x._troupeType != TroupeType.Atom ) {
+        err (`value ${__stringRep(x)} is not an atom`);
     }
 }
 
-export function rawAssertIsNumber (x) {
-    if (!isNumber(x)) {
-        err("value " + __stringRep(x) + " is not a number")
-    }
-}
-
-export function assertIsNumber(x: any) {
-    _thread().raiseBlockingLevel(x.tlev)
-    if (!isNumber(x.val)) {
-        err("value " + __stringRep(x) + " is not a number")
-    }
-}
-
-export function assertIsBoolean(x: any) {
+export function assertIsAtom(x: LVal) {
     _thread().raiseBlockingLevel(x.tlev);
-    if (!isBoolean(x.val)) {
-        err("value " + __stringRep(x) + " is not a boolean")
+    rawAssertIsAtom(x.val);
+}
+
+export function rawAssertIsNumber(x: any) {
+    if (!isNumber(x)) {
+        err(`value ${__stringRep(x)} is not a number`);
     }
 }
 
-export function rawAssertIsBoolean(x:any) {
+export function assertIsNumber(x: LVal) {
+    _thread().raiseBlockingLevel(x.tlev);
+    rawAssertIsNumber(x.val);
+}
+
+export function rawAssertIsBoolean(x: any) {
     if (!isBoolean(x)) {
-        err("value " + __stringRep(x) + " is not a boolean")
+        err(`value ${__stringRep(x)} is not a boolean`);
+    }
+}
+
+export function assertIsBoolean(x: LVal) {
+    _thread().raiseBlockingLevel(x.tlev);
+    rawAssertIsBoolean(x.val);
+}
+
+export function rawAssertIsFunction(x, internal = false) {
+    if (x._troupeType != TroupeType.Closure) {
+        err(`value ${__stringRep(x)} is not a function`, internal);
     }
 }
 
 export function assertIsFunction(x: any, internal = false) {
     _thread().raiseBlockingLevel(x.tlev);
-    rawAssertIsFunction (x.val, internal)
+    rawAssertIsFunction(x.val, internal);
 }
 
-export function rawAssertIsFunction(x, internal = false) {
-    if (x._troupeType != TroupeType.Closure) {
-        err("value " + __stringRep(x) + " is not a function", internal)
+export function rawAssertIsLocalObject(x: any) {
+    if (x._troupeType != TroupeType.LocalObject) {
+        err(`value ${__stringRep(x)} is not a local object`);
     }
 }
 
-
 export function assertIsLocalObject(x: any) {
     _thread().raiseBlockingLevel(x.tlev);
-    if (x.val._troupeType != TroupeType.LocalObject) {
-        err("value " + __stringRep(x) + " is not a local object")
+    rawAssertIsLocalObject(x.val);
+}
+
+export function rawAssertIsHandler(x: any) {
+    if (x._troupeType != TroupeType.Closure) {
+        err(`value ${__stringRep(x)} is not a handler`);
     }
 }
 
 export function assertIsHandler(x: any) {
     _thread().raiseBlockingLevel(x.tlev);
-    if (x.val._troupeType != TroupeType.Closure) {
-        err("value " + __stringRep(x) + " is not a handler")
+    rawAssertIsHandler(x.val);
+}
+
+export function rawAssertIsUnit(x: any) {
+    if (!isUnit(x)) {
+        err(`value ${__stringRep(x)} is not unit`);
     }
 }
 
-export function assertIsUnit(x: any) {
+export function assertIsUnit(x: LVal) {
     _thread().raiseBlockingLevel(x.tlev);
-    if (!isUnit(x.val)) {
-        err("value " + __stringRep(x) + " is not unit")
+    rawAssertIsUnit(x.val);
+}
+
+export function rawAssertIsListOrTuple(x: any) {
+    if (!((isList(x) || isTuple(x)))) {
+        err(`value ${__stringRep(x)} is not a list or tuple`);
     }
 }
 
+export function assertIsListOrTuple(x: LVal) {
+    _thread().raiseBlockingLevel(x.lev);
+    rawAssertIsListOrTuple(x.val);
+}
 
-export function assertIsListOrTuple(x: any) {
-    _thread().raiseBlockingLevel(x.lev);;
-    if (!((isList(x.val) || isTuple(x.val)))) {
-        err("value " + __stringRep(x) + " is not a list or tuple")
+export function rawAssertIsList(x:any) {
+    if (!isList(x)) {
+        err(`value ${__stringRep(x)} is not a list`);
     }
 }
 
@@ -113,187 +130,170 @@ export function assertIsList(x: any) {
     rawAssertIsList(x.val)
 }
 
-export function rawAssertIsList (x:any) {
-    if (!isList(x)) {
-        err("value " + __stringRep(x) + " is not a list")
+export function rawAssertIsNTuple(x: any, n: number) {
+    if (!(Array.isArray(x) && isTuple(x) && x.length == n)) {
+        err(`value ${__stringRep(x)} is not a ${n}-tuple`);
     }
 }
 
 export function assertIsNTuple(x: any, n: number) {
     _thread().raiseBlockingLevel(x.lev);
-    if (!(Array.isArray(x.val) && isTuple(x.val) && x.val.length == n)) {
-        err("value " + __stringRep(x) + " is not a " + n + "-tuple")
-    }
+    rawAssertIsNTuple(x.val, n);
 }
 
-
-export function assertIsNTupleR3 (x:RawValue, lev:Level, tlev:Level, n:number) {
+export function assertIsNTupleR3(x:RawValue, lev:Level, tlev:Level, n:number) {
     _thread().raiseBlockingLevel(lev);
     if (!(Array.isArray(x) && isTuple(x) && x.length == n)) {
-        err("value " + __stringRep(x) + " is not a " + n + "-tuple")
+        err(`value ${__stringRep(x)} is not a ${n}-tuple`);
     }
 }
 
-export function rawAssertIsTuple (x)  {
+export function rawAssertIsTuple(x) {
     if (!(Array.isArray(x) && isTuple(x) )) {
-        err("value " + __stringRep(x) + " is not a tuple")
-    } 
+        err(`value ${__stringRep(x)} is not a tuple`);
+    }
+}
+
+export function assertIsTuple(x) {
+    _thread().raiseBlockingLevel(x.lev);
+    rawAssertIsTuple(x.val);
 }
 
 /**
  * Assumes `x` is a tuple and asserts it has at least length `n`.
  */
-export function rawAssertTupleLengthGreaterThan (x, n: number) {
+export function rawAssertTupleLengthGreaterThan(x, n: number) {
     if (x.length <= n) {
-        err("Index out of bounds: tuple " + __stringRep(x) + " does not have length more than " + n)
+        err(`Index out of bounds: tuple ${__stringRep(x)} does not have length more than ${n}`);
     }
 }
 
 
-export function rawAssertRecordHasField (x, field: string) {
+export function rawAssertRecordHasField(x, field: string) {
     if (!x.hasField(field)) {
-        err (`record ${__stringRep(x)} does not have field \'${field}\'`)
+        err (`record ${__stringRep(x)} does not have field '${field}'`)
     }
 }
 
-
-export function assertIsRecord (x: any) {
-    _thread().raiseBlockingLevel(x.lev);
-    if (x.val._troupeType != TroupeType.Record) {
-        err (`value ${__stringRep(x)} is not a record`)
-    }
-}
-
-export function rawAssertIsRecord (x: any) {
+export function rawAssertIsRecord(x: any) {
     if (x._troupeType != TroupeType.Record) {
         err (`value ${__stringRep(x)} is not a record`)
     }
 }
 
-export function assertIsString(x: any) {
-    _thread().raiseBlockingLevel(x.tlev);
-    if (!isString(x.val)) {
-        err("value " + __stringRep(x) + " is not a string")
-    }
+export function assertIsRecord(x: any) {
+    _thread().raiseBlockingLevel(x.lev);
+    rawAssertIsRecord(x.val);
 }
 
 export function rawAssertIsString(x:any) {
     if (!isString(x)) {
-        err("value " + __stringRep(x) + " is not a string")
-    } 
+        err(`value ${__stringRep(x)} is not a string`);
+    }
+}
+
+export function assertIsString(x: any) {
+    _thread().raiseBlockingLevel(x.tlev);
+    rawAssertIsString(x.val);
 }
 
 export function rawAssertNotZero(x:any) {
     if (x === 0) {
-        err("Division by zero error")
+        err("Division by zero error");
     }
 }
 
-
-export function assertIsNode(x: any) {
+export function assertIsNode(x: LVal) {
     _thread().raiseBlockingLevel(x.tlev);
     if (!isString(x.val)) {
-        err("value " + __stringRep(x) + " is not a node string") // todo: check for it being a proper nodeid format?
+        // todo: check for it being a proper nodeid format?
+        err(`value ${__stringRep(x)} is not a node string`);
     }
     if (x.val.startsWith("@")) {
         if (!__nodeManager.aliases[x.val.substring(1)]) {
-            err(`${x.val} is not a defined alias`)
+            err(`${x.val} is not a defined alias`);
         }
     }
 }
 
-export function assertIsProcessId(x: any) {
+export function assertIsProcessId(x: LVal) {
     _thread().raiseBlockingLevel(x.tlev);
     if (!(isProcessID(x.val))) {
-        err("value " + __stringRep(x) + " is not a process id")
+        err(`value ${__stringRep(x)} is not a process id`);
     }
 }
 
-
-export function assertIsCapability(x: any) {
+export function assertIsCapability(x: LVal) {
     _thread().raiseBlockingLevel(x.tlev);
     if (!(x.val instanceof Capability)) {
-        err("value " + __stringRep(x) + " is not a capability of lowering the mailbox clearance")
+        err(`value ${__stringRep(x)} is not a capability of lowering the mailbox clearance`);
     }
 }
 
-export function assertIsLevel(x: any) {
+export function assertIsLevel(x: LVal) {
     _thread().raiseBlockingLevel(x.tlev);
     if (!(x.val instanceof AbstractLevel)) {
-        err("value " + __stringRep(x) + " is not a level");
+        err(`value ${__stringRep(x)} is not a level`);
     }
 }
 
-export function rawAssertIsLevel (x:any) {
+export function rawAssertIsLevel (x: LVal) {
     if (!(x instanceof AbstractLevel)) {
-        err("value " + __stringRep(x) + " is not a level");
+        err(`value ${__stringRep(x)} is not a level`);
     }
 }
-export function assertIsRootAuthority(x: any) {
-    let isTop = actsFor(x.val.authorityLevel, levels.ROOT);
+export function assertIsRootAuthority(x: LVal) {
+    const isTop = actsFor(x.val.authorityLevel, levels.ROOT);
     if (!isTop) {
-        let errorMessage =
+        const errorMessage =
             "Provided authority is not TOP\n" +
-            ` | level of the provided authority: ${x.val.authorityLevel.stringRep()}`
+            ` | level of the provided authority: ${x.val.authorityLevel.stringRep()}`;
         err(errorMessage);
     }
 }
 
-export function assertIsAuthority(x: any) {
+export function assertIsAuthority(x: LVal) {
     _thread().raiseBlockingLevel(x.tlev);
     if (!(isAuthority(x.val))) {
-        err("value " + __stringRep(x) + " is not a authority");
+        err(`value ${__stringRep(x)} is not a authority`);
     }
 }
 
-export function assertIsAuthorityR3(x, lev, tlev) {
+export function assertIsAuthorityR3(x: LVal, lev: Level, tlev: Level) {
     _thread().raiseBlockingLevel(x.tlev);
     if (!(isAuthority(x))){
-        err("value " + __stringRep(x) + " is not a authority");
+        err(`value ${__stringRep(x)} is not a authority`);
     }
 }
 
-export function assertIsEnv(x: any) {
+export function assertIsEnv(x: LVal) {
     _thread().raiseBlockingLevel(x.tlev);
     if (!(x.val._is_rt_env)) {
-        err("value " + __stringRep(x) + " is not an environment");
+        err(`value ${__stringRep(x)} is not an environment`);
     }
 }
 
 export function assertNormalState(s: string) {
     if (!_thread().handlerState.isNormal()) {
-        err("invalid handler state in " + s + " -- side effects are prohbited in handler pattern matching or sandboxed code")
+        err(`invalid handler state in ${s} -- side effects are prohbited in handler pattern matching or sandboxed code`);
     }
 }
 
 export function assertDeclassificationAllowed(s: string) {
     if (!_thread().handlerState.declassificationAllowed()) {
-        err("invalid handler state in " + s + ": declassification prohibited in handler pattern matching")
+        err(`invalid handler state in ${s}: declassification prohibited in handler pattern matching`);
     }
 }
-
 
 export function assertPairAreNumbers(x: any, y: any) {
     assertIsNumber(x);
     assertIsNumber(y);
 }
 
-/*
-export function assertPairAreStringsOrNumbers(x: any, y: any) {
-    _thread().raiseBlockingThreadLev(x.tlev);
-    switch (typeof x.val) {
-        case 'number': assertIsNumber(y); break;
-        case 'string': assertIsString(y); break;
-        default: err("values " + __stringRep(x) + " and " + __stringRep(y) + " are of different types")
-    }
-}
-*/
-
 export function rawAssertPairsAreStringsOrNumbers (x:any, y:any) {
     switch (typeof x) {
-        case 'number': rawAssertIsNumber(y); break 
-        case 'string': rawAssertIsString(y); break 
-        default: err("value " + __stringRep(x) + " is not a number or a string")
-        // default: err("values " + __stringRep(x) + " and " + __stringRep(y) + " are of different types")
+        case 'number': rawAssertIsNumber(y); break;
+        case 'string': rawAssertIsString(y); break;
+        default: err(`value ${__stringRep(x)} is not a number or a string`);
     }
 }
