@@ -131,9 +131,6 @@ export class UserRuntimeZero {
         return Math.trunc(x / y)
     }
 
-    // SimpleRT
-    rawAssertNotZero = rawAssertNotZero
-
     // ComplexRT
     raw_indexTuple(x: RawValue, y: number): LVal {
         return x[y];

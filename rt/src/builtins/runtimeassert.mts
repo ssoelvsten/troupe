@@ -1,10 +1,11 @@
-import { rawAssertIsFunction, rawAssertIsBoolean, rawAssertIsList, rawAssertIsNumber, rawAssertIsRecord, rawAssertIsString, rawAssertIsTuple, rawAssertPairsAreStringsOrNumbers, rawAssertIsLevel, rawAssertTupleLengthGreaterThan, rawAssertRecordHasField } from '../Asserts.mjs'
+import { rawAssertIsFunction, rawAssertIsBoolean, rawAssertIsList, rawAssertIsNumber, rawAssertIsRecord, rawAssertIsString, rawAssertIsTuple, rawAssertPairsAreStringsOrNumbers, rawAssertIsLevel, rawAssertTupleLengthGreaterThan, rawAssertRecordHasField, rawAssertNotZero } from '../Asserts.mjs'
 import {UserRuntimeZero, Constructor } from './UserRuntimeZero.mjs'
 
 
 export function RuntimeAssert <TBase extends Constructor<UserRuntimeZero>> (Base:TBase) {
     return class extends Base {
         rawAssertIsNumber = rawAssertIsNumber;
+        rawAssertNotZero = rawAssertNotZero;
         rawAssertIsBoolean = rawAssertIsBoolean;
         rawAssertIsString = rawAssertIsString;
         rawAssertIsList = rawAssertIsList;
