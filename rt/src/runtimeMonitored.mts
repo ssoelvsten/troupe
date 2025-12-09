@@ -233,7 +233,7 @@ function rt_sendByValue(lRecipientPid, message, ret = true) {
     __theMailbox.addMessage(nodeId, lRecipientPid, message, $t().pc);
   } else {
     logger.debug ("* rt rt_send remote *"/*, recipientPid, message*/);
-    return sendByValueToRemote(recipientPid, message);
+    sendByValueToRemote(recipientPid, message);
   }
 
   if (ret) {
