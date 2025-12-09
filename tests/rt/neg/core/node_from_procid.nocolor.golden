@@ -1,3 +1,0 @@
-2025-06-24T21:28:36.918Z [RTM] info: Skipping network creation. Observe that all external IO operations will yield a runtime error.
-Runtime error in thread ce8c2ec4-3b11-4037-9622-d4e249bc6ad1@{}%{}
->> value <basefun:self>@{}%{} is not a process id

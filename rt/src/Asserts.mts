@@ -93,11 +93,15 @@ export function assertIsString(x: any) {
 
 // PROCESS ID
 
-export function assertIsProcessId(x: LVal) {
-    _thread().raiseBlockingLevel(x.tlev);
-    if (!(isProcessID(x.val))) {
+export function rawAssertIsProcessId(x: any) {
+    if (!(isProcessID(x))) {
         err(`value ${__stringRep(x)} is not a process id`);
     }
+}
+
+export function assertIsProcessId(x: LVal) {
+    _thread().raiseBlockingLevel(x.tlev);
+    rawAssertIsProcessId(x.val);
 }
 
 // LEVEL
@@ -117,11 +121,15 @@ export function assertIsLevel(x: LVal) {
 
 // AUTHORITY
 
-export function assertIsAuthority(x: LVal) {
-    _thread().raiseBlockingLevel(x.tlev);
-    if (!(isAuthority(x.val))) {
+export function rawAssertIsAuthority(x: any) {
+    if (!(isAuthority(x))) {
         err(`value ${__stringRep(x)} is not a authority`);
     }
+}
+
+export function assertIsAuthority(x: LVal) {
+    _thread().raiseBlockingLevel(x.tlev);
+    rawAssertIsAuthority(x.val);
 }
 
 export function assertIsRootAuthority(x: LVal) {
@@ -136,11 +144,15 @@ export function assertIsRootAuthority(x: LVal) {
 
 // CAPABILITY
 
-export function assertIsCapability(x: LVal) {
-    _thread().raiseBlockingLevel(x.tlev);
-    if (!(x.val instanceof Capability)) {
+export function rawAssertIsCapability(x: any) {
+    if (!(x instanceof Capability)) {
         err(`value ${__stringRep(x)} is not a capability of lowering the mailbox clearance`);
     }
+}
+
+export function assertIsCapability(x: LVal) {
+    _thread().raiseBlockingLevel(x.tlev);
+    rawAssertIsCapability(x.val);
 }
 
 // ATOM

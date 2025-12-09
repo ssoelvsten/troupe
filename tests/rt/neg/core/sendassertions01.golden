@@ -1,3 +1,3 @@
-2023-03-17T21:23:23.036Z [RTM] [32minfo[39m: Skipping network creation. Observe that all external IO operations will yield a runtime error.
-Runtime error in thread 0d5e0a87-b54b-4836-bbac-6f32a46e2ba8@{}%{}
->> value "whatever"@{}%{} is not a process id
+2025-12-10T11:57:08.333Z [RTM] [32minfo[39m: Skipping network creation. Observe that all external IO operations will yield a runtime error.
+Runtime error in thread 4a953e75-8195-469b-8dd5-7b975deecff3@{}%{}
+>> value "whatever" is not a process id
