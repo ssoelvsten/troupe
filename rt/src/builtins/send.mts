@@ -7,9 +7,9 @@ import { unitLVal } from '../base/unitLVal.mjs';
 
 export function BuiltinSend<TBase extends Constructor<UserRuntimeZero>>(Base: TBase) {
     return class extends Base {
-        send = mkBuiltin((arg) => {
+        sendByValue = mkBuiltin((arg: LVal) => {
             this.runtime.$t.raiseProgramCounterToBlockingLevel();
-            assertNormalState("send");
+            assertNormalState("sendByValue");
             this.runtime.$t.raiseProgramCounter(arg.lev);
             assertIsNTuple(arg, 2);
             assertIsProcessId(arg.val[0]);
@@ -20,7 +20,12 @@ export function BuiltinSend<TBase extends Constructor<UserRuntimeZero>>(Base: TB
             this.runtime.$t.raiseProgramCounter(toPid.lev); // this feels a bit odd.
 
             this.runtime.sendByValue(toPid, message);
-            return this.runtime.$t.returnImmediateLValue(unitLVal);
+            return this.runtime.ret(unitLVal);
+        }, "sendByValue");
+
+        send = mkBuiltin((/* arg */) => {
+            // Argument `arg` is passed along via the state of the thread's stack.
+            return this.sendByValue(/* arg */);
         }, "send");
     }
 }

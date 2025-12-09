@@ -327,6 +327,7 @@ instance WellFormedIRCheck IRExpr where
                      , "sandbox"
                      , "save"
                      , "send"
+                     , "sendByValue"
                      , "self"
                      , "_servicetest"
                      , "_setProcessDebuggingName"
