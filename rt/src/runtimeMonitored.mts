@@ -356,7 +356,7 @@ function bulletProofSigint() {
 }
 bulletProofSigint();
 
-
+// TODO (2025-12-09; SS): Move all of the service code into a separate file.
 async function loadServiceCode() {
   let input = await fs.promises.readFile(process.env.TROUPE + '/trp-rt/out/service.js', 'utf8')
   let S: any = new Function('rt', input)
@@ -375,7 +375,7 @@ async function loadServiceCode() {
   }
 }
 
-
+// TODO (2025-12-09; SS): Move all network-to-runtime logic into a separate file.
 async function getNetworkPeerId() {
   const localOnly = argv[TroupeCliArg.LocalOnly] || argv[TroupeCliArg.Persist];
 
@@ -396,7 +396,9 @@ async function getNetworkPeerId() {
   return await p2p.start(rtHandlers);
 }
 
-
+// TODO (2025-12-09; SS): Move into `troupe.mts`. Some of this should be
+//                        moved together with `loadServiceCode()` and other
+//                        parts together with `getNetworkPeerId()`.
 export async function start(f) {
   // Set up p2p network
   await initTrustMap();
