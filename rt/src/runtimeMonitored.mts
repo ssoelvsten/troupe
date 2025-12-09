@@ -30,6 +30,7 @@ import { configureColors, isColorEnabled } from './colorConfig.mjs';
 import { mkLogger } from './logger.mjs'
 import { RawRecord } from './base/RawRecord.mjs';
 import { level } from 'winston';
+import { RawProcessID } from './base/RawProcessID.mjs';
 
 const readFile = fs.promises.readFile
 const argv = getCliArgs();
@@ -170,7 +171,7 @@ async function receiveFromRemote(pid: string, jsonObj: any, fromNode: string) {
 
 
 /**
- * Sends the provided mesasge to a remote process, first doing the information
+ * Sends the provided message to a remote process, first doing the information
  * flow check that the remote process is not going to violate our trust
  * assumptions.
  *
@@ -178,7 +179,7 @@ async function receiveFromRemote(pid: string, jsonObj: any, fromNode: string) {
  * @param {*} message The data to send
  *
  */
-function sendByValueToRemote(toPid: any, message: LVal): void {
+function sendByValueToRemote(toPid: RawProcessID, message: LVal): void {
   const node = toPid.node.nodeId;
   const pid = toPid.pid;
 
@@ -225,7 +226,7 @@ function rt_mkuuid() {
   return uuidval;
 }
 
-function rt_sendByValue(lRecipientPid, message, ret = true) {
+function rt_sendByValue(lRecipientPid: LVal<RawProcessID>, message: LVal, ret: boolean = true) {
   let recipientPid = lRecipientPid.val;
 
   if (isLocalPid(recipientPid)) {
