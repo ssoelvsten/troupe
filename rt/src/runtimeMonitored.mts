@@ -291,17 +291,6 @@ let __service:any = {}
 
 class RuntimeObject implements RuntimeInterface {
   xconsole    = rt_xconsole;
-  ret         = rt_ret;
-  debug       = rt_debug;
-  spawnAtNode = spawnAtNode;
-  rt_mkuuid   = rt_mkuuid;
-  mkLabel     = rt_mkLabel;
-  sendByValue = rt_sendByValue;
-  cleanup     = cleanupAsync;
-  persist(obj, path) {
-    let jsonObj = serialize(obj, $t().pc).data;
-    fs.writeFileSync(path, JSON.stringify(jsonObj));
-  }
 
   get $service () {
     return __service;
@@ -327,6 +316,19 @@ class RuntimeObject implements RuntimeInterface {
     __sched = new Scheduler(this);
     __theMailbox = new MailboxProcessor(this);
     __userRuntime = new UserRuntime(this);
+  }
+
+  ret         = rt_ret;
+  debug       = rt_debug;
+  spawnAtNode = spawnAtNode;
+  rt_mkuuid   = rt_mkuuid;
+  mkLabel     = rt_mkLabel;
+  sendByValue = rt_sendByValue;
+  cleanup     = cleanupAsync;
+
+  persist(obj, path) {
+    let jsonObj = serialize(obj, $t().pc).data;
+    fs.writeFileSync(path, JSON.stringify(jsonObj));
   }
 }
 
