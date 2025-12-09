@@ -14,7 +14,7 @@ export interface RuntimeInterface {
     __userRuntime: any
     __sched: SchedulerInterface
     __mbox : MailboxInterface
-    sendMessageNoChecks(toPid: any, message: LVal, arg2?: boolean): any;
+    sendByValue(toPid: any, message: LVal, arg2?: boolean): any;
     ret(arg0: any);
     // ret_raw ()
     // tailcall(funclos: any, __unit: any);

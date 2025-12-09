@@ -590,7 +590,7 @@ async function inputHandler(peerId: PeerId, input: Message) {
     }
 
     case (MessageType.SendByValue): {
-      debug(`Received Send from ${peerId}`);
+      debug(`Received SendByValue from ${peerId}`);
       // Pass the message to the runtime
       _rtHandlers[MessageType.SendByValue](input.pid, input.message, peerId.toString());
       break;

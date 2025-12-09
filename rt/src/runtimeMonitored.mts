@@ -178,7 +178,7 @@ async function receiveFromRemote(pid: string, jsonObj: any, fromNode: string) {
  * @param {*} message The data to send
  *
  */
-function sendMessageToRemote(toPid: any, message: LVal): void {
+function sendByValueToRemote(toPid: any, message: LVal): void {
   const node = toPid.node.nodeId;
   const pid = toPid.pid;
 
@@ -225,7 +225,7 @@ function rt_mkuuid() {
   return uuidval;
 }
 
-function rt_sendMessageNochecks(lRecipientPid, message, ret = true) {
+function rt_sendByValue(lRecipientPid, message, ret = true) {
   let recipientPid = lRecipientPid.val;
 
   if (isLocalPid(recipientPid)) {
@@ -233,7 +233,7 @@ function rt_sendMessageNochecks(lRecipientPid, message, ret = true) {
     __theMailbox.addMessage(nodeId, lRecipientPid, message, $t().pc);
   } else {
     logger.debug ("* rt rt_send remote *"/*, recipientPid, message*/);
-    return sendMessageToRemote(recipientPid, message);
+    return sendByValueToRemote(recipientPid, message);
   }
 
   if (ret) {
@@ -282,14 +282,14 @@ let __userRuntime: any
 let __service:any = {}
 
 class RuntimeObject implements RuntimeInterface {
-  xconsole            = rt_xconsole;
-  ret                 = rt_ret;
-  debug               = rt_debug;
-  spawnAtNode         = spawnAtNode;
-  rt_mkuuid           = rt_mkuuid;
-  mkLabel             = rt_mkLabel;
-  sendMessageNoChecks = rt_sendMessageNochecks;
-  cleanup             = cleanupAsync;
+  xconsole    = rt_xconsole;
+  ret         = rt_ret;
+  debug       = rt_debug;
+  spawnAtNode = spawnAtNode;
+  rt_mkuuid   = rt_mkuuid;
+  mkLabel     = rt_mkLabel;
+  sendByValue = rt_sendByValue;
+  cleanup     = cleanupAsync;
   persist(obj, path) {
     let jsonObj = serialize(obj, $t().pc).data;
     fs.writeFileSync(path, JSON.stringify(jsonObj));

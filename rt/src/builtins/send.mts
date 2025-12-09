@@ -22,7 +22,7 @@ export function BuiltinSend<TBase extends Constructor<UserRuntimeZero>>(Base: TB
             $r.$t.raiseCurrentThreadPC(lRecipientPid.lev); // this feels a bit odd.
             let message = arg[1];
 
-            return $r.sendMessageNoChecks(lRecipientPid, message)
+            return $r.sendByValue(lRecipientPid, message)
 
         }, "send");
     }
