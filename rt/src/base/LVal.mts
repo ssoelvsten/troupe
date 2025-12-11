@@ -1,5 +1,4 @@
-import * as levels from '../Level.mjs'
-import { Level } from "../Level.mjs";
+import { BOT, Level, lub } from "../Level.mjs";
 import * as Ty from './TroupeTypes.mjs';
 import { RawFunction, RawValue } from './RawValue.mjs';
 
@@ -21,8 +20,8 @@ export class LVal<T = any> implements RawValue {
      * `tlev`.
      */
     static copy<T = any>(x: LVal<T>, lev: Level, tlev: Level | null = null) {
-        tlev = tlev || levels.lub(x.tlev, lev);
-        return new LVal(x.val, levels.lub(x.lev, lev), tlev);
+        tlev = tlev || lub(x.tlev, lev);
+        return new LVal(x.val, lub(x.lev, lev), tlev);
     }
 
     /**
@@ -43,7 +42,7 @@ export class LVal<T = any> implements RawValue {
 
     get dataLevel () : Level {
         return (this.val as RawValue).dataLevel
-            ? levels.lub(this.lev, (this.val as any).dataLevel)
+            ? lub(this.lev, (this.val as any).dataLevel)
             : this.lev;
     }
 
@@ -73,7 +72,7 @@ export class LVal<T = any> implements RawValue {
         }
 
         if (taintRef) {
-            taintRef.lev = levels.lub(taintRef.lev, this.lev);
+            taintRef.lev = lub(taintRef.lev, this.lev);
         }
 
         return omitLevels
