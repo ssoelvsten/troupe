@@ -655,10 +655,13 @@ async function pushWrap(id: PeerId, data: Message) {
         break;
       } else {
         debug("Pushable found was null; re-trying");
+        // TODO (2025-12-11; SS): We are not retrying here...?
       }
     } catch (err) {
       // The pushable we have used is no good for whatever reason; most likely there are networking
       // issues. We report the errors and redial
+      //
+      // TODO (2025-12-11; SS): We are not retrying here...?
       processExpectedNetworkErrors(err, "pushWrap");
     }
   }
