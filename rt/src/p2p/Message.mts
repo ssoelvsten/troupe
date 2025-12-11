@@ -34,7 +34,7 @@ export type SpawnReplyMessage = {
   message: any | null,
 }
 
-/** Message for `Send` */
+/** Message for `SendByValue` */
 export type SendByValueMessage = {
   messageType: MessageType.SendByValue,
   /** Process identifier who should receive the value. */
