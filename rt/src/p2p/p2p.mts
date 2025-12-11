@@ -69,10 +69,11 @@ import { kadDHT } from '@libp2p/kad-dht';
 
 import { Logger, mkLogger } from '../logger.mjs';
 
-import { port, id as nodeId, bootstrappers, knownNodes, relays } from './config.mjs';
+import { port, id as nodeId, bootstrappers, knownNodes } from './config.mjs';
 import { MessageType, Message } from './Message.mjs';
 import { RuntimeHandlers } from './RuntimeHandlers.mjs';
 import { processExpectedNetworkErrors } from './errorHandlers.mjs';
+import { dialRelays, relayId } from './relay.mjs';
 
 // -------------------------------------------------------------------------------------------------
 // LOGGING AND DEBUGGING
@@ -92,17 +93,8 @@ const error = x => logger.error(x);
 /** Protocol for peers to talk to each other */
 const PROTOCOL = "/troupe/1.0.0";
 
-/** Protocol for peers to talk to relays */
-const RELAY_PROTOCOL = "/trouperelay/keepalive";
-
 /** How often the health check happens 2020-02-10; AA; this should be an option */
 const HEALTH_CHECK_PERIOD = 5000;
-
-/** Tag for keeping connections alive. */
-const KEEP_ALIVE = 'KEEP_ALIVE';
-
-/** Time-out for keep-alive messages to relay */
-const KEEP_ALIVE_TIMEOUT = 5000;
 
 // -------------------------------------------------------------------------------------------------
 // SET-UP
@@ -184,13 +176,8 @@ export async function start(rtHandlers: RuntimeHandlers): Promise<string> {
   // Set-up checking if the event queue is blocked
   setupBlockingHealthChecker(HEALTH_CHECK_PERIOD);
 
-  // Make sure the relay is dialed and the connections are kept live
-  // To use more than one relay, make sure to dial them all
-  if (relays && relays.length > 0) {
-    keepAliveRelay(relays[0]);
-  } else {
-    debug("No relay configured, skipping relay connection");
-  }
+  // Dial relays.
+  dialRelays(_node);
 
   return id.toString();
 }
@@ -411,13 +398,14 @@ async function getPeerInfo(id: PeerId): Promise<void> {
     await getPeerInfoWithPeerRouting(id);
   }
 
-  if(_relayId) {
+  // TODO (2025-12-11; SS): Move into `relay.mts` as a `getPeerInfoViaRelay`?
+  if(relayId) {
     // Try to contact the node through a relay. To use several relays, cycle through them and add
     // them all
-    debug(`Adding circuit relay address for ${id}: /p2p/${_relayId}/p2p-circuit/p2p/${id.toString()}`);
+    debug(`Adding circuit relay address for ${id}: /p2p/${relayId}/p2p-circuit/p2p/${id.toString()}`);
     await _node.peerStore.merge(id, {
       multiaddrs: [
-        multiaddr(`/p2p/${_relayId}/p2p-circuit/p2p/${id.toString()}`)
+        multiaddr(`/p2p/${relayId}/p2p-circuit/p2p/${id.toString()}`)
       ]
     });
   }
@@ -630,74 +618,6 @@ async function inputHandler(peerId: PeerId, input: Message) {
       debug(`received data ${(input as any).toString('utf8').replace('\n', '')}`);
       break;
     }
-  }
-}
-
-// -------------------------------------------------------------------------------------------------
-// RELAY
-
-/** The id for the relay */
-let _relayId = null;
-/** The number of times "keep-alive" has been sent to the relay. To use more than one relay, these
- *  should be kept in a table */
-let _keepAliveCounter = 0;
-
-/**
- * Send keep-alive messages to a relay at `relayAddr`.
- * If a message fails, do an exponential backoff
- * on the timeout for new tries.
- */
-async function keepAliveRelay(relayAddr: string) {
-  let id = relayAddr.split('/').pop();
-  debug(`Relay id is ${id}`);
-
-  // In circuit relay v2, we just need to dial the relay once
-  // The connection will be maintained automatically by libp2p
-  try {
-    await dialRelay(relayAddr);
-    debug(`Successfully connected to relay ${id}`);
-  } catch (err) {
-    error(`Failed to connect to relay: ${err}`);
-    processExpectedNetworkErrors(err, "relay");
-
-    // Retry after a delay if connection fails
-    setTimeout(() => keepAliveRelay(relayAddr), 30000);
-  }
-}
-
-/**
- * Dials the relay at `relayAddr` and returns the pushable for the relay. Also tags the relay with
- * "keep alive" in the peerStore.
- */
-async function dialRelay(relayAddr: string) {
-  try {
-    debug(`Dialing relay at ${relayAddr}`);
-    let id = relayAddr.split('/').pop();
-    const relayId: PeerId = peerIdFromString(id);
-
-    // Add the address to the peerStore
-    // Tag the relay with "keep alive"
-    await _node.peerStore.merge(relayId, {
-      multiaddrs: [
-        multiaddr(`${relayAddr}`)
-      ],
-      tags: {
-        [KEEP_ALIVE]: {}
-      }
-    });
-
-    // Dial the relay - in circuit relay v2, we just dial without a specific protocol.
-    debug(`Added relay address`);
-    const connection = await _node.dial(relayId);
-    debug(`Relay dialed`);
-    _relayId = id;
-    debug(`Relay connected, keep alive counter is ${_keepAliveCounter++}`);
-
-    // In circuit relay v2, we don't need to send keep-alive messages The connection is maintained
-    // by libp2p automatically Just return null since we don't have a stream to return
-    return null;
-  } catch (err) {
-    processExpectedNetworkErrors (err, "dial relay");
   }
 }
 
