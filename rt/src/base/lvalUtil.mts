@@ -12,6 +12,14 @@ import { RawAtom } from './RawAtom.mjs';
 import { RawTuple } from './RawTuple.mjs';
 import { RawRecord } from './RawRecord.mjs';
 import { RawList } from './RawList.mjs';
+import { unitLVal } from './unitLVal.mjs';
+
+// ----------------------------------------------------------------------------
+// TYPE CONSTRUCTORS
+
+export function mkUnit(): LVal<RawUnit> {
+    return unitLVal;
+}
 
 // ----------------------------------------------------------------------------
 // TYPE PREDICATES (lifted from `rawUtil.mts`)
