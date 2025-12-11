@@ -7,7 +7,7 @@ export class LVal<T = any> implements RawValue {
     lev: Level;
     tlev: Level;
 
-    constructor(val : T, lev : Level, tlev : Level | null = null) {
+    constructor(val : T, lev : Level = BOT, tlev : Level | null = null) {
         // TODO (2025-12-05): If `v` is another `LVal` do a copy of that object or
         //                    throw an error
         this.val = val;
