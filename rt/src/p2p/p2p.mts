@@ -60,7 +60,7 @@ import * as lp from 'it-length-prefixed';
 import map from 'it-map';
 import { fromString as uint8ArrayFromString } from 'uint8arrays/from-string';
 import { toString as uint8ArrayToString } from 'uint8arrays/to-string';
-import { pushable } from 'it-pushable';
+import { Pushable, pushable } from 'it-pushable';
 import { multiaddr } from '@multiformats/multiaddr';
 import { identify } from '@libp2p/identify';
 import { circuitRelayTransport } from '@libp2p/circuit-relay-v2';
@@ -481,7 +481,7 @@ function nPeers(): number {
  */
 function setupConnection(peerId: PeerId, stream: Stream): void {
   debug(`setupConnection with ${peerId}`);
-  const p = pushable({ objectMode : true });
+  const p: Pushable<unknown, void, unknown> = pushable({ objectMode : true });
 
   // Setup the pipe to send and receive messages
   pipe (p,
@@ -666,24 +666,20 @@ async function pushWrap(id: PeerId, data: Message) {
 }
 
 /**
- * Finds a pushable to node `id` by checking all existing connections with the node. If no existing
- * pushable is found, then dials the node.
+ * Finds a pushable to node `id` by checking all existing connections with
+ * the node. If no existing pushable is found, then dials the node.
  */
-async function getPushable(id: PeerId) {
+async function getPushable(id: PeerId): Promise<Pushable<unknown, void, unknown>> {
   debug("getPushable");
-  let connections = _node.getConnections(id);
-  let needsToDial = true;
-  let p = null;
+  const connections = _node.getConnections(id);
 
-  // Runs through all existing connections with the peer
-  // and checks whether their streams have a pushable
+  // Runs through all existing connections with the peer and checks whether
+  // their streams have a pushable
   for(const connection of connections) {
-    let streams = connection.streams;
-    for(const stream of streams) {
-      p = (stream as any).p;
-      needsToDial = (p == undefined);
+    for(const stream of connection.streams) {
+      const p = (stream as any).p;
 
-      if(!needsToDial) {
+      if(p != undefined) {
         debug("Found existing pushable");
         return p;
       }
@@ -691,23 +687,22 @@ async function getPushable(id: PeerId) {
   }
 
   // If no pushable was found, dial the peer
-  if(needsToDial) {
-    debug("Needs to dial");
-    const stream  = await dial(id);
+  debug("Needs to dial");
+  const stream  = await dial(id);
 
-    // If the dial fails, the stream is null
-    //
-    // TODO (2025-12-11; SS): Looking at `dial(...)` it is either `Stream` or it passes the error
-    //                        into the `reject(...)` case which would result in throwing an error?
-    if(stream) {
-      debug("Dialed to obtain stream");
-      p = (stream as any).p;
-    } else {
-      debug("Could not obtain stream through dial");
-    }
+  // If the dial fails, the stream is null
+  //
+  // TODO (2025-12-11; SS): Looking at `dial(...)` it is either `Stream` or it
+  //                        passes the error into the `reject(...)` case which
+  //                        would result in throwing an error?
+  if(stream) {
+    debug("Dialed to obtain stream");
+    return (stream as any).p;
+  } else {
+    debug("Could not obtain stream through dial");
   }
 
-  return p;
+  return null;
 }
 
 /** Stores call-backs for WhereIs requests. */
