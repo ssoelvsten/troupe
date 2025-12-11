@@ -7,15 +7,14 @@ const logLevel = argv[TroupeCliArg.DebugP2p] ? 'debug' : 'info';
 const logger = mkLogger ('p2p/errorHandlers', logLevel);
 
 /**
- * Breaks down aggregate errors to their components.
- *
- * Any known errors are reported. Any unknown errors are reported and thrown.
+ * Known errors are reported whereas unknown errors are reported and thrown.
  */
-export function processExpectedNetworkErrors(err, source: string = "unknown") {
+export function reportExpectedErrors(err, source: string = "unknown") {
     logger.debug(`Error source: ${source}`);
     if(err instanceof AggregateError) {
       for(const e of err.errors ) {
-        processExpectedNetworkErrors (e, source)
+        // Breaks down aggregate errors to their components.
+        reportExpectedErrors (e, source)
       }
     } else {
       if(err.name || err.code) {

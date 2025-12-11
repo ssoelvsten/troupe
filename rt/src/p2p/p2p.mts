@@ -72,7 +72,7 @@ import { Logger, mkLogger } from '../logger.mjs';
 import { port, id as nodeId, bootstrappers, knownNodes } from './config.mjs';
 import { MessageType, Message } from './Message.mjs';
 import { RuntimeHandlers } from './RuntimeHandlers.mjs';
-import { processExpectedNetworkErrors } from './errorHandlers.mjs';
+import { reportExpectedErrors } from './errorHandlers.mjs';
 import { dialRelays, relayId } from './relay.mjs';
 
 // -------------------------------------------------------------------------------------------------
@@ -110,8 +110,8 @@ let _rtHandlers: RuntimeHandlers  = null;
  * connections to relays.
  */
 export async function start(rtHandlers: RuntimeHandlers): Promise<string> {
-  process.on('unhandledRejection', (e) => processExpectedNetworkErrors(e, "unhandledRejection"))
-  process.on('uncaughtException', (e) => processExpectedNetworkErrors(e, "uncaughtException"))
+  process.on('unhandledRejection', (e) => reportExpectedErrors(e, "unhandledRejection"))
+  process.on('uncaughtException', (e) => reportExpectedErrors(e, "uncaughtException"))
 
   // Load or create a private key
   let privateKey = await obtainPrivateKey(nodeId);
@@ -335,7 +335,7 @@ function dial(id: PeerId): Promise<Stream> {
 
         resolve(stream);
       } catch (err) {
-        processExpectedNetworkErrors (err, "dial");
+        reportExpectedErrors (err, "dial");
 
         // If the error is suppressed we move on to trying again with exponential backoff.
         if(attempt <= maxAttempts) {
@@ -499,7 +499,7 @@ function setupConnection(peerId: PeerId, stream: Stream): void {
               inputHandler(peerId, message);
             }
           } catch (err) {
-            processExpectedNetworkErrors(err, "setupConnection/pipe");
+            reportExpectedErrors(err, "setupConnection/pipe");
           }
 
           // Hangs up when the connection closes
@@ -507,7 +507,7 @@ function setupConnection(peerId: PeerId, stream: Stream): void {
           try {
             await _node.hangUp(peerId);
           } catch (err) {
-            processExpectedNetworkErrors(err, "setupConnection/hang-up");
+            reportExpectedErrors(err, "setupConnection/hang-up");
           }
 
           // Resends any unacknowledged WhereIs and Spawn requests for this peer
@@ -660,7 +660,7 @@ async function pushWrap(id: PeerId, data: Message) {
       // issues. We report the errors and redial
       //
       // TODO (2025-12-11; SS): We are not retrying here...?
-      processExpectedNetworkErrors(err, "pushWrap");
+      reportExpectedErrors(err, "pushWrap");
     }
   }
 }

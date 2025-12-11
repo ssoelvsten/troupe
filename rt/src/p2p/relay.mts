@@ -5,7 +5,7 @@ import { multiaddr } from '@multiformats/multiaddr';
 import { mkLogger } from '../logger.mjs';
 
 import { getCliArgs, TroupeCliArg } from "../TroupeCliArgs.mjs";
-import { processExpectedNetworkErrors } from "./errorHandlers.mjs";
+import { reportExpectedErrors } from "./errorHandlers.mjs";
 import { relays } from "./config.mjs";
 
 const argv = getCliArgs();
@@ -65,7 +65,7 @@ export async function dialRelay(node: Libp2p, relayAddr: string) {
     logger.debug(`Successfully connected to relay ${id}`);
   } catch (err) {
     logger.error(`Failed to connect to relay: ${err}`);
-    processExpectedNetworkErrors(err, "dialRelay");
+    reportExpectedErrors(err, "dialRelay");
 
     // Retry after a delay if connection fails
     setTimeout(() => dialRelay(node, relayAddr), 30000);
@@ -105,6 +105,6 @@ async function __dialRelay(node: Libp2p, relayAddr: string) {
     // connection is maintained by libp2p automatically. Just return `null` since
     // we don't have a stream to return
   } catch (err) {
-    processExpectedNetworkErrors (err, "__dialRelay");
+    reportExpectedErrors (err, "__dialRelay");
   }
 }
