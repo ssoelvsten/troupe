@@ -72,6 +72,7 @@ import { Logger, mkLogger } from '../logger.mjs';
 import { port, id as nodeId, bootstrappers, knownNodes, relays } from './config.mjs';
 import { MessageType, Message } from './Message.mjs';
 import { RuntimeHandlers } from './RuntimeHandlers.mjs';
+import { processExpectedNetworkErrors } from './errorHandlers.mjs';
 
 // -------------------------------------------------------------------------------------------------
 // LOGGING AND DEBUGGING
@@ -911,82 +912,4 @@ function reissueUnacknowledged(id: string) {
   for(let uuid in _unacknowledged[id]) {
     setImmediate(_unacknowledged[id][uuid]);
   }
-}
-
-// -------------------------------------------------------------------------------------------------
-// ERROR HANDLING
-
-/**
- * Breaks down aggregate errors to their components.
- *
- * Any known errors are reported. Any unknown errors are reported and thrown.
- */
-function processExpectedNetworkErrors(err, source="unknown") {
-    debug(`Error source: ${source}`);
-    if(err instanceof AggregateError) {
-      for(const e of err.errors ) {
-        processExpectedNetworkErrors (e, source)
-      }
-    } else {
-      if(err.name || err.code) {
-        const errorId = err.name || err.code;
-        switch (errorId) {
-          case 'NetworkUnreachableError':
-          case 'ENETUNREACH':
-            debug(`${err.toString()}`)
-            break;
-          case 'NotFoundError':
-          case 'ENOTFOUND':
-            debug(`${err.toString()}`)
-            break;
-          case 'ConnectionResetError':
-          case 'ECONNRESET':
-            debug(`${err.toString()}`)
-            break;
-          case 'TransportDialFailedError':
-          case 'ERR_TRANSPORT_DIAL_FAILED':
-            debug(`${err.toString()}`)
-            break;
-          case 'AbortError':
-          case 'ABORT_ERR':
-            debug(`${err.toString()}`)
-            break;
-          case 'ConnectionRefusedError':
-          case 'ECONNREFUSED':
-            debug(`${err.toString()}`)
-            break;
-          case 'HopRequestFailedError':
-          case 'ERR_HOP_REQUEST_FAILED':
-            debug(`${err.toString()}`)
-            break;
-          case 'NoDialMultiaddrsError':
-          case 'ERR_NO_DIAL_MULTIADDRS':
-            debug(`${err.toString()}`)
-            break;
-          case 'EncryptionFailedError':
-          case 'ERR_ENCRYPTION_FAILED':
-            debug(`${err.toString()}`)
-            break;
-          case 'NoValidAddressesError':
-          case 'ERR_NO_VALID_ADDRESSES':
-            debug(`${err.toString()}`)
-            break;
-          case 'StreamResetError':
-          case 'ERR_MPLEX_STREAM_RESET':
-            debug(`${err.toString()}`)
-            break;
-          case 'TimeoutError':
-          case 'ERR_TIMEOUT':
-            debug(`${err.toString()}`);
-            break;
-
-          default:
-            error(`Unhandled error case with error identifier ${errorId}`)
-            throw err;
-        }
-      } else {
-        error(`Unhandled general error case ${err}`)
-        throw err;
-      }
-    }
 }
