@@ -87,12 +87,12 @@ export const knownNodes = [
  * @todo DNS resolution of the relay has stopped working. Previously, we could use the address
  *       '/dns4/relay.troupe-lang.net/...' and change the actual IP without updating the source code.
  */
-const defaultRelays = [
+const defaultRelays : string[] = [
   "/ip4/134.209.92.133/tcp/5555/ws/p2p/12D3KooWShh9qmeS1UEgwWpjAsrjsigu8UGh8DRKyx1UG6HeHzjf"
 ];
 
 /** List of relay servers as provided in the configuration file. */
-const configRelays = (() => {
+const configRelays : string[] = (() => {
   if (!existsSync(CONFIG_FILE)) { return []; }
 
   try {
@@ -121,7 +121,7 @@ const cliRelays : string[] = (() => {
 })();
 
 /** List of relay servers to use. */
-export const relays = (() => {
+export const relays : string[] = (() => {
   if (cliRelays.length > 0) { return cliRelays; }
   if (configRelays.length > 0) { return configRelays; }
   return defaultRelays;
