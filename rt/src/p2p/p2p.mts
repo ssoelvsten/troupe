@@ -41,7 +41,7 @@ the libp2p).
 // -------------------------------------------------------------------------------------------------
 // IMPORTS
 
-import type { PeerId } from '@libp2p/interface';
+import type { PeerId, Stream } from '@libp2p/interface';
 import { getCliArgs, TroupeCliArg } from '../TroupeCliArgs.mjs';
 import { tcp } from '@libp2p/tcp';
 import { webSockets } from '@libp2p/websockets';
@@ -319,7 +319,7 @@ export async function stop(): Promise<void> {
 /**
  * Dial the node `id` using the Troupe protocol.
  */
-function dial(id: PeerId) {
+function dial(id: PeerId): Promise<Stream> {
   // Attempt counter
   let attempt = 0;
 
@@ -332,7 +332,7 @@ function dial(id: PeerId) {
   // Exponential backoff factor for `timeout`.
   const backoff = 2;
 
-  return new Promise((resolve, reject) => {
+  return new Promise<Stream>((resolve, reject) => {
     async function tryDialing() {
       try {
         // Add addresses to the peerStore
@@ -340,7 +340,7 @@ function dial(id: PeerId) {
 
         // Dial using the Troupe protocol
         debug(`Trying to dial ${id}, attempt number ${attempt}`);
-        const stream = await _node.dialProtocol(id, PROTOCOL);
+        const stream: Stream = await _node.dialProtocol(id, PROTOCOL);
         debug("Dial successful");
 
         // Handle inputs and outputs
@@ -724,7 +724,7 @@ export async function sendByValue(id: string, procId: string, obj: any) {
 async function pushWrap(id: PeerId, data: Message) {
   while(true) {
     debug(`pushWrap`);
-    let p = await getPushable(id);
+    const p = await getPushable(id);
 
     try {
       if(p) {
@@ -748,7 +748,7 @@ async function pushWrap(id: PeerId, data: Message) {
  * Finds a pushable to node `id` by checking all existing connections with the node. If no existing
  * pushable is found, then dials the node.
  */
-async function getPushable(id: PeerId, relayAddr=null) {
+async function getPushable(id: PeerId) {
   debug("getPushable");
   let connections = _node.getConnections(id);
   let needsToDial = true;
@@ -772,13 +772,12 @@ async function getPushable(id: PeerId, relayAddr=null) {
   // If no pushable was found, dial the peer
   if(needsToDial) {
     debug("Needs to dial");
-    let stream = null;
-    if(relayAddr) {
-      stream = await dialRelay(relayAddr);
-    } else {
-      stream = await dial(id);
-    }
+    const stream  = await dial(id);
+
     // If the dial fails, the stream is null
+    //
+    // TODO (2025-12-11; SS): Looking at `dial(...)` it is either `Stream` or it passes the error
+    //                        into the `reject(...)` case which would result in throwing an error?
     if(stream) {
       debug("Dialed to obtain stream");
       p = (stream as any).p;
