@@ -479,7 +479,7 @@ function nPeers(): number {
  * This ensures that messages that are sent and received are marshalled correctly and passes any
  * input to the input handler.
  */
-function setupConnection(peerId: PeerId, stream): void {
+function setupConnection(peerId: PeerId, stream: Stream): void {
   debug(`setupConnection with ${peerId}`);
   const p = pushable({ objectMode : true });
 
@@ -517,7 +517,7 @@ function setupConnection(peerId: PeerId, stream): void {
 
   // Storing a reference to the pushable on the stream. We rely on the p2p library to keep track of
   // streams
-  stream.p = p;
+  (stream as any).p = p;
   debug(`Connection set up with ${peerId}`);
 }
 
