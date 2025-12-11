@@ -620,7 +620,7 @@ async function inputHandler(peerId: PeerId, input: Message) {
 }
 
 // -------------------------------------------------------------------------------------------------
-// SEND
+// Sending Messages
 
 /**
  * Handles a send (by value) request to peer `id`. Just pushes a Send message.
@@ -709,9 +709,6 @@ async function getPushable(id: PeerId) {
 
   return p;
 }
-
-// -------------------------------------------------------------------------------------------------
-// WhereIs / Spawn
 
 /** Stores call-backs for WhereIs requests. */
 let _whereisNonces: { [nonce in string]: (res: any) => void } = {};
