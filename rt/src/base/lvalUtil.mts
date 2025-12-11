@@ -4,6 +4,75 @@ import { TroupeType } from './TroupeTypes.mjs';
 import { LVal } from './LVal.mjs';
 import { BOT } from '../Level.mjs';
 
+import * as RawUtil from './rawUtil.mjs';
+import { RawUnit } from './RawUnit.mjs';
+import { RawProcessID } from './RawProcessID.mjs';
+import { RawAuthority } from './RawAuthority.mjs';
+import { RawAtom } from './RawAtom.mjs';
+import { RawTuple } from './RawTuple.mjs';
+import { RawRecord } from './RawRecord.mjs';
+import { RawList } from './RawList.mjs';
+
+// ----------------------------------------------------------------------------
+// TYPE PREDICATES (lifted from `rawUtil.mts`)
+
+/** Predicate of whether `x` is a Troupe labelled value. */
+export function isLVal(x: any): x is LVal<any> {
+    return x._troupeType === TroupeType.LVal;
+}
+
+/** Predicate of whether `x` is a labelled Troupe unit object. */
+export function isUnit(x: any): x is LVal<RawUnit> {
+    return isLVal(x) && RawUtil.isUnit(x.val);
+}
+
+/** Predicate of whether `x` is a labelled boolean value. */
+export function isBoolean(x: any): x is LVal<boolean> {
+    return isLVal(x) && RawUtil.isBoolean(x.val);
+}
+
+/** Predicate of whether `x` is a labelled number. */
+export function isNumber(x: any) : x is LVal<number> {
+    return isLVal(x) && RawUtil.isNumber(x.val);
+}
+
+/** Predicate of whether `x` is a labelled string. */
+export function isString(x: any) : x is LVal<string> {
+    return isLVal(x) && RawUtil.isString(x.val);
+}
+
+/** Predicate of whether `x` is a labelled Troupe process id object. */
+export function isProcessID(x : any) : x is LVal<RawProcessID> {
+    return isLVal(x) && RawUtil.isProcessID(x.val);
+}
+
+/** Predicate of whether `x` is a labelled Troupe authority object. */
+export function isAuthority(x: any) : x is LVal<RawAuthority> {
+    return isLVal(x) && RawUtil.isAuthority(x.val);
+}
+
+/** Predicate of whether `x` is a labelled Troupe atom object. */
+export function isAtom(x: any) : x is LVal<RawAtom> {
+    return isLVal(x) && RawUtil.isAtom(x.val);
+}
+
+/** Predicate of whether `x` is a labelled Troupe tuple object. */
+export function isTuple(x: any): x is LVal<RawTuple> {
+    return isLVal(x) && RawUtil.isTuple(x.val);
+}
+
+/** Predicate of whether `x` is a labelled Troupe list object. */
+export function isList(x: any): x is LVal<RawList> {
+    return isLVal(x) && RawUtil.isList(x.val);
+}
+
+/** Predicate of whether `x` is a labelled Troupe record object. */
+export function isRecord(x: any): x is LVal<RawRecord> {
+    return isLVal(x) && RawUtil.isRecord(x.val);
+}
+
+// ----------------------------------------------------------------------------
+// HASHING
 type HashAlgorithm = "sha256";
 
 type HashOptions = {

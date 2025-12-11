@@ -85,7 +85,10 @@ export class LVal<T = any> implements RawValue {
 export class MbVal extends LVal {
 }
 
-/** Identifies whether a value `x` is LVal(ish). */
+/** Identifies whether a value `x` is LVal(ish)
+ *
+ * @deprecated Use `isLVal` from `lvalUtil.mts` instead.
+ */
 export function isLVal(x) {
     return (typeof x.val != "undefined" &&
             typeof x.lev != "undefined" &&
