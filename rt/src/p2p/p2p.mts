@@ -571,7 +571,7 @@ async function inputHandler(peerId: PeerId, input: Message) {
       const _cb = _spawnNonces[input.spawnNonce];
       if(_cb) {
         delete _spawnNonces[input.spawnNonce]; // Clean-up
-        _cb(null, input.message); // null means no errors
+        _cb(input.message);
       } else {
         error("Cannot find Spawn callback");
       }
@@ -607,7 +607,7 @@ async function inputHandler(peerId: PeerId, input: Message) {
       const _cbw = _whereisNonces[input.whereisNonce];
       if(_cbw) {
         delete _whereisNonces [input.whereisNonce]; // Clean-up
-        _cbw(null, input.message); // null means no errors
+        _cbw(input.message);
       } else {
         error("Cannot find WhereIs callback");
       }
@@ -716,10 +716,10 @@ async function getPushable(id: PeerId) {
 // WhereIs / Spawn
 
 /** Stores call-backs for WhereIs requests. */
-let _whereisNonces: { [nonce in string]: (err: any, res: any) => void } = {};
+let _whereisNonces: { [nonce in string]: (res: any) => void } = {};
 
 /** Stores call-backs for Spawn requests. */
-let _spawnNonces: { [nonce in string]: (err: any, res: any) => void } = {};
+let _spawnNonces: { [nonce in string]: (res: any) => void } = {};
 
 /**
  * Stores received Spawn nonces and the runtime answer for their reply. These are stored for 10
@@ -753,15 +753,10 @@ export async function whereis(id: string, data: any) {
   addUnacknowledged(id.toString(), whereisNonce, sendMessage);
 
   return new Promise((resolve, reject) => {
-    // Return the error or result when an answer comes in
-    _whereisNonces[whereisNonce] = (err, result) => {
-      if(err) {
-        reject(err);
-      } else {
-        // Only remove the unacknowledged status if the request succeeds
-        removeUnacknowledged(id.toString(), whereisNonce);
-        resolve(result);
-      }
+    _whereisNonces[whereisNonce] = result => {
+      // Only remove the unacknowledged status if the request succeeds
+      removeUnacknowledged(id.toString(), whereisNonce);
+      resolve(result);
     }
 
     // Push the WhereIs message
@@ -793,15 +788,10 @@ export async function spawn(id: string, data: any) {
   addUnacknowledged(id.toString(), spawnNonce, sendMessage);
 
   return new Promise ((resolve, reject) => {
-    // Return the error or result when an answer comes in
-    _spawnNonces[spawnNonce] = (err, result) => {
-      if(err) {
-        reject(err);
-      } else {
-        // Only remove the unacknowledged status if the request succeeds
-        removeUnacknowledged(id.toString(), spawnNonce);
-        resolve(result);
-      }
+    _spawnNonces[spawnNonce] = result => {
+      // Only remove the unacknowledged status if the request succeeds
+      removeUnacknowledged(id.toString(), spawnNonce);
+      resolve(result);
     };
 
     // Push the Spawn message
