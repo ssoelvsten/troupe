@@ -1,5 +1,5 @@
 'use strict'
-import { isEqual } from '../base/rawEquals.mjs'
+import { isEqual } from '../base/isEqual.mjs'
 import { isList, isTuple, mkTuple, mkList, mkWithRecord, mkRecord, isRecord, mkUnit } from '../base/rawUtil.mjs'
 import { LVal } from '../base/LVal.mjs'
 import { Nil, Cons, RawList } from '../base/RawList.mjs'
