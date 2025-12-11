@@ -1,9 +1,9 @@
 import {ClosureType, TroupeType} from './TroupeTypes.mjs'
-import {RawFunction} from './RawValue.mjs'
+import {TroupeFunction} from './TroupeValue.mjs'
 import {BOT} from '../Level.mjs'
 import { getRuntimeObject } from '../SysState.mjs'
 
-export interface BuiltinFunction extends RawFunction {
+export interface BuiltinFunction extends TroupeFunction {
   env: null;
   (LVal): any;
 
@@ -28,7 +28,7 @@ export function BuiltinFunction(fn: (LVal) => any, name: string | null = null) :
 }
 
 
-export interface ServiceFunction extends RawFunction {
+export interface ServiceFunction extends TroupeFunction {
   env: null;
   (): any;
 
@@ -53,7 +53,7 @@ export function ServiceFunction(fn: () => any, name: string | null = null) : Ser
 }
 
 
-export interface SandboxResumption extends RawFunction {
+export interface SandboxResumption extends TroupeFunction {
   (): any;
 
   _troupeType: TroupeType.Closure;

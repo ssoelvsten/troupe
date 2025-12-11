@@ -1,7 +1,7 @@
-import {RawFunction} from './RawValue.mjs'
+import {TroupeFunction} from './TroupeValue.mjs'
 import {ClosureType, TroupeType} from './TroupeTypes.mjs'
 
-export interface RawClosure extends RawFunction {
+export interface RawClosure extends TroupeFunction {
   env: any;
   namespace: any;
   (any): any;

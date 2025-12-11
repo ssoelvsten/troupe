@@ -1,11 +1,11 @@
 import {TroupeType} from './TroupeTypes.mjs'
-import {RawAggregate} from './RawValue.mjs'
+import {TroupeAggregate} from './TroupeValue.mjs'
 import {LVal, listStringRep} from './LVal.mjs'
 import { Level } from '../Level.mjs'
 import * as levels from '../Level.mjs'
 
 
-export abstract class RawList implements RawAggregate {    
+export abstract class RawList implements TroupeAggregate {
     _troupeType: TroupeType.List = TroupeType.List;
     isNil : boolean
 

@@ -1,8 +1,8 @@
 import { BOT, Level, lub } from "../Level.mjs";
 import * as Ty from './TroupeTypes.mjs';
-import { RawFunction, RawValue } from './RawValue.mjs';
+import { TroupeFunction, TroupeValue } from './TroupeValue.mjs';
 
-export class LVal<T = any> implements RawValue {
+export class LVal<T = any> implements TroupeValue {
     val: T;
     lev: Level;
     tlev: Level;
@@ -41,14 +41,14 @@ export class LVal<T = any> implements RawValue {
     }
 
     get dataLevel () : Level {
-        return (this.val as RawValue).dataLevel
-            ? lub(this.lev, (this.val as any).dataLevel)
+        return (this.val as TroupeValue).dataLevel
+            ? lub(this.lev, (this.val as TroupeValue).dataLevel)
             : this.lev;
     }
 
     get closureType () : Ty.ClosureType | null  {
         return this.troupeType == Ty.TroupeType.Closure
-            ? (this.val as RawFunction)._closureType
+            ? (this.val as TroupeFunction)._closureType
             : null;
     }
 
@@ -63,8 +63,8 @@ export class LVal<T = any> implements RawValue {
         //                        rename `stringRep` to `toString`; JavaScript
         //                        supports calling functions with more
         //                        arguments than it was defined with.
-        if ((this.val as RawValue).stringRep != undefined) {
-            output = (this.val as RawValue).stringRep(omitLevels, taintRef);
+        if ((this.val as TroupeValue).stringRep != undefined) {
+            output = (this.val as TroupeValue).stringRep(omitLevels, taintRef);
         } else if (typeof this.val === 'string') {
             output = `"${this.val.toString()}"`;
         } else {

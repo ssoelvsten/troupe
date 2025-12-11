@@ -1,8 +1,8 @@
-import { RawValue } from "./RawValue.mjs";
+import { TroupeValue } from "./TroupeValue.mjs";
 import { TroupeType } from "./TroupeTypes.mjs";
 import { BOT } from '../Level.mjs'
 
-export class RawProcessID implements RawValue {
+export class RawProcessID implements TroupeValue {
     _troupeType:TroupeType.ProcessId = TroupeType.ProcessId;
     uuid: string | null;
     pid: string;

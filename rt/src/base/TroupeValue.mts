@@ -14,7 +14,7 @@ export interface TaintRef {
 /**
  * Base type for all Troupe runtime values.
  */
-export interface RawValue {
+export interface TroupeValue {
     /**
      * The type of the value.
      */
@@ -40,13 +40,13 @@ export interface RawValue {
 /**
  * Base type for Troupe runtime values that aggregate other values, e.g., `List`.
  */
-export interface RawAggregate extends RawValue {
+export interface TroupeAggregate extends TroupeValue {
 }
 
 /**
  * Base type for Troupe runtime functions, i.e., closures.
  */
-export interface RawFunction extends RawValue {
+export interface TroupeFunction extends TroupeValue {
     /**
      * Access to the function body.
      */

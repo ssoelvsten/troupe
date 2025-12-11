@@ -1,8 +1,8 @@
 import { TroupeType } from "./base/TroupeTypes.mjs";
-import { RawValue } from "./base/RawValue.mjs";
+import { TroupeValue } from "./base/TroupeValue.mjs";
 
 export abstract class AbstractLevel <T extends AbstractLevel<T>> 
- implements RawValue {
+ implements TroupeValue {
   isLevel: boolean = true ;
   _troupeType: TroupeType = TroupeType.Level
   abstract dataLevel;

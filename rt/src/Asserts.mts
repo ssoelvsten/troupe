@@ -9,7 +9,7 @@ const actsFor = levels.actsFor;
 
 import { getRuntimeObject } from './SysState.mjs';
 import { __nodeManager } from './NodeManager.mjs';
-import { RawAggregate, RawValue } from './base/RawValue.mjs';
+import { TroupeAggregate, TroupeValue } from './base/TroupeValue.mjs';
 import { LVal } from './base/LVal.mjs';
 
 function _thread() {
