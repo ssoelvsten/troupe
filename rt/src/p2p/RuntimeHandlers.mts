@@ -15,6 +15,14 @@ type RuntimeSendHandler =
   (pid: string, obj: any, peerId: string) => Promise<void>;
 
 /**
+ * Handler for `RequestHash` messages.
+ *
+ * @returns The serialized `LVal` to be sent back to `peerId`.
+ */
+type RuntimeRequestHashHandler =
+  (obj: any, peerId: string) => Promise<any>;
+
+/**
  * Handler for `WhereIs` messages.
  *
  * @returns `string` if the seeked node is known. Otherwise, it is `undefined`.
@@ -31,9 +39,19 @@ export type RuntimeHandlers = {
   [MessageType.Spawn]      : RuntimeSpawnHandler | undefined,
 
   /**
-   * Callback for a message sent to a process on this machine.
+   * Callback for a message sent (by value) to a process on this machine.
    */
   [MessageType.SendByValue] : RuntimeSendHandler,
+
+  /**
+   * Callback for a message sent (by hash) to a process on this machine.
+   */
+  [MessageType.SendByHash] : RuntimeSendHandler,
+
+  /**
+   * Callback for a request for a hash message sent to this machine.
+   */
+  [MessageType.RequestHash] : RuntimeRequestHashHandler,
 
   /**
    * Callback for a `whereis` message sent to this machine.

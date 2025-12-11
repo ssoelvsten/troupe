@@ -579,6 +579,40 @@ async function inputHandler(peerId: PeerId, input: Message) {
       break;
     }
 
+    case (MessageType.SendByHash): {
+      debug(`Received SendByHash from ${peerId}`);
+      // Pass the message to the runtime
+      _rtHandlers[MessageType.SendByHash](input.pid, input.message, peerId.toString());
+      break;
+    }
+
+    case (MessageType.RequestHash): {
+      // Get the runtime to find the value
+      const data = await _rtHandlers[MessageType.RequestHash](input.hash, peerId.toString());
+
+      // Reply with a RequestHashReply
+      push(peerId, {
+        messageType: MessageType.RequestHashReply,
+        hashNonce: input.hashNonce,
+        value: data,
+      });
+
+      debug("RequestHash replied");
+      break;
+    }
+
+    case (MessageType.RequestHashReply): {
+      debug("Received RequestHashReply");
+      // Find the call-back and give the message Otherwise report an error
+      const cb = _hashNonces[input.hashNonce];
+      if(!cb) {
+        error("Cannot find RequestHash callback");
+        return;
+      }
+      cb(input.value);
+      break;
+    }
+
     case (MessageType.WhereIs): {
       debug("Received WhereIs");
       // Get the runtime to find the peer
@@ -688,10 +722,10 @@ async function getPushable(id: PeerId): Promise<Pushable<unknown, void, unknown>
 // SENDING MESSAGES
 
 /**
- * Handles a send (by value) request to peer `id`. Just pushes a Send message.
+ * Send a message (by value) to peer `id`.
  */
 export async function sendByValue(id: string, procId: string, obj: any) {
-  debug(`sendp2p`);
+  debug(`SendByValue`);
 
   push(peerIdFromString(id), {
     messageType: MessageType.SendByValue,
@@ -699,6 +733,22 @@ export async function sendByValue(id: string, procId: string, obj: any) {
     message: obj
   });
 }
+
+/**
+ * Send a message (by hash) to peer `id.
+ */
+export async function sendByHash(id: string, procId: string, hash: any) {
+  debug(`sendByHash`);
+
+  push(peerIdFromString(id), {
+    messageType: MessageType.SendByHash,
+    pid: procId,
+    message: hash
+  });
+}
+
+/** Stores call-backs for RequestHash requests. */
+let _hashNonces: { [nonce in string]: (res: any) => void } = {};
 
 /** Stores call-backs for WhereIs requests. */
 let _whereisNonces: { [nonce in string]: (res: any) => void } = {};
@@ -712,7 +762,7 @@ let _spawnNonces: { [nonce in string]: (res: any) => void } = {};
  */
 let receivedSpawnNonces: { [nonce in string]: any } = {};
 
-/** Keeps track of unacknowledged WhereIs and Spawn requests. */
+/** Keeps track of unacknowledged WhereIs, Spawn, and RequestHash requests. */
 let _unacknowledged: { [id in string]: { [nonce in string]: () => void } } = {};
 
 /**
@@ -778,6 +828,42 @@ export async function spawn(id: string, data: any) {
       // Clean up `unacknowledged` and `_spawnNonces`
       delete _spawnNonces[spawnNonce];
       removeUnacknowledged(id.toString(), spawnNonce);
+      resolve(result);
+    };
+
+    // Push the Spawn message
+    debug("Pushing Spawn message");
+    sendMessage();
+  });
+}
+
+/**
+ * Handles a request for the value associated with a hash from peer `id`.
+ * Creates a nonce which gives the result in the spawn table. Then pushes a
+ * Spawn message to the receiving peer.
+ */
+export async function requestHash(id: string, data: any) {
+  debug("requestHash");
+
+  // Create a nonce
+  const hashNonce = uuidv4();
+
+  function sendMessage() {
+    push(peerIdFromString(id), {
+      messageType : MessageType.RequestHash,
+      hashNonce: hashNonce,
+      hash: data,
+    });
+  }
+
+  // Set the Spawn request as unacknowledged
+  addUnacknowledged(id.toString(), hashNonce, sendMessage);
+
+  return new Promise ((resolve, reject) => {
+    _hashNonces[hashNonce] = result => {
+      // Clean up `unacknowledged` and `_spawnNonces`
+      delete _hashNonces[hashNonce];
+      removeUnacknowledged(id.toString(), hashNonce);
       resolve(result);
     };
 

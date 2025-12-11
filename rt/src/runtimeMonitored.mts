@@ -8,6 +8,7 @@ import { Scheduler, ThreadType } from './Scheduler.mjs'
 import { MailboxProcessor } from './MailboxProcessor.mjs'
 import { RuntimeInterface } from './RuntimeInterface.mjs'
 import { LVal, MbVal } from './base/LVal.mjs'
+import * as LValUtil from './base/lvalUtil.mjs';
 import { UserRuntime } from './UserRuntime.mjs'
 import * as levels from './Level.mjs'
 const { flowsTo, lub, glb } = levels
@@ -31,6 +32,8 @@ import { mkLogger } from './logger.mjs'
 import { RawRecord } from './base/RawRecord.mjs';
 import { level } from 'winston';
 import { RawProcessID } from './base/RawProcessID.mjs';
+import { sendCache, recvCache } from './p2pCache.mjs';
+import isEqual from './base/isEqual.mjs';
 
 const readFile = fs.promises.readFile
 const argv = getCliArgs();
@@ -145,7 +148,7 @@ async function spawnFromRemote(jsonObj, fromNode) {
 
 
 /**
- * This function is called when someone sends us a message.
+ * This function is called when someone sends us a message by value.
  *
  * @param {*} pid
  *    The process id of the sender
@@ -154,8 +157,15 @@ async function spawnFromRemote(jsonObj, fromNode) {
  * @param {*} fromNode
  *    The node identity of the sender node
  */
-async function receiveFromRemote(pid: string, jsonObj: any, fromNode: string) {
-  // Deserialize the data to runtime values, either directly or via the `troupec` compiler
+async function receiveValueFromRemote(pid: string, jsonObj: any, fromNode: string) {
+  // Deserialize the data to runtime values, either directly or via the
+  // `troupec` compiler
+  //
+  // TODO (2025-12-12; SS): prior to deserialization, find all hash references
+  //                        in `jsonObj`. The ones that are already known should
+  //                        be copied into an intermediate `Map<string, LVal>`
+  //                        save them from garbage collections in the cache.
+  //                        Unknown values are requested from `fromNode`.
   logger.debug(`* rt receiveFromRemote *  ${JSON.stringify(jsonObj)}`);
   const data = await DS.deserialize(nodeTrustLevel(fromNode), jsonObj);
   logger.debug(`* rt receiveFromRemote *  ${fromNode} ${data.stringRep()}`);
@@ -173,6 +183,58 @@ async function receiveFromRemote(pid: string, jsonObj: any, fromNode: string) {
   __sched.resumeLoopAsync();
 }
 
+/**
+ * This function is called when someone sends us a message by hash-reference.
+ *
+ * @todo This should be merged with `receiveValueFromRemote` (see `p2p/Message.mts`) for more
+ *       details.
+ */
+async function receiveHashFromRemote(pid: string, jsonObj1: any, fromNode: string) {
+  const fromNodeLevel = nodeTrustLevel(fromNode);
+  const hash = await DS.deserialize(fromNodeLevel, jsonObj1);
+  if (!LValUtil.isString(hash)) {
+    logger.error("hash reference with non-string payload; dropping message.\n" +
+                 ` | ${hash.stringRep()}`);
+    return;
+  }
+
+  __sched.resumeLoopAsync();
+  const cached: MbVal = await recvCache.get(hash, fromNodeLevel);
+  if (cached) {
+    // If successful, add the deserialized message to the mailbox of said process.
+    // TODO (): .
+    const fromNodeId = new LVal(fromNode, hash.lev);
+    const toPid = new LVal(mkProcessID(runId, pid, __nodeManager.getLocalNode()), hash.lev);
+    __theMailbox.addMessage(fromNodeId, toPid, cached, hash.lev);
+    __sched.resumeLoopAsync();
+    return;
+  }
+
+  try {
+    const jsonObj2 = await p2p.requestHash(fromNode, jsonObj1);
+    const data: MbVal = await DS.deserialize(fromNodeLevel, jsonObj2);
+    const dataHash = LValUtil.hash(data.val);
+
+    if (!isEqual(dataHash, hash.val)) {
+      logger.error("mismatching hash for unknown value; dropping message.");
+      return;
+    }
+    recvCache.set(dataHash, data)
+
+    // If successful, add the deserialized message to the mailbox of said process.
+    const fromNodeId = new LVal(fromNode, data.lev);
+    const toPid = new LVal(mkProcessID(runId, pid, __nodeManager.getLocalNode()), data.lev);
+    __theMailbox.addMessage(fromNodeId, toPid, data.val, data.lev);
+    __sched.resumeLoopAsync();
+  } catch (err) {
+    logger.error("error fetching unknown value associated with hash; dropping message.");
+    if (err instanceof AggregateError) {
+      for (let ie in err) { logger.error(`${ie}`); }
+    } else {
+      logger.error(`${err}`);
+    }
+  }
+}
 
 /**
  * Sends the provided message to a remote process, first doing the information
@@ -193,7 +255,7 @@ function sendByValueToRemote(toPid: LVal<RawProcessID>, message: LVal): void {
 
   if (!flowsTo(level, trustLevel)) {
     $t().threadError("Illegal trust flow when sending information to a remote node\n" +
-                    ` | the trust level of the recepient node: ${trustLevel.stringRep()}\n` +
+                    ` | the trust level of the recipient node: ${trustLevel.stringRep()}\n` +
                     ` | the level of the information to send:  ${level.stringRep()}`);
     return;
   }
@@ -213,6 +275,54 @@ function sendByValueToLocal(toPid: LVal<RawProcessID>, message: LVal): void {
   __theMailbox.addMessage(nodeId, toPid, message, $t().pc);
 }
 
+/**
+ * Sends the hash of the provided message to a remote process and stores (if
+ * necessary) the message in the send store.,
+ *
+ * @todo This might be merged with `sendByValueToRemote` (see `p2p/Message.mts`)
+ *       by enabling/disabling hashing as part of serialization?
+ */
+function sendByHashToRemote(toPid: LVal<RawProcessID>, message: LVal): void {
+  const node = toPid.val.node.nodeId;
+  const pid = toPid.val.pid;
+
+  const hash = LValUtil.hash(message);
+  const { data, level } = serialize(hash, $t().pc);
+
+  const trustLevel = nodeTrustLevel(node);
+  if (!flowsTo(level, trustLevel)) {
+    $t().threadError("Illegal trust flow when sending information to a remote node\n" +
+                    ` | the trust level of the recepient node: ${trustLevel.stringRep()}\n` +
+                    ` | the level of the information to send:  ${level.stringRep()}`);
+    return;
+  }
+
+  sendCache.set(hash, new MbVal(message, $t().pc));
+  p2p.sendByHash(node, pid, data);
+}
+
+/**
+ * Handler for request messages to access a value stored in the `sendCache`.
+ */
+async function requestHashFromRemote(jsonObj: any, fromNode: string): Promise<any> {
+  const fromNodeLevel = nodeTrustLevel(fromNode);
+  const hash = await DS.deserialize(fromNodeLevel, jsonObj);
+  if (!LValUtil.isString(hash)) {
+    logger.error("hash request with incorrect payload; dropping message.");
+    return;
+  }
+
+  const message = sendCache.get(hash);
+  const { data, level } = serialize(message, levels.BOT);
+
+  if (!flowsTo(level, fromNodeLevel)) {
+    logger.error("Illegal trust flow of output of sendCache::get(...)\n" +
+                 ` | the trust level of the recipient node: ${fromNodeLevel.stringRep()}\n` +
+                 ` | the level of the information to send:  ${level.stringRep()}`);
+  }
+
+  return data;
+}
 
 async function whereisFromRemote(k, fromNode) {
   __sched.resumeLoopAsync()
@@ -308,6 +418,10 @@ class RuntimeObject implements RuntimeInterface {
     return new LVal(levels.fromSingleTag(x), $t().pc);
   }
 
+  /**
+   * @todo When merging `sendByValue` and `sendByHash` messages, merge this
+   *       with the function below and rename them back to `send`.
+   */
   sendByValue(toPid: LVal<RawProcessID>, message: LVal) {
     const isLocalPid = toPid.val.uuid.toString() == runId.toString();
 
@@ -316,6 +430,23 @@ class RuntimeObject implements RuntimeInterface {
     } else {
       logger.debug ("* rt rt_send remote *"/*, recipientPid, message*/);
       sendByValueToRemote(toPid, message);
+    }
+  }
+
+  /**
+   * @todo When merging `sendByValue` and `sendByHash` messages, rename this
+   *       to `send` or similar to better convey that hashing may only be
+   *       applied partially.
+   *
+   *       Instead, add a boolean flag here whether to disable hashing.
+   */
+  sendByHash(toPid: LVal<RawProcessID>, message: LVal) {
+    const isLocalPid = toPid.val.uuid.toString() == runId.toString();
+
+    if (isLocalPid) {
+      sendByValueToLocal(toPid, message);
+    } else {
+      sendByHashToRemote(toPid, message);
     }
   }
 
@@ -389,7 +520,9 @@ async function getNetworkPeerId() {
 
   const rtHandlers = {
     [MessageType.Spawn]:       argv[TroupeCliArg.RSpawn] ? spawnFromRemote : undefined,
-    [MessageType.SendByValue]: receiveFromRemote,
+    [MessageType.SendByValue]: receiveValueFromRemote,
+    [MessageType.SendByHash]:  receiveHashFromRemote,
+    [MessageType.RequestHash]: requestHashFromRemote,
     [MessageType.WhereIs]:     whereisFromRemote,
   };
 

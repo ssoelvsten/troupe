@@ -6,10 +6,24 @@
 export enum MessageType {
   /** Spawning a function on a remote node. */
   Spawn = 0,
-  /** Reply to the Spawn*/
+  /** Reply to the Spawn */
   SpawnReply,
-  /** Sending a message to a remote node with the value directly included. */
+  /** Sending a message to a remote node with the value directly included.
+   *
+   * @todo This will be renamed back to `Send` when merged with `SendByHash`.
+   */
   SendByValue,
+  /** Sending a message to a remote node with only a reference by hash.
+   *
+   * @todo This should be merged together with `SendByValue` later, when we
+   *       want to add fine-grained hash references, e.g. closure references.
+   *       This needs to be done inside of Serialization.
+  */
+  SendByHash,
+  /** Asking for the value associated with a given hash. */
+  RequestHash,
+  /** Reply to the `RequestHash */
+  RequestHashReply,
   /** Asking for the address of a certain peer id. */
   WhereIs,
   /** Reply to the `WhereIs`. */
@@ -34,13 +48,46 @@ export type SpawnReplyMessage = {
   message: any | null,
 }
 
-/** Message for `SendByValue` */
+/** Message for `SendByValue`
+ *
+ * @todo This will be merged with `SendByHash`.
+ */
 export type SendByValueMessage = {
   messageType: MessageType.SendByValue,
   /** Process identifier who should receive the value. */
   pid: string,
   /** Serialized value to be sent to `pid`. */
   message: any,
+}
+
+/** Message for `SendByHash`
+ *
+ * @todo This will be merged back with `SendByValue`.
+ */
+export type SendByHashMessage = {
+  messageType: MessageType.SendByHash,
+  /** Process identifier who should receive the value. */
+  pid: string,
+  /** Serialized `LVal<string>` of the hash sent to `pid`. */
+  message: any,
+}
+
+/** Message for `RequestHash` */
+export type RequestHashMessage = {
+  messageType: MessageType.RequestHash,
+  /** Unique `uuid` used once to identify a specific `RequestHash` message. */
+  hashNonce: string,
+  /** Requested hash key as a serialized `LVal<string>`. */
+  hash: any,
+}
+
+/** Message for `RequestHashReply` */
+export type RequestHashReplyMessage = {
+  messageType: MessageType.RequestHashReply,
+  /** Unique `uuid` used once to identify a specific `RequestHash` request. */
+  hashNonce: string,
+  /** The (serialized) value associated with the given hash. */
+  value: any,
 }
 
 /** Message for `WhereIs` */
@@ -65,6 +112,9 @@ export type WhereIsReplyMessage = {
 export type Message = SpawnMessage
                     | SpawnReplyMessage
                     | SendByValueMessage
+                    | SendByHashMessage
+                    | RequestHashMessage
+                    | RequestHashReplyMessage
                     | WhereIsMessage
                     | WhereIsReplyMessage
 ;
