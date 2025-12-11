@@ -568,13 +568,12 @@ async function inputHandler(peerId: PeerId, input: Message) {
     case (MessageType.SpawnReply): {
       debug("Received Spawn OK");
       // Find the call-back and give the message; otherwise report an error
-      const _cb = _spawnNonces[input.spawnNonce];
-      if(_cb) {
-        delete _spawnNonces[input.spawnNonce]; // Clean-up
-        _cb(input.message);
-      } else {
+      const cb = _spawnNonces[input.spawnNonce];
+      if(!cb) {
         error("Cannot find Spawn callback");
+        return;
       }
+      cb(input.message);
       break;
     }
 
@@ -604,13 +603,12 @@ async function inputHandler(peerId: PeerId, input: Message) {
     case (MessageType.WhereIsReply): {
       debug("Received WhereIsReply");
       // Find the call-back and give the message Otherwise report an error
-      const _cbw = _whereisNonces[input.whereisNonce];
-      if(_cbw) {
-        delete _whereisNonces [input.whereisNonce]; // Clean-up
-        _cbw(input.message);
-      } else {
+      const cb = _whereisNonces[input.whereisNonce];
+      if(!cb) {
         error("Cannot find WhereIs callback");
+        return;
       }
+      cb(input.message);
       break;
     }
 
@@ -754,7 +752,8 @@ export async function whereis(id: string, data: any) {
 
   return new Promise((resolve, reject) => {
     _whereisNonces[whereisNonce] = result => {
-      // Only remove the unacknowledged status if the request succeeds
+      // Clean up `unacknowledged` and `_whereIsNonces`
+      delete _whereisNonces [whereisNonce];
       removeUnacknowledged(id.toString(), whereisNonce);
       resolve(result);
     }
@@ -789,7 +788,8 @@ export async function spawn(id: string, data: any) {
 
   return new Promise ((resolve, reject) => {
     _spawnNonces[spawnNonce] = result => {
-      // Only remove the unacknowledged status if the request succeeds
+      // Clean up `unacknowledged` and `_spawnNonces`
+      delete _spawnNonces[spawnNonce];
       removeUnacknowledged(id.toString(), spawnNonce);
       resolve(result);
     };
