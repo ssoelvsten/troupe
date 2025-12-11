@@ -540,7 +540,7 @@ async function inputHandler(peerId: PeerId, input: Message) {
         let cachedAnswer = receivedSpawnNonces[input.spawnNonce];
 
         // Reply with SpawnReply and return
-        pushWrap(peerId, {
+        push(peerId, {
           messageType: MessageType.SpawnReply,
           spawnNonce: input.spawnNonce,
           message: cachedAnswer
@@ -552,7 +552,7 @@ async function inputHandler(peerId: PeerId, input: Message) {
       const runtimeAnswer = await _rtHandlers[MessageType.Spawn](input.message, peerId.toString());
 
       // Reply with SpawnReply
-      pushWrap(peerId, {
+      push(peerId, {
         messageType: MessageType.SpawnReply,
         spawnNonce: input.spawnNonce,
         message: runtimeAnswer
@@ -590,7 +590,7 @@ async function inputHandler(peerId: PeerId, input: Message) {
       const runtimeAnswer = await _rtHandlers[MessageType.WhereIs](input.message, peerId.toString());
 
       // Reply with WhereIsReply
-      pushWrap(peerId, {
+      push(peerId, {
         messageType: MessageType.WhereIsReply,
         whereisNonce : input.whereisNonce,
         message : runtimeAnswer
@@ -628,7 +628,7 @@ async function inputHandler(peerId: PeerId, input: Message) {
 export async function sendByValue(id: string, procId: string, obj: any) {
   debug(`sendp2p`);
 
-  pushWrap(peerIdFromString(id), {
+  push(peerIdFromString(id), {
     messageType: MessageType.SendByValue,
     pid: procId,
     message: obj
@@ -639,7 +639,7 @@ export async function sendByValue(id: string, procId: string, obj: any) {
  * Pushes `data` to a connection with `id`. First finds a pushable on a connection with `id`, then
  * pushes the data. Continues until the data is successfully pushed.
  */
-async function pushWrap(id: PeerId, data: Message) {
+async function push(id: PeerId, data: Message) {
   while(true) {
     debug(`pushWrap`);
     const p = await getPushable(id);
@@ -732,7 +732,7 @@ export async function whereis(id: string, data: any) {
 
   function sendMessage() {
     let peerId = peerIdFromString(id);
-    pushWrap(peerId, {
+    push(peerId, {
       messageType : MessageType.WhereIs,
       whereisNonce : whereisNonce,
       message : data
@@ -768,7 +768,7 @@ export async function spawn(id: string, data: any) {
 
   function sendMessage() {
     let peerId = peerIdFromString(id);
-    pushWrap(peerId, {
+    push(peerId, {
       messageType : MessageType.Spawn,
       spawnNonce : spawnNonce,
       message : data
