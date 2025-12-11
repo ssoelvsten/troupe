@@ -301,7 +301,7 @@ export async function stop(): Promise<void> {
 }
 
 // -------------------------------------------------------------------------------------------------
-// DIAL
+// CONNECTION SET-UP & INTERACTIONS
 
 /**
  * Dial the node `id` using the Troupe protocol.
@@ -470,9 +470,6 @@ function nPeers(): number {
   return _node.getPeers().length;
 }
 
-// -------------------------------------------------------------------------------------------------
-// CONNECTION SET-UP
-
 /**
  * Sets up the connection with a new peer with `peerId`.
  *
@@ -619,22 +616,6 @@ async function inputHandler(peerId: PeerId, input: Message) {
   }
 }
 
-// -------------------------------------------------------------------------------------------------
-// Sending Messages
-
-/**
- * Handles a send (by value) request to peer `id`. Just pushes a Send message.
- */
-export async function sendByValue(id: string, procId: string, obj: any) {
-  debug(`sendp2p`);
-
-  push(peerIdFromString(id), {
-    messageType: MessageType.SendByValue,
-    pid: procId,
-    message: obj
-  });
-}
-
 /**
  * Pushes `data` to a connection with `id`. First finds a pushable on a connection with `id`, then
  * pushes the data. Continues until the data is successfully pushed.
@@ -703,6 +684,22 @@ async function getPushable(id: PeerId): Promise<Pushable<unknown, void, unknown>
   }
 
   return null;
+}
+
+// -------------------------------------------------------------------------------------------------
+// SENDING MESSAGES
+
+/**
+ * Handles a send (by value) request to peer `id`. Just pushes a Send message.
+ */
+export async function sendByValue(id: string, procId: string, obj: any) {
+  debug(`sendp2p`);
+
+  push(peerIdFromString(id), {
+    messageType: MessageType.SendByValue,
+    pid: procId,
+    message: obj
+  });
 }
 
 /** Stores call-backs for WhereIs requests. */
