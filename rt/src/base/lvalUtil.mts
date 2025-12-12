@@ -96,8 +96,8 @@ type HashOptions = {
  *    Whether the levels should be omitted from the hash.
  */
 export function hash(x: LVal,
-                     { algorithm = "sha256", omitLevels = false }: HashOptions = {}
-                    ): LVal
+                     { algorithm = "sha256", omitLevels = false }: HashOptions = {})
+    : LVal<string>
 {
     const encoding: BinaryToTextEncoding = "base64";
 
