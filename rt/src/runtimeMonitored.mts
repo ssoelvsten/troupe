@@ -160,7 +160,11 @@ async function receiveFromRemote(pid: string, jsonObj: any, fromNode: string) {
   const data = await DS.deserialize(nodeTrustLevel(fromNode), jsonObj);
   logger.debug(`* rt receiveFromRemote *  ${fromNode} ${data.stringRep()}`);
 
-  // TODO (AA; 2018-07-23): do we need to do some more reasoning about the level of the fromNode?
+  // TODO (2018-07-23; AA): do we need to do some more reasoning about the
+  //                        level of the fromNode?
+  //
+  // TODO (2025-12-12; SS): since this handler lives outside of the runtime, we
+  //                        should not depend on the current thread `$t()`!
 
   // If successful, add the deserialized message to the mailbox of said process.
   const fromNodeId = $t().mkVal(fromNode);
