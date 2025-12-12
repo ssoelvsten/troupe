@@ -4,13 +4,7 @@ import { TroupeType } from './TroupeTypes.mjs';
 import { LVal } from './LVal.mjs';
 import { BOT } from '../Level.mjs';
 
-const encoding: BinaryToTextEncoding = "base64";
-
 type HashAlgorithm = "sha256";
-
-const hashers : { [alg in HashAlgorithm]: Hash } = {
-    "sha256": createHash("sha256")
-}
 
 type HashOptions = {
     algorithm?: HashAlgorithm,
@@ -28,6 +22,8 @@ export function hash(x: LVal,
                      { algorithm = "sha256", omitLevels = false }: HashOptions = {}
                     ): LVal
 {
+    const encoding: BinaryToTextEncoding = "base64";
+
     switch (x.troupeType) {
     // JavaScript basic types
     case TroupeType.BOOLEAN:
@@ -46,8 +42,9 @@ export function hash(x: LVal,
         // around strings, we can merely hash the value's string
         // representation.
         const taintRef = { lev: BOT };
-        hashers[algorithm].update(x.stringRep(omitLevels, taintRef));
-        return new LVal(hashers[algorithm].digest(encoding), taintRef.lev, BOT);
+        const hasher = createHash(algorithm);
+        hasher.update(x.stringRep(omitLevels, taintRef));
+        return new LVal(hasher.digest(encoding), taintRef.lev, BOT);
 
     // Troupe function type (closure)
     case TroupeType.CLOSURE:
