@@ -102,6 +102,10 @@ opPrec HasField   = 50
 newtype LibName = LibName String deriving (Eq, Show, Generic, Ord)
 instance Serialize LibName
 
+data ImportMode = Qualified | Unqualified
+  deriving (Eq, Show, Ord, Generic)
+instance Serialize ImportMode
+
 
 
 -- 2018-07-02; AA: note on the data structure that we use for imports:
@@ -111,7 +115,7 @@ instance Serialize LibName
 -- with the list of names that are exported from the library.
 
 
-data Imports = Imports [(LibName, Maybe [VarName])]
+data Imports = Imports [(LibName, Maybe [VarName], ImportMode)]
   deriving (Eq, Show, Ord)
 
 

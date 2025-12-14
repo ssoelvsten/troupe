@@ -140,7 +140,10 @@ ppProg (Prog (Imports imports) (Atoms atoms) term) =
       ppImports =
         if null imports then PP.empty
         else
-          let ppLibName ((LibName s, _)) = text "import" <+> text s
+          let ppLibName ((LibName s, _, mode)) =
+                case mode of
+                  Qualified -> text "import qualified" <+> text s
+                  Unqualified -> text "import" <+> text s
           in
             (vcat $ (map ppLibName imports)) $$ PP.text ""
   in vcat [ ppImports

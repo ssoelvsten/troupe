@@ -102,6 +102,7 @@ tokens:-
 <0>   pini                           { mkL TokenPini}
 <0>   when                           { mkL TokenWhen }
 <0>   with                           { mkL TokenWith }
+<0>   qualified                      { mkL TokenQualified }
 <0>   datatype                       { mkL TokenDatatype }
 <0>   div                            { mkL TokenIntDiv }
 <0>   mod                            { mkL TokenMod }
@@ -206,6 +207,7 @@ data Token
   | TokenPini
   | TokenWhen
   | TokenWith
+  | TokenQualified
   | TokenDatatype
   | TokenAtoms
   | TokenIntDiv 

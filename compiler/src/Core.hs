@@ -23,6 +23,7 @@ import qualified Data.Ord
 import           Basics
 import qualified DirectWOPats as D
 import qualified Data.Map.Strict as Map
+import qualified Data.Set as Set
 import           Control.Monad
 import           Control.Monad.State.Lazy as State
 import           Control.Monad.RWS
@@ -247,17 +248,30 @@ threaded explicitly. That is encoded in the `Env` map.
 
 type S = RWS LibEnv () Integer
 
-type LibEnv = Map.Map VarName LibName
+-- | Environment for unqualified imports: maps function names to their library
+type UnqualifiedLibEnv = Map.Map VarName LibName
+-- | Set of library names that were imported with "qualified"
+type QualifiedLibEnv = Set.Set LibName
+-- | Combined environment for the Reader monad
+type LibEnv = (UnqualifiedLibEnv, QualifiedLibEnv)
+
 type Env    = Map.Map VarName VarName
 
 
 mapFromImports :: Imports -> LibEnv
 mapFromImports (Imports imports) =
-  foldl insLib Map.empty imports
-     where
-       insLib map (lib, Just defs) =
-             foldl (\map def -> Map.insert def lib map) map defs
-       insLib map (lib, Nothing) = error "malformed lib import data structure"
+  let
+    -- Build unqualified environment (only unqualified imports)
+    unqualifiedImports = [(lib, defs) | (lib, Just defs, Unqualified) <- imports]
+    unqualEnv = foldl insLib Map.empty unqualifiedImports
+
+    -- Build qualified environment (set of library names)
+    qualSet = Set.fromList [lib | (lib, _, Qualified) <- imports]
+  in
+    (unqualEnv, qualSet)
+  where
+    insLib m (lib, defs) =
+      foldl (\m' def -> Map.insert def lib m') m defs
            -- TODO: 2018-07-02; better error message for the above case
            -- or even better: a data structure that avoids needing to make a check like that
            -- (we should be in theory able to do that)
@@ -286,8 +300,8 @@ lookforgen v m =
     case Map.lookup v m of
        Just v -> return $ RegVar v
        Nothing -> do
-          libmap <- ask
-          case Map.lookup v libmap of
+          (unqualEnv, _) <- ask
+          case Map.lookup v unqualEnv of
             Just lib' -> return $ LibVar lib' v
             Nothing -> return  $ BaseName v
 
@@ -348,8 +362,22 @@ rename (WithRecord e fields) m = do
                    return (f, t')
   
 rename (ProjField t f) m = do
-  t' <- rename t m
-  return $ ProjField t' f
+  maybeQualified <- tryQualifiedAccess
+  case maybeQualified of
+    Just term -> return term
+    Nothing   -> do
+      t' <- rename t m
+      return $ ProjField t' f
+  where
+    tryQualifiedAccess = case t of
+      -- Check if this is a qualified module access (e.g., A.foo)
+      -- At this stage, vars are RegVar from lowering, so we check RegVar
+      Var (RegVar v) | not (Map.member v m) -> do
+        (_, qualSet) <- ask
+        return $ if Set.member (LibName v) qualSet
+                 then Just (Var (LibVar (LibName v) f))
+                 else Nothing
+      _ -> return Nothing
 rename (ProjIdx t idx) m = do
   t' <- rename t m
   return $ ProjIdx t' idx

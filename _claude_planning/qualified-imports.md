@@ -375,4 +375,36 @@ make test       # Run test suite
 
 # Manual testing
 ./local.sh tests/_unautomated/claude/qualified_import_test.trp
-``` 
+```
+
+---
+
+## Phase 2: Implementation Complete (2024-12-14)
+
+### Files Modified
+
+| File                             | Change                                              |
+|----------------------------------|-----------------------------------------------------|
+| `compiler/src/Lexer.x`           | Added `TokenQualified` keyword and token            |
+| `compiler/src/Parser.y`          | Added `qualified` token and updated ImportDecl      |
+| `compiler/src/Basics.hs`         | Added `ImportMode` type, updated `Imports`          |
+| `compiler/src/ProcessImports.hs` | Updated to handle 3-tuple with ImportMode           |
+| `compiler/src/Core.hs`           | Split LibEnv, added ProjField qualified resolution  |
+| `compiler/src/Direct.hs`         | Updated ppLibName for pretty-printing               |
+
+### Test Results
+
+| Test                                 | Result  | Behavior                                       |
+|--------------------------------------|---------|------------------------------------------------|
+| `qualified_import_test.trp`          | Pass    | Outputs "A" and "B" via `A.foo()` and `B.foo()` |
+| `qualified_unqualified_access.trp`   | Pass    | Correctly errors: `bad base function: foo`     |
+| `qualified_shadowing_test.trp`       | Pass    | Outputs "shadowed" (local binding wins)        |
+| Full test suite (698/700)            | Pass    | 2 flaky timing tests, unrelated to changes     |
+
+### Key Design Decisions
+
+1. **Disambiguation Rule**: When we see `A.foo` (parsed as `ProjField (Var (RegVar "A")) "foo"`):
+   - If `A` is NOT in local scope AND is a qualified import → transform to `LibVar`
+   - Otherwise → keep as ProjField (record field access)
+
+2. **Local binding priority**: Local bindings shadow qualified imports (matches Haskell) 

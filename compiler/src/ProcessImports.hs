@@ -27,11 +27,11 @@ getTroupeHome = do
       
 
 
-processImport (LibName lib, _) = do
+processImport (LibName lib, _, mode) = do
   troupeEnv <- getTroupeHome
-  let fname = troupeEnv ++ defaultLibFolder ++ lib ++ ".exports" 
+  let fname = troupeEnv ++ defaultLibFolder ++ lib ++ ".exports"
   input <- readFile fname
-  return ( LibName lib, Just (lines input))
+  return ( LibName lib, Just (lines input), mode)
 
 
 processImports' :: Imports -> IO Imports

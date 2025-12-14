@@ -47,6 +47,7 @@ import Control.Monad.Except
     pini  { L _ TokenPini }
     when  { L _ TokenWhen }
     with  { L _ TokenWith }
+    qualified { L _ TokenQualified }
     true  { L _ TokenTrue }
     false { L _ TokenFalse }
     andalso { L _ TokenAndAlso }
@@ -136,7 +137,10 @@ import Control.Monad.Except
 
 Prog : ImportDecl AtomsDecl Expr                       { Prog (Imports $1) (Atoms $2) $3 }
 
-ImportDecl: import  VAR ImportDecl { ((LibName (varTok $2), Nothing)): $3  }
+ImportDecl: import VAR ImportDecl
+              { ((LibName (varTok $2), Nothing, Unqualified)): $3 }
+          | import qualified VAR ImportDecl
+              { ((LibName (varTok $3), Nothing, Qualified)): $4 }
           | { [] }
 
 
