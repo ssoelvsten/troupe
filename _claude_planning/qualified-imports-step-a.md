@@ -408,3 +408,7 @@ make test       # Run test suite
    - Otherwise → keep as ProjField (record field access)
 
 2. **Local binding priority**: Local bindings shadow qualified imports (matches Haskell) 
+
+
+--- 
+

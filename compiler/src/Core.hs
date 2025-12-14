@@ -250,10 +250,11 @@ type S = RWS LibEnv () Integer
 
 -- | Environment for unqualified imports: maps function names to their library
 type UnqualifiedLibEnv = Map.Map VarName LibName
--- | Set of library names that were imported with "qualified"
-type QualifiedLibEnv = Set.Set LibName
+-- | Set of all imported library names (both qualified and unqualified)
+-- Used for resolving A.foo() syntax
+type ImportedLibNames = Set.Set LibName
 -- | Combined environment for the Reader monad
-type LibEnv = (UnqualifiedLibEnv, QualifiedLibEnv)
+type LibEnv = (UnqualifiedLibEnv, ImportedLibNames)
 
 type Env    = Map.Map VarName VarName
 
@@ -265,10 +266,11 @@ mapFromImports (Imports imports) =
     unqualifiedImports = [(lib, defs) | (lib, Just defs, Unqualified) <- imports]
     unqualEnv = foldl insLib Map.empty unqualifiedImports
 
-    -- Build qualified environment (set of library names)
-    qualSet = Set.fromList [lib | (lib, _, Qualified) <- imports]
+    -- Build set of ALL imported library names (both qualified and unqualified)
+    -- This is used for resolving A.foo() syntax
+    allLibNames = Set.fromList [lib | (lib, _, _) <- imports]
   in
-    (unqualEnv, qualSet)
+    (unqualEnv, allLibNames)
   where
     insLib m (lib, defs) =
       foldl (\m' def -> Map.insert def lib m') m defs
@@ -373,8 +375,8 @@ rename (ProjField t f) m = do
       -- Check if this is a qualified module access (e.g., A.foo)
       -- At this stage, vars are RegVar from lowering, so we check RegVar
       Var (RegVar v) | not (Map.member v m) -> do
-        (_, qualSet) <- ask
-        return $ if Set.member (LibName v) qualSet
+        (_, allLibNames) <- ask
+        return $ if Set.member (LibName v) allLibNames
                  then Just (Var (LibVar (LibName v) f))
                  else Nothing
       _ -> return Nothing
