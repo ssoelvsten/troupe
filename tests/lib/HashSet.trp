@@ -1,6 +1,6 @@
-import Unit
-import Hash
-import HashSet
+import qualified Unit
+import qualified Hash
+import qualified HashSet
 
 let val empty     = HashSet.empty Hash.hash
     val singleton = HashSet.singleton Hash.hash

@@ -1,5 +1,5 @@
-import Unit
-import List
+import qualified Unit
+import qualified List
 
 let val tests = Unit.group "List" [
             Unit.group "head" [

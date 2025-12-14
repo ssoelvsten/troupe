@@ -1,4 +1,4 @@
-import List
+import qualified List
 let fun p x = let val _ = printWithLabels x in sleep 10 end 
     fun foo () = List.map p [1,2,3]
     fun bar () = List.map p ["A", "B", "C"]

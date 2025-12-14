@@ -1,4 +1,4 @@
-import List
+import qualified List
 
 datatype Atoms = FIRST  | SECOND
 

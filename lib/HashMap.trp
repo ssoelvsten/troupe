@@ -1,6 +1,6 @@
-import List
-import ListPair
-import StencilVector
+import qualified List
+import qualified ListPair
+import qualified StencilVector
 
 let (* NOTE: The map is implemented as a Hash Array Mapped Trie (HAMT), i.e. a prefix(ish) trie over
      *       the hash of the keys. We represent the trie as follows:
@@ -200,27 +200,19 @@ let (* NOTE: The map is implemented as a Hash Array Mapped Trie (HAMT), i.e. a p
         given list. Tail-recursive. *)
     fun fromList hf xs = List.foldl (fn ((k,v), m) => insert m k v) (empty hf) xs
 
-    (*--- Module ---*)
-    val HashMap = {
-        (* Construction *)
-        empty     = empty,
-        singleton = singleton,
-        insert    = insert,
-        remove    = remove,
-        (* Queries *)
-        null      = null,
-        size      = size,
-        findOpt   = findOpt,
-        find      = find,
-        mem       = mem,
-        (* Manipulation *)
-        fold      = fold,
-        (* List Conversion*)
-        keys      = keys,
-        values    = values,
-        toList    = toList,
-        fromList  = fromList
-    }
-
-in [ ("HashMap", HashMap) ]
+in [ ("empty", empty)
+   , ("singleton", singleton)
+   , ("insert", insert)
+   , ("remove", remove)
+   , ("null", null)
+   , ("size", size)
+   , ("findOpt", findOpt)
+   , ("find", find)
+   , ("mem", mem)
+   , ("fold", fold)
+   , ("keys", keys)
+   , ("values", values)
+   , ("toList", toList)
+   , ("fromList", fromList)
+   ]
 end

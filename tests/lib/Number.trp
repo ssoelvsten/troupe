@@ -1,5 +1,5 @@
-import Unit
-import Number
+import qualified Unit
+import qualified Number
 
 let val tests = Unit.group "Number" [
             Unit.group "maxInt / minInt" [

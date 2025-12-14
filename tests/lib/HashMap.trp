@@ -1,6 +1,6 @@
-import Unit
-import Hash
-import HashMap
+import qualified Unit
+import qualified Hash
+import qualified HashMap
 
 let (* Hash based on the lowest ten bits only. This way we can easily force various scenarios. *)
     fun hf x = x andb ((1 << 10) -1)

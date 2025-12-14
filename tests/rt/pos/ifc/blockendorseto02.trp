@@ -1,5 +1,5 @@
 (* Test 2: blockendorseto with multiple labels - positive test *)
-import List
+import qualified List
 
 let val tainted = true raisedTo `<; alice | bob>`
     fun doTaintBlock () = 

@@ -1,5 +1,5 @@
 import declassifyutil 
-import List
+import qualified List
 
 let val x = 42 raisedTo `<alice&bob;#root-integrity>`
     val y = 100 raisedTo `<alice&bob;#root-integrity>`

@@ -1,4 +1,4 @@
-import List
+import qualified List
 
 let val z = 42
 in

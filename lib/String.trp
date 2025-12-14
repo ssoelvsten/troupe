@@ -1,7 +1,7 @@
 (* TODO: Make strings merely lists of characters, similar to Haskell? Then a lot of things can be
  *       moved out of the TCB? *)
-import Number
-import List
+import qualified Number
+import qualified List
 
 let (** The maximum length of a string.
      *
@@ -68,19 +68,17 @@ let (** The maximum length of a string.
 
     (* TODO: `translateCode`/`translate'` where one maps over charCodes instead. *)
 
-    (*--- Module ---*)
-    val String = {
-        maxSize    = maxSize,
-        size       = size,
-        sub        = sub,
-        subCode    = subCode,
-        substring  = substring,
-        concat     = concat,
-        concatWith = concatWith,
-        implode    = implode,
-        explode    = explode,
-        map        = map,
-        translate  = translate
-    }
-in [("String", String)]
+in [ ("maxSize", maxSize)
+   , ("size", size)
+   , ("sub", sub)
+   , ("subCode", subCode)
+   , ("substring", substring)
+   , ("concat", concat)
+   , ("concatWith", concatWith)
+   , ("str", str)
+   , ("implode", implode)
+   , ("explode", explode)
+   , ("map", map)
+   , ("translate", translate)
+   ]
 end

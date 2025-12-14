@@ -1,4 +1,4 @@
-import String
+import qualified String
 
 let val x = String.sub ("hello", 0)
     val y = "1" ^ "2"

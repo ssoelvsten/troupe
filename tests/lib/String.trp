@@ -1,5 +1,5 @@
-import Unit
-import String
+import qualified Unit
+import qualified String
 
 let val tests = Unit.group "String" [
             Unit.group "size" [

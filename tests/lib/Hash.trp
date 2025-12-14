@@ -1,4 +1,4 @@
-import Hash
+import qualified Hash
 
 let (* Tests for 'hashString' *)
     val _ = print ""
@@ -91,13 +91,13 @@ let (* Tests for 'hashString' *)
 
     (* Tests for 'hash' *)
     val _ = print ""
-    val _ = print ("hash 0       = " ^ (intToString (hash 0)))
-    val _ = print ("hash 42      = " ^ (intToString (hash 42)))
-    val _ = print ("hash 21/2    = " ^ (intToString (hash (21/2))))
-    val _ = print ("hash 100     = " ^ (intToString (hash 100)))
-    val _ = print ("hash ''      = " ^ (intToString (hash "")))
-    val _ = print ("hash 'a'     = " ^ (intToString (hash "a")))
-    val _ = print ("hash 'ba'    = " ^ (intToString (hash "ba")))
-    val _ = print ("hash [1,'a'] = " ^ (intToString (hash "ba")))
+    val _ = print ("hash 0       = " ^ (intToString (Hash.hash 0)))
+    val _ = print ("hash 42      = " ^ (intToString (Hash.hash 42)))
+    val _ = print ("hash 21/2    = " ^ (intToString (Hash.hash (21/2))))
+    val _ = print ("hash 100     = " ^ (intToString (Hash.hash 100)))
+    val _ = print ("hash ''      = " ^ (intToString (Hash.hash "")))
+    val _ = print ("hash 'a'     = " ^ (intToString (Hash.hash "a")))
+    val _ = print ("hash 'ba'    = " ^ (intToString (Hash.hash "ba")))
+    val _ = print ("hash [1,'a'] = " ^ (intToString (Hash.hash "ba")))
 
 in () end

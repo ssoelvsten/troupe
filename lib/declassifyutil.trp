@@ -2,7 +2,7 @@
 (* Author: Aslan Askarov, aslan@askarov.net     *)
 (* Creation date: 2018-10-19                    *)
 
-import List
+import qualified List
 
 let 
     (* these are our primitive declassifiers; obs: mutual recursion *)

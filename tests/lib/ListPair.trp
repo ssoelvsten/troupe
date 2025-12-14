@@ -1,5 +1,5 @@
-import Unit
-import ListPair
+import qualified Unit
+import qualified ListPair
 
 let val tests = Unit.group "ListPair" [
             Unit.group "zip" [

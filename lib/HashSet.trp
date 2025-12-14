@@ -1,5 +1,5 @@
-import List
-import HashMap
+import qualified List
+import qualified HashMap
 
 let (* NOTE: The set is implemented as a HashMap with dummy values, `()`. This is not necessarily
      *       space efficient. But, it is decreases the need for maintenance.
@@ -45,24 +45,16 @@ let (* NOTE: The set is implemented as a HashMap with dummy values, `()`. This i
      *       would result in O(n) extra time and space usage. *)
     fun fromList hf xs = List.foldl (fn (x, s) => insert s x) (empty hf) xs
 
-    (*--- Module ---*)
-    val HashSet = {
-        (* Construction *)
-        empty     = empty,
-        singleton = singleton,
-        insert    = insert,
-        remove    = remove,
-        (* Queries *)
-        null      = null,
-        size      = size,
-        mem       = mem,
-        (* Manipulation *)
-        fold      = fold,
-        (* List Conversion*)
-        elems     = elems,
-        toList    = toList,
-        fromList  = fromList
-    }
-
-in [ ("HashSet", HashSet) ]
+in [ ("empty", empty)
+   , ("singleton", singleton)
+   , ("insert", insert)
+   , ("remove", remove)
+   , ("null", null)
+   , ("size", size)
+   , ("mem", mem)
+   , ("fold", fold)
+   , ("elems", elems)
+   , ("toList", toList)
+   , ("fromList", fromList)
+   ]
 end
