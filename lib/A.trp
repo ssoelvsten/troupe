@@ -1,0 +1,4 @@
+let
+    fun foo () = "A"
+in [("foo", foo)]
+end

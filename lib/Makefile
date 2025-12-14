@@ -2,6 +2,9 @@ COMPILER=../bin/troupec
 
 build:
 	mkdir -p out
+  # Test libraries for qualified imports demonstration
+	$(COMPILER) ./A.trp -l
+	$(COMPILER) ./B.trp -l
   # Standard Library
 	$(COMPILER) ./Number.trp -l
 	$(COMPILER) ./List.trp -l
