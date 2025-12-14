@@ -1,276 +1,276 @@
-import qualified Unit
-import qualified StencilVector
+import Unit
+import StencilVector
 
-let val tests = Unit.group "StencilVector" [
-            Unit.group "maskBits" [
-                Unit.it "is a number" (Unit.isEq "number" (getType StencilVector.maskBits))
+let val tests = group "StencilVector" [
+            group "maskBits" [
+                it "is a number" (isEq "number" (getType maskBits))
                 ],
-            Unit.group "maskMax" [
-                Unit.it "is a number"         (Unit.isEq "number"                 (getType StencilVector.maskMax))
-              , Unit.it "is 2^{maskBits} - 1" (Unit.isEq ((1 << StencilVector.maskBits) - 1) (StencilVector.maskMax))
+            group "maskMax" [
+                it "is a number"         (isEq "number"                 (getType maskMax))
+              , it "is 2^{maskBits} - 1" (isEq ((1 << maskBits) - 1) (maskMax))
             ],
-            let val sv = StencilVector.empty
-            in Unit.group "empty" [
-                    Unit.it "has no members" [
-                        Unit.isFalse (StencilVector.mem sv 0)
-                      , Unit.isFalse (StencilVector.mem sv 1)
-                      , Unit.isFalse (StencilVector.mem sv 2)
-                      , Unit.isFalse (StencilVector.mem sv 3)
-                      , Unit.isFalse (StencilVector.mem sv 7)
-                      , Unit.isFalse (StencilVector.mem sv 16)
-                      , Unit.isFalse (StencilVector.mem sv 30)
-                      , Unit.isFalse (StencilVector.mem sv 31)
+            let val sv = empty
+            in group "empty" [
+                    it "has no members" [
+                        isFalse (mem sv 0)
+                      , isFalse (mem sv 1)
+                      , isFalse (mem sv 2)
+                      , isFalse (mem sv 3)
+                      , isFalse (mem sv 7)
+                      , isFalse (mem sv 16)
+                      , isFalse (mem sv 30)
+                      , isFalse (mem sv 31)
                     ]
-                  , Unit.it "provides default with getOrDefault [0]" (Unit.isEq 42 (StencilVector.getOrDefault sv 0 42))
-                  , Unit.it "provides default with getOrDefault [1]" (Unit.isEq () (StencilVector.getOrDefault sv 1 ()))
-                  , Unit.it "is valid"          (Unit.isTrue (StencilVector.valid sv))
-                  , Unit.it "is null"           (Unit.isTrue (StencilVector.null sv))
-                  , Unit.it "has 0 as its mask" (Unit.isEq 0 (StencilVector.mask sv))
-                  , Unit.it "has length 0"      (Unit.isEq 0 (StencilVector.length sv))
+                  , it "provides default with getOrDefault [0]" (isEq 42 (getOrDefault sv 0 42))
+                  , it "provides default with getOrDefault [1]" (isEq () (getOrDefault sv 1 ()))
+                  , it "is valid"          (isTrue (valid sv))
+                  , it "is null"           (isTrue (null sv))
+                  , it "has 0 as its mask" (isEq 0 (mask sv))
+                  , it "has length 0"      (isEq 0 (length sv))
                 ]
             end,
-            let val sv = StencilVector.set (StencilVector.empty) 0 42
-            in Unit.group "set (empty) 0 42" [
-                    Unit.it "has a member at [0]" (Unit.isTrue (StencilVector.mem sv 0))
-                  , Unit.it "provides value with get [0]"          (Unit.isEq 42 (StencilVector.get sv 0))
-                  , Unit.it "provides value with getOrDefault [0]" (Unit.isEq 42 (StencilVector.getOrDefault sv 0 ()))
-                  , Unit.it "has no other members" [
-                        Unit.isFalse (StencilVector.mem sv 1)
-                      , Unit.isFalse (StencilVector.mem sv 2)
-                      , Unit.isFalse (StencilVector.mem sv 3)
-                      , Unit.isFalse (StencilVector.mem sv 7)
-                      , Unit.isFalse (StencilVector.mem sv 16)
-                      , Unit.isFalse (StencilVector.mem sv 30)
-                      , Unit.isFalse (StencilVector.mem sv 31)
+            let val sv = set (empty) 0 42
+            in group "set (empty) 0 42" [
+                    it "has a member at [0]" (isTrue (mem sv 0))
+                  , it "provides value with get [0]"          (isEq 42 (get sv 0))
+                  , it "provides value with getOrDefault [0]" (isEq 42 (getOrDefault sv 0 ()))
+                  , it "has no other members" [
+                        isFalse (mem sv 1)
+                      , isFalse (mem sv 2)
+                      , isFalse (mem sv 3)
+                      , isFalse (mem sv 7)
+                      , isFalse (mem sv 16)
+                      , isFalse (mem sv 30)
+                      , isFalse (mem sv 31)
                     ]
-                  , Unit.it "provides default with getOrDefault [1]" (Unit.isEq () (StencilVector.getOrDefault sv 1 ()))
-                  , Unit.it "is valid"          (Unit.isTrue (StencilVector.valid sv))
-                  , Unit.it "is not null"       (Unit.isFalse (StencilVector.null sv))
-                  , Unit.it "has 1 as its mask" (Unit.isEq 1 (StencilVector.mask sv))
-                  , Unit.it "has length 1"      (Unit.isEq 1 (StencilVector.length sv))
+                  , it "provides default with getOrDefault [1]" (isEq () (getOrDefault sv 1 ()))
+                  , it "is valid"          (isTrue (valid sv))
+                  , it "is not null"       (isFalse (null sv))
+                  , it "has 1 as its mask" (isEq 1 (mask sv))
+                  , it "has length 1"      (isEq 1 (length sv))
                 ]
             end,
-            let val sv = StencilVector.set (StencilVector.empty) 1 "a"
-            in Unit.group "set (empty) 1 'a'" [
-                    Unit.it "has a member at [1]" (Unit.isTrue (StencilVector.mem sv 1))
-                  , Unit.it "provides value with get [1]"          (Unit.isEq "a" (StencilVector.get sv 1))
-                  , Unit.it "provides value with getOrDefault [1]" (Unit.isEq "a" (StencilVector.getOrDefault sv 1 ()))
-                  , Unit.it "has no other members" [
-                        Unit.isFalse (StencilVector.mem sv 0)
-                      , Unit.isFalse (StencilVector.mem sv 2)
-                      , Unit.isFalse (StencilVector.mem sv 3)
-                      , Unit.isFalse (StencilVector.mem sv 7)
-                      , Unit.isFalse (StencilVector.mem sv 16)
-                      , Unit.isFalse (StencilVector.mem sv 30)
-                      , Unit.isFalse (StencilVector.mem sv 31)
+            let val sv = set (empty) 1 "a"
+            in group "set (empty) 1 'a'" [
+                    it "has a member at [1]" (isTrue (mem sv 1))
+                  , it "provides value with get [1]"          (isEq "a" (get sv 1))
+                  , it "provides value with getOrDefault [1]" (isEq "a" (getOrDefault sv 1 ()))
+                  , it "has no other members" [
+                        isFalse (mem sv 0)
+                      , isFalse (mem sv 2)
+                      , isFalse (mem sv 3)
+                      , isFalse (mem sv 7)
+                      , isFalse (mem sv 16)
+                      , isFalse (mem sv 30)
+                      , isFalse (mem sv 31)
                     ]
-                  , Unit.it "provides default with getOrDefault [0]" (Unit.isEq ()  (StencilVector.getOrDefault sv 0 ()))
-                  , Unit.it "is valid"          (Unit.isTrue (StencilVector.valid sv))
-                  , Unit.it "is not null"       (Unit.isFalse (StencilVector.null sv))
-                  , Unit.it "has 2 as its mask" (Unit.isEq 2 (StencilVector.mask sv))
-                  , Unit.it "has length 1"      (Unit.isEq 1 (StencilVector.length sv))
+                  , it "provides default with getOrDefault [0]" (isEq ()  (getOrDefault sv 0 ()))
+                  , it "is valid"          (isTrue (valid sv))
+                  , it "is not null"       (isFalse (null sv))
+                  , it "has 2 as its mask" (isEq 2 (mask sv))
+                  , it "has length 1"      (isEq 1 (length sv))
                 ]
             end,
-            let val sv = StencilVector.set (StencilVector.empty) 31 []
-            in Unit.group "set (empty) 31 []" [
-                    Unit.it "has a member at [31]" (Unit.isTrue (StencilVector.mem sv 31))
-                  , Unit.it "provides value with get [31]"          (Unit.isEq [] (StencilVector.get sv 31))
-                  , Unit.it "provides value with getOrDefault [31]" (Unit.isEq [] (StencilVector.getOrDefault sv 31 ()))
-                  , Unit.it "has no other members" [
-                        Unit.isFalse (StencilVector.mem sv 0)
-                      , Unit.isFalse (StencilVector.mem sv 1)
-                      , Unit.isFalse (StencilVector.mem sv 2)
-                      , Unit.isFalse (StencilVector.mem sv 3)
-                      , Unit.isFalse (StencilVector.mem sv 7)
-                      , Unit.isFalse (StencilVector.mem sv 16)
-                      , Unit.isFalse (StencilVector.mem sv 30)
+            let val sv = set (empty) 31 []
+            in group "set (empty) 31 []" [
+                    it "has a member at [31]" (isTrue (mem sv 31))
+                  , it "provides value with get [31]"          (isEq [] (get sv 31))
+                  , it "provides value with getOrDefault [31]" (isEq [] (getOrDefault sv 31 ()))
+                  , it "has no other members" [
+                        isFalse (mem sv 0)
+                      , isFalse (mem sv 1)
+                      , isFalse (mem sv 2)
+                      , isFalse (mem sv 3)
+                      , isFalse (mem sv 7)
+                      , isFalse (mem sv 16)
+                      , isFalse (mem sv 30)
                     ]
-                  , Unit.it "provides default with getOrDefault [0]" (Unit.isEq () (StencilVector.getOrDefault sv 0 ()))
-                  , Unit.it "is valid"                      (Unit.isTrue (StencilVector.valid sv))
-                  , Unit.it "is not null"                   (Unit.isFalse (StencilVector.null sv))
-                  , Unit.it "has (-)2147483648 as its mask" (Unit.isEq (-2147483648) (StencilVector.mask sv))
-                  , Unit.it "has length 1"                  (Unit.isEq 1 (StencilVector.length sv))
+                  , it "provides default with getOrDefault [0]" (isEq () (getOrDefault sv 0 ()))
+                  , it "is valid"                      (isTrue (valid sv))
+                  , it "is not null"                   (isFalse (null sv))
+                  , it "has (-)2147483648 as its mask" (isEq (-2147483648) (mask sv))
+                  , it "has length 1"                  (isEq 1 (length sv))
                 ]
             end,
-            let val sv  = StencilVector.singleton 2 42
-                val sv' = StencilVector.set (StencilVector.empty) 2 42
-            in Unit.group "singleton 2 42" [
-                    Unit.it "is equivalent to (set (empty) 2 42)" (Unit.isEq sv' sv)
+            let val sv  = singleton 2 42
+                val sv' = set (empty) 2 42
+            in group "singleton 2 42" [
+                    it "is equivalent to (set (empty) 2 42)" (isEq sv' sv)
                 ]
             end,
-            let val sv  = StencilVector.singleton 4 "b"
-                val sv' = StencilVector.set (StencilVector.empty) 4 "b"
-            in Unit.group "singleton 4 'b'" [
-                    Unit.it "is equivalent to (set (empty) 4 'b')" (Unit.isEq sv' sv)
+            let val sv  = singleton 4 "b"
+                val sv' = set (empty) 4 "b"
+            in group "singleton 4 'b'" [
+                    it "is equivalent to (set (empty) 4 'b')" (isEq sv' sv)
                 ]
             end,
-            let val sv = StencilVector.set (StencilVector.singleton 0 (0,21)) 1 (1,42)
-            in Unit.group "set (singleton 0 (0,21)) 1 (1,42)" [
-                    Unit.it "has a member at [0]" (Unit.isTrue (StencilVector.mem sv 0))
-                  , Unit.it "provides value with get [0]"          (Unit.isEq (0,21) (StencilVector.get sv 0))
-                  , Unit.it "provides value with getOrDefault [0]" (Unit.isEq (0,21) (StencilVector.getOrDefault sv 0 (-1)))
-                  , Unit.it "has a member at [1]" (Unit.isTrue (StencilVector.mem sv 1))
-                  , Unit.it "provides value with get [1]"          (Unit.isEq (1,42) (StencilVector.get sv 1))
-                  , Unit.it "provides value with getOrDefault [1]" (Unit.isEq (1,42) (StencilVector.getOrDefault sv 1 (-1)))
-                  , Unit.it "has no other members" [
-                        Unit.isFalse (StencilVector.mem sv 2)
-                      , Unit.isFalse (StencilVector.mem sv 3)
-                      , Unit.isFalse (StencilVector.mem sv 4)
-                      , Unit.isFalse (StencilVector.mem sv 7)
-                      , Unit.isFalse (StencilVector.mem sv 16)
-                      , Unit.isFalse (StencilVector.mem sv 30)
-                      , Unit.isFalse (StencilVector.mem sv 31)
+            let val sv = set (singleton 0 (0,21)) 1 (1,42)
+            in group "set (singleton 0 (0,21)) 1 (1,42)" [
+                    it "has a member at [0]" (isTrue (mem sv 0))
+                  , it "provides value with get [0]"          (isEq (0,21) (get sv 0))
+                  , it "provides value with getOrDefault [0]" (isEq (0,21) (getOrDefault sv 0 (-1)))
+                  , it "has a member at [1]" (isTrue (mem sv 1))
+                  , it "provides value with get [1]"          (isEq (1,42) (get sv 1))
+                  , it "provides value with getOrDefault [1]" (isEq (1,42) (getOrDefault sv 1 (-1)))
+                  , it "has no other members" [
+                        isFalse (mem sv 2)
+                      , isFalse (mem sv 3)
+                      , isFalse (mem sv 4)
+                      , isFalse (mem sv 7)
+                      , isFalse (mem sv 16)
+                      , isFalse (mem sv 30)
+                      , isFalse (mem sv 31)
                     ]
-                  , Unit.it "provides default with getOrDefault [2]" (Unit.isEq (-1) (StencilVector.getOrDefault sv 2 (-1)))
-                  , Unit.it "provides default with getOrDefault [4]" (Unit.isEq (-1) (StencilVector.getOrDefault sv 4 (-1)))
-                  , Unit.it "is valid"           (Unit.isTrue (StencilVector.valid sv))
-                  , Unit.it "is not null"        (Unit.isFalse (StencilVector.null sv))
-                  , Unit.it "has 3 as its mask"  (Unit.isEq 3 (StencilVector.mask sv))
-                  , Unit.it "has length 2"       (Unit.isEq 2 (StencilVector.length sv))
+                  , it "provides default with getOrDefault [2]" (isEq (-1) (getOrDefault sv 2 (-1)))
+                  , it "provides default with getOrDefault [4]" (isEq (-1) (getOrDefault sv 4 (-1)))
+                  , it "is valid"           (isTrue (valid sv))
+                  , it "is not null"        (isFalse (null sv))
+                  , it "has 3 as its mask"  (isEq 3 (mask sv))
+                  , it "has length 2"       (isEq 2 (length sv))
                 ]
             end,
-            let val sv = StencilVector.set (StencilVector.singleton 1 (1,42)) 0 (0,21)
-            in Unit.group "set (singleton 1 (1,42)) 0 (0,21)" [
-                    Unit.it "has a member at [0]" (Unit.isTrue (StencilVector.mem sv 0))
-                  , Unit.it "provides value with get [0]"          (Unit.isEq (0,21) (StencilVector.get sv 0))
-                  , Unit.it "provides value with getOrDefault [0]" (Unit.isEq (0,21) (StencilVector.getOrDefault sv 0 (-1)))
-                  , Unit.it "has a member at [1]" (Unit.isTrue (StencilVector.mem sv 1))
-                  , Unit.it "provides value with get [1]"          (Unit.isEq (1,42) (StencilVector.get sv 1))
-                  , Unit.it "provides value with getOrDefault [1]" (Unit.isEq (1,42) (StencilVector.getOrDefault sv 1 (-1)))
-                  , Unit.it "has no other members" [
-                        Unit.isFalse (StencilVector.mem sv 2)
-                      , Unit.isFalse (StencilVector.mem sv 3)
-                      , Unit.isFalse (StencilVector.mem sv 4)
-                      , Unit.isFalse (StencilVector.mem sv 7)
-                      , Unit.isFalse (StencilVector.mem sv 16)
-                      , Unit.isFalse (StencilVector.mem sv 30)
-                      , Unit.isFalse (StencilVector.mem sv 31)
+            let val sv = set (singleton 1 (1,42)) 0 (0,21)
+            in group "set (singleton 1 (1,42)) 0 (0,21)" [
+                    it "has a member at [0]" (isTrue (mem sv 0))
+                  , it "provides value with get [0]"          (isEq (0,21) (get sv 0))
+                  , it "provides value with getOrDefault [0]" (isEq (0,21) (getOrDefault sv 0 (-1)))
+                  , it "has a member at [1]" (isTrue (mem sv 1))
+                  , it "provides value with get [1]"          (isEq (1,42) (get sv 1))
+                  , it "provides value with getOrDefault [1]" (isEq (1,42) (getOrDefault sv 1 (-1)))
+                  , it "has no other members" [
+                        isFalse (mem sv 2)
+                      , isFalse (mem sv 3)
+                      , isFalse (mem sv 4)
+                      , isFalse (mem sv 7)
+                      , isFalse (mem sv 16)
+                      , isFalse (mem sv 30)
+                      , isFalse (mem sv 31)
                     ]
-                  , Unit.it "provides default with getOrDefault [2]" (Unit.isEq (-1) (StencilVector.getOrDefault sv 2 (-1)))
-                  , Unit.it "provides default with getOrDefault [4]" (Unit.isEq (-1) (StencilVector.getOrDefault sv 4 (-1)))
-                  , Unit.it "is valid"           (Unit.isTrue (StencilVector.valid sv))
-                  , Unit.it "is not null"        (Unit.isFalse (StencilVector.null sv))
-                  , Unit.it "has 3 as its mask"  (Unit.isEq 3 (StencilVector.mask sv))
-                  , Unit.it "has length 2"       (Unit.isEq 2 (StencilVector.length sv))
+                  , it "provides default with getOrDefault [2]" (isEq (-1) (getOrDefault sv 2 (-1)))
+                  , it "provides default with getOrDefault [4]" (isEq (-1) (getOrDefault sv 4 (-1)))
+                  , it "is valid"           (isTrue (valid sv))
+                  , it "is not null"        (isFalse (null sv))
+                  , it "has 3 as its mask"  (isEq 3 (mask sv))
+                  , it "has length 2"       (isEq 2 (length sv))
                 ]
             end,
-            let val sv = StencilVector.set (StencilVector.set (StencilVector.singleton 0 (0,true)) 1 (1,42)) 0 (0,false)
-            in Unit.group "set (set (singleton 0 (0,true)) 1 (1,42)) 0 (0,false)" [
-                    Unit.it "has a member at [0]" (Unit.isTrue (StencilVector.mem sv 0))
-                  , Unit.it "provides value with get [0]"          (Unit.isEq (0,false) (StencilVector.get sv 0))
-                  , Unit.it "provides value with getOrDefault [0]" (Unit.isEq (0,false) (StencilVector.getOrDefault sv 0 (-1)))
-                  , Unit.it "has a member at [1]" (Unit.isTrue (StencilVector.mem sv 1))
-                  , Unit.it "provides value with get [1]"          (Unit.isEq (1,42) (StencilVector.get sv 1))
-                  , Unit.it "provides value with getOrDefault [1]" (Unit.isEq (1,42) (StencilVector.getOrDefault sv 1 (-1)))
-                  , Unit.it "has no other members" [
-                        Unit.isFalse (StencilVector.mem sv 2)
-                      , Unit.isFalse (StencilVector.mem sv 3)
-                      , Unit.isFalse (StencilVector.mem sv 4)
-                      , Unit.isFalse (StencilVector.mem sv 7)
-                      , Unit.isFalse (StencilVector.mem sv 16)
-                      , Unit.isFalse (StencilVector.mem sv 30)
-                      , Unit.isFalse (StencilVector.mem sv 31)
+            let val sv = set (set (singleton 0 (0,true)) 1 (1,42)) 0 (0,false)
+            in group "set (set (singleton 0 (0,true)) 1 (1,42)) 0 (0,false)" [
+                    it "has a member at [0]" (isTrue (mem sv 0))
+                  , it "provides value with get [0]"          (isEq (0,false) (get sv 0))
+                  , it "provides value with getOrDefault [0]" (isEq (0,false) (getOrDefault sv 0 (-1)))
+                  , it "has a member at [1]" (isTrue (mem sv 1))
+                  , it "provides value with get [1]"          (isEq (1,42) (get sv 1))
+                  , it "provides value with getOrDefault [1]" (isEq (1,42) (getOrDefault sv 1 (-1)))
+                  , it "has no other members" [
+                        isFalse (mem sv 2)
+                      , isFalse (mem sv 3)
+                      , isFalse (mem sv 4)
+                      , isFalse (mem sv 7)
+                      , isFalse (mem sv 16)
+                      , isFalse (mem sv 30)
+                      , isFalse (mem sv 31)
                     ]
-                  , Unit.it "provides default with getOrDefault [2]" (Unit.isEq (-1) (StencilVector.getOrDefault sv 2 (-1)))
-                  , Unit.it "provides default with getOrDefault [4]" (Unit.isEq (-1) (StencilVector.getOrDefault sv 4 (-1)))
-                  , Unit.it "is valid"           (Unit.isTrue (StencilVector.valid sv))
-                  , Unit.it "is not null"        (Unit.isFalse (StencilVector.null sv))
-                  , Unit.it "has 3 as its mask"  (Unit.isEq 3 (StencilVector.mask sv))
-                  , Unit.it "has length 2"       (Unit.isEq 2 (StencilVector.length sv))
+                  , it "provides default with getOrDefault [2]" (isEq (-1) (getOrDefault sv 2 (-1)))
+                  , it "provides default with getOrDefault [4]" (isEq (-1) (getOrDefault sv 4 (-1)))
+                  , it "is valid"           (isTrue (valid sv))
+                  , it "is not null"        (isFalse (null sv))
+                  , it "has 3 as its mask"  (isEq 3 (mask sv))
+                  , it "has length 2"       (isEq 2 (length sv))
                 ]
             end,
-            let val sv = StencilVector.set (StencilVector.singleton 1 42) 3 21
-            in Unit.group "set (singleton 1 42) 3 21" [
-                    Unit.it "has a member at [1]" (Unit.isTrue (StencilVector.mem sv 1))
-                  , Unit.it "provides value with get [1]"          (Unit.isEq 42 (StencilVector.get sv 1))
-                  , Unit.it "provides value with getOrDefault [1]" (Unit.isEq 42 (StencilVector.getOrDefault sv 1 (-1)))
-                  , Unit.it "has a member at [3]" (Unit.isTrue (StencilVector.mem sv 3))
-                  , Unit.it "provides value with get [3]"          (Unit.isEq 21 (StencilVector.get sv 3))
-                  , Unit.it "provides value with getOrDefault [1]" (Unit.isEq 21 (StencilVector.getOrDefault sv 3 (-1)))
-                  , Unit.it "has no other members" [
-                        Unit.isFalse (StencilVector.mem sv 0)
-                      , Unit.isFalse (StencilVector.mem sv 2)
-                      , Unit.isFalse (StencilVector.mem sv 4)
-                      , Unit.isFalse (StencilVector.mem sv 7)
-                      , Unit.isFalse (StencilVector.mem sv 16)
-                      , Unit.isFalse (StencilVector.mem sv 30)
-                      , Unit.isFalse (StencilVector.mem sv 31)
+            let val sv = set (singleton 1 42) 3 21
+            in group "set (singleton 1 42) 3 21" [
+                    it "has a member at [1]" (isTrue (mem sv 1))
+                  , it "provides value with get [1]"          (isEq 42 (get sv 1))
+                  , it "provides value with getOrDefault [1]" (isEq 42 (getOrDefault sv 1 (-1)))
+                  , it "has a member at [3]" (isTrue (mem sv 3))
+                  , it "provides value with get [3]"          (isEq 21 (get sv 3))
+                  , it "provides value with getOrDefault [1]" (isEq 21 (getOrDefault sv 3 (-1)))
+                  , it "has no other members" [
+                        isFalse (mem sv 0)
+                      , isFalse (mem sv 2)
+                      , isFalse (mem sv 4)
+                      , isFalse (mem sv 7)
+                      , isFalse (mem sv 16)
+                      , isFalse (mem sv 30)
+                      , isFalse (mem sv 31)
                     ]
-                  , Unit.it "provides default with getOrDefault [2]" (Unit.isEq (-1) (StencilVector.getOrDefault sv 2 (-1)))
-                  , Unit.it "provides default with getOrDefault [4]" (Unit.isEq (-1) (StencilVector.getOrDefault sv 4 (-1)))
-                  , Unit.it "is valid"           (Unit.isTrue (StencilVector.valid sv))
-                  , Unit.it "is not null"        (Unit.isFalse (StencilVector.null sv))
-                  , Unit.it "has 10 as its mask" (Unit.isEq 10 (StencilVector.mask sv))
-                  , Unit.it "has length 2"       (Unit.isEq 2 (StencilVector.length sv))
+                  , it "provides default with getOrDefault [2]" (isEq (-1) (getOrDefault sv 2 (-1)))
+                  , it "provides default with getOrDefault [4]" (isEq (-1) (getOrDefault sv 4 (-1)))
+                  , it "is valid"           (isTrue (valid sv))
+                  , it "is not null"        (isFalse (null sv))
+                  , it "has 10 as its mask" (isEq 10 (mask sv))
+                  , it "has length 2"       (isEq 2 (length sv))
                 ]
             end,
-            let val sv = StencilVector.set (StencilVector.singleton 2 false) 2 true
-            in Unit.group "set (singleton 2 false) 2 true" [
-                    Unit.it "has a member at [2]" (Unit.isTrue (StencilVector.mem sv 2))
-                  , Unit.it "provides value with get [2]" (Unit.isEq true (StencilVector.get sv 2))
-                  , Unit.it "has no other members" [
-                        Unit.isFalse (StencilVector.mem sv 0)
-                      , Unit.isFalse (StencilVector.mem sv 1)
-                      , Unit.isFalse (StencilVector.mem sv 3)
-                      , Unit.isFalse (StencilVector.mem sv 4)
-                      , Unit.isFalse (StencilVector.mem sv 7)
-                      , Unit.isFalse (StencilVector.mem sv 16)
-                      , Unit.isFalse (StencilVector.mem sv 30)
-                      , Unit.isFalse (StencilVector.mem sv 31)
+            let val sv = set (singleton 2 false) 2 true
+            in group "set (singleton 2 false) 2 true" [
+                    it "has a member at [2]" (isTrue (mem sv 2))
+                  , it "provides value with get [2]" (isEq true (get sv 2))
+                  , it "has no other members" [
+                        isFalse (mem sv 0)
+                      , isFalse (mem sv 1)
+                      , isFalse (mem sv 3)
+                      , isFalse (mem sv 4)
+                      , isFalse (mem sv 7)
+                      , isFalse (mem sv 16)
+                      , isFalse (mem sv 30)
+                      , isFalse (mem sv 31)
                     ]
-                  , Unit.it "is valid"          (Unit.isTrue (StencilVector.valid sv))
-                  , Unit.it "is not null"       (Unit.isFalse (StencilVector.null sv))
-                  , Unit.it "has 4 as its mask" (Unit.isEq 4 (StencilVector.mask sv))
-                  , Unit.it "has length 1"      (Unit.isEq 1 (StencilVector.length sv))
+                  , it "is valid"          (isTrue (valid sv))
+                  , it "is not null"       (isFalse (null sv))
+                  , it "has 4 as its mask" (isEq 4 (mask sv))
+                  , it "has length 1"      (isEq 1 (length sv))
                 ]
             end,
-            let val sv = StencilVector.unset (StencilVector.singleton 7 42) 7
-            in Unit.group "unset (singleton 7 42) 7" [
-                    Unit.it "is equivalent to (empty)" (Unit.isEq StencilVector.empty sv)
+            let val sv = unset (singleton 7 42) 7
+            in group "unset (singleton 7 42) 7" [
+                    it "is equivalent to (empty)" (isEq empty sv)
                 ]
             end,
-            let val sv = StencilVector.unset (StencilVector.set (StencilVector.singleton 2 false) 4 true) 4
-            in Unit.group "unset (set (singleton 2 false) 4 true) 2" [
-                    Unit.it "is equivalent to (singleton 2 false)" (Unit.isEq (StencilVector.singleton 2 false) sv)
-                  , Unit.it "provides value with getOrDefault [2]" (Unit.isEq false (StencilVector.getOrDefault sv 2 (-1)))
-                  , Unit.it "provides default with getOrDefault [4]" (Unit.isEq (-1) (StencilVector.getOrDefault sv 4 (-1)))
+            let val sv = unset (set (singleton 2 false) 4 true) 4
+            in group "unset (set (singleton 2 false) 4 true) 2" [
+                    it "is equivalent to (singleton 2 false)" (isEq (singleton 2 false) sv)
+                  , it "provides value with getOrDefault [2]" (isEq false (getOrDefault sv 2 (-1)))
+                  , it "provides default with getOrDefault [4]" (isEq (-1) (getOrDefault sv 4 (-1)))
                 ]
             end,
-            let val sv = StencilVector.unset (StencilVector.set (StencilVector.set (StencilVector.empty) 2 false) 4 true) 2
-            in Unit.group "unset (set (set (empty) 2 false) 4 true) 2" [
-                    Unit.it "is equivalent to (singleton 4 true)" (Unit.isEq (StencilVector.singleton 4 true) sv)
-                  , Unit.it "provides default with getOrDefault [2]" (Unit.isEq (-1) (StencilVector.getOrDefault sv 2 (-1)))
-                  , Unit.it "provides value with getOrDefault [4]" (Unit.isEq true (StencilVector.getOrDefault sv 4 (-1)))
+            let val sv = unset (set (set (empty) 2 false) 4 true) 2
+            in group "unset (set (set (empty) 2 false) 4 true) 2" [
+                    it "is equivalent to (singleton 4 true)" (isEq (singleton 4 true) sv)
+                  , it "provides default with getOrDefault [2]" (isEq (-1) (getOrDefault sv 2 (-1)))
+                  , it "provides value with getOrDefault [4]" (isEq true (getOrDefault sv 4 (-1)))
                 ]
             end,
             let fun inc x = x+1
                 fun dec x = x-1
-            in Unit.group "map (+/- 1)" [
-                    Unit.it "does nothing to (empty)" (Unit.isEq StencilVector.empty (StencilVector.map inc StencilVector.empty))
-                  , let val sv  = StencilVector.singleton 2 1
-                        val sv' = StencilVector.map inc (StencilVector.singleton 2 0)
-                    in Unit.it "can increment (singleton 2 0)" (Unit.isEq sv sv')
+            in group "map (+/- 1)" [
+                    it "does nothing to (empty)" (isEq empty (map inc empty))
+                  , let val sv  = singleton 2 1
+                        val sv' = map inc (singleton 2 0)
+                    in it "can increment (singleton 2 0)" (isEq sv sv')
                     end
-                  , let val sv  = StencilVector.set (StencilVector.singleton 1 2) 3 3
-                        val sv' = StencilVector.map inc (StencilVector.set (StencilVector.singleton 1 1) 3 2)
-                    in Unit.it "can increment (set (singleton 1 1) 3 2)" (Unit.isEq sv sv')
+                  , let val sv  = set (singleton 1 2) 3 3
+                        val sv' = map inc (set (singleton 1 1) 3 2)
+                    in it "can increment (set (singleton 1 1) 3 2)" (isEq sv sv')
                     end
-                  , let val sv  = StencilVector.set (StencilVector.singleton 1 0) 3 1
-                        val sv' = StencilVector.map dec (StencilVector.set (StencilVector.singleton 1 1) 3 2)
-                    in Unit.it "can decrement (set (singleton 1 1) 3 2)" (Unit.isEq sv sv')
+                  , let val sv  = set (singleton 1 0) 3 1
+                        val sv' = map dec (set (singleton 1 1) 3 2)
+                    in it "can decrement (set (singleton 1 1) 3 2)" (isEq sv sv')
                     end
                 ]
             end,
             let fun sum (x,y) = x+y
-            in Unit.group "fold (+)" [
-                    Unit.it "returns initial value for (empty)" (Unit.isEq 0 (StencilVector.fold sum 0 StencilVector.empty))
-                  , let val sv = StencilVector.singleton 4 42
-                    in Unit.it "computes 42 for (singleton 4 42)" (Unit.isEq 42 (StencilVector.fold sum 0 sv))
+            in group "fold (+)" [
+                    it "returns initial value for (empty)" (isEq 0 (fold sum 0 empty))
+                  , let val sv = singleton 4 42
+                    in it "computes 42 for (singleton 4 42)" (isEq 42 (fold sum 0 sv))
                     end
-                  , let val sv = StencilVector.set (StencilVector.singleton 4 42) 2 21
-                    in Unit.it "computes 64 for (set (singleton 4 42) 2 21)" (Unit.isEq 63 (StencilVector.fold sum 0 sv))
+                  , let val sv = set (singleton 4 42) 2 21
+                    in it "computes 64 for (set (singleton 4 42) 2 21)" (isEq 63 (fold sum 0 sv))
                     end
                 ]
             end
         ]
-in Unit.run authority tests end
+in run authority tests end
