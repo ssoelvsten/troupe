@@ -1,4 +1,0 @@
-let
-    fun foo () = "B"
-in [("foo", foo)]
-end

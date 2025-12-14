@@ -2,9 +2,6 @@ COMPILER=../bin/troupec
 
 build:
 	mkdir -p out
-  # Test libraries for qualified imports demonstration
-	$(COMPILER) ./A.trp -l
-	$(COMPILER) ./B.trp -l
   # Standard Library
 	$(COMPILER) ./Number.trp -l
 	$(COMPILER) ./List.trp -l
@@ -15,6 +12,8 @@ build:
 	$(COMPILER) ./StencilVector.trp -l
 	$(COMPILER) ./HashMap.trp -l
 	$(COMPILER) ./HashSet.trp -l
+  # Transition hack; 2025-12-14; AA 
+	$(COMPILER) ./Missing.trp -l 
   # Old stuff, here be dragons...
 	$(COMPILER) ./nsuref.trp -l
 	$(COMPILER) ./printService.trp -l
