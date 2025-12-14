@@ -27,6 +27,7 @@ import qualified Data.Set as Set
 import           Control.Monad
 import           Control.Monad.State.Lazy as State
 import           Control.Monad.RWS
+import           Control.Monad.Except
 
 import qualified Text.PrettyPrint.HughesPJ as PP
 import           Text.PrettyPrint.HughesPJ (
@@ -221,14 +222,15 @@ lower (D.Un op e) = Un op (lower e)
 
 -- This is the only function that is exported here
 
-renameProg :: Prog -> Prog
+renameProg :: Prog -> Except String Prog
 renameProg (Prog imports (Atoms atms) term) =
   let alist = map (\ a -> (a, a)) atms
       initEnv    = Map.fromList alist
       initReader = mapFromImports imports
       initState  = 0
-      (term', _) = evalRWS (rename term initEnv) initReader initState
-  in Prog imports (Atoms atms) term'
+  in do
+      (term', _, _) <- runRWST (rename term initEnv) initReader initState
+      return $ Prog imports (Atoms atms) term'
 
 -- The rest of the declarations here are not exported
 
@@ -246,15 +248,15 @@ threaded explicitly. That is encoded in the `Env` map.
 --}
 
 
-type S = RWS LibEnv () Integer
+type S = RWST LibEnv () Integer (Except String)
 
 -- | Environment for unqualified imports: maps function names to their library
 type UnqualifiedLibEnv = Map.Map VarName LibName
--- | Set of all imported library names (both qualified and unqualified)
--- Used for resolving A.foo() syntax
-type ImportedLibNames = Set.Set LibName
+-- | Map from library name to set of exported names
+-- Used for resolving and validating A.foo() syntax
+type LibExports = Map.Map LibName (Set.Set VarName)
 -- | Combined environment for the Reader monad
-type LibEnv = (UnqualifiedLibEnv, ImportedLibNames)
+type LibEnv = (UnqualifiedLibEnv, LibExports)
 
 type Env    = Map.Map VarName VarName
 
@@ -266,11 +268,12 @@ mapFromImports (Imports imports) =
     unqualifiedImports = [(lib, defs) | (lib, Just defs, Unqualified) <- imports]
     unqualEnv = foldl insLib Map.empty unqualifiedImports
 
-    -- Build set of ALL imported library names (both qualified and unqualified)
-    -- This is used for resolving A.foo() syntax
-    allLibNames = Set.fromList [lib | (lib, _, _) <- imports]
+    -- Build map from library name to set of exported names
+    -- This is used for resolving and validating A.foo() syntax
+    libExports = Map.fromList
+      [(lib, Set.fromList defs) | (lib, Just defs, _) <- imports]
   in
-    (unqualEnv, allLibNames)
+    (unqualEnv, libExports)
   where
     insLib m (lib, defs) =
       foldl (\m' def -> Map.insert def lib m') m defs
@@ -375,10 +378,14 @@ rename (ProjField t f) m = do
       -- Check if this is a qualified module access (e.g., A.foo)
       -- At this stage, vars are RegVar from lowering, so we check RegVar
       Var (RegVar v) | not (Map.member v m) -> do
-        (_, allLibNames) <- ask
-        return $ if Set.member (LibName v) allLibNames
-                 then Just (Var (LibVar (LibName v) f))
-                 else Nothing
+        (_, libExports) <- ask
+        case Map.lookup (LibName v) libExports of
+          Just exports ->
+            if Set.member f exports
+            then return $ Just (Var (LibVar (LibName v) f))
+            else lift $ throwError $
+              "Library '" ++ v ++ "' does not export '" ++ f ++ "'"
+          Nothing -> return Nothing  -- Not a library access
       _ -> return Nothing
 rename (ProjIdx t idx) m = do
   t' <- rename t m
