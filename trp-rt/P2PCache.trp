@@ -1,0 +1,71 @@
+(* Peer-to-Peer Caching Layer *)
+import String
+import HashMap
+
+(* TODO: Remove cache thread loop?
+ *
+ *       The whole thread loop seems not relevant at this point? We might as well just make the
+ *       exposed 'get' and 'set' be given the cache as an argument?
+ *)
+
+(* TODO: Garbage Collection
+ *
+ *       We should store the time of insertion (or latest time touched). This can then be used to
+ *       filter everything.
+ *)
+
+datatype Atoms = GET
+               | GET_REPLY
+               | SET
+
+let (** "Hashing" function: convert the first four characters to a 32 bit number *)
+    fun hashSha256 key =
+        let fun getChar i = String.subCode (key, i)
+        in
+            (getChar 0) orb (getChar 1) << 8  orb (getChar 2) << 16 orb (getChar 3) << 24
+        end
+
+    val colorStart = "\x1b[33m"
+    val colorEnd   = "\x1b[0m"
+
+    (** Define and spawn cache loop *)
+    fun threadLoop map =
+        receive [
+            hn (SET, key, value, origin) =>
+            let val _ = print (colorStart ^ "Troupe::P2PCache::set(" ^ (toStringL key) ^ ")" ^ colorEnd)
+                (* NOTE: Declassify the 'print' / '^' *)
+                val _ = blockdecl authority
+                val map' = HashMap.insert map authority key value
+            in threadLoop map' end,
+
+            hn (GET, key, origin) =>
+            let val _ = print (colorStart ^ "Troupe::P2PCache::get(" ^ (toStringL key) ^ ")" ^ colorEnd)
+                (* NOTE: Declassify the 'print' / '^' *)
+                val _ = blockdecl authority
+                val vals = HashMap.findAll map authority key
+                val _ = print (colorStart ^ "   -> " ^ (toStringL vals) ^ colorEnd)
+                (* NOTE: Declassify the 'print' / '^' *)
+                val _ = blockdecl authority
+                val value = case vals of []  => []
+                                      | v::_ => [v]
+                (* NOTE: Declassify the `case` pattern match. *)
+                val _ = blockdecl authority
+                val _ = send (origin, (GET_REPLY, value))
+                (* NOTE: Declassify whether the 'send' is blocking *)
+                val _ = blockdecl authority
+            in threadLoop map end
+        ]
+
+    val tid = spawn (fn () => threadLoop (HashMap.empty hashSha256))
+
+    (** API Setter function *)
+    fun set (key, value) = send (tid, (SET, key, value, self()))
+
+    (** API Getter function *)
+    fun get (key, _) =
+        let val _ = send (tid, (GET, key, self()))
+            val value = receive [ hn (GET_REPLY, value) => value ]
+        in value end
+in
+    [ ("set", set), ("get", get) ]
+end

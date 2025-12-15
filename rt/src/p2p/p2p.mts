@@ -590,6 +590,9 @@ async function inputHandler(peerId: PeerId, input: Message) {
       // Get the runtime to find the value
       const data = await _rtHandlers[MessageType.RequestHash](input.hash, peerId.toString());
 
+      // If `undefined`, the runtime did not want to respond.
+      if (!data) { break; }
+
       // Reply with a RequestHashReply
       push(peerId, {
         messageType: MessageType.RequestHashReply,

@@ -32,8 +32,9 @@ import { mkLogger } from './logger.mjs'
 import { RawRecord } from './base/RawRecord.mjs';
 import { level } from 'winston';
 import { RawProcessID } from './base/RawProcessID.mjs';
-import { sendCache, recvCache } from './p2pCache.mjs';
+import { sendCache, recvCache, initP2PCaches } from './p2pCache.mjs';
 import isEqual from './base/isEqual.mjs';
+import { LocalObject } from './base/LocalObject.mjs';
 
 const readFile = fs.promises.readFile
 const argv = getCliArgs();
@@ -198,14 +199,20 @@ async function receiveHashFromRemote(pid: string, jsonObj1: any, fromNode: strin
     return;
   }
 
+  const toPid = new LVal(mkProcessID(runId, pid, __nodeManager.getLocalNode()), hash.lev);
+  const fromNodeId = new LVal(fromNode, hash.lev);
+
   __sched.resumeLoopAsync();
-  const cached: MbVal = await recvCache.get(hash, fromNodeLevel);
+  const cached: any /* SerializedValue */ = await recvCache.get(hash, fromNodeLevel);
+
   if (cached) {
-    // If successful, add the deserialized message to the mailbox of said process.
-    // TODO (): .
-    const fromNodeId = new LVal(fromNode, hash.lev);
-    const toPid = new LVal(mkProcessID(runId, pid, __nodeManager.getLocalNode()), hash.lev);
-    __theMailbox.addMessage(fromNodeId, toPid, cached, hash.lev);
+    // HACK: Currently, `DS.deserialize` is taking care of two things at once: (1) creating a
+    //       Troupe runtime value and (2) downgrade it to the trustLevel of `fromNodeLevel`.
+    //
+    //       Hence, we will have to deserialize the value anew instead of merely downgrading a
+    //       previously deserialized value.
+    const data: MbVal = await DS.deserialize(fromNodeLevel, cached);
+    __theMailbox.addMessage(fromNodeId, toPid, data.val, hash.lev);
     __sched.resumeLoopAsync();
     return;
   }
@@ -219,12 +226,10 @@ async function receiveHashFromRemote(pid: string, jsonObj1: any, fromNode: strin
       logger.error("mismatching hash for unknown value; dropping message.");
       return;
     }
-    recvCache.set(dataHash, data)
+    recvCache.set(hash, jsonObj2);
 
     // If successful, add the deserialized message to the mailbox of said process.
-    const fromNodeId = new LVal(fromNode, data.lev);
-    const toPid = new LVal(mkProcessID(runId, pid, __nodeManager.getLocalNode()), data.lev);
-    __theMailbox.addMessage(fromNodeId, toPid, data.val, data.lev);
+    __theMailbox.addMessage(fromNodeId, toPid, data.val, hash.lev);
     __sched.resumeLoopAsync();
   } catch (err) {
     logger.error("error fetching unknown value associated with hash; dropping message.");
@@ -286,7 +291,10 @@ function sendByHashToRemote(toPid: LVal<RawProcessID>, message: LVal): void {
   const node = toPid.val.node.nodeId;
   const pid = toPid.val.pid;
 
-  const hash = LValUtil.hash(message);
+  // TODO (aggregate types): Include (deep) level annotations as part of the hash.
+  //
+  // Use `LVal.copy` to raise its access level to `$t().pc` and not merely `message`.
+  const hash = LVal.copy(LValUtil.hash(message), $t().pc);
   const { data, level } = serialize(hash, $t().pc);
 
   const trustLevel = nodeTrustLevel(node);
@@ -297,7 +305,7 @@ function sendByHashToRemote(toPid: LVal<RawProcessID>, message: LVal): void {
     return;
   }
 
-  sendCache.set(hash, new MbVal(message, $t().pc));
+  sendCache.set(hash, serialize(new MbVal(message), $t().pc));
   p2p.sendByHash(node, pid, data);
 }
 
@@ -312,13 +320,21 @@ async function requestHashFromRemote(jsonObj: any, fromNode: string): Promise<an
     return;
   }
 
-  const message = sendCache.get(hash);
-  const { data, level } = serialize(message, levels.BOT);
+  const serializedMessage: any /* SerializedValue */ = await sendCache.get(hash);
+  if (!serializedMessage) {
+    logger.error("Failing request for sendCache::get(...)\n" +
+                 ` | the trust level of the recipient node: ${fromNodeLevel.stringRep()}`);
+    return undefined;
+  }
+
+  const { data, level } = serializedMessage;
 
   if (!flowsTo(level, fromNodeLevel)) {
-    logger.error("Illegal trust flow of output of sendCache::get(...)\n" +
+    logger.error("Illegal trust flow of value from sendCache::get(...)\n" +
                  ` | the trust level of the recipient node: ${fromNodeLevel.stringRep()}\n` +
-                 ` | the level of the information to send:  ${level.stringRep()}`);
+                 ` | the level of the key requested: ${hash.lev.stringRep()}\n` +
+                 ` | the level of the value to send: ${level.stringRep()}`);
+    return undefined;
   }
 
   return data;
@@ -574,6 +590,9 @@ export async function start(f) {
           , levels.BOT
           , ThreadType.System);
   }
+
+  // Set up 'cache' threads
+  await initP2PCaches(__userRuntime, __sched);
 
   // Set up 'main' thread
   const mainAuthority = new LVal(mkAuthority(levels.ROOT), levels.BOT);
