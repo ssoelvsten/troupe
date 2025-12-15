@@ -252,9 +252,10 @@ type S = RWST LibEnv () Integer (Except String)
 
 -- | Environment for unqualified imports: maps function names to their library
 type UnqualifiedLibEnv = Map.Map VarName LibName
--- | Map from library name to set of exported names
+-- | Map from effective library name (alias or original) to:
+--   (original library name for codegen, set of available exports)
 -- Used for resolving and validating A.foo() syntax
-type LibExports = Map.Map LibName (Set.Set VarName)
+type LibExports = Map.Map LibName (LibName, Set.Set VarName)
 -- | Combined environment for the Reader monad
 type LibEnv = (UnqualifiedLibEnv, LibExports)
 
@@ -264,22 +265,36 @@ type Env    = Map.Map VarName VarName
 mapFromImports :: Imports -> LibEnv
 mapFromImports (Imports imports) =
   let
-    -- Build unqualified environment (only unqualified imports)
-    unqualifiedImports = [(lib, defs) | (lib, Just defs, Unqualified) <- imports]
-    unqualEnv = foldl insLib Map.empty unqualifiedImports
+    -- Get effective exports: use selected if specified, otherwise all exports
+    effectiveExports imp = case importSelected imp of
+      Just selected -> selected
+      Nothing -> case importExports imp of
+        Just exports -> exports
+        Nothing -> []
 
-    -- Build map from library name to set of exported names
+    -- Get effective name for qualified access: alias if present, otherwise original
+    effectiveName imp = case importAlias imp of
+      Just alias -> alias
+      Nothing -> importLib imp
+
+    -- Build unqualified environment (only unqualified imports)
+    -- Maps each exported function name to the original library
+    unqualifiedImports = [imp | imp <- imports, importMode imp == Unqualified]
+    unqualEnv = foldl insLib Map.empty unqualifiedImports
+      where
+        insLib m imp =
+          let lib = importLib imp
+              defs = effectiveExports imp
+          in foldl (\m' def -> Map.insert def lib m') m defs
+
+    -- Build map from effective name (alias or original) to (original lib, effective exports)
     -- This is used for resolving and validating A.foo() syntax
     libExports = Map.fromList
-      [(lib, Set.fromList defs) | (lib, Just defs, _) <- imports]
+      [ (effectiveName imp, (importLib imp, Set.fromList (effectiveExports imp)))
+      | imp <- imports
+      ]
   in
     (unqualEnv, libExports)
-  where
-    insLib m (lib, defs) =
-      foldl (\m' def -> Map.insert def lib m') m defs
-           -- TODO: 2018-07-02; better error message for the above case
-           -- or even better: a data structure that avoids needing to make a check like that
-           -- (we should be in theory able to do that)
 
 
 -- | Sanitize variable names to be JavaScript-compatible identifiers
@@ -375,14 +390,14 @@ rename (ProjField t f) m = do
       return $ ProjField t' f
   where
     tryQualifiedAccess = case t of
-      -- Check if this is a qualified module access (e.g., A.foo)
+      -- Check if this is a qualified module access (e.g., A.foo or Alias.foo)
       -- At this stage, vars are RegVar from lowering, so we check RegVar
       Var (RegVar v) | not (Map.member v m) -> do
         (_, libExports) <- ask
         case Map.lookup (LibName v) libExports of
-          Just exports ->
+          Just (originalLib, exports) ->
             if Set.member f exports
-            then return $ Just (Var (LibVar (LibName v) f))
+            then return $ Just (Var (LibVar originalLib f))  -- Use original lib for codegen
             else lift $ throwError $
               "Library '" ++ v ++ "' does not export '" ++ f ++ "'"
           Nothing -> return Nothing  -- Not a library access

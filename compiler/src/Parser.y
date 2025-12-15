@@ -48,6 +48,7 @@ import Control.Monad.Except
     when  { L _ TokenWhen }
     with  { L _ TokenWith }
     qualified { L _ TokenQualified }
+    as    { L _ TokenAs }
     true  { L _ TokenTrue }
     false { L _ TokenFalse }
     andalso { L _ TokenAndAlso }
@@ -137,11 +138,21 @@ import Control.Monad.Except
 
 Prog : ImportDecl AtomsDecl Expr                       { Prog (Imports $1) (Atoms $2) $3 }
 
-ImportDecl: import VAR ImportDecl
-              { ((LibName (varTok $2), Nothing, Unqualified)): $3 }
-          | import qualified VAR ImportDecl
-              { ((LibName (varTok $3), Nothing, Qualified)): $4 }
+ImportDecl: import OptQualified OptSelection VAR OptAlias ImportDecl
+              { (ImportDecl (LibName (varTok $4)) $5 Nothing $3 $2) : $6 }
           | { [] }
+
+OptQualified : qualified  { Qualified }
+             | { Unqualified }
+
+OptSelection : '{' VarList '}'  { Just $2 }
+             | { Nothing }
+
+OptAlias : as VAR   { Just (LibName (varTok $2)) }
+         | { Nothing }
+
+VarList : VAR              { [varTok $1] }
+        | VAR ',' VarList  { (varTok $1) : $3 }
 
 
 AtomsDecl : datatype Atoms '=' VAR AtomsList    { (varTok $4):$5 }

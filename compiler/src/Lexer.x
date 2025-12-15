@@ -103,6 +103,7 @@ tokens:-
 <0>   when                           { mkL TokenWhen }
 <0>   with                           { mkL TokenWith }
 <0>   qualified                      { mkL TokenQualified }
+<0>   as                             { mkL TokenAs }
 <0>   datatype                       { mkL TokenDatatype }
 <0>   div                            { mkL TokenIntDiv }
 <0>   mod                            { mkL TokenMod }
@@ -208,6 +209,7 @@ data Token
   | TokenWhen
   | TokenWith
   | TokenQualified
+  | TokenAs
   | TokenDatatype
   | TokenAtoms
   | TokenIntDiv 
