@@ -39,7 +39,6 @@ let (* NOTE: The map is implemented as a Hash Array Mapped Trie (HAMT), i.e. a p
 
     (** Filter a leaf to all entries that match the given key. That is, returns `[value]` for
      *  `value` associated with key `k` and `[]` otherwise. *)
-    (* TODO (Optimisation): early termination if found. *)
     fun leaf_findOpt n k = ListPair.findOpt n k
 
     (* TODO (Optimisation): combined find/map instead of filter? *)
