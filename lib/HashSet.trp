@@ -40,10 +40,7 @@ let (* NOTE: The set is implemented as a HashMap with dummy values, `()`. This i
 
     (** Returns the set (using the provided hash function) that contains all elements in the given
         list. Tail-recursive. *)
-    (* TODO: Prettier code would be `HashMap.fromList (List.map (fn x => (x, dummy)))`; if
-     *       `HashMap.fromList` suddenly gets optimised, then we can piggyback on that. Yet, this
-     *       would result in O(n) extra time and space usage. *)
-    fun fromList hf xs = List.foldl (fn (x, s) => insert s x) (empty hf) xs
+    fun fromList hf xs = HashMap.fromList hf (List.map (fn x => (x, dummy)) xs)
 
 in [ ("empty", empty)
    , ("singleton", singleton)
