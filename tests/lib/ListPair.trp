@@ -53,6 +53,13 @@ let val tests = Unit.group "ListPair" [
               , Unit.it "returns 42 for [(1,'a'), (0,42), (2,3), (0,'no')] 0"
                         (Unit.isEq 42 (ListPair.find [(1,"a"), (0,42), (2,3), (0,"no")] 0))
             ],
+            Unit.group "findOrDefault" [
+                Unit.it "returns '?' for [] 42 '?'"           (Unit.isEq "?" (ListPair.findOrDefault [] 42 "?"))
+              , Unit.it "returns '!' for [(0,42)] 42 '!'"     (Unit.isEq "!" (ListPair.findOrDefault [(0,42)] 42 "!"))
+              , Unit.it "returns 42 for [(0,42)] 0 '¡'" (Unit.isEq 42 (ListPair.findOrDefault [(0,42)] 0 "¡"))
+              , Unit.it "returns 42 for [(1,'a'), (0,42), (2,3), (0,'no')] 0 '@'"
+                        (Unit.isEq 42 (ListPair.findOrDefault [(1,"a"), (0,42), (2,3), (0,"no")] 0 "@"))
+            ],
             Unit.group "mem" [
                 Unit.it "rejects [] for 42"       (Unit.isFalse (ListPair.mem [] 42))
               , Unit.it "rejects [(0,42)] for 42" (Unit.isFalse (ListPair.mem [(0,42)] 42))

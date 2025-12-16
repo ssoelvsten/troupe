@@ -48,6 +48,10 @@ let (* -- ListPair Generation -- *)
     (** Returns the first value associated with the `key`. *)
     fun find xs key = case findOpt xs key of [v] => v
 
+    (** Returns the first value associated with the `key`; otherwise `default`. *)
+    fun findOrDefault xs key default = case findOpt xs key of [v] => v
+                                                            | []  => default
+
     (** Returns `true` if the given key is associated with at least one value. *)
     fun mem m key = case findOpt m key of [] => false
                                         | _  => true
@@ -71,6 +75,7 @@ in [ ("zip", zip)
    , ("revAppend", revAppend)
    , ("findOpt", findOpt)
    , ("find", find)
+   , ("findOrDefault", findOrDefault)
    , ("mem", mem)
    , ("map", map)
    , ("foldl", foldl)
