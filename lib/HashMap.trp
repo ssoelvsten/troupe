@@ -1,5 +1,4 @@
 import List
-import ListPair
 import StencilVector
 
 let (* NOTE: The map is implemented as a Hash Array Mapped Trie (HAMT), i.e. a prefix(ish) trie over
@@ -37,18 +36,37 @@ let (* NOTE: The map is implemented as a Hash Array Mapped Trie (HAMT), i.e. a p
     (** Returns the size of the bucket. *)
     val leaf_size = List.length
 
-    (** Filter a leaf to all entries that match the given key. That is, returns `[value]` for
-     *  `value` associated with key `k` and `[]` otherwise. *)
-    fun leaf_findOpt n k = ListPair.findOpt n k
+    (** Filter a leaf to all values that match the given key and that are visible at the given
+     *  access level. *)
+    fun leaf_get n auth k =
+        let val kL = levelOf k
+            val n' = List.filter (fn (k',_) => (k = k') andalso (flowsTo (levelOf k', kL))) n
+            (* NOTE: Declassify success of filtering. *)
+            val _ = blockdecl auth
+            val n'' = List.map (fn (_,v) => v) (declassify (n', auth, kL))
+            (* NOTE: Declassify success of mapping. *)
+            val _ = blockdecl auth
+        in n'' end
 
-    (* TODO (Optimisation): combined find/map instead of filter? *)
-    (* TODO (Optimisation): make each add tail-recursive at the cost of reversing the bucket? *)
-    fun leaf_set n k v = (k,v)::(List.filter (fn (k',_) => k <> k') n)
+    (** Remove key `k` and its associated value from a leaf `n`.
+     *
+     * This also removes any entries at a higher access level than via `k`. Essentially, they can
+     * see a *deletion* in their operations history.
+     *)
+    fun leaf_unset n auth key =
+        let val keyL = levelOf key
+            val n' = List.filter (fn (k',_) => (key <> k')
+                                               orelse (false = (flowsTo (keyL, levelOf k')))) n
+            (* NOTE: Declassify success of filtering. *)
+            val _ = blockdecl auth
+        in  (* NOTE: Declassify the bucket structure - but not its content. This implicitly also
+             *       declassifies whether there were matching keys for `k`. *)
+            declassify (n', auth, levelOf n)
+        end
 
-    (** Remove `key` and its associated value from a leaf `n`. *)
-    (* TODO (Optimisation): make each deletion tail-recursive at the cost of reversing the
-     *                      bucket? *)
-    fun leaf_unset n k = List.filter (fn (k',_) => k <> k') n
+    (** Set key `k` in `n` to value `v`. This removes all other entries with the same key which
+     *  flow to the access level `k`. *)
+    fun leaf_set n auth k v = (k,v)::(leaf_unset n auth k)
 
     (** Fold over all key-value pairs in bucket. *)
     val leaf_fold = List.foldl
@@ -87,17 +105,24 @@ let (* NOTE: The map is implemented as a Hash Array Mapped Trie (HAMT), i.e. a p
     (** Returns a map using hash function, `hf`, and stores the single `key`-`value` pair. *)
     fun singleton hf key value = (hf, leaf_make key value)
 
-    (** Returns the map with the given `key`-`value` pair inserted. *)
-    fun insert (hf,t) key value =
-        let val h = hf key
+    (** Returns the map with the given `key`-`value` pair inserted. This overwrites any existing
+     *  matching keys that `key` flows to. *)
+    fun insert (hf,t) authority key value =
+        let (* NOTE: Declassify hashing `key` doesn't crash and the hash itself. *)
+            val h = hf key
+            val _ = blockdecl authority
+            val h = declassify (h, authority, levelOf t)
             fun insertRec t' d =
                 if leaf_isEmpty t'
                 then leaf_make key value else
                 if leaf_isLeaf t'
-                then let val h' = leaf_hash hf t'
+                then let (* NOTE: Declassifying  `t'` doesn't crash and the hash itself. *)
+                         val h' = leaf_hash hf t'
+                         val _ = blockdecl authority
+                         val h' = declassify (h', authority, levelOf t')
                      in if h = h'
                         then (* Add key-value pair, if the hashes match. *)
-                             leaf_set t' key value
+                             leaf_set t' authority key value
                         else (* Otherwise, add new intermediate node for `h'` and recurse. *)
                              let val idx  = node_hashToIdx h  d
                                  val idx' = node_hashToIdx h' d
@@ -110,16 +135,23 @@ let (* NOTE: The map is implemented as a Hash Array Mapped Trie (HAMT), i.e. a p
                      in node_setChild t' idx c' end
         in (hf, insertRec t 0) end
 
-    (** Returns the map without the given `key` and its value removed. *)
-    fun remove (hf,t) key =
-        let val h = hf key
+    (** Returns the map without the given `key` and `value` insofar matching keys flow to `key`. *)
+    fun remove (hf,t) authority key =
+        let (* NOTE: Declassify hashing `key` doesn't crash and the hash itself. *)
+            val h = hf key
+            val _ = blockdecl authority
+            val h = declassify (h, authority, levelOf t)
             fun removeRec t' d =
                 if leaf_isEmpty t'
                 then t' else
                 if leaf_isLeaf t'
-                then if h = (leaf_hash hf t')
-                     then leaf_unset t' key
-                     else t'
+                then let (* NOTE: Declassify hashing `key` doesn't crash and the hash itself. *)
+                         val h' = leaf_hash hf t'
+                         val _ = blockdecl authority
+                     in if h = declassify (leaf_hash hf t', authority, levelOf t)
+                        then leaf_unset t' authority key
+                        else t'
+                     end
                 else let (* Recurse *)
                          val idx = node_hashToIdx h d
                          val c'  = removeRec (node_getChild t' idx) (d+1)
@@ -141,26 +173,44 @@ let (* NOTE: The map is implemented as a Hash Array Mapped Trie (HAMT), i.e. a p
     (** Returns `true` if the map is empty. *)
     fun null (_,t) = leaf_isEmpty t
 
-    (** Returns the `[value]` associated with the `key` if it exists; otherwise, `[]`. *)
-    (* HACK (#53): Use option type instead of list. *)
-    fun findOpt (hf,t) key =
-        let val h = hf key
-            fun findOptRec t' d =
+    (** Returns a list of all `value`s associated with the `key` up to its level.
+     *)
+    fun findAll (hf,t) authority key =
+        let (* NOTE: Declassify hashing `key` doesn't crash and the hash itself. *)
+            val h = hf key
+            val _ = blockdecl authority
+            val h = declassify (h, authority, levelOf t)
+            fun findAllRec t' d =
                 if leaf_isEmpty t'
                 then [] else
                 if leaf_isLeaf t'
-                then if h <> (leaf_hash hf t')
-                     then []
-                     else leaf_findOpt t' key
-                else findOptRec (node_getChild t' (node_hashToIdx h d)) (d+1)
-        in findOptRec t 0 end
+                then let (* NOTE: Declassify hash of `t'` and that it doesn't crash. *)
+                         val h' = leaf_hash hf t'
+                         val _ = blockdecl authority
+                         val h' = declassify (h', authority, levelOf t')
+                     in if h <> h'
+                        then []
+                        else leaf_get t' authority key
+                     end
+                else findAllRec (node_getChild t' (node_hashToIdx h d)) (d+1)
+        in findAllRec t 0 end
 
-    (** Returns the value associated with the `key`. *)
-    fun find m key = case findOpt m key of [v] => v
+    (** Returns the (latest) value associated with the `key` up to its level.
+     *
+     *  \precondition `mem authority key = true` *)
+    fun find m authority key =
+        let val v' = case findAll m authority key of v::_ => v
+            (* NOTE: Declassify that the list was non-empty (precondition). *)
+            val _ = blockdecl authority
+        in v' end
 
-    (** Returns `true` if the given key is associated with a value. *)
-    fun mem m key = case findOpt m key of [] => false
-                                        | _  => true
+    (** Returns `true` if the given `key` is associated with a value up to said level. *)
+    fun mem m authority key =
+        let val x = case findAll m authority key of [] => false
+                                                  | _  => true
+            (* NOTE: Declassify success of deconstructing the list. *)
+            val _ = blockdecl authority
+        in x end
 
     (** Number of key-value pairs stored in the given map. *)
     (* TODO (Optimisation): Store size at root to make this O(1)? *)
@@ -168,6 +218,7 @@ let (* NOTE: The map is implemented as a Hash Array Mapped Trie (HAMT), i.e. a p
         let fun sizeRec t' = if leaf_isLeaf t'
                              then leaf_size t'
                              else node_fold (fn (c,acc) => acc + (sizeRec c)) 0 t'
+        (* NOTE: Declassifying during `insert` and `remove` makes this public information! *)
         in sizeRec t end
 
     (* TODO: equal. *)
@@ -197,7 +248,7 @@ let (* NOTE: The map is implemented as a Hash Array Mapped Trie (HAMT), i.e. a p
 
     (** Returns the map (using the provided hash function) that contains all key-value pairs in the
         given list. Tail-recursive. *)
-    fun fromList hf xs = List.foldl (fn ((k,v), m) => insert m k v) (empty hf) xs
+    fun fromList hf authority xs = List.foldl (fn ((k,v), m) => insert m authority k v) (empty hf) xs
 
     (*--- Module ---*)
     val HashMap = {
@@ -207,7 +258,7 @@ let (* NOTE: The map is implemented as a Hash Array Mapped Trie (HAMT), i.e. a p
         remove,
         null,
         size,
-        findOpt,
+        findAll,
         find,
         mem,
         fold,

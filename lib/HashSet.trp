@@ -13,7 +13,7 @@ let (* NOTE: The set is implemented as a HashMap with dummy values, `()`. This i
     fun singleton hf x = HashMap.singleton hf x dummy
 
     (** Returns the map with the given element, `x`, inserted. *)
-    fun insert s x = HashMap.insert s x dummy
+    fun insert s a x = HashMap.insert s a x dummy
 
     (** Returns the set without the given element, `x`. *)
     val remove = HashMap.remove
@@ -40,7 +40,7 @@ let (* NOTE: The set is implemented as a HashMap with dummy values, `()`. This i
 
     (** Returns the set (using the provided hash function) that contains all elements in the given
         list. Tail-recursive. *)
-    fun fromList hf xs = HashMap.fromList hf (List.map (fn x => (x, dummy)) xs)
+    fun fromList hf a xs = HashMap.fromList hf a (List.map (fn x => (x, dummy)) xs)
 
     (*--- Module ---*)
     val HashSet = {
