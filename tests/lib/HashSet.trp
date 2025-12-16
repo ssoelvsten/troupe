@@ -4,7 +4,10 @@ import HashSet
 
 let val empty     = HashSet.empty Hash.hash
     val singleton = HashSet.singleton Hash.hash
-    val fromList  = HashSet.fromList Hash.hash
+    fun insert s  = HashSet.insert s authority
+    fun remove s  = HashSet.remove s authority
+    fun mem    s  = HashSet.mem s authority
+    val fromList  = HashSet.fromList Hash.hash authority
 
     val tests = Unit.group "HashSet" [
             (* -- Empty, size, and mem -- *)
@@ -12,78 +15,78 @@ let val empty     = HashSet.empty Hash.hash
             in Unit.group "empty" [
                     Unit.it "is null"                           (Unit.isTrue  (HashSet.null m))
                   , Unit.it "has size 0"                        (Unit.isEq 0  (HashSet.size m))
-                  , Unit.it "does not contain 0"                (Unit.isFalse (HashSet.mem m 0))
-                  , Unit.it "does not contain 1"                (Unit.isFalse (HashSet.mem m 1))
+                  , Unit.it "does not contain 0"                (Unit.isFalse (mem m 0))
+                  , Unit.it "does not contain 1"                (Unit.isFalse (mem m 1))
                 ]
             end,
             (* -- Insert / Singleton, size, and mem -- *)
-            let val m = HashSet.insert (empty) 0
+            let val m = insert (empty) 0
             in Unit.group "insert (empty) 0" [
                     Unit.it "is not null"                (Unit.isFalse   (HashSet.null m))
                   , Unit.it "has size 1"                 (Unit.isEq 1    (HashSet.size m))
-                  , Unit.it "contains 0"                 (Unit.isTrue    (HashSet.mem m 0))
-                  , Unit.it "does not contain 1"         (Unit.isFalse   (HashSet.mem m 1))
+                  , Unit.it "contains 0"                 (Unit.isTrue    (mem m 0))
+                  , Unit.it "does not contain 1"         (Unit.isFalse   (mem m 1))
                 ]
             end,
             let val m = singleton 0
             in Unit.group "singleton 0" [
                     Unit.it "is equivalent to 'insert (empty) 0'"
-                            (Unit.isEq (HashSet.insert empty 0) m)
+                            (Unit.isEq (insert empty 0) m)
                 ]
             end,
             (* -- Insert (fromList), size, and mem -- *)
             let val m = fromList [0]
             in Unit.group "fromList [0]" [
                     Unit.it "is equivalent to 'insert (empty) 0'"
-                            (Unit.isEq (HashSet.insert empty 0) m)
+                            (Unit.isEq (insert empty 0) m)
                     ]
             end,
             let val m = fromList [1]
             in Unit.group "fromList [1]" [
                     Unit.it "is not null"                (Unit.isFalse   (HashSet.null m))
                   , Unit.it "has size 1"                 (Unit.isEq 1    (HashSet.size m))
-                  , Unit.it "does not contain 0"         (Unit.isFalse   (HashSet.mem m 0))
-                  , Unit.it "contains 1"                 (Unit.isTrue    (HashSet.mem m 1))
+                  , Unit.it "does not contain 0"         (Unit.isFalse   (mem m 0))
+                  , Unit.it "contains 1"                 (Unit.isTrue    (mem m 1))
                 ]
             end,
-            let val m = HashSet.insert (fromList [0]) 0
+            let val m = insert (fromList [0]) 0
             in Unit.group "insert (fromList [0]) 0" [
                     Unit.it "is not null"                 (Unit.isFalse   (HashSet.null m))
                   , Unit.it "has size 1"                  (Unit.isEq 1    (HashSet.size m))
-                  , Unit.it "contains 0"                  (Unit.isTrue    (HashSet.mem m 0))
-                  , Unit.it "does not contain 1"          (Unit.isFalse   (HashSet.mem m 1))
+                  , Unit.it "contains 0"                  (Unit.isTrue    (mem m 0))
+                  , Unit.it "does not contain 1"          (Unit.isFalse   (mem m 1))
                 ]
             end,
             let val m = fromList [1, 0]
             in Unit.group "fromList [1, 0]" [
                     Unit.it "is not null"                (Unit.isFalse   (HashSet.null m))
                   , Unit.it "has size 2"                 (Unit.isEq 2    (HashSet.size m))
-                  , Unit.it "contains 0"                 (Unit.isTrue    (HashSet.mem m 0))
-                  , Unit.it "contains 1"                 (Unit.isTrue    (HashSet.mem m 1))
+                  , Unit.it "contains 0"                 (Unit.isTrue    (mem m 0))
+                  , Unit.it "contains 1"                 (Unit.isTrue    (mem m 1))
                 ]
             end,
             let val m = fromList [0, 1]
             in Unit.group "fromList [1, 0]" [
                     Unit.it "is not null"                (Unit.isFalse   (HashSet.null m))
                   , Unit.it "has size 2"                 (Unit.isEq 2    (HashSet.size m))
-                  , Unit.it "contains 0"                 (Unit.isTrue    (HashSet.mem m 0))
-                  , Unit.it "contains 1"                 (Unit.isTrue    (HashSet.mem m 1))
+                  , Unit.it "contains 0"                 (Unit.isTrue    (mem m 0))
+                  , Unit.it "contains 1"                 (Unit.isTrue    (mem m 1))
                 ]
             end,
             (* -- Insert (fromList), delete, size, and findOpt (mem and find) -- *)
-            let val m  = HashSet.remove (fromList [0]) 0
+            let val m  = remove (fromList [0]) 0
                 val exp = fromList []
             in Unit.group "remove (fromList [0]) 0" [
                     Unit.it "is equivalent to fromList []" (Unit.isEq exp m)
                 ]
             end,
-            let val m   = HashSet.remove (fromList [0, 1]) 0
+            let val m   = remove (fromList [0, 1]) 0
                 val exp = fromList [1]
             in Unit.group "remove (fromList [0, 1]) 0" [
                     Unit.it "is equivalent to fromList [1]" (Unit.isEq exp m)
                 ]
             end,
-            let val m   = HashSet.remove (fromList [0, 1]) 1
+            let val m   = remove (fromList [0, 1]) 1
                 val exp = fromList [0]
             in Unit.group "remove (fromList [0, 1]) 1" [
                     Unit.it "is equivalent to fromList [0]" (Unit.isEq exp m)
