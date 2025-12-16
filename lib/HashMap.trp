@@ -159,6 +159,10 @@ let (* NOTE: The map is implemented as a Hash Array Mapped Trie (HAMT), i.e. a p
     (** Returns the value associated with the `key`. *)
     fun find m key = case findOpt m key of [v] => v
 
+    (** Returns the value associated with the `key`; otherwise `default`. *)
+    fun findOrDefault m key default = case findOpt m key of [v] => v
+                                                          | []  => default
+
     (** Returns `true` if the given key is associated with a value. *)
     fun mem m key = case findOpt m key of [] => false
                                         | _  => true
@@ -208,6 +212,7 @@ in [ ("empty", empty)
    , ("size", size)
    , ("findOpt", findOpt)
    , ("find", find)
+   , ("findOrDefault", findOrDefault)
    , ("mem", mem)
    , ("fold", fold)
    , ("keys", keys)
