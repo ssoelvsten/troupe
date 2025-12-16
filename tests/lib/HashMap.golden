@@ -1,4 +1,4 @@
-2025-09-05T06:43:01.771Z [RTM] [32minfo[39m: Skipping network creation. Observe that all external IO operations will yield a runtime error.
+2025-12-16T10:45:25.941Z [RTM] [32minfo[39m: Skipping network creation. Observe that all external IO operations will yield a runtime error.
 [34mbegin [0mHashMap
   [34mbegin [0mempty
       [33m[ TEST ][0m it is null      [32m[ PASS ][0m it is null
@@ -88,8 +88,8 @@
       [33m[ TEST ][0m it returns [42] for findOpt 1024      [32m[ PASS ][0m it returns [42] for findOpt 1024
       [33m[ TEST ][0m it returns 42 for find 1024      [32m[ PASS ][0m it returns 42 for find 1024
       [33m[ TEST ][0m it contains 1025      [32m[ PASS ][0m it contains 1025
-      [33m[ TEST ][0m it returns ['a'] for findOpt 1025      [32m[ PASS ][0m it returns ['a'] for findOpt 1025
-      [33m[ TEST ][0m it returns 'a' for find 1025      [32m[ PASS ][0m it returns 'a' for find 1025
+      [33m[ TEST ][0m it returns ['b'] for findOpt 1025      [32m[ PASS ][0m it returns ['b'] for findOpt 1025
+      [33m[ TEST ][0m it returns 'b' for find 1025      [32m[ PASS ][0m it returns 'b' for find 1025
       [33m[ TEST ][0m it does not contains 2      [32m[ PASS ][0m it does not contains 2
       [33m[ TEST ][0m it returns [] for findOpt 2      [32m[ PASS ][0m it returns [] for findOpt 2
   [34mend [0m
@@ -97,8 +97,8 @@
       [33m[ TEST ][0m it is not null      [32m[ PASS ][0m it is not null
       [33m[ TEST ][0m it has size 3      [32m[ PASS ][0m it has size 3
       [33m[ TEST ][0m it contains 0      [32m[ PASS ][0m it contains 0
-      [33m[ TEST ][0m it returns [21] for findOpt 0      [32m[ PASS ][0m it returns [21] for findOpt 0
-      [33m[ TEST ][0m it returns 21 for find 0      [32m[ PASS ][0m it returns 21 for find 0
+      [33m[ TEST ][0m it returns ['a'] for findOpt 0      [32m[ PASS ][0m it returns ['a'] for findOpt 0
+      [33m[ TEST ][0m it returns 'a' for find 0      [32m[ PASS ][0m it returns 'a' for find 0
       [33m[ TEST ][0m it contains 1      [32m[ PASS ][0m it contains 1
       [33m[ TEST ][0m it returns ['b'] for findOpt 1      [32m[ PASS ][0m it returns ['b'] for findOpt 1
       [33m[ TEST ][0m it returns 'b' for find 1      [32m[ PASS ][0m it returns 'b' for find 1
