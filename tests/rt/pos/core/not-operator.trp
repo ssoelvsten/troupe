@@ -1,0 +1,13 @@
+(*) Test for the 'not' unary operator
+
+let val x = true
+    val y = false
+in
+    print (not true);       (* false *)
+    print (not false);      (* true *)
+    print (not x);          (* false *)
+    print (not y);          (* true *)
+    print (not (not true)); (* true *)
+    print (not (1 = 2));    (* true, since 1 <> 2 *)
+    print (not (1 = 1))     (* false, since 1 = 1 *)
+end

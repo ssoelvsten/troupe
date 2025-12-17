@@ -639,6 +639,10 @@ expr2rawComp = \case
         assertTypeAndRaise v RawNumber
         basicUnOpComp
 
+      Basics.Not -> do
+        assertTypeAndRaise v RawBoolean
+        basicUnOpComp
+
       -- TODO Implement remaining operations
       _ -> error $ "Unary operation not yet implemented: " ++ show op
 

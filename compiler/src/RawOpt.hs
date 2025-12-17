@@ -234,6 +234,7 @@ guessType = \case
     Basics.IsTuple -> Just RawBoolean
     Basics.IsList -> Just RawBoolean
     Basics.IsRecord -> Just RawBoolean
+    Basics.Not -> Just RawBoolean
     -- Revision 2023-08: Added missing cases
     Basics.Fst -> Nothing
     Basics.Snd -> Nothing

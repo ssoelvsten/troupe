@@ -149,12 +149,14 @@ canFailOrHasEffects expr = case expr of
         Basics.Lt -> True
         Basics.Ge -> True
         Basics.Gt -> True
+        -- Boolean operations 
+        Basics.And -> True 
+        Basics.Or -> True         
+        -- Record checking
+        Basics.HasField -> True
         -- These are generally safe
         Basics.Eq -> False
         Basics.Neq -> False
-        Basics.And -> False
-        Basics.Or -> False
-        Basics.HasField -> False
         -- Level operations might be safe but conservative
         Basics.FlowsTo -> True
         Basics.LatticeJoin -> True
@@ -170,10 +172,12 @@ canFailOrHasEffects expr = case expr of
         Basics.Snd -> True
         -- Arithmetic
         Basics.UnMinus -> True
-        -- Length operations are safe if the value is the right type
+        -- Length operations can fail 
         Basics.ListLength -> True
         Basics.TupleLength -> True
         Basics.RecordSize -> True
+        -- Boolean negation can fail
+        Basics.Not -> True
         -- Type tests are safe
         Basics.IsTuple -> False
         Basics.IsList -> False
@@ -229,14 +233,24 @@ irExprPeval e =
                     setChangeFlag
                     r_ (BoolConst True, Const (C.LBool True))
                 _ -> def_
-        Un Basics.IsRecord x -> do 
-            v <- varPEval x 
-            case v of 
-                RecordVal _ -> do 
-                    setChangeFlag 
+        Un Basics.IsRecord x -> do
+            v <- varPEval x
+            case v of
+                RecordVal _ -> do
+                    setChangeFlag
                     r_ (BoolConst True, Const (C.LBool True))
                 _ -> def_
-        
+
+        Un Basics.Not x -> do
+            v <- varPEval x
+            case v of
+                BoolConst True -> do
+                    setChangeFlag
+                    r_ (BoolConst False, Const (C.LBool False))
+                BoolConst False -> do
+                    setChangeFlag
+                    r_ (BoolConst True, Const (C.LBool True))
+                _ -> def_
 
         Bin Basics.Eq x y -> do 
             v1 <- varPEval x 

@@ -99,6 +99,7 @@ tokens:-
 <0>   isTuple                        { mkL TokenIsTuple }
 <0>   isList                         { mkL TokenIsList }
 <0>   isRecord                       { mkL TokenIsRecord }
+<0>   not                            { mkL TokenNot }
 <0>   pini                           { mkL TokenPini}
 <0>   when                           { mkL TokenWhen }
 <0>   with                           { mkL TokenWith }
@@ -248,6 +249,7 @@ data Token
   | TokenIsTuple
   | TokenIsList
   | TokenIsRecord
+  | TokenNot
   | TokenFlowsTo
   | TokenLevelOf
   | TokenLabel String

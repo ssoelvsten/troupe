@@ -345,9 +345,25 @@ simplifySimpleTerm t =
         (Basics.IsList, St (List _))          -> _ret __trueLit
         (Basics.IsList, St (ListCons _ _))    -> _ret __trueLit
         (Basics.IsList, St (Record _))        -> _ret __falseLit
-        (Basics.IsList, St (WithRecord _ _))  -> _ret __falseLit 
+        (Basics.IsList, St (WithRecord _ _))  -> _ret __falseLit
         (Basics.IsList, St (Tuple _))         -> _ret __falseLit
         (Basics.IsList, St (ValSimpleTerm _)) -> _ret __falseLit
+
+        -- Not: constant folding
+        (Basics.Not, St (ValSimpleTerm (Lit (C.LBool b)))) ->
+            _ret $ lit (C.LBool (Prelude.not b))
+
+        -- Not: double negation elimination (not (not x) -> x)
+        (Basics.Not, St (Un Basics.Not innerVar)) ->
+            _subst innerVar
+
+        -- Not: negated comparisons
+        (Basics.Not, St (Bin Basics.Eq v1 v2))  -> _ret $ Bin Basics.Neq v1 v2
+        (Basics.Not, St (Bin Basics.Neq v1 v2)) -> _ret $ Bin Basics.Eq v1 v2
+        (Basics.Not, St (Bin Basics.Lt v1 v2))  -> _ret $ Bin Basics.Ge v1 v2
+        (Basics.Not, St (Bin Basics.Le v1 v2))  -> _ret $ Bin Basics.Gt v1 v2
+        (Basics.Not, St (Bin Basics.Gt v1 v2))  -> _ret $ Bin Basics.Le v1 v2
+        (Basics.Not, St (Bin Basics.Ge v1 v2))  -> _ret $ Bin Basics.Lt v1 v2
 
         (Basics.TupleLength, St (Tuple xs)) -> 
             _ret $ lit (C.LInt (fromIntegral (length xs)) NoPos)
@@ -475,14 +491,19 @@ instance Simplifiable KTerm where
                       simpl $ subst arg y body
                     _ -> return k
           _ -> return k
-      If x k1 k2 -> do 
+      If x k1 k2 -> do
         v <- look x
-        case v of 
-          St (ValSimpleTerm (Lit (C.LBool b))) -> 
+        case v of
+          St (ValSimpleTerm (Lit (C.LBool b))) ->
             simpl (if b then k1 else k2)
-          _ -> do 
-            k1' <- withResetRetState $ simpl k1 
-            k2' <- withResetRetState $ simpl k2 
+          -- If-branch swap: if (not y) k1 k2 -> if y k2 k1
+          St (Un Basics.Not innerVar) -> do
+            k1' <- withResetRetState $ simpl k1
+            k2' <- withResetRetState $ simpl k2
+            return $ If innerVar k2' k1'  -- swapped branches
+          _ -> do
+            k1' <- withResetRetState $ simpl k1
+            k2' <- withResetRetState $ simpl k2
             return $ If x k1' k2'
       AssertElseError x kt y pos -> do
         v <- look x 

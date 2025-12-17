@@ -327,6 +327,7 @@ unaryOpToJS = \case
     Head -> "rt.head"
     Tail -> "rt.tail"
     UnMinus -> "-"
+    Not -> "!"
     -- Not yet implemented in IR2Raw
     Fst -> error "Not yet implemented: Fst"
     Snd -> error "Not yet implemented: Snd"
