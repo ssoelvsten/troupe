@@ -96,6 +96,8 @@ let (* -- List Access -- *)
                                            in if f (i,x) then x::xs' else xs' end
                       in go 0 l end
 
+    (* TODO: revFilter & revFilteri*)
+
     (** Split the list `ls` into two sublists depending on whether each respective element
         satisfies the predicate `f`. Tail-recursive. *)
     fun partition f ls =
