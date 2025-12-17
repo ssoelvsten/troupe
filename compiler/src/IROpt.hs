@@ -178,6 +178,8 @@ canFailOrHasEffects expr = case expr of
         Basics.IsTuple -> False
         Basics.IsList -> False
         Basics.IsRecord -> False
+        -- Boolean negation is safe
+        Basics.Not -> False
         -- Level operations
         Basics.LevelOf -> False
     
@@ -229,14 +231,24 @@ irExprPeval e =
                     setChangeFlag
                     r_ (BoolConst True, Const (C.LBool True))
                 _ -> def_
-        Un Basics.IsRecord x -> do 
-            v <- varPEval x 
-            case v of 
-                RecordVal _ -> do 
-                    setChangeFlag 
+        Un Basics.IsRecord x -> do
+            v <- varPEval x
+            case v of
+                RecordVal _ -> do
+                    setChangeFlag
                     r_ (BoolConst True, Const (C.LBool True))
                 _ -> def_
-        
+
+        Un Basics.Not x -> do
+            v <- varPEval x
+            case v of
+                BoolConst True -> do
+                    setChangeFlag
+                    r_ (BoolConst False, Const (C.LBool False))
+                BoolConst False -> do
+                    setChangeFlag
+                    r_ (BoolConst True, Const (C.LBool True))
+                _ -> def_
 
         Bin Basics.Eq x y -> do 
             v1 <- varPEval x 

@@ -284,6 +284,11 @@ Some bugs may be further caught by turning off the raw ouptimizations. There is 
 
 There should be no shift/reduce or reduce/reduce conflicts in the Troupe parser.
 
+#### Avoid unnecessary beautification
+
+Do not introduce cosmetic changes to the code as part of another goal, e.g., removing trailing spaces, etc. That 
+will unnecessary clutter the diffs. 
+
 
 ### Troupe programs
 

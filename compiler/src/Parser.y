@@ -91,6 +91,7 @@ import Control.Monad.Except
     'isTuple' { L _ TokenIsTuple }
     'isList' { L _ TokenIsList }
     'isRecord' { L _ TokenIsRecord }
+    'not' { L _ TokenNot }
 
     '('   { L _ TokenLParen }
     ')'   { L _ TokenRParen }
@@ -130,6 +131,7 @@ import Control.Monad.Except
 %left 'isTuple'
 %left 'isList'
 %left 'isRecord'
+%left 'not'
 %left '^'
 %%
 
@@ -201,6 +203,7 @@ Expr: Form                        { $1 }
     | 'isTuple' Expr              { Un IsTuple $2 }
     | 'isList' Expr              { Un IsList $2 }
     | 'isRecord' Expr              { Un IsRecord $2 }
+    | 'not' Expr                  { Un Not $2 }
 
 
 Match : Pattern '=>' Expr                      { [($1,$3)] }

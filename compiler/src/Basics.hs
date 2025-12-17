@@ -16,7 +16,7 @@ type FieldName = String
 data BinOp = Plus | Minus | Mult | Div | Mod |  Eq | Neq | Le | Lt | Ge | Gt | And | Or | RaisedTo | FlowsTo | Concat| IntDiv | BinAnd | BinOr | BinXor | BinShiftLeft | BinShiftRight | BinZeroShiftRight | HasField | LatticeJoin | LatticeMeet
   deriving (Eq,Generic, Ord)
 instance Serialize BinOp
-data UnaryOp = IsList | IsTuple | IsRecord | Head | Tail | Fst | Snd | ListLength | TupleLength | RecordSize | LevelOf | UnMinus
+data UnaryOp = IsList | IsTuple | IsRecord | Head | Tail | Fst | Snd | ListLength | TupleLength | RecordSize | LevelOf | UnMinus | Not
   deriving (Eq, Generic, Ord)
 instance Serialize UnaryOp
 
@@ -61,6 +61,7 @@ instance Show UnaryOp where
   show LevelOf = "levelOf"
   show UnMinus = "un-minus"
   show IsRecord = "is-record"
+  show Not = "not"
 
 
 type Precedence = Integer
