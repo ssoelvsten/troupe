@@ -149,12 +149,14 @@ canFailOrHasEffects expr = case expr of
         Basics.Lt -> True
         Basics.Ge -> True
         Basics.Gt -> True
+        -- Boolean operations 
+        Basics.And -> True 
+        Basics.Or -> True         
+        -- Record checking
+        Basics.HasField -> True
         -- These are generally safe
         Basics.Eq -> False
         Basics.Neq -> False
-        Basics.And -> False
-        Basics.Or -> False
-        Basics.HasField -> False
         -- Level operations might be safe but conservative
         Basics.FlowsTo -> True
         Basics.LatticeJoin -> True
@@ -170,16 +172,16 @@ canFailOrHasEffects expr = case expr of
         Basics.Snd -> True
         -- Arithmetic
         Basics.UnMinus -> True
-        -- Length operations are safe if the value is the right type
+        -- Length operations can fail 
         Basics.ListLength -> True
         Basics.TupleLength -> True
         Basics.RecordSize -> True
+        -- Boolean negation can fail
+        Basics.Not -> True
         -- Type tests are safe
         Basics.IsTuple -> False
         Basics.IsList -> False
         Basics.IsRecord -> False
-        -- Boolean negation is safe
-        Basics.Not -> False
         -- Level operations
         Basics.LevelOf -> False
     
