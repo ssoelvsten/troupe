@@ -29,20 +29,34 @@ let (** "Hashing" function: convert the first four characters to a 32 bit number
     val colorEnd   = "\x1b[0m"
 
     (** Define and spawn cache loop *)
-    fun threadLoop map =
+    fun loopSandbox f t default =
+        let fun kontinue k t' =
+                case k t of (0, v)  => (v, t'+t)
+                          | (1, _)  => (default, t'+t)
+                          | (2, k') => kontinue k' (t'+t)
+        in case sandbox (t, f) of (0, v) => (v, t)
+                                | (1, _) => (default, t)
+                                | (2, k) => kontinue k t
+        end
+
+    fun threadLoop map sandboxTime =
         receive [
             hn (SET, key, value, origin) =>
             let val _ = print (colorStart ^ "Troupe::P2PCache::set(" ^ (toStringL key) ^ ")" ^ colorEnd)
                 (* NOTE: Declassify the 'print' / '^' *)
                 val _ = blockdecl authority
-                val map' = HashMap.insert map authority key value
-            in threadLoop map' end,
+                val (map', sandboxTime') = loopSandbox (fn () => HashMap.insert map authority key value)
+                                                       sandboxTime
+                                                       map
+            in threadLoop map' sandboxTime' end,
 
             hn (GET, key, origin) =>
             let val _ = print (colorStart ^ "Troupe::P2PCache::get(" ^ (toStringL key) ^ ")" ^ colorEnd)
                 (* NOTE: Declassify the 'print' / '^' *)
                 val _ = blockdecl authority
-                val vals = HashMap.findAll map authority key
+                val (vals, sandboxTime') = loopSandbox (fn () => HashMap.findAll map authority key)
+                                                       sandboxTime
+                                                       []
                 val _ = print (colorStart ^ "   -> " ^ (toStringL vals) ^ colorEnd)
                 (* NOTE: Declassify the 'print' / '^' *)
                 val _ = blockdecl authority
@@ -53,10 +67,10 @@ let (** "Hashing" function: convert the first four characters to a 32 bit number
                 val _ = send (origin, (GET_REPLY, value))
                 (* NOTE: Declassify whether the 'send' is blocking *)
                 val _ = blockdecl authority
-            in threadLoop map end
+            in threadLoop map sandboxTime' end
         ]
 
-    val tid = spawn (fn () => threadLoop (HashMap.empty hashSha256))
+    val tid = spawn (fn () => threadLoop (HashMap.empty hashSha256) 1)
 
     (** API Setter function *)
     fun set (key, value) = send (tid, (SET, key, value, self()))
