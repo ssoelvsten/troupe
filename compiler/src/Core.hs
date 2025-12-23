@@ -7,6 +7,8 @@ module Core (   Lambda (..)
               , Decl (..)
               , FunDecl (..)
               , Lit(..)
+              , litEq
+              , litNeq
               , AtomName
               , Atoms(..)
               , Prog(..)
@@ -35,7 +37,9 @@ import           Text.PrettyPrint.HughesPJ (
 import           ShowIndent
 
 import           TroupePositionInfo
-import           DCLabels
+import           DCLabels (DCLabelExp, ppDCLabelExpLit, dcLabelEq)
+import           Data.List (sort, nub)
+import           Data.Char (toLower, isSpace)
 
 --------------------------------------------------
 -- AST is the same as Direct, but lambda are unary (or nullary)
@@ -90,6 +94,41 @@ instance Ord Lit where
 instance GetPosInfo Lit where
   posInfo (LInt _ p) = p
   posInfo _ = NoPos
+
+-- | Semantic equality for literals, handling label normalization
+-- This is used for compile-time constant folding to ensure that
+-- semantically equivalent labels (e.g., `{alice, bob}` and `{bob, alice}`)
+-- are treated as equal.
+litEq :: Lit -> Lit -> Bool
+litEq (LInt x _) (LInt y _) = x == y
+litEq (LString s) (LString s') = s == s'
+litEq (LLabel l) (LLabel l') = normalizeV1Label l == normalizeV1Label l'
+litEq LUnit LUnit = True
+litEq (LBool x) (LBool y) = x == y
+litEq (LAtom x) (LAtom y) = x == y
+litEq (LDCLabel dc) (LDCLabel dc') = dcLabelEq dc dc'
+litEq _ _ = False
+
+-- | Semantic inequality for literals
+litNeq :: Lit -> Lit -> Bool
+litNeq x y = not (litEq x y)
+
+-- | Normalize V1 label string for semantic comparison
+-- Parses the comma-separated principal names, normalizes them
+-- (lowercase, trimmed, sorted, deduplicated) for comparison
+normalizeV1Label :: String -> [String]
+normalizeV1Label s = sort $ nub $ map (map toLower . trim) $ splitOn ',' (stripBraces s)
+  where
+    trim = dropWhile isSpace . reverse . dropWhile isSpace . reverse
+    stripBraces ('{':rest) = case reverse rest of
+      ('}':inner) -> reverse inner
+      _ -> rest
+    stripBraces x = x
+    splitOn :: Char -> String -> [String]
+    splitOn _ "" = []
+    splitOn c s' = case break (== c) s' of
+      (a, "") -> [a]
+      (a, _:rest) -> a : splitOn c rest
 
 type Fields = [(FieldName, Term)]
 

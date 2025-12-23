@@ -8,7 +8,7 @@
 {-# HLINT ignore "Use newtype instead of data" #-}
 
 
-module DCLabels 
+module DCLabels
   ( DCLabelExp(..)
   , LabelExp (..)
   , LabelOp(..)
@@ -16,7 +16,10 @@ module DCLabels
   , ppDCLabelExp
   , ppDCLabelExpLit
   , labelExpToCNF
-  , dcLabelExpToDCLabel) where
+  , dcLabelExpToDCLabel
+  , dcLabelEq
+  , cnfEq
+  , cnfImplies) where
 import GHC.Generics(Generic)
 import Data.Serialize (Serialize)
 import Data.List (sort, nub)
@@ -106,10 +109,35 @@ labelConstToCNF (LabelFalse) = CNF [DisjTags []]
 
 dcLabelExpToDCLabel :: DCLabelExp -> DCLabel
 dcLabelExpToDCLabel (DCLabelExp (e1,e2)) =
-    let f e = case e of 
+    let f e = case e of
                  Left le -> labelExpToCNF le
-                 Right lc -> labelConstToCNF lc 
+                 Right lc -> labelConstToCNF lc
     in DCLabel(f e1, f e2)
+
+
+-- | Semantic equality for DCLabelExp (compare via normalized CNF)
+dcLabelEq :: DCLabelExp -> DCLabelExp -> Bool
+dcLabelEq d1 d2 =
+    let DCLabel (c1, i1) = dcLabelExpToDCLabel d1
+        DCLabel (c2, i2) = dcLabelExpToDCLabel d2
+    in cnfEq c1 c2 && cnfEq i1 i2
+
+-- | Semantic equality for CNF (bidirectional implication)
+cnfEq :: CNF -> CNF -> Bool
+cnfEq x y = cnfImplies x y && cnfImplies y x
+
+-- | Semantic implication for CNF formulas
+-- A CNF formula x implies y if every clause in y is implied by some clause in x
+cnfImplies :: CNF -> CNF -> Bool
+cnfImplies (CNF xClauses) (CNF yClauses) =
+    all (\yClause -> any (\xClause -> disjSubsetOf xClause yClause) xClauses) yClauses
+  where
+    -- A disjunction x is a subset of y if all tags in x appear in y
+    -- (meaning x is more specific than y, so x implies y)
+    disjSubsetOf (DisjTags xs) (DisjTags ys) =
+        let xs' = snub (map lowerString xs)
+            ys' = snub (map lowerString ys)
+        in all (`elem` ys') xs'
 
 
 -- instance Show DCLabelExp where 
