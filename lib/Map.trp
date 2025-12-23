@@ -161,33 +161,29 @@ let (* TODO: The map is implemented as an unbalanced binary search tree. This op
      *  given list. Tail-recursive. *)
     fun fromList cmp xs = List.foldl (fn ((k,v), m) => insert m k v) (empty cmp) xs
 
-    (*--- Module ---*)
-    val Map = {
-        empty,
-        singleton,
-        insert,
-        null,
-        size,
-        depth,
-        findOpt,
-        find,
-        mem,
-        minOpt,
-        min,
-        extractMinOpt,
-        extractMin,
-        remove,
-        foldl,
-        foldr,
-        map,
-        filter,
-        keys,
-        values,
-        toDescList,
-        toAscList,
-        toList,
-        fromList
-    }
-
-in [ ("Map", Map) ]
+in [ ("empty", empty)
+   , ("singleton", singleton)
+   , ("insert", insert)
+   , ("null", null)
+   , ("size", size)
+   , ("depth", depth)
+   , ("findOpt", findOpt)
+   , ("find", find)
+   , ("mem", mem)
+   , ("minOpt", minOpt)
+   , ("min", min)
+   , ("extractMinOpt", extractMinOpt)
+   , ("extractMin", extractMin)
+   , ("remove", remove)
+   , ("foldl", foldl)
+   , ("foldr", foldr)
+   , ("map", map)
+   , ("filter", filter)
+   , ("keys", keys)
+   , ("values", values)
+   , ("toDescList", toDescList)
+   , ("toAscList", toAscList)
+   , ("toList", toList)
+   , ("fromList", fromList)
+   ]
 end

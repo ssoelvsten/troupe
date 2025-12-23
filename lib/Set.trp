@@ -90,29 +90,25 @@ let (*--- Set Construction ---*)
         pairs in the given list. Tail-recursive. *)
     fun fromList cmp xs = List.foldl (fn (k, s) => insert s k) (empty cmp) xs
 
-    (*--- Module ---*)
-    val Set = {
-        empty,
-        singleton,
-        insert,
-        null,
-        mem,
-        size,
-        depth,
-        minOpt,
-        min,
-        extractMinOpt,
-        extractMin,
-        remove,
-        foldl,
-        foldr,
-        map,
-        filter,
-        toDescList,
-        toAscList,
-        toList,
-        fromList
-    }
-
-in [ ("Set", Set) ]
+in [ ("empty", empty)
+   , ("singleton", singleton)
+   , ("insert", insert)
+   , ("null", null)
+   , ("mem", mem)
+   , ("size", size)
+   , ("depth", depth)
+   , ("minOpt", minOpt)
+   , ("min", min)
+   , ("extractMinOpt", extractMinOpt)
+   , ("extractMin", extractMin)
+   , ("remove", remove)
+   , ("foldl", foldl)
+   , ("foldr", foldr)
+   , ("map", map)
+   , ("filter", filter)
+   , ("toDescList", toDescList)
+   , ("toAscList", toAscList)
+   , ("toList", toList)
+   , ("fromList", fromList)
+   ]
 end
