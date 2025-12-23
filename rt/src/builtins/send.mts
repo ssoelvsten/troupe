@@ -3,7 +3,7 @@ import { assertNormalState, assertIsNTuple, assertIsProcessId } from '../Asserts
 import { LVal } from '../base/LVal.mjs';
 import { RawProcessID } from '../base/RawProcessID.mjs';
 import { unitLVal } from '../base/unitLVal.mjs';
-import { isString, isTuple } from '../base/lvalUtil.mjs';
+import { isAuthority, isString, isTuple } from '../base/lvalUtil.mjs';
 
 
 export function BuiltinSend<TBase extends Constructor<UserRuntimeZero>>(Base: TBase) {
@@ -42,7 +42,7 @@ export function BuiltinSend<TBase extends Constructor<UserRuntimeZero>>(Base: TB
 
         send = mkBuiltin((arg) => {
             // Argument `arg` is passed along via the state of the thread's stack.
-            if (isTuple(arg) && isString(arg.val[1])) {
+            if (isTuple(arg) && (isString(arg.val[1]) || isAuthority(arg.val[1]))) {
                 return this.sendByHash(/* arg */);
             }
             return this.sendByValue(/* arg */);
