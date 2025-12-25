@@ -26,8 +26,9 @@ let
     fun group name ts = { tag="Unit.group", name=name, tests=ts } (* TODO *)
 
     (** Collection of assertion(s) for a single test; either a single assertion or a list. *)
-    fun it name tests = case tests of { tag="Unit.isEq", .. }  => it name [tests]
-                                    | { tag="Unit.isNeq", .. } => it name [tests]
+    fun it name tests = case tests of { tag="Unit.isEq", .. }       => it name [tests]
+                                    | { tag="Unit.isTrueValue", .. } => it name [tests]
+                                    | { tag="Unit.isNeq", .. }      => it name [tests]
                                     | _ => { tag="Unit.it", name=name, tests=tests }
 
     (** A single assertion of structural equality. *)
@@ -35,6 +36,9 @@ let
 
     (** Assert for a value being `true` *)
     fun isTrue  actual = isEq true actual
+
+    (** Assert for a value being `true` (ignores level) *)
+    fun isTrueValue actual = { tag="Unit.isTrueValue", act=actual }
 
     (** Assert for a value being `false` *)
     fun isFalse actual = isEq false actual
@@ -72,7 +76,20 @@ let
               | runIsEq indent a =
                 print auth indent ("runIsEq ? " ^ (toString a) ^ "?\n"); false
 
-            (** Runs a 'Unit.isEq' and returns `true` if it fails. *)
+            (** Runs a 'Unit.isTrueValue' and returns `true` if it fails. *)
+            fun runIsTrueValue indent { tag="Unit.isTrueValue", act=act } =
+                if act = true
+                then false
+                else (* Value is not true *)
+                     let val _ = printNL auth
+                         val _ = print auth indent ("Expected: true\n")
+                         val _ = print auth indent ("Actual:   " ^ (toString act) ^ "\n")
+                     in true
+                     end
+              | runIsTrueValue indent a =
+                print auth indent ("runIsTrueValue ? " ^ (toString a) ^ "?\n"); false
+
+            (** Runs a 'Unit.isNeq' and returns `true` if it fails. *)
             fun runIsNeq indent { tag="Unit.isNeq", unexp=unexp, act=act } =
                 if unexp <> act
                 then (* Structural Mismatch *)
@@ -90,8 +107,9 @@ let
             (** Runs a 'Unit.it' and returns `1` if it succeeds and `0` otherwise. *)
             fun runIt indent { tag="Unit.it", name=name, tests=tests } =
                 let val _ = print auth indent (testStr ^ name)
-                    fun passFilter t = case t of { tag="Unit.isEq",  .. } => runIsEq  (indent+2) t
-                                               | { tag="Unit.isNeq", .. } => runIsNeq (indent+2) t
+                    fun passFilter t = case t of { tag="Unit.isEq",  .. }       => runIsEq (indent+2) t
+                                               | { tag="Unit.isTrueValue", .. } => runIsTrueValue (indent+2) t
+                                               | { tag="Unit.isNeq", .. }       => runIsNeq (indent+2) t
                                                | _ => print auth 0 ("runIt::filter ? " ^ (toString t) ^ "?\n"); false
                     val pass = List.null (List.filter passFilter tests)
                     val _ = if pass then printCR auth else ()
@@ -126,6 +144,7 @@ in [ ("group", group)
    , ("it", it)
    , ("isEq", isEq)
    , ("isTrue", isTrue)
+   , ("isTrueValue", isTrueValue)
    , ("isFalse", isFalse)
    , ("isNeq", isNeq)
    , ("size", size)
