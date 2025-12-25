@@ -9,7 +9,7 @@ let
     
     fun echo_client() = 
         let val _ = print "CLIENT: Starting echo client"
-            val _ = sleep 2  (* Give server time to register *)
+            val _ = sleep 2000  (* Give server time to register *)
             
             val echo_server = whereis("@server", "echo")
             val _ = print "CLIENT: Found echo server"

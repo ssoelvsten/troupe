@@ -109,7 +109,7 @@ Tests validate:
 (* Test Template *)
 let 
     val timeout_pid = spawn(fn () => 
-        let val _ = sleep 25 
+        let val _ = sleep 25000
         in exit(authority, 124) (* Timeout *)
         end)
     
