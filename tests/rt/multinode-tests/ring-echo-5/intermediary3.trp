@@ -1,7 +1,7 @@
 let
     val timeout_pid = spawn(fn () =>
         let val _ = print "INTERMEDIARY3: Timeout thread started"
-            val _ = sleep 30000
+            val _ = sleep 10000
             val _ = print "INTERMEDIARY3: Timeout firing, exiting with 124"
         in exit(authority, 124)
         end)

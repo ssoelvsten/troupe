@@ -3,7 +3,7 @@
 
 let 
     val timeout_pid = spawn(fn () => 
-        let val _ = sleep 8000
+        let val _ = sleep 5000
         in print "NODE1: Timeout reached - main thread likely encountered expected error"; exit(authority, 124)
         end)
     

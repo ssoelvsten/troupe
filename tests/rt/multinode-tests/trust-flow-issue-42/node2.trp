@@ -3,7 +3,7 @@
 
 let val _ = print "NODE2: Started and waiting"
     val timeout_pid = spawn(fn () => 
-        let val _ = sleep 7000
+        let val _ = sleep 4000
         in print "NODE2: Timeout - no spawn received (expected)"; exit(authority, 0)
         end)
 in

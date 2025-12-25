@@ -3,7 +3,7 @@
 
 let 
     val timeout_pid = spawn(fn () => 
-        let val _ = sleep 30000 (* 30 second timeout *)
+        let val _ = sleep 10000 (* 10 second timeout *)
         in exit(authority, 124)
         end)
     
@@ -16,7 +16,7 @@ let
             fun handle_messages n =
                 if n <= 0 then
                     (print "SERVER: Handled all client messages successfully";
-                     sleep 1000; (* enough time to flush all the messages *)
+                     sleep 500; (* enough time to flush all the messages *)
                      exit(authority, 0))
                 else
                     let val result = receive [
