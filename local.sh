@@ -1,27 +1,34 @@
 #!/bin/sh
 
-# Check if TROUPE environment variable is set
-if [ -z "$TROUPE" ]; then
-    echo "Error: TROUPE environment variable is not set" >&2
-    echo "Please set TROUPE to the Troupe repository root directory" >&2
+# Self-locate: find repo root from script location
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+
+# Use self-location if valid, otherwise fall back to TROUPE env var
+if [ -f "$SCRIPT_DIR/.troupe-root" ]; then
+    TROUPE_ROOT="$SCRIPT_DIR"
+elif [ -n "$TROUPE" ]; then
+    TROUPE_ROOT="$TROUPE"
+else
+    echo "Error: Cannot determine Troupe root directory" >&2
+    echo "No .troupe-root marker found. Set TROUPE environment variable or run from a Troupe installation." >&2
     exit 1
 fi
 
-# Validate TROUPE directory exists
-if [ ! -d "$TROUPE" ]; then
-    echo "Error: TROUPE directory does not exist: $TROUPE" >&2
+# Validate TROUPE_ROOT directory exists
+if [ ! -d "$TROUPE_ROOT" ]; then
+    echo "Error: TROUPE directory does not exist: $TROUPE_ROOT" >&2
     exit 1
 fi
 
 # Check for required binaries
-if [ ! -x "$TROUPE/bin/troupec" ]; then
-    echo "Error: Troupe compiler not found or not executable: $TROUPE/bin/troupec" >&2
+if [ ! -x "$TROUPE_ROOT/bin/troupec" ]; then
+    echo "Error: Troupe compiler not found or not executable: $TROUPE_ROOT/bin/troupec" >&2
     echo "Please run 'make' in the Troupe directory" >&2
     exit 1
 fi
 
-if [ ! -f "$TROUPE/rt/built/troupe.mjs" ]; then
-    echo "Error: Troupe runtime not found: $TROUPE/rt/built/troupe.mjs" >&2
+if [ ! -f "$TROUPE_ROOT/rt/built/troupe.mjs" ]; then
+    echo "Error: Troupe runtime not found: $TROUPE_ROOT/rt/built/troupe.mjs" >&2
     echo "Please run 'make rt' in the Troupe directory" >&2
     exit 1
 fi
@@ -51,10 +58,10 @@ for arg in "$@"; do
     esac
 done
 
-"$TROUPE/bin/troupec" $compiler_args --output="$tmp"
+"$TROUPE_ROOT/bin/troupec" $compiler_args --output="$tmp"
 
 if [ $? -eq 0 ]; then
-    eval "node --stack-trace-limit=1000 \"$TROUPE/rt/built/troupe.mjs\" -f=\"$tmp\" --localonly $runtime_args"
+    eval "node --stack-trace-limit=1000 \"$TROUPE_ROOT/rt/built/troupe.mjs\" -f=\"$tmp\" --localonly $runtime_args"
     if [ "$keep_temp" = false ]; then
         rm "$tmp"
     else

@@ -14,8 +14,9 @@ import System.Exit
 import System.FilePath (takeBaseName, replaceExtension)
 import qualified Data.ByteString.Lazy as LBS 
 import qualified Data.ByteString.Char8
-import System.Info 
-import System.Environment (getEnv, getArgs)
+import System.Info
+import System.Environment (getEnv, getArgs, lookupEnv, getExecutablePath)
+import Data.List (isSuffixOf)
 -- import qualified System.IO.Strict
 
 -- When having multiple optimizations / optional compiler stages or
@@ -103,9 +104,27 @@ runNegative testname tc = do
         ExitSuccess -> fail testname 
         
 
-main :: IO () 
+-- Try to find Troupe root from executable path, fall back to TROUPE env var
+getTroupeRoot :: IO String
+getTroupeRoot = do
+    progPath <- getExecutablePath
+    let binSuffix = "/bin/golden"
+    if binSuffix `isSuffixOf` progPath
+    then do
+        let home = take (length progPath - length binSuffix) progPath
+        markerExists <- doesFileExist (home ++ "/.troupe-root")
+        if markerExists then return home else fallbackToEnv
+    else fallbackToEnv
+  where
+    fallbackToEnv = do
+        maybeEnv <- lookupEnv "TROUPE"
+        case maybeEnv of
+            Just troupeDir -> return troupeDir
+            Nothing -> error "Cannot determine Troupe root. Set the TROUPE environment variable."
+
+main :: IO ()
 main = do
-    troupeDir <- getEnv "TROUPE"
+    troupeDir <- getTroupeRoot
     setCurrentDirectory troupeDir
     
     -- Pre-generate all test configurations

@@ -29,6 +29,7 @@ const { flowsTo, lub, glb } = levels
 import { getCliArgs, TroupeCliArg } from './TroupeCliArgs.mjs';
 import { configureColors, isColorEnabled } from './colorConfig.mjs';
 import { mkLogger } from './logger.mjs'
+import { getTroupeRoot } from './troupeRoot.mjs'
 import { Record } from './Record.mjs';
 import { level } from 'winston';
 
@@ -427,7 +428,7 @@ bulletProofSigint();
 
 
 async function loadServiceCode() {
-  let input = await fs.promises.readFile(process.env.TROUPE + '/trp-rt/out/service.js', 'utf8')
+  let input = await fs.promises.readFile(getTroupeRoot() + '/trp-rt/out/service.js', 'utf8')
   let S: any = new Function('rt', input)
   let service = new S(__userRuntime);
 
