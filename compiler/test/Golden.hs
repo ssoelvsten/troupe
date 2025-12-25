@@ -38,6 +38,17 @@ instance IsOption NoColorOption where
   optionHelp = return "Disable colored output (generates .nocolor.golden files)"
   optionCLParser = flagCLParser Nothing (NoColorOption True)
 
+-- Custom option for quick mode (skip unoptimized tests)
+newtype QuickOption = QuickOption Bool
+  deriving (Eq, Ord, Typeable)
+
+instance IsOption QuickOption where
+  defaultValue = QuickOption False
+  parseValue = fmap QuickOption . safeRead
+  optionName = return "quick"
+  optionHelp = return "Run only optimized tests (skip --no-rawopt pass)"
+  optionCLParser = flagCLParser Nothing (QuickOption True)
+
 
 ppTestConfig TestConfig{..} =
     (if tcRawOpt then "Raw optimized" else "Raw NOT optimized") ++
@@ -126,23 +137,34 @@ main :: IO ()
 main = do
     troupeDir <- getTroupeRoot
     setCurrentDirectory troupeDir
-    
-    -- Pre-generate all test configurations
-    testsWithColor <- sequence
+
+    -- Pre-generate test configurations (full and quick variants)
+    testsWithColorFull <- sequence
       [ goldenTests (TestConfig True False)   -- Raw opt, with color
-      , goldenTests (TestConfig False False)  -- No raw opt, with color  
+      , goldenTests (TestConfig False False)  -- No raw opt, with color
       ]
-    testsNoColor <- sequence
+    testsWithColorQuick <- sequence
+      [ goldenTests (TestConfig True False)   -- Raw opt only, with color
+      ]
+    testsNoColorFull <- sequence
       [ goldenTests (TestConfig True True)    -- Raw opt, no color
       , goldenTests (TestConfig False True)   -- No raw opt, no color
       ]
-    
+    testsNoColorQuick <- sequence
+      [ goldenTests (TestConfig True True)    -- Raw opt only, no color
+      ]
+
     defaultMainWithIngredients ings $
       askOption $ \(NoColorOption noColor) ->
+      askOption $ \(QuickOption quick) ->
         testGroup "Troupe golden tests" $
-          if noColor then testsNoColor else testsWithColor
+          case (noColor, quick) of
+            (False, False) -> testsWithColorFull
+            (False, True)  -> testsWithColorQuick
+            (True, False)  -> testsNoColorFull
+            (True, True)   -> testsNoColorQuick
   where
-    ings = includingOptions [Option (Proxy :: Proxy NoColorOption)] : defaultIngredients
+    ings = includingOptions [Option (Proxy :: Proxy NoColorOption), Option (Proxy :: Proxy QuickOption)] : defaultIngredients
 
 
 goldenTests :: TestConfig -> IO TestTree
