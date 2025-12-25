@@ -10,19 +10,24 @@ let
         let val _ = print "INTERMEDIARY5: Starting proxy service"
             val _ = register("proxy", self(), authority)
             val _ = print "INTERMEDIARY5: Registered proxy service"
-            
+
             fun proxy_loop() =
-                receive [
-                    hn ("FORWARD_ECHO", msg, client_pid, next_node) =>
-                        let val _ = print ("INTERMEDIARY5: Forwarding message to " ^ next_node)
-                            val echo_service = whereis(next_node, "echo")
-                            val _ = send(echo_service, ("ECHO", msg, client_pid))
-                            val _ = print "INTERMEDIARY5: Message forwarded to server"
-                        in proxy_loop()
-                        end
-                ]
+                let val _ = print "INTERMEDIARY5: Entering receive"
+                    val result = receive [
+                        hn ("FORWARD_ECHO", msg, client_pid, next_node) =>
+                            let val _ = print ("INTERMEDIARY5: Forwarding message to " ^ next_node)
+                                val echo_service = whereis(next_node, "echo")
+                                val _ = send(echo_service, ("ECHO", msg, client_pid))
+                                val _ = print "INTERMEDIARY5: Message forwarded to server"
+                            in "continue"
+                            end
+                    ]
+                    val _ = print ("INTERMEDIARY5: Receive returned: " ^ result)
+                in proxy_loop()
+                end
         in proxy_loop()
         end
 
-in proxy_server()
+in proxy_server();
+   print "INTERMEDIARY5: proxy_server returned unexpectedly!"
 end
