@@ -8,7 +8,7 @@
 {-# HLINT ignore "Use newtype instead of data" #-}
 
 
-module DCLabels 
+module DCLabels
   ( DCLabelExp(..)
   , LabelExp (..)
   , LabelOp(..)
@@ -16,11 +16,16 @@ module DCLabels
   , ppDCLabelExp
   , ppDCLabelExpLit
   , labelExpToCNF
-  , dcLabelExpToDCLabel) where
+  , dcLabelExpToDCLabel
+  , dcLabelEq
+  , cnfEq
+  , cnfImplies
+  , v1LabelEq) where
 import GHC.Generics(Generic)
 import Data.Serialize (Serialize)
-import Data.List (sort, nub)
-import Data.Char (toLower)
+import Data.List (sort, nub, dropWhileEnd)
+import Data.List.Utils (split)
+import Data.Char (toLower, isSpace)
 import qualified Text.PrettyPrint.HughesPJ as PP
 import Text.PrettyPrint.HughesPJ (
     (<+>), ($$), text, hsep, vcat, nest)
@@ -106,10 +111,37 @@ labelConstToCNF (LabelFalse) = CNF [DisjTags []]
 
 dcLabelExpToDCLabel :: DCLabelExp -> DCLabel
 dcLabelExpToDCLabel (DCLabelExp (e1,e2)) =
-    let f e = case e of 
+    let f e = case e of
                  Left le -> labelExpToCNF le
-                 Right lc -> labelConstToCNF lc 
+                 Right lc -> labelConstToCNF lc
     in DCLabel(f e1, f e2)
+
+
+-- | Semantic equality for DCLabelExp (compare via normalized CNF)
+dcLabelEq :: DCLabelExp -> DCLabelExp -> Bool
+dcLabelEq d1 d2 =
+    let DCLabel (c1, i1) = dcLabelExpToDCLabel d1
+        DCLabel (c2, i2) = dcLabelExpToDCLabel d2
+    in cnfEq c1 c2 && cnfEq i1 i2
+
+-- | Semantic equality for CNF (bidirectional implication)
+cnfEq :: CNF -> CNF -> Bool
+cnfEq x y = cnfImplies x y && cnfImplies y x
+
+-- | Semantic implication for CNF formulas.
+--
+-- For positive CNF, a clause C₁ implies clause C₂ iff literals(C₁) ⊆ literals(C₂),
+-- and a CNF F₁ implies F₂ iff every clause in F₂ is subsumed by some clause in F₁.
+--
+-- See: Stefan et al., "Disjunction Category Labels", NordSec 2011
+-- https://link.springer.com/chapter/10.1007/978-3-642-29615-4_16
+cnfImplies :: CNF -> CNF -> Bool
+cnfImplies (CNF xClauses) (CNF yClauses) =
+    all (\yClause -> any (\xClause -> disjSubsetOf xClause yClause) xClauses) yClauses
+  where
+    -- A disjunction x is a subset of y if all tags in x appear in y
+    -- (meaning x is more specific than y, so x implies y)
+    disjSubsetOf (DisjTags xs) (DisjTags ys) = all (`elem` ys) xs
 
 
 -- instance Show DCLabelExp where 
@@ -177,7 +209,28 @@ instance ToJSON CNF where
      toJSON (CNF cats) = 
           toJSON (map toJSON cats)
 
-instance ToJSON DCLabel where 
-     toJSON ( DCLabel (c, i)) = 
+instance ToJSON DCLabel where
+     toJSON ( DCLabel (c, i)) =
           object [ "confidentiality" .= c
                  , "integrity" .= i]
+
+
+-------------------------------------------------------
+-- V1 Label support
+-- V1 labels like "{alice, bob}" are syntactic sugar for
+-- DC labels "<alice & bob ; alice & bob>"
+-------------------------------------------------------
+
+-- | Semantic equality for V1 label strings
+-- V1 labels like "{alice, bob}" are semantically equivalent to "{bob, alice}"
+v1LabelEq :: String -> String -> Bool
+v1LabelEq l1 l2 = normalizeV1Label l1 == normalizeV1Label l2
+
+-- | Normalize V1 label string for semantic comparison
+-- Parses comma-separated principal names, normalizes them
+-- (lowercase, trimmed, sorted, deduplicated)
+normalizeV1Label :: String -> [String]
+normalizeV1Label s = snub $ map (lowerString . trim) $ split "," (stripBraces s)
+  where
+    trim = dropWhileEnd isSpace . dropWhile isSpace
+    stripBraces = dropWhileEnd (== '}') . dropWhile (== '{')
