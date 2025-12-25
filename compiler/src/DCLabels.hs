@@ -126,8 +126,13 @@ dcLabelEq d1 d2 =
 cnfEq :: CNF -> CNF -> Bool
 cnfEq x y = cnfImplies x y && cnfImplies y x
 
--- | Semantic implication for CNF formulas
--- A CNF formula x implies y if every clause in y is implied by some clause in x
+-- | Semantic implication for CNF formulas.
+--
+-- For positive CNF, a clause C₁ implies clause C₂ iff literals(C₁) ⊆ literals(C₂),
+-- and a CNF F₁ implies F₂ iff every clause in F₂ is subsumed by some clause in F₁.
+--
+-- See: Stefan et al., "Disjunction Category Labels", NordSec 2011
+-- https://link.springer.com/chapter/10.1007/978-3-642-29615-4_16
 cnfImplies :: CNF -> CNF -> Bool
 cnfImplies (CNF xClauses) (CNF yClauses) =
     all (\yClause -> any (\xClause -> disjSubsetOf xClause yClause) xClauses) yClauses
