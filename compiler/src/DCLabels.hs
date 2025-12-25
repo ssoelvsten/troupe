@@ -141,10 +141,7 @@ cnfImplies (CNF xClauses) (CNF yClauses) =
   where
     -- A disjunction x is a subset of y if all tags in x appear in y
     -- (meaning x is more specific than y, so x implies y)
-    disjSubsetOf (DisjTags xs) (DisjTags ys) =
-        let xs' = snub (map lowerString xs)
-            ys' = snub (map lowerString ys)
-        in all (`elem` ys') xs'
+    disjSubsetOf (DisjTags xs) (DisjTags ys) = all (`elem` ys) xs
 
 
 -- instance Show DCLabelExp where 
