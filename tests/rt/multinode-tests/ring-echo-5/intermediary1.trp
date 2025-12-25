@@ -1,8 +1,6 @@
 let
-    val timeout_pid = spawn(fn () =>
-        let val _ = print "INTERMEDIARY1: Timeout thread started"
-            val _ = sleep 10000
-            val _ = print "INTERMEDIARY1: Timeout firing, exiting with 124"
+    val timeout_pid = spawn(fn () => 
+        let val _ = sleep 10000
         in exit(authority, 124)
         end)
     
@@ -10,24 +8,19 @@ let
         let val _ = print "INTERMEDIARY1: Starting proxy service"
             val _ = register("proxy", self(), authority)
             val _ = print "INTERMEDIARY1: Registered proxy service"
-
+            
             fun proxy_loop() =
-                let val _ = print "INTERMEDIARY1: Entering receive"
-                    val result = receive [
-                        hn ("FORWARD_ECHO", msg, client_pid, next_node) =>
-                            let val _ = print ("INTERMEDIARY1: Forwarding message to " ^ next_node)
-                                val next_proxy = whereis(next_node, "proxy")
-                                val _ = send(next_proxy, ("FORWARD_ECHO", msg, client_pid, "@intermediary3"))
-                                val _ = print "INTERMEDIARY1: Message forwarded"
-                            in "continue"
-                            end
-                    ]
-                    val _ = print ("INTERMEDIARY1: Receive returned: " ^ result)
-                in proxy_loop()
-                end
+                receive [
+                    hn ("FORWARD_ECHO", msg, client_pid, next_node) =>
+                        let val _ = print ("INTERMEDIARY1: Forwarding message to " ^ next_node)
+                            val next_proxy = whereis(next_node, "proxy")
+                            val _ = send(next_proxy, ("FORWARD_ECHO", msg, client_pid, "@intermediary3"))
+                            val _ = print "INTERMEDIARY1: Message forwarded"
+                        in proxy_loop()
+                        end
+                ]
         in proxy_loop()
         end
 
-in proxy_server();
-   print "INTERMEDIARY1: proxy_server returned unexpectedly!"
+in proxy_server()
 end
