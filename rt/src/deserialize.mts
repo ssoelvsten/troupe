@@ -2,6 +2,7 @@
 import { strict as assert } from 'node:assert'
 import {spawn} from 'child_process'
 import * as Ty from './TroupeTypes.mjs'
+import { __exitInitiated } from './runtimeMonitored.mjs';
 import { LVal } from './Lval.mjs';
 import { mkTuple, mkList } from './ValuesUtil.mjs';
 import { ProcessID } from './process.mjs';
@@ -42,7 +43,10 @@ const HEADER:string =
 function startCompiler() {
     __compilerOsProcess = spawn(getTroupeRoot() + '/bin/troupec', ['--json-ir']);
     __compilerOsProcess.on('exit', (code: number) => {
-        process.exit(code);
+        // Don't exit if runtime's exit() was already called - it will handle the exit code
+        if (!__exitInitiated) {
+            process.exit(code);
+        }
     });
 
     let marker = "/*-----*/\n\n"

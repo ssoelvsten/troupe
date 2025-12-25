@@ -1,12 +1,12 @@
 let 
     val timeout_pid = spawn(fn () => 
-        let val _ = sleep 30000
+        let val _ = sleep 10000
         in exit(authority, 124)
         end)
     
     fun echo_client() = 
         let val _ = print "CLIENT: Starting ring echo test"
-            val _ = sleep 2000
+            val _ = sleep 500
             
             val intermediary = whereis("@intermediary", "proxy")
             val _ = print "CLIENT: Found intermediary proxy"

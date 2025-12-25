@@ -3,13 +3,13 @@
 
 let 
     val timeout_pid = spawn(fn () => 
-        let val _ = sleep 20000 (* 20 second timeout *)
+        let val _ = sleep 8000 (* 8 second timeout *)
         in exit(authority, 124) (* Timeout exit code *)
         end)
     
     fun echo_client() = 
         let val _ = print "CLIENT: Starting echo client"
-            val _ = sleep 2  (* Give server time to register *)
+            val _ = sleep 200  (* Give server time to register *)
             
             val echo_server = whereis("@server", "echo")
             val _ = print "CLIENT: Found echo server"
