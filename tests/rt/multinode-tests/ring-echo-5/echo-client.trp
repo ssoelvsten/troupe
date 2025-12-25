@@ -6,7 +6,7 @@ let
     
     fun echo_client() = 
         let val _ = print "CLIENT: Starting ring echo test with 5 intermediaries"
-            val _ = sleep 4000
+            val _ = sleep 8000
             
             val intermediary1 = whereis("@intermediary1", "proxy")
             val _ = print "CLIENT: Found intermediary1 proxy"
