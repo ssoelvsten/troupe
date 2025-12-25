@@ -55,8 +55,16 @@ let
         let (** Runs a 'Unit.isEq' and returns `true` if it fails. *)
             fun runIsEq indent { tag="Unit.isEq", exp=exp, act=act } =
                 if exp = act
-                then false
-                else let val _ = printNL auth
+                then if levelOf exp = levelOf act
+                     then false
+                     else (* IFC Mismatch *)
+                          let val _ = printNL auth
+                              val _ = print auth indent ("Expected @ " ^ (toString (levelOf exp)) ^ "\n")
+                              val _ = print auth indent ("Actual   @ " ^ (toString (levelOf act)) ^ "\n")
+                          in true
+                          end
+                else (* Structual Mismatch *)
+                     let val _ = printNL auth
                          val _ = print auth indent ("Expected: " ^ (toString exp) ^ "\n")
                          val _ = print auth indent ("Actual:   " ^ (toString act) ^ "\n")
                      in true
@@ -67,11 +75,15 @@ let
             (** Runs a 'Unit.isEq' and returns `true` if it fails. *)
             fun runIsNeq indent { tag="Unit.isNeq", unexp=unexp, act=act } =
                 if unexp <> act
-                then false
-                else let val _ = printNL auth
-                         val _ = print auth indent ("Undesired Match: " ^ (toString unexp) ^ "\n")
-                     in true
-                     end
+                then (* Structural Mismatch *)
+                     false
+                else if levelOf unexp <> levelOf act
+                     then (* IFC Mismatch *)
+                          false
+                      else let val _ = printNL auth
+                               val _ = print auth indent ("Undesired Match: " ^ (toString unexp) ^ "\n")
+                           in true
+                           end
               | runIsNeq indent a =
                 print auth indent ("runIsNeq ? " ^ (toString a) ^ "?\n"); false
 
