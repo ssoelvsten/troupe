@@ -51,7 +51,7 @@ run_test() {
     local start_time
     start_time=$(date +%s)
     
-    if "$SCRIPT_DIR/multinode-runner.sh" ${VERBOSE:+-v} "$test_config" 2>&1 | tee "$TEMP_DIR/${test_name}.log"; then
+    if "$TROUPE_ROOT/scripts/multinode-runner.sh" ${VERBOSE:+-v} "$test_config" 2>&1 | tee "$TEMP_DIR/${test_name}.log"; then
         local end_time
         end_time=$(date +%s)
         local duration=$((end_time - start_time))
