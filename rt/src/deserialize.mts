@@ -14,6 +14,7 @@ import { Level } from './Level.mjs';
 import { Record } from './Record.mjs';
 import { RawClosure } from './RawClosure.mjs';
 import * as levels from './Level.mjs';
+import { getTroupeRoot } from './troupeRoot.mjs';
 
 let __compilerOsProcess = null;
 
@@ -39,7 +40,7 @@ const HEADER:string =
              this.libs.push ({lib:lib, decl:decl})} }\n"
 
 function startCompiler() {
-    __compilerOsProcess = spawn(process.env.TROUPE + '/bin/troupec', ['--json-ir']);
+    __compilerOsProcess = spawn(getTroupeRoot() + '/bin/troupec', ['--json-ir']);
     __compilerOsProcess.on('exit', (code: number) => {
         process.exit(code);
     });

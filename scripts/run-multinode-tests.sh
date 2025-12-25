@@ -3,8 +3,9 @@ set -euo pipefail
 
 # Troupe Multi-Node Test Suite Runner
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-TROUPE_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+# Source shared environment setup
+. "$(dirname "${BASH_SOURCE[0]}")/troupe-env.sh"
+
 MULTINODE_TESTS_DIR="$TROUPE_ROOT/tests/rt/multinode-tests"
 VERBOSE=false
 PATTERN=""
