@@ -1,0 +1,37 @@
+(* Test for runtime label equality - Issue #110/#115 regression test *)
+(* Tests that join commutativity works at runtime: l1 join l2 = l2 join l1 *)
+(* Uses newlabel() to create labels that cannot be optimized by the compiler *)
+
+import Unit
+
+let fun joinLabels (l1, l2) =
+        levelOf ((0 raisedTo l1) + (0 raisedTo l2))
+
+    val l1 = newlabel ()
+    val l2 = newlabel ()
+    val l3 = newlabel ()
+
+    val join12 = joinLabels (l1, l2)
+
+    val tests = Unit.group "Runtime Label Equality" [
+        Unit.group "equality (commutativity)" [
+            Unit.it "l1 join l2 = l2 join l1"
+                (Unit.isTrue (join12 = joinLabels (l2, l1))),
+            Unit.it "l1 join l3 = l3 join l1"
+                (Unit.isTrue (joinLabels (l1, l3) = joinLabels (l3, l1))),
+            Unit.it "(l1 join l2) join l3 = (l2 join l1) join l3"
+                (Unit.isTrue (joinLabels (join12, l3) = joinLabels (joinLabels (l2, l1), l3)))
+        ],
+        Unit.group "inequality" [
+            Unit.it "l1 <> l2"
+                (Unit.isTrue (l1 <> l2)),
+            Unit.it "l1 <> l3"
+                (Unit.isTrue (l1 <> l3)),
+            Unit.it "l1 join l2 <> l1"
+                (Unit.isTrue (join12 <> l1)),
+            Unit.it "l1 join l2 <> l2"
+                (Unit.isTrue (join12 <> l2))
+        ]
+    ]
+in Unit.run authority tests
+end

@@ -4,8 +4,9 @@ set -euo pipefail
 # Troupe libp2p Migration Test Runner
 # Runs all libp2p migration tests and provides a summary report
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-TROUPE_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+# Source shared environment setup
+. "$(dirname "${BASH_SOURCE[0]}")/troupe-env.sh"
+
 TEST_BASE_DIR="$TROUPE_ROOT/tests/rt/libp2p-migration-tests"
 
 # Colors for output
