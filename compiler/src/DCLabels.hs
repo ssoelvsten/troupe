@@ -19,11 +19,12 @@ module DCLabels
   , dcLabelExpToDCLabel
   , dcLabelEq
   , cnfEq
-  , cnfImplies) where
+  , cnfImplies
+  , v1LabelEq) where
 import GHC.Generics(Generic)
 import Data.Serialize (Serialize)
-import Data.List (sort, nub)
-import Data.Char (toLower)
+import Data.List (sort, nub, dropWhileEnd)
+import Data.Char (toLower, isSpace)
 import qualified Text.PrettyPrint.HughesPJ as PP
 import Text.PrettyPrint.HughesPJ (
     (<+>), ($$), text, hsep, vcat, nest)
@@ -210,7 +211,33 @@ instance ToJSON CNF where
      toJSON (CNF cats) = 
           toJSON (map toJSON cats)
 
-instance ToJSON DCLabel where 
-     toJSON ( DCLabel (c, i)) = 
+instance ToJSON DCLabel where
+     toJSON ( DCLabel (c, i)) =
           object [ "confidentiality" .= c
                  , "integrity" .= i]
+
+
+-------------------------------------------------------
+-- V1 Label support
+-- V1 labels like "{alice, bob}" are syntactic sugar for
+-- DC labels "<alice & bob ; alice & bob>"
+-------------------------------------------------------
+
+-- | Semantic equality for V1 label strings
+-- V1 labels like "{alice, bob}" are semantically equivalent to "{bob, alice}"
+v1LabelEq :: String -> String -> Bool
+v1LabelEq l1 l2 = normalizeV1Label l1 == normalizeV1Label l2
+
+-- | Normalize V1 label string for semantic comparison
+-- Parses comma-separated principal names, normalizes them
+-- (lowercase, trimmed, sorted, deduplicated)
+normalizeV1Label :: String -> [String]
+normalizeV1Label s = snub $ map (lowerString . trim) $ splitOn ',' (stripBraces s)
+  where
+    trim = dropWhileEnd isSpace . dropWhile isSpace
+    stripBraces = dropWhileEnd (== '}') . dropWhile (== '{')
+    splitOn :: Char -> String -> [String]
+    splitOn _ "" = []
+    splitOn c s' = case break (== c) s' of
+      (a, "") -> [a]
+      (a, _:rest) -> a : splitOn c rest
