@@ -43,8 +43,9 @@ set -euo pipefail
 # 10. PORT MANAGEMENT: Tests use specific ports. Cleanup must be thorough to
 #    prevent "port already in use" errors, but without retrying binds.
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-TROUPE_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+# Source shared environment setup
+. "$(dirname "${BASH_SOURCE[0]}")/troupe-env.sh"
+
 TEST_CONFIG=""
 CLEANUP_PIDS=()
 TEMP_DIR=""
