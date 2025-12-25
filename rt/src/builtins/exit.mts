@@ -1,6 +1,7 @@
 import { UserRuntimeZero, Constructor, mkBase } from './UserRuntimeZero.mjs'
 import { assertNormalState, assertIsNTuple, assertIsAuthority, assertIsNumber, assertIsRootAuthority } from '../Asserts.mjs'
 import { __unit } from '../UnitVal.mjs';
+import { setExitInitiated } from '../runtimeMonitored.mjs';
 
 
 export function BuiltinExit <TBase extends Constructor<UserRuntimeZero>>(Base: TBase) {
@@ -12,6 +13,7 @@ export function BuiltinExit <TBase extends Constructor<UserRuntimeZero>>(Base: T
             assertIsAuthority(arg.val[0]);
             assertIsNumber(arg.val[1]);
             assertIsRootAuthority(arg.val[0]);
+            setExitInitiated();  // Prevent compiler exit handler from interfering
             (async () => {
                 await $r.cleanup()
                 process.exit(arg.val[1].val);

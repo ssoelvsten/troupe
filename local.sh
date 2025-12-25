@@ -55,12 +55,14 @@ done
 
 if [ $? -eq 0 ]; then
     eval "node --stack-trace-limit=1000 \"$TROUPE/rt/built/troupe.mjs\" -f=\"$tmp\" --localonly $runtime_args"
+    exit_code=$?
     if [ "$keep_temp" = false ]; then
         rm "$tmp"
     else
         echo "Temporary file kept at: $tmp"
     fi
-else 
+    exit $exit_code
+else
     exit $?
 fi    
 

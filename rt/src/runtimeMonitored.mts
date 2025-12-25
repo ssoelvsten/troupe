@@ -48,6 +48,12 @@ const error = x => logger.error(x)
 
 let __p2pRunning = false;
 
+// Flag to prevent compiler exit handler from interfering with intended exit code
+export let __exitInitiated = false;
+export function setExitInitiated() {
+    __exitInitiated = true;
+}
+
 
 let rt_xconsole = 
       new Console({ stdout: process.stdout
