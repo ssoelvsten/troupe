@@ -2,10 +2,11 @@ module DirectWOPats ( Lambda (..)
               , Term (..)
               , Decl (..)
               , FunDecl (..)
+              , Numeric(..)
               , Lit(..)
               , AtomName
               , Atoms(..)
-              , Prog(..)            
+              , Prog(..)
               )
 where
 
@@ -25,8 +26,12 @@ data Decl
 data FunDecl = FunDecl VarName Lambda
   deriving (Eq)
 
+-- Numeric type represents integer and floating point numeric literals
+data Numeric = NumInt Integer | NumFloat Double
+  deriving (Eq, Ord, Show)
+
 data Lit
-    = LInt Integer PosInf
+    = LNumeric Numeric PosInf
     | LString String
     | LLabel String
     | LDCLabel DCLabelExp
@@ -216,7 +221,8 @@ ppDecl (FunDecs fs) = ppFuns (map ppFunDecl fs)
     ppFuns _ = PP.empty
 
 ppLit :: Lit -> PP.Doc
-ppLit (LInt i _)      = PP.integer i
+ppLit (LNumeric (NumInt i) _)  = PP.integer i
+ppLit (LNumeric (NumFloat f) _) = PP.double f
 ppLit (LString s)   = PP.doubleQuotes (text s)
 ppLit (LLabel s)    = PP.braces (text s)
 ppLit (LDCLabel dc) = ppDCLabelExpLit dc

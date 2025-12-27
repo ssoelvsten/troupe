@@ -37,6 +37,7 @@ $graphic    = $printable # $white
 @binlit     = 0[bB]$bindigit[\_$bindigit]*
 @octlit     = 0[oO]$octdigit[\_$octdigit]*
 @hexlit     = 0[xX]$hexdigit[\_$hexdigit]*
+@floatlit   = $digit[\_$digit]* \. $digit[\_$digit]* ([eE][\+\-]? $digit[\_$digit]*)?
 
 tokens:-
 -- Whitespace insensitive
@@ -118,7 +119,9 @@ tokens:-
 <state_dclabel> "#root-integrity"       { mkL TokenDCRootInteg }
 <state_dclabel> "#null-confidentiality" { mkL TokenDCNullConf }
 <state_dclabel> "#null-integrity"       { mkL TokenDCNullInteg }
--- Integer literal parsing inspired by https://github.com/ocaml/ocaml/blob/trunk/parsing/lexer.mll
+-- Numeric literal parsing inspired by https://github.com/ocaml/ocaml/blob/trunk/parsing/lexer.mll
+-- Float rule must come BEFORE integer rules so that 3.14 matches as float, not 3 as int
+<0>   @floatlit                      { mkLs (\s -> TokenFloat (read (filter (/='_') s))) }
 <0>   @declit                        { mkLs (\s -> TokenNum (read (filter (/='_') s))) }
 <0>   @binlit                        { mkLs (\s -> TokenNum (fst (head (readBin (filter (/='_') (drop 2 s)))))) }
 <0>   @octlit                        { mkLs (\s -> TokenNum (fst (head (readOct (filter (/='_') (drop 2 s)))))) }
@@ -218,6 +221,7 @@ data Token
   | TokenFn
   | TokenHn
   | TokenNum Integer
+  | TokenFloat Double
   | TokenSym String
   | TokenString String
   | TokenTrue

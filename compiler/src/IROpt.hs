@@ -8,6 +8,7 @@ import Data.Set(Set)
 import qualified Data.Set as Set 
 import qualified Basics
 import qualified Core                      as C
+import Core (Numeric(..))
 import           TroupePositionInfo
 
 import qualified Data.Map.Lazy as Map 
@@ -83,7 +84,7 @@ instance Substitutable IRBBTree where
 data PValue = Unknown
             | TupleVal [VarAccess]
             | ListVal
-            | IntConst Integer
+            | NumericConst Numeric
             | BoolConst Bool
             | StringConst String
             | RecordVal Fields
@@ -252,14 +253,14 @@ irExprPeval e =
                     r_ (BoolConst True, Const (C.LBool True))
                 _ -> def_
 
-        Bin Basics.Eq x y -> do 
-            v1 <- varPEval x 
-            v2 <- varPEval y 
-            case (v1, v2) of 
-                (IntConst a, IntConst b) | a == b -> do
+        Bin Basics.Eq x y -> do
+            v1 <- varPEval x
+            v2 <- varPEval y
+            case (v1, v2) of
+                (NumericConst a, NumericConst b) | a == b -> do
                     setChangeFlag
                     r_ (BoolConst True, Const (C.LBool True))
-                (IntConst a, IntConst b) | a /= b -> do
+                (NumericConst a, NumericConst b) | a /= b -> do
                     setChangeFlag
                     r_ (BoolConst False, Const (C.LBool False))
                 _ -> r_ (Unknown, e)
@@ -278,24 +279,24 @@ irExprPeval e =
                 _ -> def_ 
         
         
-        Bin op x y -> do 
-          u <- varPEval x 
+        Bin op x y -> do
+          u <- varPEval x
           v <- varPEval y
-          case (u, v) of 
-            (IntConst a, IntConst b) -> do
+          case (u, v) of
+            (NumericConst (NumInt a), NumericConst (NumInt b)) -> do
                 let ii f = let c = f a b in do
                               setChangeFlag
-                              r_ (IntConst c, Const (C.LInt c NoPos))  
+                              r_ (NumericConst (NumInt c), Const (C.LNumeric (NumInt c) NoPos))
                 let bb f = let c = f a b in do
                               setChangeFlag
                               r_ (BoolConst c, Const (C.LBool c))
-                case op of 
+                case op of
                             Basics.Plus ->  ii (+)
                             Basics.Minus -> ii (-)
                             Basics.Mult ->  ii (*)
                             Basics.Div ->   def_ -- do not mess with divisions -- ii div
                             Basics.IntDiv-> def_
-                            Basics.Mod ->   def_ -- ii mod 
+                            Basics.Mod ->   def_ -- ii mod
                             -- Basics.Eq ->    bb (==)
                             Basics.Neq ->   bb(/=)
                             Basics.Le ->    bb (<=)
@@ -304,9 +305,9 @@ irExprPeval e =
                             Basics.Gt ->    bb ( > )
                             _ -> def_
                             -- _  -> fail "Type error discovered at compliation time"
-                            
+
             _ -> do
-              markUsed' x 
+              markUsed' x
               markUsed' y
               def_
         Record fields -> do mapM pevalField fields 
@@ -372,15 +373,15 @@ irExprPeval e =
             markUsed' y 
             r_ (Unknown, e)    
 
-        (Const x) -> do 
-            case x of 
-                C.LInt n pos -> 
-                    r_ (IntConst n, e)
-                C.LBool b -> 
+        (Const x) -> do
+            case x of
+                C.LNumeric n pos ->
+                    r_ (NumericConst n, e)
+                C.LBool b ->
                     r_ (BoolConst b, e)
-                C.LString s -> 
+                C.LString s ->
                     r_ (StringConst s, e)
-                _ -> 
+                _ ->
                     r_ (Unknown, e) 
 
         (Base _) -> do 
@@ -389,13 +390,13 @@ irExprPeval e =
         (Lib _ _) -> do 
             r_ (Unknown, e)
 
-        (Un Basics.TupleLength x) -> do 
-            v <- varPEval x 
-            case v of 
-                TupleVal vars -> do  
+        (Un Basics.TupleLength x) -> do
+            v <- varPEval x
+            case v of
+                TupleVal vars -> do
                     setChangeFlag
                     let n = fromIntegral $ length vars
-                    r_ (IntConst n, Const (C.LInt n NoPos))    
+                    r_ (NumericConst (NumInt n), Const (C.LNumeric (NumInt n) NoPos))
                 _ -> r_ (Unknown, e)    
         -- Not possible as not tracking list content:
         -- (Un Basics.ListLength x) -> do 
@@ -454,11 +455,11 @@ trPeval (If x bb1 bb2) = do
         
         let _doElse = do setChangeFlag
                          peval bb2  
-        case v of 
+        case v of
             BoolConst True -> _doThen
             BoolConst False -> _doElse
-            IntConst x | x /= 0 -> _doThen 
-            IntConst 0 -> _doElse
+            NumericConst (NumInt x) | x /= 0 -> _doThen
+            NumericConst (NumInt 0) -> _doElse
                                   
             _ -> do bb1' <- peval bb1 
                     bb2' <- peval bb2 

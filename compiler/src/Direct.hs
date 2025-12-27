@@ -2,6 +2,7 @@ module Direct ( Lambda (..)
               , Term (..)
               , Decl (..)
               , FunDecl (..)
+              , Numeric(..)
               , Lit(..)
               , DeclPattern(..)
               , RecordPatternMode(..)
@@ -71,8 +72,12 @@ data Decl
 data FunDecl = FunDecl VarName [Lambda] PosInf
   deriving (Eq)
 
+-- Numeric type represents integer and floating point numeric literals
+data Numeric = NumInt Integer | NumFloat Double
+  deriving (Eq, Ord, Show)
+
 data Lit
-    = LInt Integer PosInf
+    = LNumeric Numeric PosInf
     | LUnit --SrcPosInf
     | LBool Bool --SrcPosInf
     | LString String --SrcPosInf
@@ -350,7 +355,8 @@ ppDeclPattern (RecordPattern fields mode) =
                 WildcardMatch -> [text ".."]
 
 ppLit :: Lit -> PP.Doc
-ppLit (LInt i _ )      = PP.integer i
+ppLit (LNumeric (NumInt i) _)  = PP.integer i
+ppLit (LNumeric (NumFloat f) _) = PP.double f
 ppLit (LString s )   = PP.doubleQuotes (text s)
 ppLit (LDCLabel dc) = ppDCLabelExp dc
 ppLit (LUnit )       = text "()"

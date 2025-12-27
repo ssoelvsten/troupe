@@ -1,1 +1,1 @@
-0.0
+let val x = 0 in x.0 end
