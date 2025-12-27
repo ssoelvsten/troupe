@@ -1,0 +1,5 @@
+let val x = 3.14
+    val y = 2.5
+    val z = x + y
+in print z
+end
