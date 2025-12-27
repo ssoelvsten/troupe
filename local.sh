@@ -29,29 +29,41 @@ command -v mktemp >/dev/null 2>&1 || { echo "Error: 'mktemp' command not found" 
 
 tmp=`mktemp`.js
 
-# Separate compiler and runtime arguments
+# Separate compiler, runtime, and program arguments
+# Arguments before -- go to compiler (with some exceptions for runtime flags)
+# Arguments after -- (including --) are program arguments passed to runtime
 compiler_args=""
 runtime_args=""
+program_args=""
 keep_temp=false
+seen_separator=false
 
 for arg in "$@"; do
-    case "$arg" in
-        --no-color)
-            runtime_args="$runtime_args $arg"
-            ;;
-        --keep-temp)
-            keep_temp=true
-            ;;
-        *)
-            compiler_args="$compiler_args $arg"
-            ;;
-    esac
+    if [ "$seen_separator" = true ]; then
+        # After --, all args are program arguments
+        program_args="$program_args \"$arg\""
+    elif [ "$arg" = "--" ]; then
+        seen_separator=true
+        program_args="--"
+    else
+        case "$arg" in
+            --no-color)
+                runtime_args="$runtime_args $arg"
+                ;;
+            --keep-temp)
+                keep_temp=true
+                ;;
+            *)
+                compiler_args="$compiler_args $arg"
+                ;;
+        esac
+    fi
 done
 
 "$TROUPE_ROOT/bin/troupec" $compiler_args --output="$tmp"
 
 if [ $? -eq 0 ]; then
-    eval "node --stack-trace-limit=1000 \"$TROUPE_ROOT/rt/built/troupe.mjs\" -f=\"$tmp\" --localonly $runtime_args"
+    eval "node --stack-trace-limit=1000 \"$TROUPE_ROOT/rt/built/troupe.mjs\" -f=\"$tmp\" --localonly $runtime_args $program_args"
     exit_code=$?
     if [ "$keep_temp" = false ]; then
         rm "$tmp"

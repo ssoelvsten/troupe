@@ -6,11 +6,30 @@ _TROUPE_CALLER_DIR="$(cd "$(dirname "$0")" && pwd)"
 
 tmp=`mktemp`
 
-$TROUPE_ROOT/bin/troupec $1 --output=$tmp
+# Separate compiler and program arguments
+# Arguments before -- go to compiler
+# Arguments after -- (including --) are program arguments passed to runtime
+compiler_args=""
+program_args=""
+seen_separator=false
+
+for arg in "$@"; do
+    if [ "$seen_separator" = true ]; then
+        # After --, all args are program arguments
+        program_args="$program_args \"$arg\""
+    elif [ "$arg" = "--" ]; then
+        seen_separator=true
+        program_args="--"
+    else
+        compiler_args="$compiler_args $arg"
+    fi
+done
+
+$TROUPE_ROOT/bin/troupec $compiler_args --output=$tmp
 if [ $? -eq 0 ]; then
-    node --stack-trace-limit=1000 $TROUPE_ROOT/rt/built/troupe.js  -f=$tmp --localonly --pini #  --debug
+    eval "node --stack-trace-limit=1000 $TROUPE_ROOT/rt/built/troupe.mjs -f=$tmp --localonly --pini $program_args"
     rm $tmp
-else 
+else
     exit $?
 fi    
 

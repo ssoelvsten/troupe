@@ -1,0 +1,4 @@
+(* Test getCliArgs with attenuated authority - should fail *)
+let val lowAuth = attenuate (authority, `<bob ; bob>`)
+in getCliArgs lowAuth
+end

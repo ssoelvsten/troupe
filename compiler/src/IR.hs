@@ -290,6 +290,7 @@ instance WellFormedIRCheck IRExpr where
                      , "fprintlnWithLabels"
                      , "fwrite"                     
                      , "getTime"
+                     , "getCliArgs"
                      , "getType"
                      , "getNanoTime"
                      , "getStdout"

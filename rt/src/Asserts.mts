@@ -233,7 +233,7 @@ export function assertIsRootAuthority(x: any) {
     let isTop = actsFor(x.val.authorityLevel, levels.ROOT);
     if (!isTop) {
         let errorMessage =
-            "Provided authority is not TOP\n" +
+            "Provided authority is not ROOT\n" +
             ` | level of the provided authority: ${x.val.authorityLevel.stringRep()}`
         err(errorMessage);
     }

@@ -165,6 +165,25 @@ For programs that do not require network access, there is a convenient script
 `local.sh` that prompts the Troupe runtime to skip initialization of the p2p
 infrastructure or key generation (which otherwise takes a few seconds).
 
+### Passing command-line arguments to Troupe programs
+
+To pass arguments to a Troupe program, use `--` to separate runtime options from program arguments:
+
+```bash
+./local.sh myprogram.trp -- arg1 arg2 arg3
+./network.sh myprogram.trp -- arg1 "argument with spaces" arg3
+```
+
+Arguments after `--` are accessible in the Troupe program using the `getCliArgs` built-in function, which requires root authority:
+
+```sml
+let val args = getCliArgs authority
+in print args   (* ["arg1", "arg2", "arg3"] *)
+end
+```
+
+Note: CLI arguments are treated as sensitive data and are labeled at the highest security level (ROOT). Only code with root authority can access them.
+
 ### Building and naming the snapshot
 
 Script `dev-utils/build.sh` runs `make` and copies the executables to `../bin/<current git HEAD hash>`.
