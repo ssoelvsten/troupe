@@ -107,7 +107,8 @@
 
 #### Backend
 
-- [ ] Provide a runtime option to NOT use V1 compatible pretty printing
+- [x] Provide a runtime option to NOT use V1 compatible pretty printing
+      (done: `--no-v1-labels` / `--v1-labels` runtime options)
 
 ## Refactoring
 
@@ -134,12 +135,13 @@
 
 ### Compiler
 
-- [ ] For the declaration `type DCLabOrConst = Either LabelExp LabelConst`
+- [x] For the declaration `type DCLabOrConst = Either LabelExp LabelConst`
   change it to a new custom type (easier to track than Left/Right)
+  (done: replaced with `LabelComponent` data type)
 
 ## Dependency management
 
-- [ ] Upgrade all libp2p dependencies.
+- [x] Upgrade all libp2p dependencies (done: upgraded to libp2p v3 ecosystem)
 - [ ] "skipLibCheck" in tsconfig should be set back to false (or removed).
 
 ## Serialization 

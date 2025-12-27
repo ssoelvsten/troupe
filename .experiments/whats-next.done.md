@@ -1,5 +1,26 @@
 # DONE
 
+## 2025-12-27
+
+- [x] Add `--no-v1-labels` / `--v1-labels` runtime options for label output format
+      (V1 uses `{}` syntax, non-V1 uses `<>` DC label syntax)
+
+- [x] Add `getCliArgs` builtin for accessing command-line arguments
+      (requires root authority, arguments passed after `--` separator)
+
+- [x] Add floating point literal support in compiler frontend
+
+- [x] Replace `DCLabOrConst` type alias with `LabelComponent` data type
+      (clearer than `Either LabelExp LabelConst`)
+
+- [x] Upgrade libp2p ecosystem to v3
+
+- [x] Refactor shell scripts: split `troupe-env.sh` (environment setup)
+      from `troupe-common.sh` (environment + argument parsing)
+
+- [x] Fix `troupe_parse_args()` to recognize all runtime options
+      (was causing CI/CD failures for multinode tests)
+
 ## 2025-06-30
 
 - [x] Rename all tests extensions to .trp
