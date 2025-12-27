@@ -6,19 +6,19 @@ const debug = x => logger.debug(x)
 import { AbstractLevel, AbstractLevelSystem }  from '../AbstractLevel.mjs'
 
 
-function stringRep (T:Set <string>) {
+function stringRep (T:Set<string>, leftDelim: string = "{", rightDelim: string = "}") {
     let n = T.size
-    let s = "{";
+    let s = leftDelim;
     let i = 0;
-    let R = Array.from (T.values()).sort();
+    let R = Array.from(T.values()).sort();
 
-    R.forEach( t => {
+    R.forEach(t => {
         s += t;
-        if (++ i < n ) {
+        if (++i < n) {
             s += ","
         }
     })
-    s += "}"
+    s += rightDelim
     return s;
 }
 

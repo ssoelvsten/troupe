@@ -1,12 +1,12 @@
 #!/bin/sh
-# Shared Troupe environment setup
-# Source this file to get TROUPE_ROOT set correctly
+# Shared Troupe environment and utilities
+# Source this file to get TROUPE_ROOT and common functions
 #
 # Usage from scripts in /scripts/:
-#   . "$(dirname "$0")/troupe-env.sh"
+#   . "$(dirname "$0")/troupe-common.sh"
 #
 # Usage from root-level scripts:
-#   . "$(dirname "$0")/scripts/troupe-env.sh"
+#   . "$(dirname "$0")/scripts/troupe-common.sh"
 
 # Determine the repo root from this file's location
 # Use BASH_SOURCE if available (bash), otherwise fall back to the approach
@@ -37,3 +37,32 @@ export TROUPE_ROOT
 
 # Clean up internal variables
 unset _TROUPE_ENV_DIR _TROUPE_REPO_ROOT
+
+# Shared argument parsing function
+# Sets: TROUPE_COMPILER_ARGS, TROUPE_RUNTIME_ARGS, TROUPE_PROGRAM_ARGS
+# Usage: troupe_parse_args "$@"
+troupe_parse_args() {
+    TROUPE_COMPILER_ARGS=""
+    TROUPE_RUNTIME_ARGS=""
+    TROUPE_PROGRAM_ARGS=""
+    _seen_separator=false
+
+    for arg in "$@"; do
+        if [ "$_seen_separator" = true ]; then
+            TROUPE_PROGRAM_ARGS="$TROUPE_PROGRAM_ARGS \"$arg\""
+        elif [ "$arg" = "--" ]; then
+            _seen_separator=true
+            TROUPE_PROGRAM_ARGS="--"
+        else
+            case "$arg" in
+                --no-color|--v1-labels|--v1-labels=*|--no-v1-labels)
+                    TROUPE_RUNTIME_ARGS="$TROUPE_RUNTIME_ARGS $arg"
+                    ;;
+                *)
+                    TROUPE_COMPILER_ARGS="$TROUPE_COMPILER_ARGS $arg"
+                    ;;
+            esac
+        fi
+    done
+    unset _seen_separator
+}

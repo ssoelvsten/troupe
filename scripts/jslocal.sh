@@ -1,7 +1,7 @@
 #!/bin/sh
 
 # Source shared environment setup
-. "$(dirname "$0")/troupe-env.sh"
+. "$(dirname "$0")/troupe-common.sh"
 
 # Separate runtime file and program arguments
 # First argument is the .js file

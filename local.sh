@@ -2,7 +2,7 @@
 
 # Source shared environment setup
 _TROUPE_CALLER_DIR="$(cd "$(dirname "$0")" && pwd)"
-. "$_TROUPE_CALLER_DIR/scripts/troupe-env.sh"
+. "$_TROUPE_CALLER_DIR/scripts/troupe-common.sh"
 
 # Validate TROUPE_ROOT directory exists
 if [ ! -d "$TROUPE_ROOT" ]; then
@@ -29,41 +29,24 @@ command -v mktemp >/dev/null 2>&1 || { echo "Error: 'mktemp' command not found" 
 
 tmp=`mktemp`.js
 
-# Separate compiler, runtime, and program arguments
-# Arguments before -- go to compiler (with some exceptions for runtime flags)
-# Arguments after -- (including --) are program arguments passed to runtime
-compiler_args=""
-runtime_args=""
-program_args=""
+# Parse arguments (sets TROUPE_COMPILER_ARGS, TROUPE_RUNTIME_ARGS, TROUPE_PROGRAM_ARGS)
+troupe_parse_args "$@"
+
+# Handle local.sh-specific flags
 keep_temp=false
-seen_separator=false
-
-for arg in "$@"; do
-    if [ "$seen_separator" = true ]; then
-        # After --, all args are program arguments
-        program_args="$program_args \"$arg\""
-    elif [ "$arg" = "--" ]; then
-        seen_separator=true
-        program_args="--"
-    else
-        case "$arg" in
-            --no-color)
-                runtime_args="$runtime_args $arg"
-                ;;
-            --keep-temp)
-                keep_temp=true
-                ;;
-            *)
-                compiler_args="$compiler_args $arg"
-                ;;
-        esac
-    fi
+new_compiler_args=""
+for arg in $TROUPE_COMPILER_ARGS; do
+    case "$arg" in
+        --keep-temp) keep_temp=true ;;
+        *) new_compiler_args="$new_compiler_args $arg" ;;
+    esac
 done
+TROUPE_COMPILER_ARGS="$new_compiler_args"
 
-"$TROUPE_ROOT/bin/troupec" $compiler_args --output="$tmp"
+"$TROUPE_ROOT/bin/troupec" $TROUPE_COMPILER_ARGS --output="$tmp"
 
 if [ $? -eq 0 ]; then
-    eval "node --stack-trace-limit=1000 \"$TROUPE_ROOT/rt/built/troupe.mjs\" -f=\"$tmp\" --localonly $runtime_args $program_args"
+    eval "node --stack-trace-limit=1000 \"$TROUPE_ROOT/rt/built/troupe.mjs\" -f=\"$tmp\" --localonly $TROUPE_RUNTIME_ARGS $TROUPE_PROGRAM_ARGS"
     exit_code=$?
     if [ "$keep_temp" = false ]; then
         rm "$tmp"
