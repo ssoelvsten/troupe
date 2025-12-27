@@ -183,7 +183,21 @@ export class DCLabel extends AbstractLevel<DCLabel> {
         return new DCLabel(cnf, cnf)
     }
 
-    
+    /**
+     * Returns the reflection of this label: <i, c> for a label <c, i>
+     */
+    reflection(): DCLabel {
+        return new DCLabel(this.integrity, this.confidentiality);
+    }
+
+    /**
+     * A label <S, I> is corrupt iff it does not flow to its reflection <I, S>.
+     * This simplifies to: NOT (I ⟹ S), i.e., integrity does not imply confidentiality.
+     */
+    isCorrupt(): boolean {
+        return !implies(this.integrity, this.confidentiality);
+    }
+
 }
 
 
@@ -260,25 +274,25 @@ export class DCLevelSystem extends AbstractLevelSystem<DCLabel> {
     }
 
     
-    okToDowngradeGeneric (kind: DowngradeKind, dimension: DowngradeDimension) { 
+    okToDowngradeGeneric (kind: DowngradeKind, dimension: DowngradeDimension) {
         return (( l_from : DCLabel
                 , l_to   : DCLabel
                 , l_auth : DCLabel
-                , bl     : DCLabel 
-                , isNMIFC: boolean = false ) : DowngradeResult => {
+                , bl     : DCLabel
+                , isNMIFC: boolean = false
+                , pc     : DCLabel = TRUST_NULL ) : DowngradeResult => {
 
 
-            
             if (kind === DowngradeKind.VALUE && !this.flowsTo(bl, l_to)) {
                 return DowngradeError(DowngradeErrorReason.BLOCKING_LEVEL_MISMATCH);
             }
 
-            /* 
-            
+            /*
+
             S_auth /\ S_to ==> S_from        I_auth /\ I_from ==> I_to
             -----------------------------------------------------------
                 <S_from, I_from> flowsto_{l_auth} <S_to, I_to>
-            
+
             */
 
             switch (dimension) {
@@ -297,19 +311,58 @@ export class DCLevelSystem extends AbstractLevelSystem<DCLabel> {
                   throw new Error (`Unhandled DowngradeDimension: ${_exhaustiveCheck}`)
             }
 
-            let enough_confidentiality = 
+            let enough_confidentiality =
                 implies( conjunction ( l_auth.confidentiality
                                 ,   l_to.confidentiality)
                     , l_from.confidentiality)
-            let enough_integrity = 
+            let enough_integrity =
                 implies( conjunction ( l_auth.integrity
                                     , l_from.integrity)
-                    , l_to.integrity)            
-                
+                    , l_to.integrity)
+
             if (!(enough_confidentiality && enough_integrity)) {
                 return DowngradeError(DowngradeErrorReason.INSUFFICIENT_AUTHORITY);
             }
-            
+
+            /*
+               NMIFC checks (see Troupe security model document, Section 2.3)
+
+               Robust declassification (confidentiality dimension):
+                 (S_auth ∨ I_from ∨ I_pc) ∧ S_to ⟹ S_from
+
+               Transparent endorsement (integrity dimension):
+                 I_from ⟹ I_to ∨ (S_from ∧ S_pc)
+            */
+            if (isNMIFC) {
+                switch (dimension) {
+                    case DowngradeDimension.CONFIDENTIALITY: {
+                        // Robust declassification: (S_auth ∨ I_from ∨ I_pc) ∧ S_to ⟹ S_from
+                        const s_auth_or_i_from_or_i_pc = disjunction(
+                            disjunction(l_auth.confidentiality, l_from.integrity),
+                            pc.integrity
+                        );
+                        const robust = implies(
+                            conjunction(s_auth_or_i_from_or_i_pc, l_to.confidentiality),
+                            l_from.confidentiality
+                        );
+                        if (!robust) {
+                            return DowngradeError(DowngradeErrorReason.ROBUSTNESS_VIOLATION);
+                        }
+                        break;
+                    }
+                    case DowngradeDimension.INTEGRITY: {
+                        // Transparent endorsement: I_from ⟹ I_to ∨ (S_from ∧ S_pc)
+                        const s_from_and_s_pc = conjunction(l_from.confidentiality, pc.confidentiality);
+                        const i_to_or_secret = disjunction(l_to.integrity, s_from_and_s_pc);
+                        const transparent = implies(l_from.integrity, i_to_or_secret);
+                        if (!transparent) {
+                            return DowngradeError(DowngradeErrorReason.TRANSPARENCY_VIOLATION);
+                        }
+                        break;
+                    }
+                }
+            }
+
             return DowngradeResultSuccess;
         }
      )}

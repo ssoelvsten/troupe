@@ -7,7 +7,9 @@ import {
     formatIntegrityMismatchMsg,
     formatConfidentialityMismatchMsg,
     formatPiniBlockingLevelMismatchMsg,
-    formatValueInsufficientAuthorityMsg
+    formatValueInsufficientAuthorityMsg,
+    formatRobustnessViolationMsg,
+    formatTransparencyViolationMsg
 } from './DowngradeFormatter.mjs';
 
 
@@ -37,10 +39,10 @@ export function downgrader (runtime, dimension:DowngradeDimension, isNMIFC: bool
             let lev_to = toLevV.val 
             const downgradeKindString = stringOfDowngrader (dimension)
 
-            const dg_f = 
+            const dg_f =
                 dimension == DowngradeDimension.CONFIDENTIALITY ? okToDeclassify : okToEndorse;
             const ok_to_downgrade_result: DowngradeResult =
-                dg_f(levFrom, lev_to, auth.val.authorityLevel, bl, isNMIFC)
+                dg_f(levFrom, lev_to, auth.val.authorityLevel, bl, isNMIFC, pc)
 
             if (ok_to_downgrade_result.kind === "SUCCESS") {
                 let r = new LCopyVal(data, lub(lev_to, pc, arg.lev, auth.lev));
@@ -59,6 +61,12 @@ export function downgrader (runtime, dimension:DowngradeDimension, isNMIFC: bool
                         break;
                     case DowngradeErrorReason.INSUFFICIENT_AUTHORITY:
                         errorMessage = formatValueInsufficientAuthorityMsg(downgradeKindString, levFrom, auth.val.authorityLevel, lev_to);
+                        break;
+                    case DowngradeErrorReason.ROBUSTNESS_VIOLATION:
+                        errorMessage = formatRobustnessViolationMsg(downgradeKindString, levFrom, lev_to, pc);
+                        break;
+                    case DowngradeErrorReason.TRANSPARENCY_VIOLATION:
+                        errorMessage = formatTransparencyViolationMsg(downgradeKindString, levFrom, lev_to, pc);
                         break;
                     default:
                         const _exhaustiveCheck: never = ok_to_downgrade_result.reason;

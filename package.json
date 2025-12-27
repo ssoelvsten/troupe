@@ -31,6 +31,7 @@
     "@types/node": "^22.15.21",
     "aggregate-error": "^5.0.0",
     "chalk": "^5.4.1",
+    "cli-table3": "^0.6.5",
     "find-free-port": "^2.0.0",
     "it-length-prefixed": "^10.0.1",
     "libp2p": "^3.0.0",

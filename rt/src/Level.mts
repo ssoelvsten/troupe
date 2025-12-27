@@ -13,11 +13,11 @@ export function actsFor (a:Level,b:Level) { return levels.actsFor (a,b) }
 export function okToDowngrade (kind: DowngradeKind, dimension: DowngradeDimension) {
     return levels.okToDowngrade(kind, dimension);
 }
-export function okToDeclassify (from: Level, to:Level, auth: Level, bl: Level, isNMIFC: boolean): DowngradeResult {
-    return levels.okToDeclassify (from,to,auth, bl, isNMIFC);
+export function okToDeclassify (from: Level, to:Level, auth: Level, bl: Level, isNMIFC: boolean, pc?: Level): DowngradeResult {
+    return levels.okToDeclassify (from, to, auth, bl, isNMIFC, pc);
 }
-export function okToEndorse (from: Level, to:Level, auth: Level, bl: Level, isNMIFC: boolean): DowngradeResult {
-    return levels.okToEndorse (from,to,auth, bl, isNMIFC);
+export function okToEndorse (from: Level, to:Level, auth: Level, bl: Level, isNMIFC: boolean, pc?: Level): DowngradeResult {
+    return levels.okToEndorse (from, to, auth, bl, isNMIFC, pc);
 }
 export function fromSingleTag(x:string) { return levels.fromV1String(x)}
 

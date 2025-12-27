@@ -49,6 +49,22 @@ export function formatValueInsufficientAuthorityMsg(operationDescription: string
            ` | target level of the ${operationDescription}: ${targetLevel.stringRep()}`;
 }
 
+export function formatRobustnessViolationMsg(operationDescription: string, dataLevel: Level, targetLevel: Level, pcLevel: Level): string {
+    return `NMIFC robustness violation for ${operationDescription}\n` +
+           ` | The integrity of the data and PC do not permit this declassification.\n` +
+           ` | level of the data: ${dataLevel.stringRep()}\n` +
+           ` | target level: ${targetLevel.stringRep()}\n` +
+           ` | PC level: ${pcLevel.stringRep()}`;
+}
+
+export function formatTransparencyViolationMsg(operationDescription: string, dataLevel: Level, targetLevel: Level, pcLevel: Level): string {
+    return `NMIFC transparency violation for ${operationDescription}\n` +
+           ` | The confidentiality of the data and PC do not permit this endorsement.\n` +
+           ` | level of the data: ${dataLevel.stringRep()}\n` +
+           ` | target level: ${targetLevel.stringRep()}\n` +
+           ` | PC level: ${pcLevel.stringRep()}`;
+}
+
 // Non-exported helper for BLOCKING kind
 function getBlockDowngradeErrorMessageForReason(
     reason: DowngradeErrorReason,
@@ -62,6 +78,9 @@ function getBlockDowngradeErrorMessageForReason(
         case DowngradeErrorReason.CONFIDENTIALITY_MISMATCH: return formatConfidentialityMismatchMsg(operationDescription, levFrom, levTo);
         case DowngradeErrorReason.BLOCKING_LEVEL_MISMATCH: return formatPiniBlockingLevelMismatchMsg(operationDescription, levFrom, levTo);
         case DowngradeErrorReason.INSUFFICIENT_AUTHORITY: return formatPiniInsufficientAuthorityMsg(operationDescription, levFrom, authorityLevel, levTo);
+        case DowngradeErrorReason.ROBUSTNESS_VIOLATION:
+        case DowngradeErrorReason.TRANSPARENCY_VIOLATION:
+            throw new ImplementationError(`NMIFC violations should not occur for BLOCKING kind: ${reason}`);
         default:
             const _exhaustiveBlockReason: never = reason;
             throw new ImplementationError(`Unexpected reason for BLOCKING: ${_exhaustiveBlockReason}`);
@@ -82,6 +101,9 @@ function getMailboxDowngradeErrorMessageForReason(
         case DowngradeErrorReason.CONFIDENTIALITY_MISMATCH: return formatConfidentialityMismatchMsg(operationDescription, levFrom, levTo);
         case DowngradeErrorReason.BLOCKING_LEVEL_MISMATCH: return formatMboxBlockingLevelMismatchMsg(currentBlockingLevelForCheck, levTo);
         case DowngradeErrorReason.INSUFFICIENT_AUTHORITY: return formatMboxInsufficientAuthorityMsg(authorityLevel, levFrom, levTo);
+        case DowngradeErrorReason.ROBUSTNESS_VIOLATION:
+        case DowngradeErrorReason.TRANSPARENCY_VIOLATION:
+            throw new ImplementationError(`NMIFC violations should not occur for MAILBOX kind: ${reason}`);
         default:
             const _exhaustiveMboxReason: never = reason;
             throw new ImplementationError(`Unexpected reason for MAILBOX: ${_exhaustiveMboxReason}`);
@@ -106,6 +128,16 @@ function getValueDowngradeErrorMessageForReason(
         case DowngradeErrorReason.BLOCKING_LEVEL_MISMATCH:
             return formatPiniBlockingLevelMismatchMsg(operationDescription, currentBlockingLevelForCheck!, levTo);
         case DowngradeErrorReason.INSUFFICIENT_AUTHORITY: return formatValueInsufficientAuthorityMsg(operationDescription, levFrom, authorityLevel, levTo);
+        case DowngradeErrorReason.ROBUSTNESS_VIOLATION:
+            return `NMIFC robustness violation for ${operationDescription}\n` +
+                   ` | The integrity of the data and PC do not permit this declassification.\n` +
+                   ` | level of the data: ${levFrom.stringRep()}\n` +
+                   ` | target level: ${levTo.stringRep()}`;
+        case DowngradeErrorReason.TRANSPARENCY_VIOLATION:
+            return `NMIFC transparency violation for ${operationDescription}\n` +
+                   ` | The confidentiality of the data and PC do not permit this endorsement.\n` +
+                   ` | level of the data: ${levFrom.stringRep()}\n` +
+                   ` | target level: ${levTo.stringRep()}`;
         default:
             const _exhaustiveValueReason: never = reason;
             throw new ImplementationError(`Unexpected reason for VALUE: ${_exhaustiveValueReason}`);
