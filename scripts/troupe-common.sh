@@ -1,44 +1,22 @@
 #!/bin/sh
-# Shared Troupe environment and utilities
-# Source this file to get TROUPE_ROOT and common functions
-#
-# Usage from scripts in /scripts/:
-#   . "$(dirname "$0")/troupe-common.sh"
+# Troupe common utilities for shell scripts that compile and run programs
+# Includes environment setup and argument parsing
 #
 # Usage from root-level scripts:
-#   . "$(dirname "$0")/scripts/troupe-common.sh"
+#   _TROUPE_CALLER_DIR="$(cd "$(dirname "$0")" && pwd)"
+#   . "$_TROUPE_CALLER_DIR/scripts/troupe-common.sh"
 
-# Determine the repo root from this file's location
-# Use BASH_SOURCE if available (bash), otherwise fall back to the approach
-# where the caller sets _TROUPE_CALLER_DIR before sourcing
+# Source environment setup first
 if [ -n "${BASH_SOURCE:-}" ]; then
-    _TROUPE_ENV_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+    . "$(dirname "${BASH_SOURCE[0]}")/troupe-env.sh"
 elif [ -n "${_TROUPE_CALLER_DIR:-}" ]; then
-    # Caller is a root-level script that set _TROUPE_CALLER_DIR
-    _TROUPE_ENV_DIR="$_TROUPE_CALLER_DIR/scripts"
+    . "$_TROUPE_CALLER_DIR/scripts/troupe-env.sh"
 else
-    # Caller is in scripts/ directory - use $0 (works for non-sourced execution)
-    _TROUPE_ENV_DIR="$(cd "$(dirname "$0")" && pwd)"
-fi
-_TROUPE_REPO_ROOT="$(cd "$_TROUPE_ENV_DIR/.." && pwd)"
-
-# Use self-location if valid, otherwise fall back to TROUPE env var
-if [ -f "$_TROUPE_REPO_ROOT/.troupe-root" ]; then
-    TROUPE_ROOT="$_TROUPE_REPO_ROOT"
-elif [ -n "$TROUPE" ]; then
-    TROUPE_ROOT="$TROUPE"
-else
-    echo "Error: Cannot determine Troupe root directory" >&2
-    echo "No .troupe-root marker found. Set TROUPE environment variable or run from a Troupe installation." >&2
-    exit 1
+    . "$(dirname "$0")/troupe-env.sh"
 fi
 
-export TROUPE_ROOT
-
-# Clean up internal variables
-unset _TROUPE_ENV_DIR _TROUPE_REPO_ROOT
-
-# Shared argument parsing function
+# Shared argument parsing function for compile-and-run scripts
+# Separates compiler args, runtime args, and program args (after --)
 # Sets: TROUPE_COMPILER_ARGS, TROUPE_RUNTIME_ARGS, TROUPE_PROGRAM_ARGS
 # Usage: troupe_parse_args "$@"
 troupe_parse_args() {
@@ -46,6 +24,7 @@ troupe_parse_args() {
     TROUPE_RUNTIME_ARGS=""
     TROUPE_PROGRAM_ARGS=""
     _seen_separator=false
+    _expect_runtime_value=false
 
     for arg in "$@"; do
         if [ "$_seen_separator" = true ]; then
@@ -53,10 +32,30 @@ troupe_parse_args() {
         elif [ "$arg" = "--" ]; then
             _seen_separator=true
             TROUPE_PROGRAM_ARGS="--"
+        elif [ "$_expect_runtime_value" = true ]; then
+            # This arg is the value for a runtime option
+            TROUPE_RUNTIME_ARGS="$TROUPE_RUNTIME_ARGS \"$arg\""
+            _expect_runtime_value=false
         else
             case "$arg" in
-                --no-color|--v1-labels|--v1-labels=*|--no-v1-labels)
+                # Runtime boolean options (no value expected)
+                --debug|-d|--debugsandbox|--debugmailbox|--debugp2p)
                     TROUPE_RUNTIME_ARGS="$TROUPE_RUNTIME_ARGS $arg"
+                    ;;
+                --pini|--showStack|-ss|--rspawn|--localonly|-l|--persist|-P)
+                    TROUPE_RUNTIME_ARGS="$TROUPE_RUNTIME_ARGS $arg"
+                    ;;
+                --no-color|--v1-labels|--no-v1-labels)
+                    TROUPE_RUNTIME_ARGS="$TROUPE_RUNTIME_ARGS $arg"
+                    ;;
+                # Runtime options with embedded value (--option=value)
+                --trustmap=*|--id=*|--aliases=*|--stdiolev=*|--port=*|--relay=*|--v1-labels=*)
+                    TROUPE_RUNTIME_ARGS="$TROUPE_RUNTIME_ARGS $arg"
+                    ;;
+                # Runtime options expecting a separate value
+                --trustmap|-tm|--id|-i|--aliases|-a|--stdiolev|--port|--relay)
+                    TROUPE_RUNTIME_ARGS="$TROUPE_RUNTIME_ARGS $arg"
+                    _expect_runtime_value=true
                     ;;
                 *)
                     TROUPE_COMPILER_ARGS="$TROUPE_COMPILER_ARGS $arg"
@@ -64,5 +63,5 @@ troupe_parse_args() {
             esac
         fi
     done
-    unset _seen_separator
+    unset _seen_separator _expect_runtime_value
 }
