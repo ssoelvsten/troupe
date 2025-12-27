@@ -35,8 +35,6 @@
     "it-length-prefixed": "^10.0.1",
     "libp2p": "^2.10.0",
     "progress": "^2.0.3",
-    "request": "^2.88.2",
-    "update": "^0.7.4",
     "uuid": "^11.1.0",
     "winston": "^3.17.0",
     "yargs": "^17.7.2"
