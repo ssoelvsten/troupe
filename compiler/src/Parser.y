@@ -225,15 +225,15 @@ LabelExp:
      | LabelExp '&'  LabelExp      { OpExp Conj $1 $3 } 
      | LabelExp '|'  LabelExp      { OpExp Disj $1 $3 }
 
-ConfLabelExp :                     { Right LabelTrue }
-     | '#root-confidentiality'     { Right LabelFalse }
-     | '#null-confidentiality'     { Right LabelTrue }
-     | LabelExp                    { Left $1 }
+ConfLabelExp :                     { ConstComponent LabelTrue }
+     | '#root-confidentiality'     { ConstComponent LabelFalse }
+     | '#null-confidentiality'     { ConstComponent LabelTrue }
+     | LabelExp                    { ExprComponent $1 }
 
-IntLabelExp :                      { Right LabelTrue }
-     | '#root-integrity'           { Right LabelFalse }
-     | '#null-integrity'           { Right LabelTrue }
-     | LabelExp                    { Left $1 }     
+IntLabelExp :                      { ConstComponent LabelTrue }
+     | '#root-integrity'           { ConstComponent LabelFalse }
+     | '#null-integrity'           { ConstComponent LabelTrue }
+     | LabelExp                    { ExprComponent $1 }     
 
 DCLabelExp:
      ConfLabelExp ';' IntLabelExp         { DCLabelExp ($1, $3) } 
