@@ -140,7 +140,7 @@ async function main () {
 
   // Log 'keep alive' messages
   const _RELAY_PROTOCOL = '/trouperelay/keepalive';
-  await node.handle(_RELAY_PROTOCOL, async ({ connection, stream }) => {
+  await node.handle(_RELAY_PROTOCOL, async (stream, connection) => {
     const src_id = connection.remotePeer;
 
     // Log start of 'keep alive' protocol
@@ -148,7 +148,7 @@ async function main () {
 
     // Log each 'keep alive' message to the console
     pipe(
-      stream.source,
+      stream,
       (source) => lp.decode(source),
       (source) => map(source, (buf) => uint8ArrayToString(buf.subarray())),
       async (source) => {
