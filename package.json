@@ -35,9 +35,9 @@
     "it-length-prefixed": "^10.0.1",
     "libp2p": "^2.10.0",
     "progress": "^2.0.3",
-    "uuid": "^11.1.0",
+    "uuid": "^13.0.0",
     "winston": "^3.17.0",
-    "yargs": "^17.7.2"
+    "yargs": "^18.0.0"
   },
   "devDependencies": {
     "@types/ws": "^8.18.1",
