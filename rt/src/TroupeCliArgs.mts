@@ -56,7 +56,7 @@ export function getCliArgs(): ParsedArgs {
             .option(TroupeCliArg.DebugMailbox, { type: 'boolean', default: false, describe: 'Enable debug logging for mailbox processing' })
             .option(TroupeCliArg.DebugP2p, { type: 'boolean', default: false, describe: 'Enable debug logging for P2P communication' })
             .option(TroupeCliArg.Pini, { type: 'boolean', default: false, describe: 'Enable Pini mode for declassification' })
-            .option(TroupeCliArg.Nmifc, { type: 'boolean', default: false, describe: 'Enable NMIFC (Non-Malleable IFC) enforcement for downgrades' })
+            .option(TroupeCliArg.Nmifc, { type: 'boolean', default: true, describe: 'Enable NMIFC (Non-Malleable IFC) enforcement for downgrades (use --no-nmifc to disable)' })
             .option(TroupeCliArg.ShowStack, { alias: 'ss', type: 'boolean', default: false, describe: 'Show stack traces on errors' })
             .option(TroupeCliArg.Trustmap, { alias: 'tm', type: 'string', describe: 'Path to the trustmap JSON file' })
             .option(TroupeCliArg.Id, { alias: 'i', type: 'string', describe: 'Path to the node ID file' })
