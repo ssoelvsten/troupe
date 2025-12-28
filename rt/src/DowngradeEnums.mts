@@ -44,6 +44,7 @@ export type ValidateDowngradeParams = {
 	levTo: Level;
 	authorityLevel: Level;
 	downgradeDimension: DowngradeDimension;
-	blockLevel?: Level ; 
+	blockLevel?: Level ;
 	operationDescription?: string;
+	pcLevel?: Level;  // PC level for NMIFC error messages
 };

@@ -1,5 +1,37 @@
 To add support for NMIFC in Troupe, we will proceed as follows.
 
+---
+
+## Current Status (as of 2025-12-28)
+
+**Phase 1: COMPLETE** - NMIFC enforcement is fully wired up and can be enabled via `--nmifc` CLI flag.
+
+Key files modified in Phase 1:
+- [TroupeCliArgs.mts](rt/src/TroupeCliArgs.mts) - Added `--nmifc` flag
+- [Thread.mts](rt/src/Thread.mts) - Exposes `isNmifcMode` getter, wires NMIFC to blocking level downgrades, passes `pcLevel` to downgrade validation
+- [downgrading.mts](rt/src/downgrading.mts) - Reads NMIFC flag from `runtime.$t.isNmifcMode`
+- [declassify.mts](rt/src/builtins/declassify.mts) - Uses updated downgrader
+- [DowngradeEnums.mts](rt/src/DowngradeEnums.mts) - Added `pcLevel?: Level` to `ValidateDowngradeParams`
+- [DowngradeFormatter.mts](rt/src/DowngradeFormatter.mts) - Error messages show corruption status; uses context-aware labels ("current blocking level" vs "level of the data") based on `DowngradeKind`
+- [troupe-common.sh](scripts/troupe-common.sh) - Recognizes `--nmifc` and `--no-nmifc` flags
+
+Tests created in Phase 1:
+- **Value downgrade tests:**
+  - `tests/rt/neg/ifc/nmifc/robust-corrupt-label.trp` - Robustness violation (declassify)
+  - `tests/rt/neg/ifc/nmifc/transp-corrupt-label.trp` - Transparency violation (endorse)
+  - `tests/rt/pos/ifc/nmifc/symmetric-label-ok.trp` - Non-corrupt labels pass
+  - `tests/rt/pos/ifc/nmifc/contrast-corrupt-decl-no-nmifc.trp` - Contrast test for declassify
+  - `tests/rt/pos/ifc/nmifc/contrast-corrupt-endorse-no-nmifc.trp` - Contrast test for endorse
+- **Blocking level downgrade tests:**
+  - `tests/rt/neg/ifc/nmifc/block-robust-corrupt-label.trp` - Robustness violation (blockdeclto)
+  - `tests/rt/neg/ifc/nmifc/block-transp-corrupt-label.trp` - Transparency violation (blockendorseto)
+  - `tests/rt/pos/ifc/nmifc/contrast-block-decl-no-nmifc.trp` - Contrast test for blockdeclto
+  - `tests/rt/pos/ifc/nmifc/contrast-block-endorse-no-nmifc.trp` - Contrast test for blockendorseto
+
+**Next:** Phase 2 - Cross-dimensional downgrade primitives
+
+---
+
 # cross-dimensional downgrading
 
 1. We will create a set of primitives for cross-dimensional downgrading
@@ -111,56 +143,187 @@ This approach is cleaner because:
 
 ## Phase 2: Cross-Dimensional Downgrade Primitives
 
+### Background
+
+Currently, Troupe has separate primitives for single-dimension downgrades:
+- `declassify(value, authority, targetLabel)` - changes confidentiality only (integrity must match)
+- `endorse(value, authority, targetLabel)` - changes integrity only (confidentiality must match)
+- `blockdeclto(authority, targetLevel)` - declassifies blocking level
+- `blockendorseto(authority, targetLevel)` - endorses blocking level
+
+Phase 2 adds cross-dimensional primitives that can change both dimensions atomically.
+
+### Key Implementation Patterns
+
+**Adding a new built-in function requires changes in two places:**
+
+1. **Compiler** - Register in [IR.hs](compiler/src/IR.hs) around line 262-337:
+   ```haskell
+   wfir (Base fname) =
+       if  fname `elem`[
+           -- ... existing built-ins ...
+           , "yourNewFunction"  -- Add here
+           ]
+   ```
+
+2. **Runtime** - Create/modify a builtin file and register in [UserRuntime.mts](rt/src/UserRuntime.mts):
+   ```typescript
+   // In rt/src/builtins/yourFunction.mts:
+   import { UserRuntimeZero, Constructor, mkBase } from './UserRuntimeZero.mjs'
+
+   export function BuiltinYourFunction<TBase extends Constructor<UserRuntimeZero>>(Base: TBase) {
+       return class extends Base {
+           yourFunction = mkBase((arg) => {
+               // Implementation here
+               return this.runtime.ret(result);
+           }, "yourFunction")
+       }
+   }
+
+   // In UserRuntime.mts - add to the composition chain:
+   import { BuiltinYourFunction } from './builtins/yourFunction.mjs'
+   export const UserRuntime = BuiltinYourFunction( ... existing chain ... )
+   ```
+
+**Reference implementation:** See [declassify.mts](rt/src/builtins/declassify.mts) and [downgrading.mts](rt/src/downgrading.mts) for the pattern used by `declassify` and `endorse`.
+
 ### Step 2.1: Add `downgrade` primitive (compiler)
 
 **Files to modify:**
-- [IR.hs](compiler/src/IR.hs) - Add `"downgrade"` to built-in list
-
-**Purpose:** General downgrade that can change both confidentiality and integrity.
+- [IR.hs](compiler/src/IR.hs) - Add `"downgrade"` to built-in list (around line 284, near `declassify`)
 
 ### Step 2.2: Implement `downgrade` primitive (runtime)
 
 **Files to create:**
 - `rt/src/builtins/downgrade.mts` (new file)
 
-**Signature:**
+**Files to modify:**
+- [UserRuntime.mts](rt/src/UserRuntime.mts) - Import and add to composition chain
+
+**Troupe signature:**
 ```troupe
 downgrade (value, authority, targetLabel)
 ```
 
-**Implementation:**
-1. Extract current level from value
-2. Check both declassification and endorsement are valid
-3. If NMIFC mode, check robustness and transparency
-4. Return value with new label
+**Semantics:**
+- Unlike `declassify`/`endorse`, `downgrade` allows changing BOTH confidentiality and integrity
+- Both the declassification check AND endorsement check must pass
+- If NMIFC mode is enabled, both robustness AND transparency checks must pass
+- If either check fails, the entire operation fails (atomic)
+
+**Implementation outline:**
+```typescript
+// In rt/src/builtins/downgrade.mts
+import { UserRuntimeZero, Constructor, mkBase } from './UserRuntimeZero.mjs'
+import { LCopyVal } from '../Lval.mjs';
+import { assertIsNTuple, assertIsAuthority, assertIsLevel } from '../Asserts.mjs'
+import { lub, okToDeclassify, okToEndorse } from '../Level.mjs'
+import { DowngradeResult, DowngradeErrorReason } from '../DowngradeEnums.mjs';
+// ... import formatters ...
+
+export function BuiltinDowngrade<TBase extends Constructor<UserRuntimeZero>>(Base: TBase) {
+    return class extends Base {
+        downgrade = mkBase((arg) => {
+            assertIsNTuple(arg, 3);
+            let argv = arg.val;
+            let data = argv[0];
+            let auth = argv[1];
+            assertIsAuthority(auth);
+            let toLevV = argv[2];
+            assertIsLevel(toLevV);
+
+            let pc = this.runtime.$t.pc;
+            let levFrom = data.lev;
+            let bl = this.runtime.$t.bl;
+            let isNMIFC = this.runtime.$t.isNmifcMode;
+            let lev_to = toLevV.val;
+
+            // Check BOTH dimensions (no dimension mismatch checks needed)
+            // 1. Check declassification is valid
+            const declResult = okToDeclassify(levFrom, lev_to, auth.val.authorityLevel, bl, isNMIFC, pc);
+            if (declResult.kind === "FAILURE") {
+                // Handle error - but skip INTEGRITY_MISMATCH since we allow cross-dimensional
+                if (declResult.reason !== DowngradeErrorReason.INTEGRITY_MISMATCH) {
+                    this.runtime.$t.threadError(/* format error */);
+                }
+            }
+
+            // 2. Check endorsement is valid
+            const endResult = okToEndorse(levFrom, lev_to, auth.val.authorityLevel, bl, isNMIFC, pc);
+            if (endResult.kind === "FAILURE") {
+                // Handle error - but skip CONFIDENTIALITY_MISMATCH since we allow cross-dimensional
+                if (endResult.reason !== DowngradeErrorReason.CONFIDENTIALITY_MISMATCH) {
+                    this.runtime.$t.threadError(/* format error */);
+                }
+            }
+
+            // Both passed - return downgraded value
+            let r = new LCopyVal(data, lub(lev_to, pc, arg.lev, auth.lev));
+            return this.runtime.ret(r);
+        }, "downgrade")
+    }
+}
+```
+
+**Note:** The implementation needs careful handling of the dimension mismatch errors since cross-dimensional downgrades intentionally allow both dimensions to change.
 
 ### Step 2.3: Add `blockdownto` primitive (compiler + runtime)
 
 **Files to modify:**
 - [IR.hs](compiler/src/IR.hs) - Add `"blockdownto"` to built-in list
-- [pini.mts](rt/src/builtins/pini.mts) or new file - Implementation
+- [pini.mts](rt/src/builtins/pini.mts) - Add implementation (follows pattern of `blockdeclto`/`blockendorseto`)
 
-**Purpose:** Cross-dimensional downgrade for blocking level.
+**Troupe signature:**
+```troupe
+blockdownto (authority, targetLevel)
+```
+
+**Semantics:**
+- Downgrades the blocking level in both dimensions atomically
+- Similar to `blockdeclto` + `blockendorseto` but in one operation
+- Reference: See `blockDeclassifyTo()` and `blockEndorseTo()` in [Thread.mts](rt/src/Thread.mts)
 
 ### Step 2.4: Add `blockdown` primitive (compiler + runtime)
 
-**Purpose:** Downgrade blocking level to current PC label (convenience wrapper).
+**Files to modify:**
+- [IR.hs](compiler/src/IR.hs) - Add `"blockdown"` to built-in list
+- [pini.mts](rt/src/builtins/pini.mts) - Add implementation
+
+**Troupe signature:**
+```troupe
+blockdown (authority)
+```
+
+**Semantics:**
+- Convenience wrapper: equivalent to `blockdownto(authority, getPC())`
+- Downgrades blocking level to current PC label in both dimensions
 
 ### Step 2.5: Mailbox clearance downgrading primitives
 
-**Current state:** Only `lowermbox` and `raisembox` exist. The current
-`lowermbox` only supports confidentiality dimension and uses the generic
-name "lower" rather than "declassify".
+**Current state:**
+- `raisembox(level)` - raises mailbox clearance (returns capability)
+- `lowermbox(capability, authority)` - lowers mailbox clearance (confidentiality only)
 
 **Files to modify:**
-- [Thread.mts](rt/src/Thread.mts) - `lowerMboxClearance()`
 - [IR.hs](compiler/src/IR.hs) - Add new primitives to built-in list
 - [mboxclear.mts](rt/src/builtins/mboxclear.mts) - Implement new primitives
+- [Thread.mts](rt/src/Thread.mts) - `lowerMboxClearance()` may need updating
 
-**New primitives needed:**
-- `mboxdownto` - General mailbox clearance downgrade (cross-dimensional)
-- Wire NMIFC parameter to existing `lowermbox` operation
-- Consider integrity-dimension primitives if needed
+**New primitives:**
+- `mboxdownto(capability, authority, targetLevel)` - Cross-dimensional mailbox clearance downgrade
+
+**Note:** The existing `lowermbox` should also be updated to respect NMIFC mode (wire `isNmifcMode` through to the validation).
+
+### Phase 2 Build & Test
+
+After implementing each primitive:
+```bash
+make stack      # Rebuild compiler (only if IR.hs changed)
+make rt         # Rebuild runtime
+make test       # Run all tests
+```
+
+Create tests in `tests/rt/pos/ifc/nmifc/` for the new primitives (Category D tests from the demonstrator plan).
 
 ---
 
@@ -400,8 +563,13 @@ The following are already implemented and working:
 | NMIFC checks in downgrader   | `dclabel.mts:277-368`                    | ✓ Done  |
 | `ROBUSTNESS_VIOLATION` error | `DowngradeEnums.mts:20`                  | ✓ Done  |
 | `TRANSPARENCY_VIOLATION` err | `DowngradeEnums.mts:21`                  | ✓ Done  |
-| Error formatters             | `DowngradeFormatter.mts:52,60`           | ✓ Done  |
+| Error formatters             | `DowngradeFormatter.mts:56,64`           | ✓ Done  |
+| Context-aware labels         | `DowngradeFormatter.mts:52-54`           | ✓ Done  |
 | Test infrastructure          | `_experiments/test-reflection.mts`       | ✓ Done  |
+
+**Error Message Enhancement**: The `formatRobustnessViolationMsg` and `formatTransparencyViolationMsg` functions now take a `DowngradeKind` parameter and display context-appropriate labels:
+- For `DowngradeKind.BLOCKING`: Shows "current blocking level"
+- For `DowngradeKind.VALUE`: Shows "level of the data"
 
 ---
 

@@ -2,7 +2,7 @@ import { LCopyVal } from './Lval.mjs';
 import { assertIsNTuple, assertIsAuthority, assertIsLevel } from './Asserts.mjs'
 import { __unit } from './UnitVal.mjs';
 import { lub, flowsTo, okToDeclassify, okToEndorse}  from './Level.mjs'
-import { DowngradeResult, DowngradeDimension, DowngradeErrorReason } from './DowngradeEnums.mjs';
+import { DowngradeResult, DowngradeDimension, DowngradeErrorReason, DowngradeKind } from './DowngradeEnums.mjs';
 import {
     formatIntegrityMismatchMsg,
     formatConfidentialityMismatchMsg,
@@ -64,10 +64,10 @@ export function downgrader (runtime, dimension:DowngradeDimension) {
                         errorMessage = formatValueInsufficientAuthorityMsg(downgradeKindString, levFrom, auth.val.authorityLevel, lev_to);
                         break;
                     case DowngradeErrorReason.ROBUSTNESS_VIOLATION:
-                        errorMessage = formatRobustnessViolationMsg(downgradeKindString, levFrom, lev_to, pc);
+                        errorMessage = formatRobustnessViolationMsg(downgradeKindString, levFrom, lev_to, pc, DowngradeKind.VALUE);
                         break;
                     case DowngradeErrorReason.TRANSPARENCY_VIOLATION:
-                        errorMessage = formatTransparencyViolationMsg(downgradeKindString, levFrom, lev_to, pc);
+                        errorMessage = formatTransparencyViolationMsg(downgradeKindString, levFrom, lev_to, pc, DowngradeKind.VALUE);
                         break;
                     default:
                         const _exhaustiveCheck: never = ok_to_downgrade_result.reason;

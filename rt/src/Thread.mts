@@ -586,7 +586,8 @@ export class Thread {
             downgradeKind: DowngradeKind.BLOCKING,
             downgradeDimension: DowngradeDimension.CONFIDENTIALITY,
             blockLevel: this.bl,
-            operationDescription: "pini declassification"
+            operationDescription: "pini declassification",
+            pcLevel: this.pc
         });
         
         this.pc = pc;           
@@ -639,7 +640,8 @@ export class Thread {
             authorityLevel: auth.val.authorityLevel,
             downgradeKind: DowngradeKind.BLOCKING,
             downgradeDimension: DowngradeDimension.CONFIDENTIALITY,
-            operationDescription: "pini declassification"
+            operationDescription: "pini declassification",
+            pcLevel: this.pc
         });
         
         // Logic from former onSuccess callback
@@ -676,7 +678,8 @@ export class Thread {
             downgradeKind: DowngradeKind.BLOCKING,
             downgradeDimension: DowngradeDimension.INTEGRITY,
             blockLevel: current_bl,
-            operationDescription: "blocking level integrity"
+            operationDescription: "blocking level integrity",
+            pcLevel: this.pc
         });
 
         this.bl = bl_to; // the actual downgrade
@@ -709,7 +712,8 @@ export class Thread {
             downgradeKind: DowngradeKind.BLOCKING,
             downgradeDimension: DowngradeDimension.CONFIDENTIALITY,
             blockLevel: current_bl,
-            operationDescription: "blocking level declassification"
+            operationDescription: "blocking level declassification",
+            pcLevel: this.pc
         });
 
         this.bl = bl_to; // the actual downgrade
@@ -850,7 +854,8 @@ export class Thread {
             authorityLevel: auth.val.authorityLevel,
             downgradeKind: DowngradeKind.MAILBOX,
             downgradeDimension: DowngradeDimension.CONFIDENTIALITY,
-            blockLevel: this.bl
+            blockLevel: this.bl,
+            pcLevel: this.pc
         });       
         
         this.mailbox.mclear = cap.data; // restoring the clearance level

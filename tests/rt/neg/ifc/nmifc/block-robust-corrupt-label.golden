@@ -1,0 +1,7 @@
+2025-12-28T12:56:21.668Z [RTM] [32minfo[39m: Skipping network creation. Observe that all external IO operations will yield a runtime error.
+Runtime error in thread b8c6962a-241c-4c49-9e27-835fe14a497b@{}%{}
+>> NMIFC robustness violation for blocking level declassification
+ | The integrity of the data and PC do not permit this declassification.
+ | current blocking level: {alice,bob} (corrupt: true)
+ | target level: <#null-confidentiality;alice|bob>
+ | PC level: {} (corrupt: false)
