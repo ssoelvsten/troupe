@@ -1,0 +1,43 @@
+(* NMIFC Positive Test: Blocking Level Downgrade with Symmetric Labels (Endorse First)
+
+   This test is the same as block-symmetric-label-ok.trp but with the order
+   of blockendorseto and blockdeclto swapped.
+
+   Flow:
+   1. Branch on {alice} to raise BL to {alice} = <alice; alice> (non-corrupt)
+   2. blockendorseto to <alice; ROOT> - transparency check: alice ==> alice passes
+   3. blockdeclto to <TRUE; ROOT> - robustness check: ROOT ==> alice passes
+
+   Under NMIFC:
+   - Transparency check for blockendorseto: S_bl ==> I_bl = alice ==> alice = TRUE
+   - Robustness check for blockdeclto: I_bl ==> S_bl = ROOT ==> alice = TRUE
+
+   Both operations should succeed.
+
+   Expected output:
+   blockendorseto succeeded
+   blockdeclto succeeded
+
+   See: nmifc-summary.md for details on the non-corruption condition
+*)
+
+let
+    (* Create value with symmetric label {alice} = <alice; alice> *)
+    val symmetricAlice = true raisedTo `{alice}`
+
+    (* Branch on it to raise PC and BL to {alice} *)
+    val _ = if symmetricAlice then () else ()
+
+    (* blockendorseto: downgrade integrity from alice to ROOT, keep confidentiality as alice *)
+    (* BL: {alice} = <alice;alice> -> <alice;ROOT> *)
+    val _ = blockendorseto (authority, `<alice;#root-integrity>`)
+    val _ = print "blockendorseto succeeded"
+
+    (* blockdeclto: downgrade confidentiality from alice to TRUE, keep integrity as ROOT *)
+    (* BL: <alice;ROOT> -> <TRUE;ROOT> *)
+    val _ = blockdeclto (authority, `<#null-confidentiality;#root-integrity>`)
+    val _ = print "blockdeclto succeeded"
+
+    val _ = debugpc ()
+in ()
+end
