@@ -10,6 +10,7 @@ export enum DowngradeKind {
 export enum DowngradeDimension {
 	CONFIDENTIALITY = 1,
 	INTEGRITY = 2,
+	BOTH = 3,  // Cross-dimensional downgrade (changes both confidentiality and integrity)
 }
 
 export enum DowngradeErrorReason {

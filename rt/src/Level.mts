@@ -19,6 +19,9 @@ export function okToDeclassify (from: Level, to:Level, auth: Level, bl: Level, i
 export function okToEndorse (from: Level, to:Level, auth: Level, bl: Level, isNMIFC: boolean, pc?: Level): DowngradeResult {
     return levels.okToEndorse (from, to, auth, bl, isNMIFC, pc);
 }
+export function okToCrossDimensionalDowngrade (from: Level, to:Level, auth: Level, bl: Level, isNMIFC: boolean, pc?: Level): DowngradeResult {
+    return levels.okToCrossDimensionalDowngrade (from, to, auth, bl, isNMIFC, pc);
+}
 export function fromSingleTag(x:string) { return levels.fromV1String(x)}
 
 export function mkV1Level (x:string ) {

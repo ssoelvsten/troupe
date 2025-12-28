@@ -717,7 +717,40 @@ export class Thread {
         });
 
         this.bl = bl_to; // the actual downgrade
-        return this.returnImmediateLValue (__unit); 
+        return this.returnImmediateLValue (__unit);
+    }
+
+    // Cross-dimensional blocking level downgrade: changes both confidentiality and integrity
+    blockDowngradeTo (auth, bl_to = this.pc) {
+        if (! flowsTo (this.pc, bl_to)) {
+            this.threadError ("The provided target blocking level is lower than the current pc\n" +
+                              ` | the current pc: ${this.pc.stringRep()}\n` +
+                              ` | target blocking level: ${bl_to.stringRep()}`)
+        }
+
+
+        let ok_to_use = levels.flowsTo (auth.lev, bl_to);
+        if (!ok_to_use) {
+            this.threadError ("The provided authority value is tainted\n" +
+                              ` | the level of the authority value: ${auth.lev.stringRep()}\n` +
+                              ` | target blocking level: ${bl_to.stringRep()}`)
+        }
+
+        const current_bl = this.bl; // Capture this.bl as it's effectively levFrom
+
+        this._validateDowngradeOrThrow({
+            levFrom: current_bl,
+            levTo: bl_to,
+            authorityLevel: auth.val.authorityLevel,
+            downgradeKind: DowngradeKind.BLOCKING,
+            downgradeDimension: DowngradeDimension.BOTH,
+            blockLevel: current_bl,
+            operationDescription: "blocking level downgrade",
+            pcLevel: this.pc
+        });
+
+        this.bl = bl_to; // the actual downgrade
+        return this.returnImmediateLValue (__unit);
     }
 
     raiseBlockingThreadLev (l) {                
@@ -853,7 +886,7 @@ export class Thread {
             levTo: targetMboxBoostLevel,
             authorityLevel: auth.val.authorityLevel,
             downgradeKind: DowngradeKind.MAILBOX,
-            downgradeDimension: DowngradeDimension.CONFIDENTIALITY,
+            downgradeDimension: DowngradeDimension.BOTH,  // Cross-dimensional: changes both confidentiality and integrity
             blockLevel: this.bl,
             pcLevel: this.pc
         });       

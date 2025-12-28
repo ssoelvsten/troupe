@@ -1,7 +1,7 @@
 import { LCopyVal } from './Lval.mjs';
 import { assertIsNTuple, assertIsAuthority, assertIsLevel } from './Asserts.mjs'
 import { __unit } from './UnitVal.mjs';
-import { lub, flowsTo, okToDeclassify, okToEndorse}  from './Level.mjs'
+import { lub, flowsTo, okToDeclassify, okToEndorse, okToCrossDimensionalDowngrade}  from './Level.mjs'
 import { DowngradeResult, DowngradeDimension, DowngradeErrorReason, DowngradeKind } from './DowngradeEnums.mjs';
 import {
     formatIntegrityMismatchMsg,
@@ -13,13 +13,16 @@ import {
 } from './DowngradeFormatter.mjs';
 
 
-function stringOfDowngrader (d) {
+function stringOfDowngrader (d: DowngradeDimension): string {
     switch (d) {
         case DowngradeDimension.CONFIDENTIALITY: {
             return "declassification"
         }
         case DowngradeDimension.INTEGRITY: {
             return "endorsement"
+        }
+        case DowngradeDimension.BOTH: {
+            return "downgrade"
         }
     }
 }
@@ -41,7 +44,9 @@ export function downgrader (runtime, dimension:DowngradeDimension) {
             const downgradeKindString = stringOfDowngrader (dimension)
 
             const dg_f =
-                dimension == DowngradeDimension.CONFIDENTIALITY ? okToDeclassify : okToEndorse;
+                dimension == DowngradeDimension.CONFIDENTIALITY ? okToDeclassify :
+                dimension == DowngradeDimension.INTEGRITY ? okToEndorse :
+                okToCrossDimensionalDowngrade;
             const ok_to_downgrade_result: DowngradeResult =
                 dg_f(levFrom, lev_to, auth.val.authorityLevel, bl, isNMIFC, pc)
 

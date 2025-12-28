@@ -28,7 +28,40 @@ Tests created in Phase 1:
   - `tests/rt/pos/ifc/nmifc/contrast-block-decl-no-nmifc.trp` - Contrast test for blockdeclto
   - `tests/rt/pos/ifc/nmifc/contrast-block-endorse-no-nmifc.trp` - Contrast test for blockendorseto
 
-**Next:** Phase 2 - Cross-dimensional downgrade primitives
+---
+
+**Phase 2: COMPLETE** - Cross-dimensional downgrade primitives implemented.
+
+Key files modified in Phase 2:
+- [IR.hs](compiler/src/IR.hs) - Added `downgrade`, `blockdown`, `blockdownto` to built-in list
+- [DowngradeEnums.mts](rt/src/DowngradeEnums.mts) - Added `BOTH = 3` to `DowngradeDimension` enum
+- [dclabel.mts](rt/src/levels/DCLabels/dclabel.mts) - Updated `okToDowngradeGeneric` to handle `BOTH` dimension (no mismatch checks, both NMIFC checks)
+- [Level.mts](rt/src/Level.mts) - Added `okToCrossDimensionalDowngrade` export
+- [downgrading.mts](rt/src/downgrading.mts) - Added `BOTH` case to `stringOfDowngrader`, uses `okToCrossDimensionalDowngrade` for BOTH dimension
+- [declassify.mts](rt/src/builtins/declassify.mts) - Added `downgrade` primitive using `DowngradeDimension.BOTH`
+- [pini.mts](rt/src/builtins/pini.mts) - Added `blockdown` and `blockdownto` primitives
+- [Thread.mts](rt/src/Thread.mts) - Added `blockDowngradeTo` method; changed `lowerMboxClearance` to use `DowngradeDimension.BOTH`
+
+New primitives:
+- `downgrade(value, authority, targetLabel)` - Cross-dimensional value downgrade (changes both confidentiality and integrity)
+- `blockdownto(authority, targetLevel)` - Cross-dimensional blocking level downgrade to specified level
+- `blockdown(authority)` - Cross-dimensional blocking level downgrade to current PC
+
+Mailbox clearance:
+- `lowermbox` now uses cross-dimensional semantics (`DowngradeDimension.BOTH`)
+
+Tests created in Phase 2 (Category D):
+- `tests/rt/pos/ifc/nmifc/crossdim-downgrade-symmetric-ok.trp` - Cross-dimensional value downgrade with symmetric label
+- `tests/rt/pos/ifc/nmifc/crossdim-blockdownto-symmetric-ok.trp` - Cross-dimensional blockdownto with symmetric label
+- `tests/rt/pos/ifc/nmifc/crossdim-blockdown-symmetric-ok.trp` - Cross-dimensional blockdown with symmetric label
+- `tests/rt/neg/ifc/nmifc/crossdim-downgrade-corrupt-label.trp` - Cross-dimensional value downgrade fails with corrupt label
+- `tests/rt/neg/ifc/nmifc/crossdim-blockdownto-corrupt-label.trp` - Cross-dimensional blockdownto fails with corrupt label
+
+Contrast tests (Category E - show operations succeed without NMIFC):
+- `tests/rt/pos/ifc/nmifc/contrast-crossdim-downgrade-no-nmifc.trp` - Cross-dimensional downgrade from corrupt label succeeds without NMIFC
+- `tests/rt/pos/ifc/nmifc/contrast-crossdim-blockdownto-no-nmifc.trp` - Cross-dimensional blockdownto from corrupt BL succeeds without NMIFC
+
+**Next:** Phase 3 - (Optional) Restrict root authority downgrades
 
 ---
 

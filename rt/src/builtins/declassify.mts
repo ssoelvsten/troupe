@@ -13,5 +13,10 @@ export function BuiltinDeclassify<TBase extends Constructor<UserRuntimeZero>>(Ba
         declassify = mkBase
             ( downgrader (this.runtime, DowngradeDimension.CONFIDENTIALITY)
             , "declassify")
+
+        // Cross-dimensional downgrade: changes both confidentiality and integrity
+        downgrade = mkBase
+            ( downgrader (this.runtime, DowngradeDimension.BOTH)
+            , "downgrade")
     }
 }

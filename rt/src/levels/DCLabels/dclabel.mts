@@ -306,9 +306,10 @@ export class DCLevelSystem extends AbstractLevelSystem<DCLabel> {
                         return DowngradeError(DowngradeErrorReason.INTEGRITY_MISMATCH);
                     }
                     break;
-                default:
-                  const _exhaustiveCheck: never = dimension;
-                  throw new Error (`Unhandled DowngradeDimension: ${_exhaustiveCheck}`)
+                case DowngradeDimension.BOTH:
+                    // Cross-dimensional downgrade: allow both dimensions to change
+                    // No mismatch checks needed
+                    break;
             }
 
             let enough_confidentiality =
@@ -334,28 +335,46 @@ export class DCLevelSystem extends AbstractLevelSystem<DCLabel> {
                  I_from ⟹ I_to ∨ (S_from ∧ S_pc)
             */
             if (isNMIFC) {
+                // Helper to check robustness (for CONFIDENTIALITY and BOTH)
+                const checkRobustness = () => {
+                    // Robust declassification: (S_auth ∨ I_from ∨ I_pc) ∧ S_to ⟹ S_from
+                    const s_auth_or_i_from_or_i_pc = disjunction(
+                        disjunction(l_auth.confidentiality, l_from.integrity),
+                        pc.integrity
+                    );
+                    return implies(
+                        conjunction(s_auth_or_i_from_or_i_pc, l_to.confidentiality),
+                        l_from.confidentiality
+                    );
+                };
+
+                // Helper to check transparency (for INTEGRITY and BOTH)
+                const checkTransparency = () => {
+                    // Transparent endorsement: I_from ⟹ I_to ∨ (S_from ∧ S_pc)
+                    const s_from_and_s_pc = conjunction(l_from.confidentiality, pc.confidentiality);
+                    const i_to_or_secret = disjunction(l_to.integrity, s_from_and_s_pc);
+                    return implies(l_from.integrity, i_to_or_secret);
+                };
+
                 switch (dimension) {
                     case DowngradeDimension.CONFIDENTIALITY: {
-                        // Robust declassification: (S_auth ∨ I_from ∨ I_pc) ∧ S_to ⟹ S_from
-                        const s_auth_or_i_from_or_i_pc = disjunction(
-                            disjunction(l_auth.confidentiality, l_from.integrity),
-                            pc.integrity
-                        );
-                        const robust = implies(
-                            conjunction(s_auth_or_i_from_or_i_pc, l_to.confidentiality),
-                            l_from.confidentiality
-                        );
-                        if (!robust) {
+                        if (!checkRobustness()) {
                             return DowngradeError(DowngradeErrorReason.ROBUSTNESS_VIOLATION);
                         }
                         break;
                     }
                     case DowngradeDimension.INTEGRITY: {
-                        // Transparent endorsement: I_from ⟹ I_to ∨ (S_from ∧ S_pc)
-                        const s_from_and_s_pc = conjunction(l_from.confidentiality, pc.confidentiality);
-                        const i_to_or_secret = disjunction(l_to.integrity, s_from_and_s_pc);
-                        const transparent = implies(l_from.integrity, i_to_or_secret);
-                        if (!transparent) {
+                        if (!checkTransparency()) {
+                            return DowngradeError(DowngradeErrorReason.TRANSPARENCY_VIOLATION);
+                        }
+                        break;
+                    }
+                    case DowngradeDimension.BOTH: {
+                        // Cross-dimensional downgrade: check BOTH robustness AND transparency
+                        if (!checkRobustness()) {
+                            return DowngradeError(DowngradeErrorReason.ROBUSTNESS_VIOLATION);
+                        }
+                        if (!checkTransparency()) {
                             return DowngradeError(DowngradeErrorReason.TRANSPARENCY_VIOLATION);
                         }
                         break;
@@ -369,6 +388,7 @@ export class DCLevelSystem extends AbstractLevelSystem<DCLabel> {
 
     okToEndorse = this.okToDowngradeGeneric (DowngradeKind.VALUE, DowngradeDimension.INTEGRITY)
     okToDeclassify = this.okToDowngradeGeneric (DowngradeKind.VALUE, DowngradeDimension.CONFIDENTIALITY)
+    okToCrossDimensionalDowngrade = this.okToDowngradeGeneric (DowngradeKind.VALUE, DowngradeDimension.BOTH)
     okToDowngrade (kind: DowngradeKind, dimension: DowngradeDimension) {
         return this.okToDowngradeGeneric(kind, dimension);
     }
