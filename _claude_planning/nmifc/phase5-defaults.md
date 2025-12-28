@@ -1,6 +1,6 @@
 # Phase 5: Flip Defaults
 
-**Status:** Pending
+**Status:** ✓ COMPLETE
 
 **Purpose:** After Phases 1-4 are stable and the ecosystem has had time to adapt, make NMIFC enforcement the default.
 

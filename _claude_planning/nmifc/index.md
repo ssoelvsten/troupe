@@ -8,12 +8,12 @@ This document serves as the index for the NMIFC (Non-Malleable Information Flow 
 |-------|------------------------------------------|-------------|
 | 1     | [CLI + Wiring](phase1-cli-wiring.md)     | ✓ COMPLETE  |
 | 2     | [Cross-Dimensional Primitives](phase2-crossdim.md) | ✓ COMPLETE  |
-| 3     | [IFC Test Analysis](phase3-ifc-tests.md) | Pending     |
+| 3     | [IFC Test Analysis](phase3-ifc-tests.md) | ✓ COMPLETE  |
 | 4     | [Standard Library](phase4-stdlib.md)     | Pending     |
-| 5     | [Flip Defaults](phase5-defaults.md)      | Pending     |
+| 5     | [Flip Defaults](phase5-defaults.md)      | ✓ COMPLETE  |
 | 6     | [Root Authority Restriction](phase6-root-authority.md) | Pending (Stretch) |
 
-**Next:** Phase 3 - Analyze existing IFC tests and add `--no-nmifc` options
+**Next:** Phase 4 - Standard Library for assisted NMIFC downgrading
 
 ---
 
@@ -28,13 +28,13 @@ Phase 2: New Primitives (backwards compatible additions) ✓ COMPLETE
   └── 2.3, 2.4 (blockdownto, blockdown)
   └── 2.5 (mailbox primitives, includes NMIFC wiring)
 
-Phase 3: Existing IFC Test Analysis (backwards compatible)
+Phase 3: Existing IFC Test Analysis ✓ COMPLETE
   └── 3.1 → 3.2 → 3.3 → 3.4
 
 Phase 4: Standard Library (depends on Phase 1, 2)
   └── 4.1 → 4.2 → 4.3
 
-Phase 5: Flip Defaults (after ecosystem adapts)
+Phase 5: Flip Defaults ✓ COMPLETE
   └── 5.1 (NMIFC default on)
 
 Phase 6: Root Authority Restriction (breaking, needs migration)
