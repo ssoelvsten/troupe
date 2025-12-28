@@ -1,0 +1,38 @@
+(* NMIFC Category D Test: Cross-Dimensional Block Downgrade with Corrupt Label - FAILS
+
+   This test demonstrates that `blockdownto` fails with corrupt blocking levels
+   under NMIFC mode.
+
+   The `blockdownto` primitive changes the blocking level in BOTH dimensions.
+   Under NMIFC, both robustness AND transparency checks must pass.
+
+   Test scenario:
+   1. Branch on a value labeled {alice,bob} to raise BL to a corrupt label
+      {alice,bob} = <alice & bob; alice | bob>
+      (Note: PC stays at BOT, only BL is raised by branching)
+   2. Attempt blockdownto to lower it - should fail
+
+   The label is corrupt because (alice | bob) does NOT imply (alice & bob).
+
+   Under NMIFC with PC = BOT and BL = {alice,bob}:
+   - Robustness check: I_bl ==> S_bl = (alice | bob) ==> (alice & bob) = FALSE
+
+   The robustness check fails, so the blockdownto is rejected.
+
+   Expected: Thread error - robustness violation
+
+   See: nmifc-summary.md for details on the robustness condition
+*)
+
+let
+    (* Create value with corrupt label {alice,bob} = <alice & bob; alice | bob> *)
+    val corruptValue = true raisedTo `{alice,bob}`
+
+    (* Branch on it to raise BL to the corrupt label. PC stays at BOT. *)
+    val _ = if corruptValue then () else ()
+    (* Now: PC = BOT, BL = {alice,bob} = <alice & bob; alice | bob> (corrupt) *)
+
+    (* Attempt cross-dimensional downgrade - should fail robustness check *)
+    val _ = blockdownto (authority, `<#null-confidentiality; #root-integrity>`)
+in print "should not reach here"
+end

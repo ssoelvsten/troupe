@@ -324,3 +324,7 @@ When creating markdown tables, align columns for readability in raw view:
 
 In most cases the right thing to do is to locally run the file, i.e.,
 if the test `t.trp` fails, run `./local.sh t.trp` to see what the output is.
+
+Be careful making untested claims about information flow relationships between levels; 
+do use `debugpc()` functionality to see the present values of the pc and blocking labels
+for correct information.

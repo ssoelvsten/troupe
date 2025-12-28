@@ -1,0 +1,37 @@
+(* NMIFC Category D Test: Cross-Dimensional Block Downgrade to PC
+
+   This test demonstrates that the `blockdown` primitive works correctly
+   with symmetric (non-corrupt) blocking levels under NMIFC mode.
+
+   The `blockdown` primitive is a convenience function that downgrades
+   the blocking level to the current PC level in BOTH dimensions.
+   It is equivalent to: blockdownto (authority, getPC())
+
+   Test scenario:
+   1. Branch on a value labeled {alice} to raise BL to {alice} = <alice; alice>
+      (Note: PC stays at BOT, only BL is raised by branching)
+   2. Use blockdown to lower BL to current PC (which is BOT)
+
+   Under NMIFC with PC = BOT and BL = {alice}:
+   - Robustness check: I_bl ==> S_bl = alice ==> alice = TRUE
+   - Transparency check: I_bl ==> I_pc \/ S_bl = alice ==> FALSE \/ alice = TRUE
+
+   Both checks pass, so the blockdown succeeds.
+
+   Expected output: done
+
+   See: nmifc-summary.md for details on NMIFC conditions
+*)
+
+let
+    (* Create value with symmetric label {alice} = <alice; alice> *)
+    val symmetricAlice = true raisedTo `{alice}`
+
+    (* Branch on it to raise BL to {alice}. PC stays at BOT. *)
+    val _ = if symmetricAlice then () else ()
+    (* Now: PC = BOT, BL = {alice} = <alice; alice> *)
+
+    (* Cross-dimensional downgrade of blocking level to current PC (BOT) *)
+    val _ = blockdown authority
+in print "done"
+end

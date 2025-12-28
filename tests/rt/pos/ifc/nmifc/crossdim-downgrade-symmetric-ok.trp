@@ -1,0 +1,36 @@
+(* NMIFC Category D Test: Cross-Dimensional Downgrade with Symmetric Labels
+
+   This test demonstrates that the `downgrade` primitive works correctly
+   with symmetric (non-corrupt) labels under NMIFC mode.
+
+   The `downgrade` primitive allows changing BOTH confidentiality and integrity
+   in a single operation. This requires:
+   - Sufficient authority for both declassification and endorsement
+   - If NMIFC enabled: both robustness AND transparency checks must pass
+
+   A symmetric label like {alice} expands to <alice; alice>.
+   This is NOT corrupt because alice ==> alice is trivially true.
+
+   Test case: Downgrade from <alice; alice> to <TRUE; FALSE>
+   - Declassifies confidentiality from alice to TRUE
+   - Endorses integrity from alice to FALSE (fully trusted)
+
+   Under NMIFC:
+   - Robustness check: I_from ==> S_from = alice ==> alice = TRUE
+   - Transparency check: I_from ==> I_to \/ S_from = alice ==> FALSE \/ alice = TRUE
+
+   Both checks pass, so the downgrade succeeds.
+
+   Expected output: 42
+
+   See: nmifc-summary.md for details on NMIFC conditions
+*)
+
+let val x = 42 raisedTo `{alice}`
+    (* {alice} = <alice; alice> -- a symmetric, non-corrupt label *)
+
+    (* Downgrade: change both dimensions at once *)
+    (* From <alice; alice> to <TRUE; FALSE> = fully public and trusted *)
+    val y = downgrade (x, authority, `<#null-confidentiality; #root-integrity>`)
+in print y
+end
