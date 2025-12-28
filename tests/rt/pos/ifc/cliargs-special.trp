@@ -1,0 +1,4 @@
+(* Test CLI arguments with special characters *)
+let val args = getCliArgs authority
+in print args
+end

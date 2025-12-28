@@ -1,0 +1,4 @@
+(* Test getCliArgs with arguments passed via .options file *)
+let val args = getCliArgs authority
+in print args
+end
