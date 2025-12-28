@@ -1,0 +1,31 @@
+(* NMIFC Transparency Violation Test: Corrupt Label
+
+   This test demonstrates that NMIFC rejects endorsement from corrupt labels.
+
+   The label {alice,bob} (in V1 syntax) expands to <alice & bob; alice | bob>.
+   This is corrupt because (alice | bob) does NOT imply (alice & bob).
+
+   Under NMIFC:
+   - Transparency requires: I_from ==> I_to \/ (S_from /\ S_pc)
+   - With PC = BOT (S_pc = TRUE), this simplifies to: I_from ==> I_to \/ S_from
+   - When I_to = FALSE (endorsing to trusted): I_from ==> S_from
+   - For {alice,bob}: (alice | bob) ==> (alice & bob) is FALSE
+   - Therefore, NMIFC rejects the endorsement
+
+   Without NMIFC: This endorsement would succeed (only authority check).
+
+   Note: For endorse, confidentiality must be preserved. So we endorse to
+   <alice & bob; #root-integrity> which only changes integrity.
+
+   Expected: Thread error - transparency violation
+
+   See: nmifc-summary.md for details on the transparency condition
+*)
+
+let val x = 42 raisedTo `{alice,bob}`
+    (* {alice,bob} = <alice & bob; alice | bob> -- a corrupt label *)
+
+    (* Endorse: change integrity to FALSE (trusted), preserve confidentiality as alice&bob *)
+    val y = endorse (x, authority, `<alice&bob; #root-integrity>`)
+in print y
+end

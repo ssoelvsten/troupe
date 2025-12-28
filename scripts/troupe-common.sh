@@ -42,10 +42,10 @@ troupe_parse_args() {
                 --debug|-d|--debugsandbox|--debugmailbox|--debugp2p)
                     TROUPE_RUNTIME_ARGS="$TROUPE_RUNTIME_ARGS $arg"
                     ;;
-                --pini|--showStack|-ss|--rspawn|--localonly|-l|--persist|-P)
+                --pini|--nmifc|--showStack|-ss|--rspawn|--localonly|-l|--persist|-P)
                     TROUPE_RUNTIME_ARGS="$TROUPE_RUNTIME_ARGS $arg"
                     ;;
-                --no-color|--v1-labels|--no-v1-labels)
+                --no-color|--no-nmifc|--v1-labels|--no-v1-labels)
                     TROUPE_RUNTIME_ARGS="$TROUPE_RUNTIME_ARGS $arg"
                     ;;
                 # Runtime options with embedded value (--option=value)

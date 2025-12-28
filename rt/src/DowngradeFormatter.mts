@@ -52,17 +52,17 @@ export function formatValueInsufficientAuthorityMsg(operationDescription: string
 export function formatRobustnessViolationMsg(operationDescription: string, dataLevel: Level, targetLevel: Level, pcLevel: Level): string {
     return `NMIFC robustness violation for ${operationDescription}\n` +
            ` | The integrity of the data and PC do not permit this declassification.\n` +
-           ` | level of the data: ${dataLevel.stringRep()}\n` +
+           ` | level of the data: ${dataLevel.stringRep()} (corrupt: ${dataLevel.isCorrupt()})\n` +
            ` | target level: ${targetLevel.stringRep()}\n` +
-           ` | PC level: ${pcLevel.stringRep()}`;
+           ` | PC level: ${pcLevel.stringRep()} (corrupt: ${pcLevel.isCorrupt()})`;
 }
 
 export function formatTransparencyViolationMsg(operationDescription: string, dataLevel: Level, targetLevel: Level, pcLevel: Level): string {
     return `NMIFC transparency violation for ${operationDescription}\n` +
            ` | The confidentiality of the data and PC do not permit this endorsement.\n` +
-           ` | level of the data: ${dataLevel.stringRep()}\n` +
+           ` | level of the data: ${dataLevel.stringRep()} (corrupt: ${dataLevel.isCorrupt()})\n` +
            ` | target level: ${targetLevel.stringRep()}\n` +
-           ` | PC level: ${pcLevel.stringRep()}`;
+           ` | PC level: ${pcLevel.stringRep()} (corrupt: ${pcLevel.isCorrupt()})`;
 }
 
 // Non-exported helper for BLOCKING kind
