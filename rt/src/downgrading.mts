@@ -24,7 +24,7 @@ function stringOfDowngrader (d) {
     }
 }
 
-export function downgrader (runtime, dimension:DowngradeDimension, isNMIFC: boolean ) {
+export function downgrader (runtime, dimension:DowngradeDimension) {
     return (arg => {
             assertIsNTuple(arg, 3);
             let argv = arg.val;
@@ -35,8 +35,9 @@ export function downgrader (runtime, dimension:DowngradeDimension, isNMIFC: bool
             assertIsLevel(toLevV);
             let pc = runtime.$t.pc;
             let levFrom = data.lev;
-            let bl = runtime.$t.bl ;
-            let lev_to = toLevV.val 
+            let bl = runtime.$t.bl;
+            let isNMIFC = runtime.$t.isNmifcMode;
+            let lev_to = toLevV.val
             const downgradeKindString = stringOfDowngrader (dimension)
 
             const dg_f =

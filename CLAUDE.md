@@ -319,3 +319,8 @@ When creating markdown tables, align columns for readability in raw view:
 - Test files may require specific `.input` files for stdin
 - Golden tests are sensitive to output formatting
 
+
+## What to do when a golden test fails
+
+In most cases the right thing to do is to locally run the file, i.e.,
+if the test `t.trp` fails, run `./local.sh t.trp` to see what the output is.

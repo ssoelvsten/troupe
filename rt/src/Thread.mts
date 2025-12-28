@@ -27,6 +27,7 @@ import { HnState } from './SandboxStatus.mjs';
 
 
 let isPiniMode = argv[TroupeCliArg.Pini]?true:false;
+let isNmifcMode = argv[TroupeCliArg.Nmifc]?true:false;
 
 
 export enum PCDeclassificationPurpose {
@@ -180,9 +181,14 @@ export class SleepTimeout {
 }
 
 export class Thread {
-    tid: any;    
+    tid: any;
     pc: Level;
     bl: Level;
+
+    // NMIFC mode flag - read from CLI args
+    get isNmifcMode(): boolean {
+        return isNmifcMode;
+    }
 
 
     // registers 
@@ -368,7 +374,7 @@ export class Thread {
     ): void {
         const downgradeCheckResult: DowngradeResult =
             levels.okToDowngrade(params.downgradeKind, params.downgradeDimension)
-                 (params.levFrom, params.levTo, params.authorityLevel, params.blockLevel as Level);
+                 (params.levFrom, params.levTo, params.authorityLevel, params.blockLevel as Level, this.isNmifcMode, this.pc);
 
         if (downgradeCheckResult.kind === "FAILURE") {
             try {

@@ -63,54 +63,49 @@ wired up. Here's the detailed implementation plan:
 
 ## Phase 1: Enable NMIFC via CLI Flag (No Breaking Changes)
 
-### Step 1.1: Add CLI flag for NMIFC mode
+### Step 1.1: Add CLI flag for NMIFC mode ✓ COMPLETE
 
-**Files to modify:**
+**Files modified:**
 - [TroupeCliArgs.mts](rt/src/TroupeCliArgs.mts)
 
-**Changes:**
-1. Add `Nmifc = 'nmifc'` to the `TroupeCliArg` enum
-2. Add yargs configuration for the flag (default: `false` for backwards compatibility)
+**Changes made:**
+1. Added `Nmifc = 'nmifc'` to the `TroupeCliArg` enum
+2. Added yargs configuration for the flag (default: `false` for backwards compatibility)
 3. Later, we can flip the default to `true` and add `--disable-nmifc` flag
 
-### Step 1.2: Thread NMIFC flag through the runtime
+### Step 1.2: Thread NMIFC flag through the runtime ✓ COMPLETE
 
-**Files to modify:**
-- [Thread.mts](rt/src/Thread.mts) - Store `isNMIFC` from CLI args
-- [RuntimeInterface.mts](rt/src/RuntimeInterface.mts) - Expose `isNMIFC` on runtime
-- [runtimeMonitored.mts](rt/src/runtimeMonitored.mts) - Pass through to threads
+**Actual implementation approach:**
+Rather than adding `isNMIFC` to `RuntimeInterface`, we leveraged the existing architecture:
+- [Thread.mts](rt/src/Thread.mts) already reads `isNmifcMode` from CLI args at module level (line 30)
+- Thread class exposes `isNmifcMode` as a getter (lines 189-191)
+- Since `runtime.$t` (the Thread) is accessible in downgrade operations, we read `isNmifcMode` from there
 
-**Changes:**
-1. Read `--nmifc` flag in runtime initialization
-2. Store as `runtime.isNMIFC` or similar
-3. Make available to all downgrade operations
+This approach is cleaner because:
+- No need to modify `RuntimeInterface`
+- The flag flows naturally from the Thread which already has it
+- Less parameter passing
 
-### Step 1.3: Wire NMIFC to value downgrading
+### Step 1.3: Wire NMIFC to value downgrading ✓ COMPLETE
 
-**Files to modify:**
-- [declassify.mts](rt/src/builtins/declassify.mts)
+**Files modified:**
+- [downgrading.mts](rt/src/downgrading.mts) - Removed `isNMIFC` parameter, now reads from `runtime.$t.isNmifcMode`
+- [declassify.mts](rt/src/builtins/declassify.mts) - Removed hardcoded `false` parameter
 
-**Current state:**
-```typescript
-declassify = mkBase(downgrader(runtime, DowngradeDimension.CONFIDENTIALITY, false), "declassify")
-endorse = mkBase(downgrader(runtime, DowngradeDimension.INTEGRITY, false), "endorse")
-```
+**Changes made:**
+- `downgrader()` signature changed from `(runtime, dimension, isNMIFC)` to `(runtime, dimension)`
+- `isNMIFC` is now read from `runtime.$t.isNmifcMode` inside the function
 
-**Changes:**
-Replace hardcoded `false` with `runtime.isNMIFC` (or similar accessor).
+### Step 1.4: Wire NMIFC to blocking level downgrading ✓ COMPLETE
 
-### Step 1.4: Wire NMIFC to blocking level downgrading
+**Files modified:**
+- [Thread.mts](rt/src/Thread.mts) - `_validateDowngradeOrThrow()` method
 
-**Files to modify:**
-- [Thread.mts](rt/src/Thread.mts) - `blockDeclassifyTo()`, `blockEndorseTo()`
+**Changes made:**
+- `_validateDowngradeOrThrow()` now passes `this.isNmifcMode` and `this.pc` to `levels.okToDowngrade()`
+- This enables NMIFC checks (robustness/transparency) for blocking level downgrades
 
-**Current state:**
-These call `_validateDowngradeOrThrow()` which uses `levels.okToDowngrade()`.
-The NMIFC parameter needs to be threaded through.
-
-**Changes:**
-1. Pass `this.isNMIFC` to the validation function
-2. Update `_validateDowngradeOrThrow()` signature if needed
+**Note:** The `okToDowngradeGeneric` signature in dclabel.mts was also updated to change the default `pc` parameter from `TRUST_NULL` to `null`
 
 ---
 

@@ -280,7 +280,7 @@ export class DCLevelSystem extends AbstractLevelSystem<DCLabel> {
                 , l_auth : DCLabel
                 , bl     : DCLabel
                 , isNMIFC: boolean = false
-                , pc     : DCLabel = TRUST_NULL ) : DowngradeResult => {
+                , pc     : DCLabel = null ) : DowngradeResult => {
 
 
             if (kind === DowngradeKind.VALUE && !this.flowsTo(bl, l_to)) {
