@@ -172,8 +172,12 @@ export class DCLabel extends AbstractLevel<DCLabel> {
                          , CNF.fromJSON(o.integrity))
     }
 
+    // TODO: Performance optimization - if this path becomes a bottleneck, consider
+    // adding a fromSingleTagNormalized() variant that skips normalization for cases
+    // where the frontend (e.g., IR processor/lexer) has already normalized the tag.
     static fromSingleTag (s:string):DCLabel {
-        let labels = new Set ([s.trim()])
+        // Normalize case for consistency with tagsets and lexer (defensive programming)
+        let labels = new Set ([s.trim().toLowerCase()])
         let cat = new Category(labels)
         let cnf = new CNF (new Set ([cat]))
         return new DCLabel(cnf, cnf)

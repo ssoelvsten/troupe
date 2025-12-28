@@ -143,6 +143,10 @@ Use `Ctrl-k m` ("Change language mode") to set the current file's language mode 
 
 The current user guide is accessible [here](https://troupe.cs.au.dk/userguide.pdf).
 
+### Note on DC Labels
+
+All DC label tags are normalized to lowercase. For example, `` `<Alice ; Bob>` `` is equivalent to `` `<alice ; bob>` ``. This normalization is applied both at compile time (by the lexer) and at runtime.
+
 ## Building and running
 ### Building
 
