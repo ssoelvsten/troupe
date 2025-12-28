@@ -8,12 +8,13 @@
 
    Flow:
    1. Branch on {alice} to raise BL to {alice} = <alice; alice> (non-corrupt)
-   2. blockdeclto to <TRUE; alice> - still non-corrupt since alice ==> TRUE
-   3. blockendorseto to <TRUE; ROOT> - transparency check: TRUE ==> alice passes
+   2. blockdeclto to <TRUE; alice> - robustness check passes
+   3. blockendorseto to <TRUE; ROOT> - transparency check passes
 
-   Under NMIFC:
+   Under NMIFC (with PC = BOT after branch):
    - Robustness check for blockdeclto: I_bl ==> S_bl = alice ==> alice = TRUE
-   - Transparency check for blockendorseto: S_bl ==> I_bl = TRUE ==> alice = TRUE
+   - Transparency check for blockendorseto: I_bl ==> I_to ∨ (S_bl ∧ S_pc)
+     = alice ==> FALSE ∨ (TRUE ∧ TRUE) = alice ==> TRUE = TRUE
 
    Both operations should succeed.
 
