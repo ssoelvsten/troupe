@@ -136,8 +136,45 @@ npx tsx src/_experiments/test-reflection.mts
 
 4. **High-confidentiality data limits endorsement**: Secret untrusted data cannot be endorsed by public code, preventing covert integrity boosting.
 
+## Trust Anchor Pattern
+
+Joins create corruption, but this can be avoided using a **trust anchor** - a shared symmetric label that parties meet with before joining.
+
+### The Problem
+
+```
+{alice} ⊔ {bob} = <alice ∧ bob; alice ∨ bob>  → CORRUPT (I ⟹ S fails)
+```
+
+### The Solution
+
+Given a trust anchor `t' = <t, t>`:
+
+```
+a_2 = {alice} ⊓ {trust} = <alice ∨ t; alice ∧ t>
+b_2 = {bob} ⊓ {trust} = <bob ∨ t; bob ∧ t>
+
+a_2 ⊔ b_2 = <(alice ∧ bob) ∨ t; (alice ∨ bob) ∧ t>  → NOT CORRUPT
+```
+
+The `t` component ensures `I ⟹ S` holds: `(alice ∨ bob) ∧ t ⟹ t ⟹ (alice ∧ bob) ∨ t`
+
+### Downgrade Path
+
+To reach `a ⊓ t'` from `a`, two operations are needed (in either order):
+
+| Order | Step 1              | Step 2              | `{trust}` | `{alice}` |
+|-------|---------------------|---------------------|-----------|-----------|
+| A     | Endorse (add `t`)   | Declassify (add `t`)| Step 1    | Step 2    |
+| B     | Declassify (add `t`)| Endorse (add `t`)   | Step 2    | Step 1    |
+
+**Key insight**: Both orders require **cooperative authority** (`{trust}` + `{alice}`). Neither party can perform the transformation alone.
+
+See `trust-dg.md` for detailed analysis.
+
 ## Future Work
 
 - Integrate NMIFC enforcement into actual runtime downgrade operations (currently `isNMIFC` defaults to `false`)
 - Extend NMIFC checks to blocking level and mailbox downgrades
 - Consider whether NMIFC should be enabled by default
+- Explore trust anchor patterns for multinode coordination

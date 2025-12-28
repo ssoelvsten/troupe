@@ -411,5 +411,325 @@ for (const tc of testCases) {
     }
 }
 
+// Test 8: Trust anchor hypothesis
+// Meeting with a trust anchor before joining preserves non-corruption
+console.log("\n\n8. Trust anchor: meet before join preserves non-corruption");
+console.log("-".repeat(60));
+
+const trustAnchor = DCLabel.fromSingleTag('trust');
+console.log(`\nTrust anchor t' = ${trustAnchor.stringRep()}`);
+console.log(`Alice label a = ${alice.stringRep()}`);
+console.log(`Bob label b = ${bob.stringRep()}`);
+
+// Direct join (creates corruption)
+const directJoin = alice.join(bob);
+console.log(`\nDirect join: a ⊔ b = ${directJoin.stringRep()}`);
+console.log(`  Corrupt: ${directJoin.isCorrupt()}`);
+
+// Meet with trust anchor first
+const aliceMeetTrust = alice.meet(trustAnchor);
+const bobMeetTrust = bob.meet(trustAnchor);
+console.log(`\nMeet with trust anchor:`);
+console.log(`  a ⊓ t' = ${aliceMeetTrust.stringRep()}`);
+console.log(`  b ⊓ t' = ${bobMeetTrust.stringRep()}`);
+
+// Then join
+const anchoredJoin = aliceMeetTrust.join(bobMeetTrust);
+console.log(`\nAnchored join: (a ⊓ t') ⊔ (b ⊓ t') = ${anchoredJoin.stringRep()}`);
+console.log(`  Corrupt: ${anchoredJoin.isCorrupt()}`);
+
+// Verify the math
+console.log(`\nVerification:`);
+console.log(`  Expected S = (alice ∧ bob) ∨ trust`);
+console.log(`  Expected I = (alice ∨ bob) ∧ trust`);
+console.log(`  Check I ⟹ S: ${implies(anchoredJoin.integrity, anchoredJoin.confidentiality)}`);
+
+// Test NMIFC on the anchored result
+console.log(`\nNMIFC check on anchored join (should pass if not corrupt):`);
+const anchoredDeclTarget = new DCLabel(CNF_TRUE, anchoredJoin.integrity);
+const anchoredDeclResult = levels.okToDeclassify(
+    anchoredJoin,
+    anchoredDeclTarget,
+    TRUST_ROOT,
+    IFC_BOT,
+    true,   // isNMIFC
+    IFC_BOT // pc
+);
+console.log(`  Declassify to ${anchoredDeclTarget.stringRep()}: ${formatResult(anchoredDeclResult)}`);
+
+const anchoredEndTarget = new DCLabel(anchoredJoin.confidentiality, CNF_FALSE);
+const anchoredEndResult = levels.okToEndorse(
+    anchoredJoin,
+    anchoredEndTarget,
+    TRUST_ROOT,
+    IFC_BOT,
+    true,   // isNMIFC
+    IFC_BOT // pc
+);
+console.log(`  Endorse to ${anchoredEndTarget.stringRep()}: ${formatResult(anchoredEndResult)}`);
+
+// Compare with direct join NMIFC (should fail)
+console.log(`\nNMIFC check on direct join (should fail since corrupt):`);
+const directDeclTarget = new DCLabel(CNF_TRUE, directJoin.integrity);
+const directDeclResult = levels.okToDeclassify(
+    directJoin,
+    directDeclTarget,
+    TRUST_ROOT,
+    IFC_BOT,
+    true,
+    IFC_BOT
+);
+console.log(`  Declassify to ${directDeclTarget.stringRep()}: ${formatResult(directDeclResult)}`);
+
+const directEndTarget = new DCLabel(directJoin.confidentiality, CNF_FALSE);
+const directEndResult = levels.okToEndorse(
+    directJoin,
+    directEndTarget,
+    TRUST_ROOT,
+    IFC_BOT,
+    true,
+    IFC_BOT
+);
+console.log(`  Endorse to ${directEndTarget.stringRep()}: ${formatResult(directEndResult)}`);
+
+// Test: Can we downgrade from a_1 to a_1 ⊓ t' ?
+console.log(`\n${"─".repeat(60)}`);
+console.log("Can we downgrade a_1 → a_1 ⊓ t' (and similarly b_1 → b_1 ⊓ t')?");
+console.log(`${"─".repeat(60)}`);
+
+console.log(`\nStarting label: a_1 = ${alice.stringRep()}`);
+console.log(`Target label:   a_1 ⊓ t' = ${aliceMeetTrust.stringRep()}`);
+console.log(`\nThis requires two steps:`);
+console.log(`  1. Endorse:    <a, a> → <a, a ∧ t>  (increase integrity)`);
+console.log(`  2. Declassify: <a, a ∧ t> → <a ∨ t, a ∧ t>  (decrease confidentiality)`);
+
+// Step 1: Endorse from <a, a> to <a, a ∧ t>
+const step1Target = new DCLabel(alice.confidentiality, aliceMeetTrust.integrity);
+console.log(`\nStep 1: Endorse ${alice.stringRep()} → ${step1Target.stringRep()}`);
+console.log(`  Source corrupt? ${alice.isCorrupt()}`);
+
+const step1Result = levels.okToEndorse(
+    alice,
+    step1Target,
+    TRUST_ROOT,
+    IFC_BOT,
+    true,   // isNMIFC
+    IFC_BOT // pc
+);
+console.log(`  With ROOT authority: ${formatResult(step1Result)}`);
+
+// With just trust authority
+const step1ResultTrust = levels.okToEndorse(
+    alice,
+    step1Target,
+    trustAnchor,
+    IFC_BOT,
+    true,
+    IFC_BOT
+);
+console.log(`  With {trust} authority: ${formatResult(step1ResultTrust)}`);
+
+// Step 2: Declassify from <a, a ∧ t> to <a ∨ t, a ∧ t>
+console.log(`\nStep 2: Declassify ${step1Target.stringRep()} → ${aliceMeetTrust.stringRep()}`);
+console.log(`  Source corrupt? ${step1Target.isCorrupt()} (need a∧t ⟹ a: ${implies(step1Target.integrity, step1Target.confidentiality)})`);
+
+const step2Result = levels.okToDeclassify(
+    step1Target,
+    aliceMeetTrust,
+    TRUST_ROOT,
+    IFC_BOT,
+    true,
+    IFC_BOT
+);
+console.log(`  With ROOT authority: ${formatResult(step2Result)}`);
+
+// With just trust authority
+const step2ResultTrust = levels.okToDeclassify(
+    step1Target,
+    aliceMeetTrust,
+    trustAnchor,
+    IFC_BOT,
+    true,
+    IFC_BOT
+);
+console.log(`  With {trust} authority: ${formatResult(step2ResultTrust)}`);
+
+// What authority do we actually need for step 2?
+// Standard check: S_auth ∧ S_to ⟹ S_from
+// i.e., S_auth ∧ (a ∨ t) ⟹ a
+console.log(`\n  Authority analysis for declassification:`);
+console.log(`    Need: S_auth ∧ (a ∨ t) ⟹ a`);
+console.log(`    With S_auth = t: t ∧ (a ∨ t) = t ⟹ a? ${implies(trustAnchor.confidentiality, alice.confidentiality)}`);
+console.log(`    With S_auth = a: a ∧ (a ∨ t) = a ⟹ a? true`);
+
+// Try with alice authority
+const step2ResultAlice = levels.okToDeclassify(
+    step1Target,
+    aliceMeetTrust,
+    alice,
+    IFC_BOT,
+    true,
+    IFC_BOT
+);
+console.log(`  With {alice} authority: ${formatResult(step2ResultAlice)}`);
+
+// Alternative order: Declassify first, then Endorse
+console.log(`\n${"─".repeat(60)}`);
+console.log("Alternative order: Declassify first, then Endorse");
+console.log(`${"─".repeat(60)}`);
+
+console.log(`\nThis requires two steps:`);
+console.log(`  1. Declassify: <a, a> → <a ∨ t, a>  (decrease confidentiality)`);
+console.log(`  2. Endorse:    <a ∨ t, a> → <a ∨ t, a ∧ t>  (increase integrity)`);
+
+// Step 1 (alt): Declassify from <a, a> to <a ∨ t, a>
+const altStep1Target = new DCLabel(aliceMeetTrust.confidentiality, alice.integrity);
+console.log(`\nStep 1: Declassify ${alice.stringRep()} → ${altStep1Target.stringRep()}`);
+console.log(`  Source corrupt? ${alice.isCorrupt()}`);
+
+const altStep1Result = levels.okToDeclassify(
+    alice,
+    altStep1Target,
+    TRUST_ROOT,
+    IFC_BOT,
+    true,
+    IFC_BOT
+);
+console.log(`  With ROOT authority: ${formatResult(altStep1Result)}`);
+
+const altStep1ResultTrust = levels.okToDeclassify(
+    alice,
+    altStep1Target,
+    trustAnchor,
+    IFC_BOT,
+    true,
+    IFC_BOT
+);
+console.log(`  With {trust} authority: ${formatResult(altStep1ResultTrust)}`);
+
+const altStep1ResultAlice = levels.okToDeclassify(
+    alice,
+    altStep1Target,
+    alice,
+    IFC_BOT,
+    true,
+    IFC_BOT
+);
+console.log(`  With {alice} authority: ${formatResult(altStep1ResultAlice)}`);
+
+// Step 2 (alt): Endorse from <a ∨ t, a> to <a ∨ t, a ∧ t>
+console.log(`\nStep 2: Endorse ${altStep1Target.stringRep()} → ${aliceMeetTrust.stringRep()}`);
+console.log(`  Source corrupt? ${altStep1Target.isCorrupt()} (need a ⟹ a∨t: ${implies(altStep1Target.integrity, altStep1Target.confidentiality)})`);
+
+const altStep2Result = levels.okToEndorse(
+    altStep1Target,
+    aliceMeetTrust,
+    TRUST_ROOT,
+    IFC_BOT,
+    true,
+    IFC_BOT
+);
+console.log(`  With ROOT authority: ${formatResult(altStep2Result)}`);
+
+const altStep2ResultTrust = levels.okToEndorse(
+    altStep1Target,
+    aliceMeetTrust,
+    trustAnchor,
+    IFC_BOT,
+    true,
+    IFC_BOT
+);
+console.log(`  With {trust} authority: ${formatResult(altStep2ResultTrust)}`);
+
+const altStep2ResultAlice = levels.okToEndorse(
+    altStep1Target,
+    aliceMeetTrust,
+    alice,
+    IFC_BOT,
+    true,
+    IFC_BOT
+);
+console.log(`  With {alice} authority: ${formatResult(altStep2ResultAlice)}`);
+
+// Downgrade summary table
+console.log(`\nDowngrade path comparison:\n`);
+
+const downgradeTable = new Table({
+    head: ['Order', 'Step', 'From', 'To', 'ROOT', '{trust}', '{alice}'],
+    style: { head: [], border: [] }
+});
+
+const step1AliceResult = levels.okToEndorse(alice, step1Target, alice, IFC_BOT, true, IFC_BOT);
+
+downgradeTable.push(
+    [
+        'A',
+        '1. Endorse',
+        alice.stringRep(),
+        step1Target.stringRep(),
+        step1Result.kind === "SUCCESS" ? '✓' : '✗',
+        step1ResultTrust.kind === "SUCCESS" ? '✓' : '✗',
+        step1AliceResult.kind === "SUCCESS" ? '✓' : '✗'
+    ],
+    [
+        'A',
+        '2. Declassify',
+        step1Target.stringRep(),
+        aliceMeetTrust.stringRep(),
+        step2Result.kind === "SUCCESS" ? '✓' : '✗',
+        step2ResultTrust.kind === "SUCCESS" ? '✓' : '✗',
+        step2ResultAlice.kind === "SUCCESS" ? '✓' : '✗'
+    ],
+    [
+        'B',
+        '1. Declassify',
+        alice.stringRep(),
+        altStep1Target.stringRep(),
+        altStep1Result.kind === "SUCCESS" ? '✓' : '✗',
+        altStep1ResultTrust.kind === "SUCCESS" ? '✓' : '✗',
+        altStep1ResultAlice.kind === "SUCCESS" ? '✓' : '✗'
+    ],
+    [
+        'B',
+        '2. Endorse',
+        altStep1Target.stringRep(),
+        aliceMeetTrust.stringRep(),
+        altStep2Result.kind === "SUCCESS" ? '✓' : '✗',
+        altStep2ResultTrust.kind === "SUCCESS" ? '✓' : '✗',
+        altStep2ResultAlice.kind === "SUCCESS" ? '✓' : '✗'
+    ]
+);
+
+console.log(downgradeTable.toString());
+
+console.log(`\nOrder A: Endorse first, then Declassify`);
+console.log(`Order B: Declassify first, then Endorse`);
+console.log(`\nBoth orders require {trust} + {alice} authority to complete.`);
+
+// Summary
+console.log(`\nSummary: Trust Anchor Pattern\n`);
+
+const summaryTable = new Table({
+    head: ['Operation', 'Result', 'Corrupt?', 'NMIFC'],
+    style: { head: [], border: [] }
+});
+
+summaryTable.push(
+    [
+        'a ⊔ b (direct)',
+        directJoin.stringRep(),
+        directJoin.isCorrupt() ? 'yes' : 'no',
+        directDeclResult.kind === "SUCCESS" ? '✓' : '✗'
+    ],
+    [
+        '(a⊓t\') ⊔ (b⊓t\') (anchored)',
+        anchoredJoin.stringRep(),
+        anchoredJoin.isCorrupt() ? 'yes' : 'no',
+        anchoredDeclResult.kind === "SUCCESS" ? '✓' : '✗'
+    ]
+);
+
+console.log(summaryTable.toString());
+
 console.log("\n" + "=".repeat(60));
 console.log("Done.");
