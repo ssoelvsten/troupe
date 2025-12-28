@@ -470,7 +470,9 @@ async function getNetworkPeerId(rtHandlers) {
   } else {
     try {
       if (argv[TroupeCliArg.LocalOnly] || argv[TroupeCliArg.Persist]) {
-        info("Skipping network creation. Observe that all external IO operations will yield a runtime error.")
+        if (!argv[TroupeCliArg.SuppressLocalInfoMessage]) {
+          info("Skipping network creation. Observe that all external IO operations will yield a runtime error.")
+        }
         if (argv[TroupeCliArg.Persist]) {
           info("Running with persist flag.")
         }

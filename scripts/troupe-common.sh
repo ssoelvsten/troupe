@@ -45,7 +45,7 @@ troupe_parse_args() {
                 --pini|--nmifc|--showStack|-ss|--rspawn|--localonly|-l|--persist|-P)
                     TROUPE_RUNTIME_ARGS="$TROUPE_RUNTIME_ARGS $arg"
                     ;;
-                --no-color|--no-nmifc|--v1-labels|--no-v1-labels)
+                --no-color|--no-nmifc|--v1-labels|--no-v1-labels|--suppress-local-info-message)
                     TROUPE_RUNTIME_ARGS="$TROUPE_RUNTIME_ARGS $arg"
                     ;;
                 # Runtime options with embedded value (--option=value)

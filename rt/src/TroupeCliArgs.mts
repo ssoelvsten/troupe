@@ -21,6 +21,7 @@ export enum TroupeCliArg {
     Relay = 'relay',
     NoColor = 'no-color',
     V1Labels = 'v1-labels',
+    SuppressLocalInfoMessage = 'suppress-local-info-message',
 }
 
 export interface ParsedArgs {
@@ -43,6 +44,7 @@ export interface ParsedArgs {
     [TroupeCliArg.Relay]?: string | string[];
     [TroupeCliArg.NoColor]?: boolean;
     [TroupeCliArg.V1Labels]?: boolean;
+    [TroupeCliArg.SuppressLocalInfoMessage]?: boolean;
     [key: string]: any;
 }
 
@@ -83,6 +85,11 @@ export function getCliArgs(): ParsedArgs {
                 type: 'boolean',
                 default: true,
                 describe: 'Use V1-compatible label format ({} instead of <>)'
+            })
+            .option(TroupeCliArg.SuppressLocalInfoMessage, {
+                type: 'boolean',
+                default: false,
+                describe: 'Suppress info message when running in local-only mode'
             })
             .parseSync();
 
