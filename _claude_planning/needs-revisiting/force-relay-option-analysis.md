@@ -1,5 +1,9 @@
 # Force Relay Option Analysis for Troupe P2P
 
+> *This document was generated with Claude Code on 2025-12-28.*
+>
+> **Note**: This document needs revisiting. The libp2p library has been upgraded to v3.0, and the line number references and API details may be outdated.
+
 ## Executive Summary
 
 This document analyzes the current P2P implementation in Troupe's runtime to propose adding a CLI option that forces all peer communication to go through a relay server. This would be valuable for testing purposes, especially in multinode test scenarios where we want to simulate NAT traversal conditions or ensure consistent network behavior.
@@ -187,7 +191,3 @@ The implementation requires modifications to CLI parsing, libp2p configuration, 
 5. Test with existing multinode test suite
 6. Document usage and limitations
 
----
-
-**Author**: Analysis conducted on 2024-12-19
-**Status**: Proposal - Ready for Implementation

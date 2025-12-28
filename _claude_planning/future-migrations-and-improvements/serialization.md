@@ -1,5 +1,7 @@
 # Troupe Serialization Performance Analysis and Improvement Plan
 
+> *This document was generated with Claude Code on 2025-12-28.*
+
 ## Current Serialization Implementation Analysis
 
 ### Overview
@@ -63,7 +65,7 @@ Based on code analysis, serialization is heavily used in:
 
 #### Implementation Plan
 
-##### Phase 1: Core Data Types (2-3 weeks)
+##### Phase 1: Core Data Types
 ```protobuf
 // troupe_core.proto
 syntax = "proto3";
@@ -104,7 +106,7 @@ message TroupeDCLabel {
 }
 ```
 
-##### Phase 2: Closure Support (3-4 weeks)
+##### Phase 2: Closure Support
 ```protobuf
 message TroupeClosure {
   TroupeClosureType closure_type = 1;         // Maps to ClosureType enum
@@ -135,7 +137,7 @@ message TroupeEnvironment {
 }
 ```
 
-##### Phase 3: Optimization (2-3 weeks)
+##### Phase 3: Optimization
 - Object pooling for repeated values
 - Compression for string-heavy data
 - Streaming serialization for large objects
@@ -206,24 +208,24 @@ message TroupeLVal {
 }
 ```
 
-#### Implementation Timeline
+#### Implementation Steps
 
-**Week 1-2: Schema & Core Types**
+**Step 1: Schema & Core Types**
 - Implement complete protobuf schema for all TroupeTypes
 - Create protobuf serialization for primitive and aggregate types
 - Maintain object pooling with protobuf references
 
-**Week 3-4: Closure System Integration**  
+**Step 2: Closure System Integration**
 - Port namespace/environment/closure serialization to protobuf
 - Implement reference-based deduplication using protobuf indices
 - Preserve existing DFS dependency resolution logic
 
-**Week 5-6: Integration & Compatibility**
+**Step 3: Integration & Compatibility**
 - Replace JSON serialization calls with protobuf implementation
 - Add compatibility layer for persistence (JSON option for debugging)
 - Update P2P layer to use binary protobuf format
 
-**Week 7-8: Testing & Optimization**
+**Step 4: Testing & Optimization**
 - Performance benchmarking against current JSON implementation
 - Memory usage profiling and optimization
 - Backwards compatibility for existing persisted data
@@ -232,7 +234,7 @@ message TroupeLVal {
 
 For immediate performance gains without major architectural changes:
 
-#### 1. Object Pooling (1-2 days)
+#### 1. Object Pooling
 ```typescript
 class SerializationPool {
   private seenObjects = new WeakMap();
@@ -247,12 +249,12 @@ class SerializationPool {
 }
 ```
 
-#### 2. Lazy Closure Serialization (2-3 days)
+#### 2. Lazy Closure Serialization
 - Serialize closure metadata immediately
 - Defer function code serialization until needed
 - Cache serialized closures by hash
 
-#### 3. Streaming JSON (3-4 days)
+#### 3. Streaming JSON
 ```typescript
 function* streamingSerialize(obj: LVal): Generator<string> {
   // Yield JSON chunks instead of building entire object
@@ -261,7 +263,7 @@ function* streamingSerialize(obj: LVal): Generator<string> {
 
 ## Recommended Implementation Plan
 
-### Phase 1: Immediate Optimizations (1 week)
+### Phase 1: Immediate Optimizations
 1. Implement object pooling with `WeakMap`
 2. Add lazy closure serialization
 3. Optimize the recursive walk with iterative approach
@@ -269,7 +271,7 @@ function* streamingSerialize(obj: LVal): Generator<string> {
 
 **Expected Gains**: 30-50% performance improvement
 
-### Phase 2: Comprehensive Protobuf Implementation (6-8 weeks)
+### Phase 2: Comprehensive Protobuf Implementation
 1. Complete protobuf schema covering all TroupeTypes from runtime
 2. Port serialization logic to protobuf with reference-based object pooling
 3. Maintain compatibility layer for debugging/persistence
@@ -277,7 +279,7 @@ function* streamingSerialize(obj: LVal): Generator<string> {
 
 **Expected Gains**: 300-600% performance improvement, 60-70% size reduction
 
-### Phase 3: Advanced Optimizations (2-3 weeks)
+### Phase 3: Advanced Optimizations
 1. Streaming serialization for very large objects
 2. Compression for string-heavy namespaces
 3. Schema evolution support for backwards compatibility
