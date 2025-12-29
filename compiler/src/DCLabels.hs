@@ -21,7 +21,8 @@ module DCLabels
   , dcLabelEq
   , cnfEq
   , cnfImplies
-  , v1LabelEq) where
+  , v1LabelEq
+  , v1LabelToDCLabelExp) where
 import GHC.Generics(Generic)
 import Data.Serialize (Serialize)
 import Data.List (sort, nub, dropWhileEnd)
@@ -240,3 +241,15 @@ normalizeV1Label s = snub $ map (lowerString . trim) $ split "," (stripBraces s)
   where
     trim = dropWhileEnd isSpace . dropWhile isSpace
     stripBraces = dropWhileEnd (== '}') . dropWhile (== '{')
+
+-- | Convert V1 label string to DCLabelExp for cross-syntax comparison
+-- V1 "{}" means IFC_BOT = <True; False> (most public, least trusted)
+-- V1 "{alice, bob}" means <alice & bob ; alice & bob>
+v1LabelToDCLabelExp :: String -> DCLabelExp
+v1LabelToDCLabelExp s =
+    let tags = normalizeV1Label s
+    in case tags of
+        []  -> DCLabelExp (ConstComponent LabelTrue, ConstComponent LabelFalse)  -- IFC_BOT
+        [t] -> let e = ExprComponent (TagExp t) in DCLabelExp (e, e)
+        ts  -> let e = ExprComponent (foldr1 (\a b -> OpExp Conj a b) (map TagExp ts))
+               in DCLabelExp (e, e)

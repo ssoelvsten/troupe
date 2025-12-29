@@ -38,7 +38,7 @@ import           Text.PrettyPrint.HughesPJ (
 import           ShowIndent
 
 import           TroupePositionInfo
-import           DCLabels (DCLabelExp, ppDCLabelExpLit, dcLabelEq, v1LabelEq)
+import           DCLabels (DCLabelExp, ppDCLabelExpLit, dcLabelEq, v1LabelEq, v1LabelToDCLabelExp)
 
 --------------------------------------------------
 -- AST is the same as Direct, but lambda are unary (or nullary)
@@ -128,6 +128,9 @@ litEq LUnit LUnit = True
 litEq (LBool x) (LBool y) = x == y
 litEq (LAtom x) (LAtom y) = x == y
 litEq (LDCLabel dc) (LDCLabel dc') = dcLabelEq dc dc'
+-- Cross-syntax comparison: V1 labels vs DC labels
+litEq (LLabel l) (LDCLabel dc) = dcLabelEq (v1LabelToDCLabelExp l) dc
+litEq (LDCLabel dc) (LLabel l) = dcLabelEq dc (v1LabelToDCLabelExp l)
 litEq _ _ = False
 
 -- | Semantic inequality for literals

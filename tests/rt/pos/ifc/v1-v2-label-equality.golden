@@ -1,0 +1,21 @@
+2025-12-29T20:36:52.857Z [RTM] [32minfo[39m: Skipping network creation. Observe that all external IO operations will yield a runtime error.
+"=== DC Label V1 vs V2 Syntax Comparison ==="
+""
+("V1 `{}`:                                  ", {})
+("V2 `<;>`:                                 ", <#null-confidentiality;#null-integrity>)
+("V2 `<#null-conf; #null-intg>`:            ", <#null-confidentiality;#null-integrity>)
+("V2 `<#null-conf; #root-intg>`:            ", {})
+("V2 `<#root-conf; #null-intg>`:            ", {#TOP})
+""
+"=== Equality Tests ==="
+("V1 `{}` == `<;>`?                         ", false)
+("V1 `{}` == `<#null-conf; #null-intg>`?    ", false)
+("V1 `{}` == `<#null-conf; #root-intg>`?    ", true)
+""
+"=== Flow Tests (for V1 {} vs V2 <#null-conf; #root-intg>) ==="
+("V1 {} flowsTo V2 <#null;#root>?           ", true)
+("V2 <#null;#root> flowsTo V1 {}?           ", true)
+""
+("Level of 42:                              ", {})
+("Level of 42 equals V1 `{}`?               ", true)
+>>> Main thread finished with value: ()@{}%{}
