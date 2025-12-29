@@ -116,7 +116,9 @@ export function BuiltinReceive<TBase extends Constructor<UserRuntimeZero>>(Base:
             $r.$t.threadError (errorMessage);
           }    
         
-          let is_clearance_a_leak = flowsTo( mclear.pc_at_creation, glb ($r.$t.pc, lowb.val))
+          let is_clearance_a_leak = 
+            flowsTo( mclear.pc_at_creation 
+                   , lub ( glb ($r.$t.pc, lowb.val), $r.$t.pcAtCreation()))
       
           if (!is_clearance_a_leak)  {
             let errorMessage = 

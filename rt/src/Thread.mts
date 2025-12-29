@@ -366,8 +366,15 @@ export class Thread {
     
 
 
-    addMonitor (pid, r) {        
-        this.monitors[r.val] = {pid: pid, uuid: r} 
+    addMonitor (pid, r) {
+        this.monitors[r.val] = {pid: pid, uuid: r}
+    }
+
+    pcAtCreation(): Level {
+        // The initial frame is at the bottom of the call stack
+        // with structure: [sp_prev=0, pc, ret, mclear, branch_flag]
+        // The PC is at index 1 (CALLSIZE - PCOFFSET = 5 - 4 = 1)
+        return this.callStack[CALLSIZE - PCOFFSET];
     }
 
     private _validateDowngradeOrThrow(
