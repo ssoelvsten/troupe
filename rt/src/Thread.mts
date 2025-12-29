@@ -846,20 +846,27 @@ export class Thread {
     }
 
 
-    threadError (s:string, internal = false) {
+    threadError (s:string, internal = false, explainer = null) {
         if ( this.handlerState.isNormal()) {  
           if (internal)  {
             throw new ImplementationError(s)
           }
           else {
-            throw new StrThreadError(this, s);
+            throw new StrThreadError(this, s, explainer );
           }
         } else {
           this.raiseCurrentThreadPC(this.handlerState.lev);
           throw new HandlerError (this, s) //  "HandlerError" 
         }
     }
-    
+   
+    threadErrorWithExplainer (s : string, explainer: () => string) {
+        if (getCliArgs()[TroupeCliArg.Explain] && explainer) {
+            this.threadError (s, false, explainer ());         
+        } else {
+            this.threadError (s);
+        }
+    }
     
     addMessage (message) {
         this.mailbox.newMessage (message);    

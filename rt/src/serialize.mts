@@ -28,11 +28,12 @@ const debug = x => logger.debug(x)
 
 export class UnserializableObjectError extends StopThreadError {
     obj: LVal
+    explainstr: string = null;
     get errorMessage ()  {
         return (`Unserializable object: ${this.obj.stringRep()}`);
-        // TODO: 2021-06-12: improve error reporting 
-        // - indicate what the current type of this object is 
-        // - and explain why it is the case that it isn't serializable 
+        // TODO: 2021-06-12: improve error reporting
+        // - indicate what the current type of this object is
+        // - and explain why it is the case that it isn't serializable
     }
 
     constructor (obj:LVal) {

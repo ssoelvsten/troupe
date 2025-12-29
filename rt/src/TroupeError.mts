@@ -3,6 +3,7 @@ import { Thread } from "./Thread.mjs";
 import chalk from 'chalk'
 import { SchedulerInterface } from "./SchedulerInterface.mjs";
 import { configureColors } from './colorConfig.mjs';
+import { getCliArgs, TroupeCliArg } from './TroupeCliArgs.mjs';
 
 // Ensure colors are configured when this module is loaded
 configureColors();
@@ -20,21 +21,27 @@ export abstract class ThreadError extends TroupeError {
     }
 }
 
-export abstract class StopThreadError extends ThreadError {    
+export abstract class StopThreadError extends ThreadError {
+    abstract explainstr: string;
     handleError (sched) {
         let console = this.thread.rtObj.xconsole
         console.log (chalk.red ( "Runtime error in thread " + this.thread.tidErrorStringRep()))
         console.log (chalk.red ( ">> " + this.errorMessage));
+        if (getCliArgs()[TroupeCliArg.Explain] && this.explainstr) {
+            console.log (chalk.yellow ( this.explainstr));
+        }
         sched.stopThreadWithErrorMessage(this.thread, this.errorMessage);
     }
 }
 
 export class StrThreadError extends StopThreadError {
     errstr: string;
+    explainstr : string; 
     get errorMessage () { return this.errstr }
-    constructor (thread:Thread, errstr:string ) {
+    constructor (thread:Thread, errstr:string, explainstr: string ) {
         super (thread) ;
         this.errstr = errstr;        
+        this.explainstr = explainstr
     } 
 }
 
