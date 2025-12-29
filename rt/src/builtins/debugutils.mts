@@ -16,7 +16,7 @@ export function BuiltinDebugUtils <TBase extends Constructor<UserRuntimeZero>> (
             this.runtime.debug("");
             // this.runtime.$t.showStack()
             return this.runtime.ret(__unit);
-        })
+        }, "debugpc")
 
         _debug = mkBase ((arg) => {
             console.log (arg.stringRep(true))

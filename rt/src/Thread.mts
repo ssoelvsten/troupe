@@ -30,7 +30,7 @@ let isPiniMode = argv[TroupeCliArg.Pini]?true:false;
 let isNmifcMode = argv[TroupeCliArg.Nmifc]?true:false;
 
 
-export enum PCDeclassificationPurpose {
+export enum PCDowngradePurpose {
     Full="pcpush", 
     Pini="pinipush"
 }
@@ -356,7 +356,8 @@ export class Thread {
             j --
             console.log (` ${j.toString().padStart(5,' ')} pc_ret    : ${stack[j]?.stringRep()}`)
             j --
-            console.log (` ${j.toString().padStart(5,' ')} sp_prev   : ${stack[j]}`)
+            console.log     (` ${j.toString().padStart(5,' ')} sp_prev   : ${stack[j]}`)
+            console.log (` ${(j-1).toString().padStart(5,' ')} sparse    : ${stack[j-1]}`)
             let sp_prev = stack[j];
             j = sp_prev - 1 ;
         }
@@ -533,8 +534,9 @@ export class Thread {
         return uuidval;  
     }  
 
+    // TODO: deprecate(!) 2025-12-29; see comment below; AA
 
-    pcpinipush ( auth: any, purpose: PCDeclassificationPurpose | string, bl = this.bl )  {
+    pcpinipush ( auth: any, purpose: PCDowngradePurpose | string, bl = this.bl )  {
         let uid = uuidv4()
         let cap = this.mkVal (new Capability(uid,
                     { bl
@@ -551,7 +553,11 @@ export class Thread {
         return this.returnImmediateLValue(cap)
     }
 
-
+    // 2025-12-29: AA: this method 
+    // is problemamtic in the context of the 
+    // Stack representation that stores earlier 
+    // PC values in "regular" raw escaping variables
+    // TODO: deprecate (!)
     pcpop (cap_lval) {
         if (this.pini_uuid == null) {
             this.threadError ("unmatched pcpop");
@@ -561,7 +567,7 @@ export class Thread {
         let {bl, pc, auth, purpose} = cap.data;
         
         // check the capability
-        if (this.pini_uuid != cap.uid || purpose != PCDeclassificationPurpose.Full) {
+        if (this.pini_uuid != cap.uid || purpose != PCDowngradePurpose.Full) {
             this.threadError ("Ill-scoped pinipush/pinipop");
             return null; // does not schedule anything in this thread 
                          // effectively terminating/blocking the thread
@@ -584,9 +590,9 @@ export class Thread {
             levTo,
             authorityLevel: auth.val.authorityLevel,
             downgradeKind: DowngradeKind.BLOCKING,
-            downgradeDimension: DowngradeDimension.CONFIDENTIALITY,
+            downgradeDimension: DowngradeDimension.BOTH,
             blockLevel: this.bl,
-            operationDescription: "pini declassification",
+            operationDescription: "pc downgrade",
             pcLevel: this.pc
         });
         
@@ -600,6 +606,26 @@ export class Thread {
             j = loop_sp - PCOFFSET 
         }            
         this.pini_uuid = cap.prev;
+        
+        this.invalidateSparseBit ()
+         // 2025-12-29; 
+         // thet above is poor man's attempt 
+         // to mitigate for the havoc thath the 
+         // stack traversal causes
+         // but ultimately a failure. 
+         // We should either have a very 
+         // complicated "pc map" for cross-call escaping 
+         // raw values that would need to be restored 
+         // or just not do this
+         // 
+         // This compounds to the problem of 
+         // PC pop + capabilities being a very 
+         // adhoc mechanism in the first place
+         // 
+         // Let's try to write all the interesting 
+         // programs we want to write without trying to
+         // fix this and eventually deprecate this 
+         // concept.
 
         return this.returnImmediateLValue (__unit); 
     }
@@ -619,7 +645,7 @@ export class Thread {
         let {bl, pc, auth, purpose} = cap.data;
         
 
-        if (this.pini_uuid != cap.uid || purpose != PCDeclassificationPurpose.Pini) {            
+        if (this.pini_uuid != cap.uid || purpose != PCDowngradePurpose.Pini) {            
             this.threadError ("Ill-scoped pinipush/pinipop");
             return; // does not schedule anything in this thread 
                     // effectively terminating the thread
@@ -639,8 +665,8 @@ export class Thread {
             levTo,
             authorityLevel: auth.val.authorityLevel,
             downgradeKind: DowngradeKind.BLOCKING,
-            downgradeDimension: DowngradeDimension.CONFIDENTIALITY,
-            operationDescription: "pini declassification",
+            downgradeDimension: DowngradeDimension.BOTH,
+            operationDescription: "pini downgrading",
             pcLevel: this.pc
         });
         
@@ -750,6 +776,7 @@ export class Thread {
         });
 
         this.bl = bl_to; // the actual downgrade
+        this.invalidateSparseBit ()
         return this.returnImmediateLValue (__unit);
     }
 

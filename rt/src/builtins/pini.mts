@@ -9,18 +9,18 @@ export function BuiltinPini <TBase extends Constructor<UserRuntimeZero>> (Base:T
     
     return class extends Base {
 
-        pcpush = mkBase((arg) => {
-            assertNormalState("pcpush")
-            assertIsAuthority(arg);
-            return this.runtime.$t.pcpinipush(arg, "pcpush");
-        })
+        // pcpush = mkBase((arg) => {
+        //     assertNormalState("pcpush")
+        //     assertIsAuthority(arg);
+        //     return this.runtime.$t.pcpinipush(arg, "pcpush");
+        // })
 
 
-        pcpop = mkBase((arg) => {
-            assertNormalState("pcpop");
-            assertIsCapability(arg);
-            return this.runtime.$t.pcpop(arg)
-        })
+        // pcpop = mkBase((arg) => {
+        //     assertNormalState("pcpop");
+        //     assertIsCapability(arg);
+        //     return this.runtime.$t.pcpop(arg)
+        // })
 
 
         pinipush = mkBase((arg) => {
