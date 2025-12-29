@@ -22,6 +22,7 @@ export enum TroupeCliArg {
     NoColor = 'no-color',
     V1Labels = 'v1-labels',
     SuppressLocalInfoMessage = 'suppress-local-info-message',
+    Explain = 'explain',
 }
 
 export interface ParsedArgs {
@@ -45,6 +46,7 @@ export interface ParsedArgs {
     [TroupeCliArg.NoColor]?: boolean;
     [TroupeCliArg.V1Labels]?: boolean;
     [TroupeCliArg.SuppressLocalInfoMessage]?: boolean;
+    [TroupeCliArg.Explain]?: boolean;
     [key: string]: any;
 }
 
@@ -90,6 +92,12 @@ export function getCliArgs(): ParsedArgs {
                 type: 'boolean',
                 default: false,
                 describe: 'Suppress info message when running in local-only mode'
+            })
+            .option(TroupeCliArg.Explain, {
+                alias: 'e',
+                type: 'boolean',
+                default: false,
+                describe: 'Enable detailed explanations for runtime errors (shows flowsTo checks and other diagnostics)'
             })
             .parseSync();
 
