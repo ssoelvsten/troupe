@@ -282,6 +282,7 @@ instance WellFormedIRCheck IRExpr where
                      , "charCodeAtWithDefault"
                      , "consume"
                      , "_debug"
+                     , "debugMbox"
                      , "debugpc"
                      , "declassify"
                      , "downgrade"
