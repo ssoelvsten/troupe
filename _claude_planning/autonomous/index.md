@@ -5,9 +5,10 @@ Each task file includes all necessary context for execution in a fresh conversat
 
 ## Active Tasks
 
-| Priority | Task File                                            | Effort | Status | Source     |
-|----------|------------------------------------------------------|--------|--------|------------|
-| 1        | [assertion-refactor.md](./assertion-refactor.md)     | 1 file | Ready  | GitHub #67 |
+| Priority | Task File                                                                      | Effort  | Status | Source      |
+|----------|--------------------------------------------------------------------------------|---------|--------|-------------|
+| 1        | [assertion-refactor.md](./assertion-refactor.md)                               | 1 file  | Ready  | GitHub #67  |
+| 2        | [dc-label-shorthands-parser-support.md](./dc-label-shorthands-parser-support.md) | 3 files | Ready  | V1/V2 work  |
 
 ## Completed Tasks (moved to `../completed_planning/`)
 

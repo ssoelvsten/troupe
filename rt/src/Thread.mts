@@ -16,6 +16,7 @@ const debug = x => logger.debug(x)
 let lub = levels.lub;
 let flowsTo = levels.flowsTo
 import { v4 as uuidv4} from 'uuid'
+import Table from 'cli-table3'
 
 import { TroupeType } from './TroupeTypes.mjs'
 import { RuntimeInterface } from './RuntimeInterface.mjs';
@@ -339,19 +340,19 @@ export class Thread {
     showStack ()  {
         console.log ("======== SHOW STACK ========= ")
         console.log (`sp = ${this._sp} sparseSlot = ${this.sparseSlot}`)
-        let j = this._sp - 1 
+        let j = this._sp - 1
         let stack = this.callStack
         while ( j > 0) {
             console.log (`-${j.toString().padStart(5,'-')} branch bit: ${stack[j--]}`)
-            let mclear = stack[j]            
+            let mclear = stack[j]
             console.log (` ${j.toString().padStart(5,' ')} mclear    : ${mclear?.stringRep()}`)
-            j -- 
+            j --
             let ret = stack [j]
-            let ret_string = ret?.debugname 
+            let ret_string = ret?.debugname
             if (!ret_string) {
                 ret_string = ret?.toString ()
             }
-            
+
             console.log (` ${j.toString().padStart(5,' ')} ret       : ${ret_string}`)
             j --
             console.log (` ${j.toString().padStart(5,' ')} pc_ret    : ${stack[j]?.stringRep()}`)
@@ -361,6 +362,174 @@ export class Thread {
             let sp_prev = stack[j];
             j = sp_prev - 1 ;
         }
+    }
+
+    showStackV2(options: { maxDepth?: number, showLocals?: boolean } = {}): string {
+        const { maxDepth = Infinity, showLocals = false } = options;
+
+        const boxChars = {
+            'top': '═', 'top-mid': '╤', 'top-left': '╔', 'top-right': '╗',
+            'bottom': '═', 'bottom-mid': '╧', 'bottom-left': '╚', 'bottom-right': '╝',
+            'left': '║', 'left-mid': '╟', 'mid': '─', 'mid-mid': '┼',
+            'right': '║', 'right-mid': '╢', 'middle': '│'
+        };
+
+        const lines: string[] = [];
+
+        // Metadata table - current thread state
+        const metaTable = new Table({
+            chars: boxChars,
+            style: { head: [], border: [] },
+            colWidths: [20, 58]
+        });
+
+        const truncate = (s: string, len: number) => s.length > len ? s.substring(0, len - 3) + '...' : s;
+
+        const tidStr = this.tidErrorStringRep();
+        const pcStr = this.pc?.stringRep?.() ?? 'undefined';
+        const blStr = this.bl?.stringRep?.() ?? 'undefined';
+        const r0LevStr = this.r0_lev?.stringRep?.() ?? 'undefined';
+        const r0TlevStr = this.r0_tlev?.stringRep?.() ?? 'undefined';
+        const r0ValStr = truncate(String(this.r0_val), 55);
+        const sparseVal = this.sparseSlot != null ? String(this.callStack[this.sparseSlot]) : 'N/A';
+
+        metaTable.push(
+            [{ colSpan: 2, content: 'STACK TRACE', hAlign: 'center' }],
+            ['Thread ID', truncate(tidStr, 55)],
+            ['Process Name', this.processDebuggingName ?? '(not set)'],
+            ['Current PC', truncate(pcStr, 55)],
+            ['Blocking Level', truncate(blStr, 55)],
+            ['SP / Sparse Slot', `${this._sp} / ${this.sparseSlot ?? 'N/A'} (value: ${sparseVal})`],
+            ['R0 val', r0ValStr],
+            ['R0 lev', truncate(r0LevStr, 55)],
+            ['R0 tlev', truncate(r0TlevStr, 55)],
+            ['Pini UUID', this.pini_uuid ?? '(null)']
+        );
+
+        lines.push('');
+        lines.push(metaTable.toString());
+
+        // Count total frames first
+        // Frame layout: sp_prev is at position (j - 4) when j points to branch_bit (sp - 1)
+        let totalFrames = 0;
+        let countJ = this._sp - 1;
+        while (countJ > 0) {
+            totalFrames++;
+            // j points to branch_bit; sp_prev is 4 positions before (SPOFFSET - BRANCHFLAGOFFSET = 5 - 1 = 4)
+            const spPrev = this.callStack[countJ - (SPOFFSET - BRANCHFLAGOFFSET)];
+            countJ = spPrev - 1;
+        }
+
+        if (totalFrames === 0) {
+            const emptyTable = new Table({
+                chars: boxChars,
+                style: { head: [], border: [] },
+                colWidths: [78]
+            });
+            emptyTable.push([{ content: '(stack is empty)', hAlign: 'center' }]);
+            lines.push(emptyTable.toString());
+            const output = lines.join('\n');
+            console.log(output);
+            return output;
+        }
+
+        // Frames - plain text format, no borders
+        lines.push(`STACK FRAMES (${totalFrames} total)`);
+        lines.push('─'.repeat(78));
+
+        let j = this._sp - 1;
+        let stack = this.callStack;
+        let frameNum = 0;
+        let prevFrameSp = this._sp;
+
+        while (j > 0 && frameNum < maxDepth) {
+            // Branch bit (at sp - 1)
+            const branchBitIdx = j;
+            const branchBit = stack[j--];
+            const branchStr = branchBit ? 'ON (raised)' : 'OFF';
+
+            // Mclear (at sp - 2)
+            const mclearIdx = j;
+            const mclear = stack[j--];
+            const mclearStr = truncate(mclear?.stringRep?.() ?? 'null', 57);
+
+            // Return callback (at sp - 3)
+            const retIdx = j;
+            const ret = stack[j--];
+            let retString = ret?.debugname ?? ret?.name;
+            if (!retString) {
+                const retToStr = ret?.toString?.() ?? 'null';
+                retString = truncate(retToStr, 57);
+            }
+
+            // PC at return (at sp - 4)
+            const pcRetIdx = j;
+            const pcRet = stack[j--];
+            const pcRetStr = truncate(pcRet?.stringRep?.() ?? 'undefined', 57);
+
+            // Previous SP (at sp - 5)
+            const spPrevIdx = j;
+            const spPrev = stack[j];
+
+            // Sparse bit (at position before this frame's data started)
+            const sparseIdx = j - 1;
+            const sparseBit = sparseIdx >= 0 ? String(stack[sparseIdx]) : 'N/A';
+
+            // Frame header
+            if (frameNum > 0) {
+                lines.push('─'.repeat(78));
+            }
+            lines.push(`Frame #${frameNum}`);
+
+            // Frame fields - aligned with padding
+            const field = (idx: number, name: string, value: string) => {
+                const label = `  [${idx}] ${name}`.padEnd(20);
+                return `${label}${value}`;
+            };
+
+            lines.push(field(branchBitIdx, 'Branch', branchStr));
+            lines.push(field(mclearIdx, 'Mclear', mclearStr));
+            lines.push(field(retIdx, 'Return', retString));
+            lines.push(field(pcRetIdx, 'PC@ret', pcRetStr));
+            lines.push(field(spPrevIdx, 'SP prev', String(spPrev)));
+            lines.push(field(sparseIdx, 'Sparse', sparseBit));
+
+            // Show locals if requested
+            if (showLocals) {
+                const localsStart = spPrev + CALLSIZE;
+                const localsEnd = prevFrameSp - CALLSIZE;
+                if (localsEnd > localsStart) {
+                    for (let k = localsStart; k < localsEnd; k++) {
+                        const localVal = stack[k];
+                        let repr: string;
+                        if (localVal?.stringRep) {
+                            repr = localVal.stringRep();
+                        } else if (localVal?.toString) {
+                            repr = localVal.toString();
+                        } else {
+                            repr = String(localVal);
+                        }
+                        lines.push(field(k, 'Local', truncate(repr, 57)));
+                    }
+                }
+            }
+
+            prevFrameSp = spPrev;
+            j = spPrev - 1;
+            frameNum++;
+        }
+
+        if (frameNum >= maxDepth && j > 0) {
+            lines.push('─'.repeat(78));
+            lines.push(`... (${totalFrames - maxDepth} more frames not shown)`);
+        }
+
+        lines.push('─'.repeat(78));
+        lines.push('');
+
+        const output = lines.join('\n');
+        console.log(output);
+        return output;
     }
 
     
@@ -525,6 +694,7 @@ export class Thread {
 
         if (branchFlag) {
             if (lclear != this.mailbox.mclear) {
+                this.showStackV2 ()
                 this.threadError (`Mailbox clearance label is not restorted after being raised in a branch; stack depth = ${this._sp}` )
             }
         }
