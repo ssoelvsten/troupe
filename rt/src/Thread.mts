@@ -694,7 +694,7 @@ export class Thread {
 
         if (branchFlag) {
             if (lclear != this.mailbox.mclear) {
-                this.showStackV2 ()
+                // this.showStackV2 ()
                 this.threadError (`Mailbox clearance label is not restorted after being raised in a branch; stack depth = ${this._sp}` )
             }
         }
