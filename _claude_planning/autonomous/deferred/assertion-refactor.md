@@ -1,5 +1,7 @@
 # Task: Refactor Assertion Code Generation
 
+Status: deferred as a low-priority internal chore
+
 ## Source
 GitHub Issue #67: https://github.com/TroupeLang/Troupe/issues/67
 Labels: `good first issue`, `code quality`, `compiler (Back-end)`
