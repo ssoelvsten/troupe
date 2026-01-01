@@ -24,6 +24,7 @@ import           Control.Monad.Except
 import IR as CCIR
 
 import Control.Monad.Identity
+import TroupePositionInfo (PosInf(..))
 
 data VarLevel = VarNested Integer
                 deriving (Eq, Ord, Show)
@@ -149,9 +150,9 @@ transFields fields = do
           return $ zip ff lst'
 
 cpsToIR :: CPS.KTerm -> CC CCIR.IRBBTree
-cpsToIR (CPS.LetSimple vname@(VN ident) st kt) = do 
+cpsToIR (CPS.LetSimple vname@(VN ident) st kt) = do
     i <-
-      let _assign arg = return $ Just $ CCIR.Assign vname arg in
+      let _assign arg = return $ Just $ CCIR.Assign vname arg NoPos in
       case st of 
         CPS.Base base -> _assign  $ Base base
         CPS.Lib lib base -> _assign (Lib lib base)
@@ -188,10 +189,10 @@ cpsToIR (CPS.LetSimple vname@(VN ident) st kt) = do
         CPS.ValSimpleTerm (CPS.Lit lit) -> do lev <- askLev  
                                               tell ([],[],[((vname, lit), lev)])
                                               return Nothing 
-        CPS.ValSimpleTerm (CPS.KAbs klam) -> do 
-          freeVars <- transFunDec vname klam          
+        CPS.ValSimpleTerm (CPS.KAbs klam) -> do
+          freeVars <- transFunDec vname klam
           envBindings <- mkEnvBindings freeVars
-          return $ Just $ CCIR.MkFunClosures envBindings [(vname, HFN ident)]          
+          return $ Just $ CCIR.MkFunClosures envBindings [(vname, HFN ident)] NoPos          
         
     t <- local (insVar vname) (cpsToIR kt)   
     return $ case i of 
@@ -201,7 +202,7 @@ cpsToIR (CPS.LetSimple vname@(VN ident) st kt) = do
 cpsToIR (CPS.LetRet (CPS.Cont arg kt') kt) = do
     t  <- cpsToIR kt
     t' <- local (insVar arg) (cpsToIR kt')
-    return $ CCIR.BB [] $ StackExpand arg t t'
+    return $ CCIR.BB [] $ StackExpand arg t t' NoPos
 cpsToIR (CPS.LetFun fdefs kt) = do 
     let vnames_orig = map (\(CPS.Fun fname _) -> fname) fdefs
     let localExt = local (insVars vnames_orig)
@@ -216,35 +217,35 @@ cpsToIR (CPS.LetFun fdefs kt) = do
     let vnames_orig' = map (\x -> (x, lev)) vnames_orig
     envBindings <- mkEnvBindings (freeVars \\ vnames_orig')
     let fnBindings = map (\x@(VN i) -> (x, HFN i)) vnames_orig
-    return $ (CCIR.MkFunClosures envBindings fnBindings) `consBB` t
+    return $ (CCIR.MkFunClosures envBindings fnBindings NoPos) `consBB` t
 
 -- Special Halt continuation, for exiting program
-cpsToIR (CPS.Halt v) = do 
+cpsToIR (CPS.Halt v) = do
     v' <- transVar v
-    (compileMode,_ , _ , _, _ ) <- ask 
+    (compileMode,_ , _ , _, _ ) <- ask
     let constructor =
           case compileMode of
               -- Compiling library, then generate export instruction
-              CompileMode.Library -> CCIR.LibExport
+              CompileMode.Library -> \x -> CCIR.LibExport x NoPos
               -- Otherwise, keep it as a simple return
-              _                   -> CCIR.Ret
+              _                   -> \x -> CCIR.Ret x NoPos
 
     return $ CCIR.BB [] $ constructor v'
 
-cpsToIR (CPS.KontReturn v) = do 
-  v' <- transVar v 
-  return $ CCIR.BB [] $ CCIR.Ret v'
+cpsToIR (CPS.KontReturn v) = do
+  v' <- transVar v
+  return $ CCIR.BB [] $ CCIR.Ret v' NoPos
 
-cpsToIR (CPS.ApplyFun fname v) = do 
-  fname' <- transVar fname 
-  v'     <- transVar v 
-  return $ CCIR.BB [] $ CCIR.TailCall fname' v'
+cpsToIR (CPS.ApplyFun fname v) = do
+  fname' <- transVar fname
+  v'     <- transVar v
+  return $ CCIR.BB [] $ CCIR.TailCall fname' v' NoPos
 
-cpsToIR (CPS.If v kt1 kt2) = do 
-  v' <- transVar v 
-  bb1 <- cpsToIR kt1 
-  bb2 <- cpsToIR kt2 
-  return $ CCIR.BB [] $ CCIR.If v' bb1 bb2
+cpsToIR (CPS.If v kt1 kt2) = do
+  v' <- transVar v
+  bb1 <- cpsToIR kt1
+  bb2 <- cpsToIR kt2
+  return $ CCIR.BB [] $ CCIR.If v' bb1 bb2 NoPos
 
 cpsToIR (CPS.AssertElseError v kt1 z p) = do 
   v' <- transVar v 

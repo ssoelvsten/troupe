@@ -653,47 +653,47 @@ expr2rawComp = \case
 inst2raw :: IR.IRInst -> TM ()
 inst2raw = \case
   -- Note: This is the only place where expressions occur in an IR program.
-  IR.Assign vn expr -> do
+  IR.Assign vn expr _pos -> do
     LVal{..} <- expr2raw expr
     -- Joining PC to be safe, even though for now PC is always joined when computing the expression (and it will be optimized away).
     rValLbl' <- compLabel $ Join PC (Lbl rValLbl) []
     rTyLbl' <- compLabel $ Join PC (Lbl rTyLbl) []
     constructLVal vn LVal{rValLbl = rValLbl', rTyLbl = rTyLbl', .. }
 
-  IR.MkFunClosures vs env -> do
+  IR.MkFunClosures vs env pos -> do
     -- The generation of closures and the related monitoring is first implemented in stack generation,
     -- to be able to use cyclic pointers for constructing the environments.
-    tell [MkFunClosures vs env NoPos]
+    tell [MkFunClosures vs env pos]
 
 
 -- | Translate an IR terminator to a Raw terminator, generating instructions.
 tr2raw :: IR.IRTerminator -> TM RawTerminator
 tr2raw = \case
   -- Revision 2023-08: Equivalent except for the additional redundant raise.
-  IR.TailCall v1 v2 -> do
+  IR.TailCall v1 v2 pos -> do
     raisePCAndBlock $ ValLbl v1
     -- Note: The raise here is redundant because we have already raised by the value label above.
     -- However, optimizations aware of the relation between type- and value label will remove it.
     assertTypeAndRaise v1 RawFunction
     setR0 =<< getLVal v2
     r <- getVal v1 -- labels of v1 are dismissed at this point
-    return $ TailCall r NoPos
+    return $ TailCall r pos
 
   -- Revision 2023-08: This generates now more instructions than before,
   -- as we also construct LVals instead of just working on single RawVars,
   -- but after optimization with RawOpt the result is the same.
-  IR.Ret v -> do
+  IR.Ret v pos -> do
     -- At this point, we taint value and type label of the to-be-returned value with PC,
     -- as both value and type can depend on it. Note: when implementing more fine-grained type labels,
     -- the type label should not always be tainted here.
     setR0 =<< getLVal =<< pcTaint v
-    return $ Ret NoPos
+    return $ Ret pos
 
-  IR.LibExport x ->
-    return $ LibExport x NoPos
+  IR.LibExport x pos ->
+    return $ LibExport x pos
 
   -- Revision 2023-08: Equivalent except for the additional redundant raise.
-  IR.If v bb1 bb2 -> do
+  IR.If v bb1 bb2 pos -> do
     raisePCAndBlock $ ValLbl v
     bb1' <- tree2raw bb1
     bb2' <- tree2raw bb2
@@ -702,10 +702,10 @@ tr2raw = \case
     assertTypeAndRaise v RawBoolean
     tell [ SetBranchFlag NoPos ]
     r <- getVal v
-    return $ If r bb1' bb2' NoPos
+    return $ If r bb1' bb2' pos
 
   -- Revision 2023-08: Equivalent, only way of modifying bb2 changed.
-  IR.StackExpand v irBB1 irBB2 -> do
+  IR.StackExpand v irBB1 irBB2 pos -> do
     bb1 <- tree2raw irBB1
     BB insts2 tr2 <- tree2raw irBB2
     -- Prepend before insts2 instructions to store in variable v the result
@@ -717,7 +717,7 @@ tr2raw = \case
                                   -- generally using Sequence (faster concatenation) for instructions
                                   -- might improve performance
     let bb2 = BB insts2' tr2
-    return $ StackExpand bb1 bb2 NoPos
+    return $ StackExpand bb1 bb2 pos
 
   -- Note: This is translated into branching and Error for throwing RT exception
   -- Revision 2023-08: More fine-grained raising of blocking label, see below.
@@ -735,7 +735,7 @@ tr2raw = \case
     (tr_err, insts_err) <- intercept $ tr2raw $ IR.Error verr pos
     let bb_err = BB insts_err tr_err
     r <- getVal v1
-    return $ If r bb bb_err NoPos
+    return $ If r bb bb_err pos
 
   -- Revision 2023-08: Now asserting that verr is a string. Also raising both PC
   -- and blocking label to the error message's value label (which will become

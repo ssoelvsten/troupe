@@ -50,25 +50,25 @@ instance Substitutable IRExpr where
             Lib name name' -> Lib name name'
         where _ff fields = map (\(f,x) -> (f, apply subst x)) fields
 
-instance Substitutable IRInst where 
-    apply subst i = 
-        case i of 
-            Assign x e -> Assign x (apply subst e)
-            MkFunClosures env funs -> 
+instance Substitutable IRInst where
+    apply subst i =
+        case i of
+            Assign x e pos -> Assign x (apply subst e) pos
+            MkFunClosures env funs pos ->
                 let env' = map (\(decVar, y) -> (decVar, apply subst y)) env  -- obs: need only subst in y
-                in MkFunClosures env' funs 
+                in MkFunClosures env' funs pos 
 
-instance Substitutable IRTerminator where 
-    apply subst tr = 
-        case tr of 
-            TailCall x y -> TailCall (apply subst x) (apply subst y)
-            Ret x -> Ret (apply subst x)
-            If x bb1 bb2 -> If (apply subst x) (apply subst bb1) (apply subst bb2)
-            AssertElseError x bb y pos -> 
-                AssertElseError (apply subst x) (apply subst bb) (apply subst y) pos 
-            LibExport x -> LibExport (apply subst x)
-            Error x pos -> Error (apply subst x) pos 
-            StackExpand decVar bb1 bb2 -> StackExpand decVar (apply subst bb1) (apply subst bb2)
+instance Substitutable IRTerminator where
+    apply subst tr =
+        case tr of
+            TailCall x y pos -> TailCall (apply subst x) (apply subst y) pos
+            Ret x pos -> Ret (apply subst x) pos
+            If x bb1 bb2 pos -> If (apply subst x) (apply subst bb1) (apply subst bb2) pos
+            AssertElseError x bb y pos ->
+                AssertElseError (apply subst x) (apply subst bb) (apply subst y) pos
+            LibExport x pos -> LibExport (apply subst x) pos
+            Error x pos -> Error (apply subst x) pos
+            StackExpand decVar bb1 bb2 pos -> StackExpand decVar (apply subst bb1) (apply subst bb2) pos
 
 instance Substitutable IRBBTree where 
     apply subst (BB insts tr) = 
@@ -418,19 +418,19 @@ data IRInstRes
     = RIns IRInst 
     | RSubst Subst 
 
-insPeval :: IRInst -> Opt IRInstRes 
-insPeval i = 
-    case i of 
-        Assign x e -> do 
-            exprRes <- irExprPeval e 
-            case exprRes of 
+insPeval :: IRInst -> Opt IRInstRes
+insPeval i =
+    case i of
+        Assign x e pos -> do
+            exprRes <- irExprPeval e
+            case exprRes of
                 RExpr (v', e') -> do
-                    envInsert x v' 
-                    return $ RIns (Assign x e')
+                    envInsert x v'
+                    return $ RIns (Assign x e' pos)
                 RMov y ->
                     return $ RSubst $ Subst (Map.singleton x y)
-        (MkFunClosures envs hfns) -> do 
-            mapM (\(_, x) -> markUsed' x) envs 
+        (MkFunClosures envs hfns _pos) -> do
+            mapM (\(_, x) -> markUsed' x) envs
             return $ RIns i
 
 
@@ -448,63 +448,63 @@ instance PEval IRInst where
 
 trPeval :: IRTerminator -> Opt IRBBTree
 
-trPeval (If x bb1 bb2) = do 
-        v <- varPEval x 
-        let _doThen = do setChangeFlag   
-                         peval bb1 
-        
+trPeval (If x bb1 bb2 pos) = do
+        v <- varPEval x
+        let _doThen = do setChangeFlag
+                         peval bb1
+
         let _doElse = do setChangeFlag
-                         peval bb2  
+                         peval bb2
         case v of
             BoolConst True -> _doThen
             BoolConst False -> _doElse
             NumericConst (NumInt x) | x /= 0 -> _doThen
             NumericConst (NumInt 0) -> _doElse
-                                  
-            _ -> do bb1' <- peval bb1 
-                    bb2' <- peval bb2 
-                    return $ BB [] (If x bb1' bb2')
+
+            _ -> do bb1' <- peval bb1
+                    bb2' <- peval bb2
+                    return $ BB [] (If x bb1' bb2' pos)
 
 
-trPeval (AssertElseError x bb y_err pos) = do 
-    v <- varPEval x 
+trPeval (AssertElseError x bb y_err pos) = do
+    v <- varPEval x
     markUsed' y_err
-    case v of 
-        BoolConst True -> do 
+    case v of
+        BoolConst True -> do
             setChangeFlag
-            peval bb 
-        _ -> do bb' <- peval bb 
-                return $ BB [] (AssertElseError x bb' y_err pos)     
+            peval bb
+        _ -> do bb' <- peval bb
+                return $ BB [] (AssertElseError x bb' y_err pos)
 
 
-trPeval (StackExpand x bb1 bb2) = do 
-    bb1' <- peval bb1 
+trPeval (StackExpand x bb1 bb2 pos) = do
+    bb1' <- peval bb1
     bb2' <- peval bb2
 
-    case bb1' of 
-        BB insts1 (Ret rv1) -> do 
+    case bb1' of
+        BB insts1 (Ret rv1 _retPos) -> do
             let subst = Subst (Map.singleton x rv1)
-            let (BB insts2 tr2) = apply subst bb2' 
-            setChangeFlag           
+            let (BB insts2 tr2) = apply subst bb2'
+            setChangeFlag
             return $ BB (insts1 ++ insts2) tr2
-        _ -> 
-            return $ BB [] (StackExpand x bb1' bb2')
+        _ ->
+            return $ BB [] (StackExpand x bb1' bb2' pos)
 
-trPeval tr@(Ret x) = do 
-    markUsed' x 
-    return $ BB [] tr 
+trPeval tr@(Ret x _pos) = do
+    markUsed' x
+    return $ BB [] tr
 
-trPeval tr@(LibExport x) = do 
-    markUsed' x 
-    return $ BB [] tr 
+trPeval tr@(LibExport x _pos) = do
+    markUsed' x
+    return $ BB [] tr
 
-trPeval tr@(Error x _) = do 
-    markUsed' x 
-    return $ BB [] tr 
+trPeval tr@(Error x _) = do
+    markUsed' x
+    return $ BB [] tr
 
-trPeval tr@(TailCall x y)  = do 
-    markUsed' x 
-    markUsed' y 
+trPeval tr@(TailCall x y _pos)  = do
+    markUsed' x
+    markUsed' y
     return $ BB [] tr
 
 
@@ -529,7 +529,7 @@ instance PEval IRBBTree where
         
         (BB insts_ tr_, used) <- listen $ bbPeval bb
 
-        let isNotDeadAssign (Assign x e) = 
+        let isNotDeadAssign (Assign x e _pos) =
                 Set.member x used || canFailOrHasEffects e
             isNotDeadAssign _   = True
 

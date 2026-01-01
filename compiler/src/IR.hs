@@ -75,32 +75,32 @@ data IRBBTree = BB [IRInst] IRTerminator deriving (Eq, Show, Generic)
 
 data IRTerminator
   -- | Call the function referred to by the first variable with the argument in the second variable.
-  = TailCall VarAccess VarAccess
+  = TailCall VarAccess VarAccess PosInf
   -- | Return from the current Call with the given variable as return value.
-  | Ret VarAccess
-  | If VarAccess IRBBTree IRBBTree
+  | Ret VarAccess PosInf
+  | If VarAccess IRBBTree IRBBTree PosInf
   -- | Check whether the value of the first variable is true. If yes, continue with the given tree.
   -- If not, terminate the current thread with a runtime error, printing the message stored in the second variable (which is asserted to be a string) with the given PosInf.
   | AssertElseError VarAccess IRBBTree VarAccess PosInf
   -- | Make the library available under the given variable.
-  | LibExport VarAccess
+  | LibExport VarAccess PosInf
   -- | Terminate the current thread with a runtime error, printing the message stored in the variable (which is asserted to be a string) with the given PosInf.
   | Error VarAccess PosInf
   -- | Execute the first BB, store the returned result in the given variable
   -- and then execute the second BB, which can refer to this variable and
   -- where PC is reset to the level before entering the first BB.
   -- Represents a "let x = ... in ..." format.
-  | StackExpand VarName IRBBTree IRBBTree
+  | StackExpand VarName IRBBTree IRBBTree PosInf
   deriving (Eq,Show,Generic)
 
 
 data IRInst
-  = Assign VarName IRExpr
+  = Assign VarName IRExpr PosInf
   -- | A closure instruction consists of
   -- - A list of variables that need to be in the environment
   -- - A list of closures with their name and the corresponding compiler-generated name of the function
-  | MkFunClosures [(VarName, VarAccess)] [(VarName, HFN)]
-  
+  | MkFunClosures [(VarName, VarAccess)] [(VarName, HFN)] PosInf
+
  deriving (Eq, Show, Generic)
 
 
@@ -128,14 +128,14 @@ data IRProgram = IRProgram C.Atoms [FunDef] deriving (Generic)
 class ComputesDependencies a where
   dependencies :: a -> Writer ([HFN], [Basics.LibName], [Basics.AtomName])  ()
 
-instance ComputesDependencies IRInst where 
-   dependencies (MkFunClosures _ fdefs) = 
+instance ComputesDependencies IRInst where
+   dependencies (MkFunClosures _ fdefs _) =
         mapM_ (\(_, hfn) -> tell ([hfn],[],[])) fdefs
-   dependencies (Assign _ (Lib libname _)) = 
+   dependencies (Assign _ (Lib libname _) _) =
         tell ([], [libname],[])
-   dependencies (Assign _ (Const (C.LAtom a))) = 
+   dependencies (Assign _ (Const (C.LAtom a)) _) =
         tell ([], [], [a])
-                                       
+
    dependencies _ = return ()
 
 instance ComputesDependencies IRBBTree where
@@ -143,10 +143,10 @@ instance ComputesDependencies IRBBTree where
         do mapM_ dependencies insts 
            dependencies trm
 
-instance ComputesDependencies IRTerminator where 
-    dependencies (If _ bb1 bb2) = mapM_ dependencies [bb1, bb2]
+instance ComputesDependencies IRTerminator where
+    dependencies (If _ bb1 bb2 _) = mapM_ dependencies [bb1, bb2]
     dependencies (AssertElseError _ bb1 _ _) = dependencies bb1
-    dependencies (StackExpand _ t1 t2) = dependencies t1  >> dependencies t2
+    dependencies (StackExpand _ t1 t2 _) = dependencies t1  >> dependencies t2
 
     dependencies _              = return ()
 instance ComputesDependencies FunDef where
@@ -229,17 +229,17 @@ checkId x = do
     return ()
 
 instance WellFormedIRCheck IRInst where
- wfir (Assign (VN x) e) = do checkId x
-                             wfir e
- wfir (MkFunClosures _ fdefs) = mapM_ (\((VN x), _) -> checkId x) fdefs
+ wfir (Assign (VN x) e _) = do checkId x
+                               wfir e
+ wfir (MkFunClosures _ fdefs _) = mapM_ (\((VN x), _) -> checkId x) fdefs
 
 
 instance WellFormedIRCheck IRTerminator where
-  wfir (If _ bb1 bb2) = do
+  wfir (If _ bb1 bb2 _) = do
     wfir bb1
     wfir bb2
   wfir (AssertElseError _ bb _ _) = wfir bb
-  wfir (StackExpand (VN x) bb1 bb2 ) = do
+  wfir (StackExpand (VN x) bb1 bb2 _) = do
     checkId x
     wfir bb1
     wfir bb2
@@ -437,11 +437,11 @@ qqFields fields =
         PP.hcat [PP.text name, PP.text "=", ppId v]
 
 ppIR :: IRInst -> PP.Doc
-ppIR (Assign vn st) = ppId vn <+> text "=" <+> ppIRExpr st
+ppIR (Assign vn st _) = ppId vn <+> text "=" <+> ppIRExpr st
 
-ppIR (MkFunClosures varmap fdefs) = 
+ppIR (MkFunClosures varmap fdefs _) =
     let vs = hsepc $ ppEnvIds varmap
-        ppFdefs = map (\((VN x), HFN y) ->  text x <+> text "= mkClos" <+> text y ) fdefs 
+        ppFdefs = map (\((VN x), HFN y) ->  text x <+> text "= mkClos" <+> text y ) fdefs
      in text "with env:=" <+> PP.brackets vs $$ nest 2 (vcat ppFdefs)
     where ppEnvIds ls =
             map (\(a,b) -> (ppId a) PP.<+> text "->" <+> ppId b ) ls
@@ -450,7 +450,7 @@ ppIR (MkFunClosures varmap fdefs) =
     
 
 
-ppTr (StackExpand vn bb1 bb2) = (ppId vn <+> text "= call" $$ nest 2 (ppBB bb1)) $$ (ppBB bb2)
+ppTr (StackExpand vn bb1 bb2 _) = (ppId vn <+> text "= call" $$ nest 2 (ppBB bb1)) $$ (ppBB bb2)
 
 
 ppTr (AssertElseError va ir va2 _) 
@@ -461,7 +461,7 @@ ppTr (AssertElseError va ir va2 _)
     text "elseError" <+> (ppId va2)
 
 
-ppTr (If va ir1 ir2)
+ppTr (If va ir1 ir2 _)
   = text "if" <+> PP.parens (ppId va) <+>
     text "{" $$
     nest 2 (ppBB ir1) $$
@@ -469,9 +469,9 @@ ppTr (If va ir1 ir2)
     text "else {" $$
     nest 2 (ppBB ir2) $$
     text "}"
-ppTr (TailCall va1 va2) = ppFunCall (text "tail") [ppId va1, ppId va2]
-ppTr (Ret va)  = ppFunCall (text "ret") [ppId va]
-ppTr (LibExport va) = ppFunCall (text "export") [ppId va]
+ppTr (TailCall va1 va2 _) = ppFunCall (text "tail") [ppId va1, ppId va2]
+ppTr (Ret va _)  = ppFunCall (text "ret") [ppId va]
+ppTr (LibExport va _) = ppFunCall (text "export") [ppId va]
 ppTr (Error va _)  = (text "error") <> (ppId va)
 
 

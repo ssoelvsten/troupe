@@ -26,8 +26,8 @@ Implement V3 source maps so all Troupe runtime errors show source location (`fil
 | 1 | Source map infrastructure | No | Empty .map files generated | ✅ DONE |
 | 2 | Stack + PosInf (NoPos default) | No | Infrastructure ready | ✅ DONE |
 | 3 | Raw + PosInf (NoPos default) | No | Positions flow Raw→Stack | ✅ DONE |
-| 4 | IR + PosInf (NoPos default) | No | Positions flow IR→Raw→Stack | **NEXT** |
-| 5 | Fix optimizations | No | Test with --no-rawopt first | Pending |
+| 4 | IR + PosInf (NoPos default) | No | Positions flow IR→Raw→Stack | ✅ DONE |
+| 5 | Fix optimizations | No | Test with --no-rawopt first | **NEXT** |
 | 6 | Thread from CPS | No | **Source maps populated!** | Pending |
 | 7 | Runtime source map resolver | No (runtime only) | Errors show locations | Pending |
 | 8 | Error message positions | No | Messages include `at file:line` | Pending |
@@ -292,6 +292,16 @@ bin/golden      # Run golden tests
 - Updated pretty printing in `Raw.hs` for new fields
 - All 397 golden tests pass
 
-**Next step**: Phase 4 (IR + PosInf) - add `PosInf` field to IR types, thread positions from IR→Raw.
+**Phase 4 is COMPLETE** (2026-01-01). IR types now carry position info:
+- Added `PosInf` field to all `IRInst` variants in `IR.hs` (`Assign`, `MkFunClosures`)
+- Added `PosInf` field to remaining `IRTerminator` variants in `IR.hs` (`TailCall`, `Ret`, `If`, `LibExport`, `StackExpand`)
+- Updated `ClosureConv.hs` to pass `NoPos` for all new position fields
+- Updated `IR2Raw.hs` to thread positions from IR to Raw
+- Updated `IROpt.hs` pattern matches in `Substitutable` instances and `trPeval`/`insPeval` functions
+- Updated `ComputesDependencies` and `WellFormedIRCheck` instances in `IR.hs`
+- Updated pretty printing in `IR.hs` for new fields
+- All 397 golden tests pass
+
+**Next step**: Phase 5 (Fix optimizations) - ensure optimizations preserve positions, test with `--no-rawopt` first.
 
 Each subsequent phase can be developed and tested independently.
