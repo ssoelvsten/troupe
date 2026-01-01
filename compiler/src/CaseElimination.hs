@@ -25,8 +25,8 @@ trans compileMode (S.Prog imports atms tm) = do
   let tm' = case compileMode of
         CompileMode.Library -> tm
         _                   ->
-          S.Let [ S.ValDecl (S.VarPattern "authority") (S.Var "$$authorityarg") _srcRT ]
-                tm
+          S.Let [ S.ValDecl (S.VarPattern "authority") (S.Var "$$authorityarg" NoPos) _srcRT ]
+                tm NoPos
   atms' <- transAtoms atms
   tm'' <- transTerm tm'
   return (T.Prog imports atms' tm'')
@@ -96,14 +96,14 @@ transHandler (S.Handler pat1 mbpat2 guard body) = do
   let argInput  = "$input"
       pat2 = case mbpat2 of
               Just pat2 -> pat2
-              Nothing   -> S.Wildcard      
-      lambdaPats = [S.VarPattern argInput] 
-      callFailure = S.Tuple [S.Lit (S.LNumeric (S.NumInt 1) _srcRT), S.Lit S.LUnit ]
-      body' =  S.Tuple[ S.Lit (S.LNumeric (S.NumInt 0) _srcRT), S.Abs ( S.Lambda [S.Wildcard] body )  ]
+              Nothing   -> S.Wildcard
+      lambdaPats = [S.VarPattern argInput]
+      callFailure = S.Tuple [S.Lit (S.LNumeric (S.NumInt 1) _srcRT), S.Lit S.LUnit ] NoPos
+      body' =  S.Tuple[ S.Lit (S.LNumeric (S.NumInt 0) _srcRT), S.Abs ( S.Lambda [S.Wildcard] body ) NoPos ] NoPos
       guardCheck = case guard of
          Nothing -> body'
-         Just g -> S.If g body' callFailure
-      lamBody = S.Case (S.Var argInput) [( S.TuplePattern [pat1, pat2], guardCheck), (S.Wildcard, callFailure)] _srcRT
+         Just g -> S.If g body' callFailure NoPos
+      lamBody = S.Case (S.Var argInput NoPos) [( S.TuplePattern [pat1, pat2], guardCheck), (S.Wildcard, callFailure)] _srcRT
       lambda = S.Lambda lambdaPats lamBody
   transLambda lambda
   
@@ -226,18 +226,18 @@ transDecl (S.FunDecs fundecs) succ = do
 
 transTerm :: S.Term -> Trans Term
 transTerm (S.Lit lit) = return (T.Lit (transLit lit))
-transTerm (S.Var v) = return (T.Var v NoPos)
-transTerm (S.Abs l) = do
+transTerm (S.Var v _) = return (T.Var v NoPos)
+transTerm (S.Abs l _) = do
   l' <- transLambda l
   return (T.Abs l' NoPos)
-transTerm (S.Hnd h) = do
+transTerm (S.Hnd h _) = do
   h' <- transHandler h
   return (T.Abs h' NoPos)
-transTerm (S.App t1 args) = do
+transTerm (S.App t1 args _) = do
   t1' <- transTerm t1
   args' <- mapM transTerm args
   return (T.App t1' args' NoPos)
-transTerm (S.Let decls t) = do
+transTerm (S.Let decls t _) = do
   t' <- transTerm t
   foldr (\decl acc -> do
           acc' <- acc
@@ -255,50 +255,50 @@ transTerm (S.Case t cases pos) = do
               Left err -> error err
           ) (Error (Lit (LString "pattern match failure in case expression")) pos) cases'
   return (Let [ValDecl "casevar" t'] e NoPos)
-transTerm (S.If t1 t2 t3) = do
+transTerm (S.If t1 t2 t3 _) = do
   t1' <- transTerm t1
   t2' <- transTerm t2
   t3' <- transTerm t3
   return (If t1' t2' t3' NoPos)
-transTerm (S.Tuple tms) = do
+transTerm (S.Tuple tms _) = do
   tms' <- mapM transTerm tms
   return (T.Tuple tms' NoPos)
-transTerm (S.Record fields) = do
+transTerm (S.Record fields _) = do
   fields' <- transFields fields
   return (T.Record fields' NoPos)
-transTerm (S.WithRecord e fields) = do
+transTerm (S.WithRecord e fields _) = do
   e' <- transTerm e
   fields' <- transFields fields
   return (T.WithRecord e' fields' NoPos)
-transTerm (S.ProjField t f) = do
+transTerm (S.ProjField t f _) = do
   t' <- transTerm t
   return (T.ProjField t' f NoPos)
-transTerm (S.ProjIdx t idx) = do
+transTerm (S.ProjIdx t idx _) = do
   t' <- transTerm t
   return (T.ProjIdx t' idx NoPos)
-transTerm (S.List tms) = do
+transTerm (S.List tms _) = do
   tms' <- mapM transTerm tms
   return (T.List tms' NoPos)
-transTerm (S.ListCons t1 t2) = do
+transTerm (S.ListCons t1 t2 _) = do
   t1' <- transTerm t1
   t2' <- transTerm t2
   return (T.ListCons t1' t2' NoPos)
-transTerm (S.Bin op t1 t2) = do
+transTerm (S.Bin op t1 t2 _) = do
   t1' <- transTerm t1
   t2' <- transTerm t2
   return (Bin op t1' t2' NoPos)
-transTerm (S.Un op t) = do
+transTerm (S.Un op t _) = do
   t' <- transTerm t
   return (Un op t' NoPos)
-transTerm (S.Seq ts) =
+transTerm (S.Seq ts _) =
     case reverse ts of
         [t] -> transTerm t
         body:ts_rev -> do
           let decls = map (\t -> S.ValDecl S.Wildcard t NoPos) (reverse ts_rev)
-          transTerm (S.Let decls body)
+          transTerm (S.Let decls body NoPos)
         []  -> throwError "impossible case: sequence of empty terms"
 
-transTerm (S.Error _) = throwError "impossible case: error"
+transTerm (S.Error _ _) = throwError "impossible case: error"
 
 transFields :: [(String, Maybe S.Term)] -> Trans [(String, T.Term)]
 transFields = mapM $ \case

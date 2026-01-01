@@ -17,31 +17,31 @@ import Basics
 import Direct  
 import TroupePositionInfo
 
-printDecl :: FunDecl 
-printDecl = FunDecl "print"  
+printDecl :: FunDecl
+printDecl = FunDecl "print"
     [Lambda [VarPattern "x"] $
-        Let [ValDecl (VarPattern "out") (App (Var "getStdout") [Var "authority"]) NoPos]
-            (App (Var "fprintln") [Tuple [Var "out", Var "x"]])
+        Let [ValDecl (VarPattern "out") (App (Var "getStdout" NoPos) [Var "authority" NoPos] NoPos) NoPos]
+            (App (Var "fprintln" NoPos) [Tuple [Var "out" NoPos, Var "x" NoPos] NoPos] NoPos) NoPos
     ] NoPos
 
-printWithLabelsDecl :: FunDecl 
-printWithLabelsDecl = FunDecl "printWithLabels" 
+printWithLabelsDecl :: FunDecl
+printWithLabelsDecl = FunDecl "printWithLabels"
     [Lambda [VarPattern "x"] $
-        Let [ValDecl (VarPattern "out") (App (Var "getStdout") [Var "authority"]) NoPos]
-            (App (Var "fprintlnWithLabels") [Tuple [Var "out", Var "x"]])
+        Let [ValDecl (VarPattern "out") (App (Var "getStdout" NoPos) [Var "authority" NoPos] NoPos) NoPos]
+            (App (Var "fprintlnWithLabels" NoPos) [Tuple [Var "out" NoPos, Var "x" NoPos] NoPos] NoPos) NoPos
     ] NoPos
 
 
-printStringDecl :: FunDecl 
+printStringDecl :: FunDecl
 printStringDecl = FunDecl "printString"
     [Lambda [VarPattern "x"] $
-        Let [ValDecl (VarPattern "out") (App (Var "getStdout") [Var "authority"]) NoPos]
-            (App (Var "fwrite") [Tuple [Var "out", Bin Concat (Var "x") (Lit (LString "\\n"))]])
+        Let [ValDecl (VarPattern "out") (App (Var "getStdout" NoPos) [Var "authority" NoPos] NoPos) NoPos]
+            (App (Var "fwrite" NoPos) [Tuple [Var "out" NoPos, Bin Concat (Var "x" NoPos) (Lit (LString "\\n")) NoPos] NoPos] NoPos) NoPos
     ] NoPos
 
 
 
-addAmbientMethods :: Prog -> Prog 
-addAmbientMethods (Prog imports atoms t) = 
-    let t' = Let [FunDecs [printDecl,printWithLabelsDecl,printStringDecl]] t
+addAmbientMethods :: Prog -> Prog
+addAmbientMethods (Prog imports atoms t) =
+    let t' = Let [FunDecs [printDecl,printWithLabelsDecl,printStringDecl]] t NoPos
     in Prog imports atoms t'

@@ -21,8 +21,8 @@ Implement V3 source maps so all Troupe runtime errors show source location (`fil
 | 6 | CPS + PosInf | RetCPS.hs, RetDFCPS.hs, CPSOpt.hs, etc. | DONE | - |
 | 7 | Core + PosInf | Core.hs, RetDFCPS.hs | DONE | [phase-07-core.md](phase-07-core.md) |
 | 8 | DirectWOPats + PosInf | DirectWOPats.hs, CaseElimination.hs | DONE | [phase-08-directwopats.md](phase-08-directwopats.md) |
-| 9 | Direct + PosInf | Direct.hs, Parser.y | **NEXT** | [phase-09-direct.md](phase-09-direct.md) |
-| 10 | Capture positions in Parser | Parser.y | Pending | [phase-10-parser-positions.md](phase-10-parser-positions.md) |
+| 9 | Direct + PosInf | Direct.hs, Parser.y | DONE | [phase-09-direct.md](phase-09-direct.md) |
+| 10 | Capture positions in Parser | Parser.y | **NEXT** | [phase-10-parser-positions.md](phase-10-parser-positions.md) |
 | 11 | Thread positions through pipeline | CaseElimination.hs, Core.hs, etc. | Pending | [phase-11-threading.md](phase-11-threading.md) |
 | 12 | Emit real source maps | Stack2JS.hs, Main.hs | Pending | [phase-12-emit-source-maps.md](phase-12-emit-source-maps.md) |
 | 13 | Runtime source map resolver | SourceMapResolver.mts, Thread.mts | Pending | [phase-13-runtime-resolver.md](phase-13-runtime-resolver.md) |
@@ -34,7 +34,7 @@ Implement V3 source maps so all Troupe runtime errors show source location (`fil
 
 | Layer | File | Has PosInf | Missing PosInf |
 |-------|------|------------|----------------|
-| Parser AST | Direct.hs | LNumeric, Case, ValDecl, FunDecl | Var, App, Bin, Un, If, Let, Tuple, Record, List, Abs, etc. |
+| Parser AST | Direct.hs | **All constructs** | - |
 | Pattern-free | DirectWOPats.hs | **All constructs** | - |
 | Core | Core.hs | **All constructs** | - |
 | CPS | RetCPS.hs | **All constructs** | - |
@@ -78,6 +78,20 @@ Each phase:
 
 ## Implementation Progress
 
+### Phase 9: Direct + PosInf - COMPLETE (2026-01-01)
+
+**All tests pass (397/397)**
+
+**Files modified**:
+- `compiler/src/Direct.hs` - Added `PosInf` to 17 Term constructors (Var, Abs, Hnd, App, Let, If, Tuple, Record, WithRecord, ProjField, ProjIdx, List, ListCons, Bin, Un, Seq, Error), updated pretty printer and termPrec functions
+- `compiler/src/Parser.y` - Updated all grammar rules to pass `NoPos` for new PosInf fields, updated helper functions (piniDecl, mkSeq, fromFact)
+- `compiler/src/CaseElimination.hs` - Updated all pattern matches and term construction to handle new PosInf fields from Direct.hs
+- `compiler/src/AtomFolding.hs` - Updated all visitTerm pattern matches for new PosInf fields
+- `compiler/src/AddAmbientMethods.hs` - Updated ambient method declarations with NoPos for new PosInf fields
+- `compiler/src/Exports.hs` - Updated pattern matches in extractMain and checkOne for new PosInf fields
+
+---
+
 ### Phase 8: DirectWOPats + PosInf - COMPLETE (2026-01-01)
 
 **All tests pass (397/397)**
@@ -116,7 +130,7 @@ Each phase:
 ## Build Commands
 
 ```bash
-make stack      # Build compiler after Haskell changes
+make compiler   # Build compiler after Haskell changes
 make rt         # Build runtime after TypeScript changes
 make test       # Run test suite
 bin/golden      # Run golden tests
@@ -138,7 +152,7 @@ bin/golden      # Run golden tests
 1. **Parser filename tracking** - DONE - Parser uses ReaderT monad to thread filename
 2. **Limited IR positions** - DONE - All IR/Raw/Stack types have PosInf
 3. **No CPS positions** - DONE - All CPS types have PosInf (Phase 6)
-4. **No Direct/Core positions** - Phases 7-9
+4. **No Direct/Core positions** - DONE - All Direct/DirectWOPats/Core types have PosInf (Phases 7-9)
 5. **Runtime has no way to show source** - Phases 13-14
 
 ---
