@@ -36,7 +36,7 @@ In addition to the core language runtime  and the compiler, the codebase include
 make all
 
 # Build individual components
-make stack      # Build the compiler
+make compiler   # Build the compiler
 make rt         # Build the runtime
 make libs       # Compile standard libraries
 make service    # Compile service module
@@ -285,7 +285,7 @@ Update `/rt/src/UserRuntime.mts`:
 
 #### 4. Build and Test
 ```bash
-make stack      # Rebuild compiler
+make compiler   # Rebuild compiler
 make rt         # Rebuild runtime
 make test       # Run tests
 ```
