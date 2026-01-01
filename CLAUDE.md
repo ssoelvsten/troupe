@@ -350,6 +350,7 @@ When creating markdown tables, align columns for readability in raw view:
 - P2P initialization can be slow; use `--localonly` for local testing.
 - Test files may require specific `.input` files for stdin
 - Golden tests are sensitive to output formatting
+- Always use `/usr/bin/make` instead of `make` to avoid zsh function conflicts
 
 
 ## What to do when a golden test fails
