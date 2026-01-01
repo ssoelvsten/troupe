@@ -130,8 +130,8 @@ tokens:-
 <0>   [\<][\<]                       { mkL TokenBinShiftLeft }
 <0>   [\>][\>]                       { mkL TokenBinShiftRight }
 <0>   [\~][\>][\>]                   { mkL TokenBinZeroShiftRight }
-<0>   [\`][\<]                       { mkL TokenDCLabelLeft `andBegin` state_dclabel}
-<state_dclabel>   [\>][\`]           { mkL TokenDCLabelRight `andBegin` state_initial }
+<0>   [\`]$white*[\<]                { mkL TokenDCLabelLeft `andBegin` state_dclabel}
+<state_dclabel>   [\>]$white*[\`]    { mkL TokenDCLabelRight `andBegin` state_initial }
 <0>   [\>][\`]                       { mkL TokenDCLabelRight }
 <0>   [\@]                           { mkL TokenAt }
 <0>   [\=][\>]                       { mkL TokenArrow }
@@ -284,10 +284,13 @@ type Lexeme = L Token
 
 -- definition needed by Alex
 alexEOF :: Alex Lexeme
-alexEOF = do 
-    comment_depth <- getLexerCommentDepth 
-    if comment_depth > 0 
+alexEOF = do
+    comment_depth <- getLexerCommentDepth
+    start_code <- alexGetStartCode
+    if comment_depth > 0
         then alexError "Comment not closed at end of file"
+        else if start_code == state_dclabel
+            then alexError "Incomplete DC label at end of file - label not closed"
         else return (L undefined TokenEOF)
 
 
