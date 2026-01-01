@@ -25,8 +25,8 @@ Implement V3 source maps so all Troupe runtime errors show source location (`fil
 | 0 | Parser filename | No | Pattern match errors show filename | ✅ DONE |
 | 1 | Source map infrastructure | No | Empty .map files generated | ✅ DONE |
 | 2 | Stack + PosInf (NoPos default) | No | Infrastructure ready | ✅ DONE |
-| 3 | Raw + PosInf (NoPos default) | No | Positions flow Raw→Stack | **NEXT** |
-| 4 | IR + PosInf (NoPos default) | No | Positions flow IR→Raw→Stack | Pending |
+| 3 | Raw + PosInf (NoPos default) | No | Positions flow Raw→Stack | ✅ DONE |
+| 4 | IR + PosInf (NoPos default) | No | Positions flow IR→Raw→Stack | **NEXT** |
 | 5 | Fix optimizations | No | Test with --no-rawopt first | Pending |
 | 6 | Thread from CPS | No | **Source maps populated!** | Pending |
 | 7 | Runtime source map resolver | No (runtime only) | Errors show locations | Pending |
@@ -281,6 +281,17 @@ bin/golden      # Run golden tests
 - Updated pretty printing in `Stack.hs` for new fields
 - All 397 golden tests pass
 
-**Next step**: Phase 3 (Raw + PosInf) - add `PosInf` field to Raw types, thread positions from Raw→Stack.
+**Phase 3 is COMPLETE** (2026-01-01). Raw types now carry position info:
+- Added `PosInf` field to all `RawInst` variants in `Raw.hs`
+- Added `PosInf` field to all `RawTerminator` variants in `Raw.hs`
+- Updated `IR2Raw.hs` to pass `NoPos` for all new position fields
+- Updated `Raw2Stack.hs` to thread positions from Raw to Stack
+- Updated `RawOpt.hs` pattern matches to handle new position fields
+- Updated `RawDefUse.hs` pattern matches to handle new position fields
+- Updated `instructionType` function in `Raw.hs` for new fields
+- Updated pretty printing in `Raw.hs` for new fields
+- All 397 golden tests pass
+
+**Next step**: Phase 4 (IR + PosInf) - add `PosInf` field to IR types, thread positions from IR→Raw.
 
 Each subsequent phase can be developed and tested independently.

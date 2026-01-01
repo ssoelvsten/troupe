@@ -75,25 +75,25 @@ offsetWithCallDepth = do
 trInsts :: [Raw.RawInst] -> Tr [Stack.StackInst]
 trInsts ii = work [] [] ii  where
   trOneRegInst :: Raw.RawInst -> Tr [Stack.StackInst]
-  trOneRegInst i = do 
-    __offsets <- offsets <$> ask  
-    rel <- offsetWithCallDepth 
-    let store a =
+  trOneRegInst i = do
+    __offsets <- offsets <$> ask
+    rel <- offsetWithCallDepth
+    let store a p =
             case Map.lookup a __offsets of
                 Nothing -> []
-                Just i ->  [Stack.StoreStack a (rel i) NoPos]
+                Just j ->  [Stack.StoreStack a (rel j) p]
     case i of
-      Raw.AssignRaw x e -> return $
-        (Stack.AssignRaw Stack.AssignConst x e NoPos):(store (Raw.AssignableRaw x))
-      Raw.AssignLVal x e -> return $
-        (Stack.AssignLVal x e NoPos):(store (Raw.AssignableLVal x))
-      Raw.SetState cmp x -> return [Stack.SetState cmp x NoPos]
-      Raw.SetBranchFlag -> return [Stack.SetBranchFlag NoPos]
-      Raw.InvalidateSparseBit -> return [Stack.InvalidateSparseBit NoPos]
-      Raw.MkFunClosures envmap vars -> do
-        let stores = concat $ map (store . Raw.AssignableLVal) (fst (unzip vars))
-        return $ (Stack.MkFunClosures envmap vars NoPos):stores
-      Raw.RTAssertion a -> return [Stack.RTAssertion a NoPos]
+      Raw.AssignRaw x e p -> return $
+        (Stack.AssignRaw Stack.AssignConst x e p):(store (Raw.AssignableRaw x) p)
+      Raw.AssignLVal x e p -> return $
+        (Stack.AssignLVal x e p):(store (Raw.AssignableLVal x) p)
+      Raw.SetState cmp x p -> return [Stack.SetState cmp x p]
+      Raw.SetBranchFlag p -> return [Stack.SetBranchFlag p]
+      Raw.InvalidateSparseBit p -> return [Stack.InvalidateSparseBit p]
+      Raw.MkFunClosures envmap vars p -> do
+        let stores = concat $ map (\v -> store (Raw.AssignableLVal v) p) (fst (unzip vars))
+        return $ (Stack.MkFunClosures envmap vars p):stores
+      Raw.RTAssertion a p -> return [Stack.RTAssertion a p]
 
   translateGroup [] = return []
   translateGroup insts = do 
@@ -121,33 +121,34 @@ trInsts ii = work [] [] ii  where
         isGroupEscaping x = 0 < Set.size ( outsideGroupUses x )
         isBlockEscaping x = 0 < Set.size ( escapingUses x )
 
-        assignVars = concat $ map assignVar insts
-                 where 
-                   assignVar i = case i of 
-                     Raw.AssignRaw x _ -> [x]
+        assignVarsWithPos = concat $ map assignVar insts
+                 where
+                   assignVar i = case i of
+                     Raw.AssignRaw x _ p -> [(x, p)]
                      _ -> []
-        
 
-        prologue = [ Stack.AssignRaw Stack.AssignLet x (Raw.ProjectState Raw.MonPC) NoPos
-                       | x <- assignVars,
+        assignVars = map fst assignVarsWithPos
+
+        prologue = [ Stack.AssignRaw Stack.AssignLet x (Raw.ProjectState Raw.MonPC) p
+                       | (x, p) <- assignVarsWithPos,
                          isGroupEscaping x ]
 
-        
-        epilogue = [ Stack.StoreStack x' (rel j) NoPos
-                       | x <- assignVars
+
+        epilogue = [ Stack.StoreStack x' (rel j) p
+                       | (x, p) <- assignVarsWithPos
                        , isBlockEscaping x
                        , let x' = Raw.AssignableRaw x
                        , let j = case Map.lookup x' __offsets of
                                           Nothing -> error $ "epilogue: cannot find " ++ (show x')
                                           Just w -> w
                    ]
-                    
+
         tri i = case i of
-                  Raw.AssignRaw x y ->
+                  Raw.AssignRaw x y p ->
                       let t = if isGroupEscaping x then Stack.AssignMut
                                                    else Stack.AssignConst
-                      in Stack.AssignRaw t x y NoPos
-                  Raw.SetState cmp x -> Stack.SetState cmp x NoPos
+                      in Stack.AssignRaw t x y p
+                  Raw.SetState cmp x p -> Stack.SetState cmp x p
                   _ -> error "impossible case/bug: only label instructions must be passed to this translation function"
 
         insts' = Stack.LabelGroup (map tri insts) NoPos 
@@ -176,18 +177,18 @@ trInsts ii = work [] [] ii  where
            
 
 trTr :: Raw.RawTerminator -> Tr Stack.StackTerminator
-trTr (Raw.TailCall r) = do
-     return $ Stack.TailCall r NoPos
-trTr Raw.Ret = return $ Stack.Ret NoPos
-trTr (Raw.If r bb1 bb2) = do
+trTr (Raw.TailCall r p) = do
+     return $ Stack.TailCall r p
+trTr (Raw.Ret p) = return $ Stack.Ret p
+trTr (Raw.If r bb1 bb2 p) = do
      bb1' <- trBB bb1
      bb2' <- trBB bb2
-     return $ Stack.If r bb1' bb2' NoPos
-trTr (Raw.LibExport v) = do
-     return $ Stack.LibExport v NoPos
+     return $ Stack.If r bb1' bb2' p
+trTr (Raw.LibExport v p) = do
+     return $ Stack.LibExport v p
 trTr (Raw.Error r1 p) = do
      return $ Stack.Error r1 p
-trTr (Raw.StackExpand bb1 bb2) = do
+trTr (Raw.StackExpand bb1 bb2 p) = do
    __callDepth <- localCallDepth <$> ask
    bb1' <- local (\tenv -> tenv { localCallDepth = __callDepth + 1 } ) $ trBB bb1
    n <- getBlockNumber
@@ -200,11 +201,11 @@ trTr (Raw.StackExpand bb1 bb2) = do
    consts <- __consts <$> ask
    let filterConsts (Raw.AssignableRaw x) = Map.notMember x consts
        filterConsts _ = True
-   let loads = [ Stack.FetchStack x (rel (Map.findWithDefault (error (show x)) x offsets)) NoPos
+   let loads = [ Stack.FetchStack x (rel (Map.findWithDefault (error (show x)) x offsets)) p
                     | x <-  filter filterConsts (Set.elems varsToLoad) ]
    bb2'@(Stack.BB inst_2 tr_2) <- trBB bb2
 
-   return $ Stack.StackExpand bb1' (Stack.BB (loads ++ inst_2) tr_2) NoPos
+   return $ Stack.StackExpand bb1' (Stack.BB (loads ++ inst_2) tr_2) p
 
 
 trBB :: Raw.RawBBTree -> Tr Stack.StackBBTree 

@@ -129,35 +129,35 @@ data RawInst
   -- | Assign the result of the given simple expression (an unlabelled value) to the given raw variable.
   -- There is no type-level distinction of 'RawExpr' which produce a labelled value and those producing
   -- an unlabelled value, because this is more convenient for how these are generated in IR2Raw.
-  = AssignRaw RawVar RawExpr
+  = AssignRaw RawVar RawExpr PosInf
   -- | Assign the result of the given complex expression (a labelled value) to a variable with the given name.
-  | AssignLVal VarName RawExpr
+  | AssignLVal VarName RawExpr PosInf
   -- | Set a monitor component. Provided variable must contain a label (this is not checked).
-  | SetState MonComponent RawVar
+  | SetState MonComponent RawVar PosInf
   -- | Indicates that the current block invoked a branch instruction.
   -- Is inserted before an "if".
   -- See stack/execution model.
-  | SetBranchFlag
+  | SetBranchFlag PosInf
   -- | The sparse bit is tracking whether data in the current closure is bounded by PC.
   -- If this condition is invalidated by introducing new labels (like with the raisedTo instruction),
   -- this instruction must be added to ensure that the required join operations happen.
-  | InvalidateSparseBit
-  | MkFunClosures [(VarName, VarAccess)] [(VarName, HFN)]
-  | RTAssertion RTAssertion
+  | InvalidateSparseBit PosInf
+  | MkFunClosures [(VarName, VarAccess)] [(VarName, HFN)] PosInf
+  | RTAssertion RTAssertion PosInf
    deriving (Eq, Show)
 
 -- | A block of instructions followed by a terminator, which can contain further 'RawBBTree's.
 data RawBBTree = BB [RawInst] RawTerminator deriving (Eq, Show)
 
 data RawTerminator
-  = TailCall RawVar
-  | Ret
-  | If RawVar RawBBTree RawBBTree
-  | LibExport VarAccess
+  = TailCall RawVar PosInf
+  | Ret PosInf
+  | If RawVar RawBBTree RawBBTree PosInf
+  | LibExport VarAccess PosInf
   | Error RawVar PosInf
   -- | Execute the first BB and then execute the second BB where
   -- PC is reset to the level before entering the first BB.
-  | StackExpand RawBBTree RawBBTree
+  | StackExpand RawBBTree RawBBTree PosInf
   deriving (Eq, Show)
 
 
@@ -237,19 +237,19 @@ data InstructionType
     deriving (Eq, Ord, Show)
 
 instructionType :: RawInst -> InstructionType
-instructionType i = case i of 
-  AssignRaw _ (Bin Basics.LatticeJoin _ _ _) -> LabelSpecificInstruction
-  AssignRaw _ (ProjectState MonPC) -> LabelSpecificInstruction
-  AssignRaw _ (ProjectState MonBlock) -> LabelSpecificInstruction
-  AssignRaw _ (ProjectState R0_Lev)  -> LabelSpecificInstruction
-  AssignRaw _ (ProjectState R0_TLev) -> LabelSpecificInstruction
-  AssignLVal _ (ConstructLVal _ _ _) -> RegularInstruction RegConstructor
-  AssignRaw _ (ProjectLVal _ _) -> RegularInstruction RegDestructor
-  SetBranchFlag -> RegularInstruction RegConstructor
-  InvalidateSparseBit -> RegularInstruction RegOther
-  SetState s _ -> 
-    case s of 
-      R0_Val -> RegularInstruction RegConstructor 
+instructionType i = case i of
+  AssignRaw _ (Bin Basics.LatticeJoin _ _ _) _ -> LabelSpecificInstruction
+  AssignRaw _ (ProjectState MonPC) _ -> LabelSpecificInstruction
+  AssignRaw _ (ProjectState MonBlock) _ -> LabelSpecificInstruction
+  AssignRaw _ (ProjectState R0_Lev) _ -> LabelSpecificInstruction
+  AssignRaw _ (ProjectState R0_TLev) _ -> LabelSpecificInstruction
+  AssignLVal _ (ConstructLVal _ _ _) _ -> RegularInstruction RegConstructor
+  AssignRaw _ (ProjectLVal _ _) _ -> RegularInstruction RegDestructor
+  SetBranchFlag _ -> RegularInstruction RegConstructor
+  InvalidateSparseBit _ -> RegularInstruction RegOther
+  SetState s _ _ ->
+    case s of
+      R0_Val -> RegularInstruction RegConstructor
       R0_Lev -> RegularInstruction RegConstructor
       R0_TLev -> RegularInstruction RegConstructor
       MonPC -> LabelSpecificInstruction
@@ -317,20 +317,20 @@ qqFields fields =
         PP.hcat [PP.text name, PP.text "=", ppId v]
 
 ppIR :: RawInst -> PP.Doc
-ppIR SetBranchFlag = text "<setbranchflag>"
-ppIR (AssignRaw vn st) = ppId vn <+> text "=(raw)" <+> ppRawExpr st
-ppIR (AssignLVal vn expr) = 
+ppIR (SetBranchFlag _) = text "<setbranchflag>"
+ppIR (AssignRaw vn st _) = ppId vn <+> text "=(raw)" <+> ppRawExpr st
+ppIR (AssignLVal vn expr _) =
   ppId vn <+> text "=(lval)" <+> ppRawExpr expr
--- ppIR (ConstructLVal x v lv lt) = 
---   ppId x <+> text 
-ppIR (RTAssertion a) = ppRTAssertion a
-ppIR (SetState comp v) = 
+-- ppIR (ConstructLVal x v lv lt) =
+--   ppId x <+> text
+ppIR (RTAssertion a _) = ppRTAssertion a
+ppIR (SetState comp v _) =
   ppId comp <+> text "<-" <+> ppId v
-ppIR InvalidateSparseBit = text "<invalidate sparse bit>"
+ppIR (InvalidateSparseBit _) = text "<invalidate sparse bit>"
 
-ppIR (MkFunClosures varmap fdefs) = 
+ppIR (MkFunClosures varmap fdefs _) =
     let vs = hsepc $ ppEnvIds varmap
-        ppFdefs = map (\((VN x), HFN y) ->  text x <+> text "= mkClos" <+> text y ) fdefs 
+        ppFdefs = map (\((VN x), HFN y) ->  text x <+> text "= mkClos" <+> text y ) fdefs
      in text "with env:=" <+> PP.brackets vs $$ nest 2 (vcat ppFdefs)
     where ppEnvIds ls =
             map (\(a,b) -> (ppId a) PP.<+> text "->" <+> ppId b ) ls
@@ -340,10 +340,10 @@ ppIR (MkFunClosures varmap fdefs) =
 -- ppIR (LevelOperations _ insts) = 
 --  text "level operation" $$ nest 2 (vcat (map ppIR insts))
 
-ppTr (StackExpand bb1 bb2) = (text "call" $$ nest 4 (ppBB bb1)) $$ (ppBB bb2)
+ppTr (StackExpand bb1 bb2 _) = (text "call" $$ nest 4 (ppBB bb1)) $$ (ppBB bb2)
 
 
--- ppTr (AssertElseError va ir va2 _) 
+-- ppTr (AssertElseError va ir va2 _)
 --   = text "assert" <+> PP.parens (ppId va) <+>
 --     text "{" $$
 --     nest 2 (ppBB ir) $$
@@ -351,7 +351,7 @@ ppTr (StackExpand bb1 bb2) = (text "call" $$ nest 4 (ppBB bb1)) $$ (ppBB bb2)
 --     text "elseError" <+> (ppId va2)
 
 
-ppTr (If va ir1 ir2)
+ppTr (If va ir1 ir2 _)
   = text "if" <+> PP.parens (ppId va) <+>
     text "{" $$
     nest 4 (ppBB ir1) $$
@@ -359,9 +359,9 @@ ppTr (If va ir1 ir2)
     text "else {" $$
     nest 4 (ppBB ir2) $$
     text "}"
-ppTr (TailCall va1 ) = ppFunCall (text "tail") [ppId va1]
-ppTr (Ret)  = text "ret"
-ppTr (LibExport va) = ppFunCall (text "export") [ppId va]
+ppTr (TailCall va1 _) = ppFunCall (text "tail") [ppId va1]
+ppTr (Ret _)  = text "ret"
+ppTr (LibExport va _) = ppFunCall (text "export") [ppId va]
 ppTr (Error va _)  = (text "error ") <> (ppId va)
 
 

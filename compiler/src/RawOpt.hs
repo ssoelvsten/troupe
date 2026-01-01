@@ -56,30 +56,30 @@ instance Substitutable RawExpr where
       _ -> e 
 
 -- | Defining how to apply a substitution.
-instance Substitutable RawInst where 
-  apply subst i = 
-    case i of 
-      AssignRaw r1 r2 -> AssignRaw (apply subst r1) (apply subst r2)
-      SetState mc r -> SetState mc (apply subst r)
-      AssignLVal v e -> AssignLVal v (apply subst e)
-      RTAssertion a -> RTAssertion $ case a of
+instance Substitutable RawInst where
+  apply subst i =
+    case i of
+      AssignRaw r1 r2 p -> AssignRaw (apply subst r1) (apply subst r2) p
+      SetState mc r p -> SetState mc (apply subst r) p
+      AssignLVal v e p -> AssignLVal v (apply subst e) p
+      RTAssertion a p -> RTAssertion (case a of
         AssertType r t -> AssertType (apply subst r) t
         -- AssertEqTypes ts r1 r2 -> AssertEqTypes ts (apply subst r1) (apply subst r2)
         AssertTypesBothStringsOrBothNumbers r1 r2 -> AssertTypesBothStringsOrBothNumbers (apply subst r1) (apply subst r2)
         AssertTupleLengthGreaterThan v n -> AssertTupleLengthGreaterThan (apply subst v) n
         AssertRecordHasField v f -> AssertRecordHasField (apply subst v) f
-        AssertNotZero r -> AssertNotZero (apply subst r)
-      InvalidateSparseBit -> i
+        AssertNotZero r -> AssertNotZero (apply subst r)) p
+      InvalidateSparseBit _ -> i
       _ -> i
 
-instance Substitutable RawTerminator where 
-  apply subst tr = 
-    case tr of 
-      TailCall r -> TailCall (apply subst r) 
-      If r bb1 bb2 -> 
-        If (apply subst r) (apply subst bb1) (apply subst bb2)
-      Error r p -> Error (apply subst r) p 
-      StackExpand bb1 bb2 -> StackExpand (apply subst bb1) (apply subst bb2) 
+instance Substitutable RawTerminator where
+  apply subst tr =
+    case tr of
+      TailCall r p -> TailCall (apply subst r) p
+      If r bb1 bb2 p ->
+        If (apply subst r) (apply subst bb1) (apply subst bb2) p
+      Error r p -> Error (apply subst r) p
+      StackExpand bb1 bb2 p -> StackExpand (apply subst bb1) (apply subst bb2) p
       _ -> tr
 
 instance Substitutable RawBBTree where
@@ -281,85 +281,85 @@ pevalInst i = do
     let _omit x = x >> return []
     let _keep x = x >> return [i']
              
-    case i' of 
-      AssignRaw r (ProjectState p) -> do
+    case i' of
+      AssignRaw r (ProjectState p) pos -> do
         case monLookup p pstate of -- lookup the known state of the monitor component
           Just r' -> _omit $ addSubst r r' -- The state can already be found in r', therefore the assignment to r can be omitted, and we have to remember to substitute r with r'.
           Nothing -> _keep $ monInsert p r -- remember that PC/block can be found in variable r
-      AssignRaw r (Bin Basics.LatticeJoin (UseNativeBinop False) x y) -> do 
+      AssignRaw r (Bin Basics.LatticeJoin (UseNativeBinop False) x y) pos -> do
         if x == y then _omit (addSubst r x) -- trivial join
         else do
-          case Map.lookup (x,y) (stateJoins pstate) of 
+          case Map.lookup (x,y) (stateJoins pstate) of
             Just r' -> _omit $ addSubst r r'
             Nothing -> case Map.lookup (y,x) (stateJoins pstate) of
               Just r' -> _omit $ addSubst r r'
-              Nothing -> _keep $ do 
-                markUsed [x,y] 
+              Nothing -> _keep $ do
+                markUsed [x,y]
                 put $ pstate { stateJoins = Map.insert (x,y) r (stateJoins pstate) }
-              
-      AssignLVal v (ConstructLVal r1 r2 r3) -> _keep $ do
+
+      AssignLVal v (ConstructLVal r1 r2 r3) pos -> _keep $ do
         markUsed [r1, r2, r3]
-        
-        
+
+
         let m0 = stateLVals pstate
         let m1 = Map.insert (v, FieldValue) r1 m0
-        let m2 = Map.insert (v, FieldValLev) r2 m1 
-        let m3 = Map.insert (v, FieldTypLev) r3 m2        
-        put $ pstate { stateLVals = m3 }        
-      AssignRaw r (ProjectLVal (VarLocal v) field) -> do        
-        case (Map.lookup (v, field) (stateLVals pstate)) of           
-          Just r' -> _omit $ addSubst r r'             
-          Nothing -> _keep $ do 
+        let m2 = Map.insert (v, FieldValLev) r2 m1
+        let m3 = Map.insert (v, FieldTypLev) r3 m2
+        put $ pstate { stateLVals = m3 }
+      AssignRaw r (ProjectLVal (VarLocal v) field) pos -> do
+        case (Map.lookup (v, field) (stateLVals pstate)) of
+          Just r' -> _omit $ addSubst r r'
+          Nothing -> _keep $ do
             markUsed v
-            let m0 = stateLVals pstate 
-            let m1 = Map.insert (v, field) r m0 
+            let m0 = stateLVals pstate
+            let m1 = Map.insert (v, field) r m0
             put $ pstate { stateLVals = m1 }
 
-            -- 2025-07-31; now also examine the type information 
-            -- which is useful for booleans 
-            case (Map.lookup v (stateLValTypes pstate)) of 
+            -- 2025-07-31; now also examine the type information
+            -- which is useful for booleans
+            case (Map.lookup v (stateLValTypes pstate)) of
               Nothing -> return ()
               Just t  -> _setRawType r t
 
-      AssignRaw r rexpr -> _keep $ do
-        markUsed rexpr 
-        case guessType rexpr of 
+      AssignRaw r rexpr pos -> _keep $ do
+        markUsed rexpr
+        case guessType rexpr of
             Nothing -> return ()
-            Just ty -> _setRawType r ty 
+            Just ty -> _setRawType r ty
 
-      AssignLVal v complexExpr@(Bin op (UseNativeBinop False) r1 r2) 
+      AssignLVal v complexExpr@(Bin op (UseNativeBinop False) r1 r2) pos
           | op `elem` [Basics.Eq, Basics.Neq] -> do
                 _setLValType v RawBoolean
                 a <- isSuitableForNativeEq r1
                 b <- isSuitableForNativeEq r2
-                if  a || b 
-                  then do 
-                    let VN s = v 
+                if  a || b
+                  then do
+                    let VN s = v
                         r3 = RawVar $ s ++ "$val_opt"
                         r4 = RawVar $ s ++ "$vlev_opt"
                         r5 = RawVar $ s ++ "$tlev_opt"
-                    markUsed v 
+                    markUsed v
                     markUsed [r1, r2, r3, r4, r5]
                     return $
-                      [ AssignRaw r3 (Bin op (UseNativeBinop True) r1 r2)
-                      , AssignRaw r4 (ProjectState MonPC)
-                      , AssignRaw r5 (ProjectState MonPC)
-                      , AssignLVal v (ConstructLVal r3 r4 r5)
+                      [ AssignRaw r3 (Bin op (UseNativeBinop True) r1 r2) pos
+                      , AssignRaw r4 (ProjectState MonPC) pos
+                      , AssignRaw r5 (ProjectState MonPC) pos
+                      , AssignLVal v (ConstructLVal r3 r4 r5) pos
                       ]
-                  else 
+                  else
                     _keep $ markUsed complexExpr
 
 
-      AssignLVal v complexExpr -> 
+      AssignLVal v complexExpr pos ->
         _keep $ markUsed complexExpr
 
-      SetState p r -> _keep $ do 
+      SetState p r pos -> _keep $ do
         markUsed r
-        monInsert p r        
-      RTAssertion (AssertType r rt) -> do 
-        case Map.lookup r (stateRawVarTypes pstate) of 
+        monInsert p r
+      RTAssertion (AssertType r rt) pos -> do
+        case Map.lookup r (stateRawVarTypes pstate) of
           Just rt' | rt' == rt -> return []
-          _ -> _keep $ _setRawType r rt >> markUsed r        
+          _ -> _keep $ _setRawType r rt >> markUsed r
       -- RTAssertion (AssertEqTypes opt_ls x y) -> do
       --   let _m = stateTypes pstate
       --   let keep = _keep $ markUsed [x,y]
@@ -372,28 +372,28 @@ pevalInst i = do
       --             return Nothing
       --           else keep
       --     _ -> keep
-      RTAssertion (AssertTypesBothStringsOrBothNumbers x y) -> do 
-        let _m = stateRawVarTypes pstate 
+      RTAssertion (AssertTypesBothStringsOrBothNumbers x y) pos -> do
+        let _m = stateRawVarTypes pstate
         let keep = _keep $ markUsed [x,y]
-        case (Map.lookup x _m, Map.lookup y _m) of 
-          (Just t1 , Just t2) | t1 == t2 -> 
+        case (Map.lookup x _m, Map.lookup y _m) of
+          (Just t1 , Just t2) | t1 == t2 ->
             if t1 `elem` [RawNumber, RawString]
             then return []
             else keep
           _ -> keep
       -- TODO track tuple length
-      RTAssertion (AssertTupleLengthGreaterThan r n) -> _keep $ markUsed r
+      RTAssertion (AssertTupleLengthGreaterThan r n) pos -> _keep $ markUsed r
       -- TODO track record fields
-      RTAssertion (AssertRecordHasField r f) -> _keep $ markUsed r
-      RTAssertion (AssertNotZero r) -> do
+      RTAssertion (AssertRecordHasField r f) pos -> _keep $ markUsed r
+      RTAssertion (AssertNotZero r) pos -> do
          renv <- ask
          case Map.lookup r (readConsts renv) of
            Just (Core.LNumeric (NumInt x) _) | x /= 0 -> return []
            _ -> _keep $ markUsed r
-      MkFunClosures ee _ -> _keep $ markUsed (snd (unzip ee)) 
+      MkFunClosures ee _ pos -> _keep $ markUsed (snd (unzip ee))
       -- No applicable optimizations.
-      SetBranchFlag -> return [i']
-      InvalidateSparseBit -> return [i']
+      SetBranchFlag _ -> return [i']
+      InvalidateSparseBit _ -> return [i']
 
 
 isSuitableForNativeEq r = do 
@@ -408,10 +408,10 @@ isSuitableForNativeEq r = do
 
 
 instance PEval RawTerminator where
-  peval tr = do 
+  peval tr = do
     tr' <- subst tr -- todo: obs complexity :( 2021-02-23; AA
-    case tr' of 
-      If x bb1 bb2 -> do
+    case tr' of
+      If x bb1 bb2 pos -> do
         markUsed x
         s <- get
         bb1' <- peval bb1
@@ -420,55 +420,55 @@ instance PEval RawTerminator where
                 , stateLVals = stateLVals s
                 , stateJoins = stateJoins s
                 }
-        bb2' <- peval bb2         
-        return $ If x bb1' bb2'
-      StackExpand bb1 bb2 -> do
+        bb2' <- peval bb2
+        return $ If x bb1' bb2' pos
+      StackExpand bb1 bb2 pos -> do
         s <- get
         bb1' <- peval bb1
         put $ s { stateMon = Map.empty
                 , stateLVals = stateLVals s
-                , stateJoins = stateJoins s 
+                , stateJoins = stateJoins s
                 } -- reset the monitor state
         bb2' <- peval bb2
-        return $ StackExpand bb1' bb2'
-      Ret -> do 
-        return tr' 
-      TailCall x -> do 
-        markUsed x
-        return tr' 
-      Error x _ -> do 
-        markUsed x 
+        return $ StackExpand bb1' bb2' pos
+      Ret _ -> do
         return tr'
-      LibExport x -> do
-        markUsed x 
+      TailCall x _ -> do
+        markUsed x
+        return tr'
+      Error x _ -> do
+        markUsed x
+        return tr'
+      LibExport x _ -> do
+        markUsed x
         return tr'
       
   
 isLiveInstFwd :: Used -> RawInst -> Bool
-isLiveInstFwd (lvals, rvars) i = 
+isLiveInstFwd (lvals, rvars) i =
   case i of
-    AssignRaw r _ -> Set.member r rvars 
-    AssignLVal v _ -> Set.member v lvals 
+    AssignRaw r _ _ -> Set.member r rvars
+    AssignLVal v _ _ -> Set.member v lvals
     _ -> True
 
 
 filterInstBwd :: [RawInst] -> ([RawInst], [RawInst])
-filterInstBwd ls = 
-  let f (pc, bl) (i:is) acc = 
-        case i of 
-          SetState MonPC _ -> 
+filterInstBwd ls =
+  let f (pc, bl) (i:is) acc =
+        case i of
+          SetState MonPC _ _ ->
             if pc /= Nothing
                   then f (pc, bl) is acc
                   else f (Just i, bl) is acc
-          SetState MonBlock _ -> 
-            if bl /= Nothing 
-                  then f (pc, bl) is acc 
+          SetState MonBlock _ _ ->
+            if bl /= Nothing
+                  then f (pc, bl) is acc
                   else f (pc, Just i) is acc
           _ -> f (pc, bl) is (i:acc)
-      f (pc, bl) [] acc = 
+      f (pc, bl) [] acc =
         let fromJ (Just x) = [x]
             fromJ Nothing = []
-         in (acc, concat $ map fromJ [pc, bl]) in 
+         in (acc, concat $ map fromJ [pc, bl]) in
   f (Nothing, Nothing) (reverse ls) []
 
 
@@ -477,28 +477,28 @@ filterInstBwd ls =
 -- optimized away. The optimization compensates for redundant assignments introduced by the
 -- translation.
 hoistStackExpand :: RawBBTree -> RawBBTree
-hoistStackExpand bb@(BB insts tr) = 
-  case tr of 
+hoistStackExpand bb@(BB insts tr) =
+  case tr of
     -- Here we check which instructions from ii_1 can be moved to before the call
-    StackExpand (BB ii_1 tr_1) bb2 ->
-      let isFrameSpecific i = 
-            case i of 
-              SetBranchFlag -> True
-              SetState _ _ -> True 
-              InvalidateSparseBit -> True -- to be safe, we define this frame-specific
+    StackExpand (BB ii_1 tr_1) bb2 pos ->
+      let isFrameSpecific i =
+            case i of
+              SetBranchFlag _ -> True
+              SetState _ _ _ -> True
+              InvalidateSparseBit _ -> True -- to be safe, we define this frame-specific
               _ -> False
           -- jx_1: non-frame-specific instructions, are moved to before the call
           -- jx_2: frame-specific instructions, stay under the call's instructions
-          (jx_1, jx_2)  = Data.List.break isFrameSpecific ii_1  
-      in BB (insts ++ jx_1) (StackExpand (BB jx_2 tr_1) bb2) 
+          (jx_1, jx_2)  = Data.List.break isFrameSpecific ii_1
+      in BB (insts ++ jx_1) (StackExpand (BB jx_2 tr_1) bb2 pos)
     -- If returning, the current frame will be removed, and thus all PC set instructions
     -- are redundant and can be removed.
-    Ret -> 
-      let isNotPcSet (SetState MonPC _) = False
-          isNotPcSet _ = True 
+    Ret _ ->
+      let isNotPcSet (SetState MonPC _ _) = False
+          isNotPcSet _ = True
           insts_wo_PCUpd = filter isNotPcSet insts
       in BB insts_wo_PCUpd tr
-    
+
     _ -> bb
   
 instOrder ii = work [] ii
@@ -527,21 +527,21 @@ instOrder ii = work [] ii
 
 
 instance PEval RawBBTree where
-  peval bb@(BB insts tr) = do 
-    (BB jj tr'', used) <- listen $ do 
+  peval bb@(BB insts tr) = do
+    (BB jj tr'', used) <- listen $ do
         ii <- concat <$> mapM pevalInst insts
-        tr' <- peval tr 
+        tr' <- peval tr
         return $ BB ii tr'
     let (insts_no_ret, set_pc_bl) = filterInstBwd (filter (isLiveInstFwd used) jj)
     let BB insts_ bb_ =
-          case tr'' of 
-            If x (BB i_then tr_then) (BB i_else tr_else) -> 
-              BB insts_no_ret $ 
-                If x (BB (set_pc_bl ++ i_then) tr_then) 
-                     (BB (set_pc_bl ++ i_else) tr_else)
- 
+          case tr'' of
+            If x (BB i_then tr_then) (BB i_else tr_else) pos ->
+              BB insts_no_ret $
+                If x (BB (set_pc_bl ++ i_then) tr_then)
+                     (BB (set_pc_bl ++ i_else) tr_else) pos
+
             _ -> hoistStackExpand $ BB (insts_no_ret ++ set_pc_bl) tr''
-    let insts_sorted = instOrder insts_ 
+    let insts_sorted = instOrder insts_
     return $ BB insts_sorted bb_
   
 

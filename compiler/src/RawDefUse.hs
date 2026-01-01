@@ -218,25 +218,25 @@ clearZone = do
   else 
     return ()
 
-instance Trav RawTerminator where 
-  trav tr = 
-     case tr of 
-       TailCall r -> use r 
-       Ret -> return () 
-       If r bb1 bb2 -> do 
-         (c, z) <- getLocation 
-         use r 
-         setLocation $ (c, z + 2) 
-         trav bb1 
-         setLocation $ (c, z + 2) 
-         trav bb2
-       LibExport v -> use v 
-       Error r _ -> use r 
-       StackExpand bb1 bb2 -> do
+instance Trav RawTerminator where
+  trav tr =
+     case tr of
+       TailCall r _ -> use r
+       Ret _ -> return ()
+       If r bb1 bb2 _ -> do
+         (c, z) <- getLocation
+         use r
+         setLocation $ (c, z + 2)
          trav bb1
-         modify (\s -> 
-                     let (c, _) = locInfo s 
-                         n =  1 + nCalls s                         
+         setLocation $ (c, z + 2)
+         trav bb2
+       LibExport v _ -> use v
+       Error r _ -> use r
+       StackExpand bb1 bb2 _ -> do
+         trav bb1
+         modify (\s ->
+                     let (c, _) = locInfo s
+                         n =  1 + nCalls s
                      in s { locInfo = (n, 0), nCalls = n })
          trav bb2 
 
@@ -269,37 +269,37 @@ updateZone i = do
 
 
 -- | Def-Use analysis: mark used variables
-instance Usable RawInst b where 
-  use i = do 
+instance Usable RawInst b where
+  use i = do
      updateZone i
-     case i of 
-       AssignRaw x e -> use e 
-       AssignLVal x e -> use e 
-       SetState cmp x -> use x 
-       RTAssertion (AssertType r _) -> use r
+     case i of
+       AssignRaw x e _ -> use e
+       AssignLVal x e _ -> use e
+       SetState cmp x _ -> use x
+       RTAssertion (AssertType r _) _ -> use r
        --  RTAssertion (AssertEqTypes _ x y) -> use [x,y]
-       RTAssertion (AssertTypesBothStringsOrBothNumbers x y) -> use [x,y]
-       RTAssertion (AssertRecordHasField r _) -> use r
-       RTAssertion (AssertTupleLengthGreaterThan r _) -> use r
-       RTAssertion (AssertNotZero r) -> use r
-       MkFunClosures xs _ -> use (snd (unzip xs))
+       RTAssertion (AssertTypesBothStringsOrBothNumbers x y) _ -> use [x,y]
+       RTAssertion (AssertRecordHasField r _) _ -> use r
+       RTAssertion (AssertTupleLengthGreaterThan r _) _ -> use r
+       RTAssertion (AssertNotZero r) _ -> use r
+       MkFunClosures xs _ _ -> use (snd (unzip xs))
        -- Instructions without variables
-       InvalidateSparseBit -> return ()
-       SetBranchFlag -> return ()
+       InvalidateSparseBit _ -> return ()
+       SetBranchFlag _ -> return ()
 
 
 -- | Mark variables that are defined.
-instance Definable RawInst b where 
-  define i = do 
-    updateZone i 
-    case i of 
-       AssignRaw x _ -> define x
-       AssignLVal x _ -> define x
-       SetState cmp x -> return ()
-       RTAssertion _ -> return ()
-       SetBranchFlag -> return ()
-       InvalidateSparseBit -> return ()
-       MkFunClosures _ ys -> mapM_ define (fst (unzip ys))
+instance Definable RawInst b where
+  define i = do
+    updateZone i
+    case i of
+       AssignRaw x _ _ -> define x
+       AssignLVal x _ _ -> define x
+       SetState cmp x _ -> return ()
+       RTAssertion _ _ -> return ()
+       SetBranchFlag _ -> return ()
+       InvalidateSparseBit _ -> return ()
+       MkFunClosures _ ys _ -> mapM_ define (fst (unzip ys))
 
 
 instance Trav RawBBTree where 
