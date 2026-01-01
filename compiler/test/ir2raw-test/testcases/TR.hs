@@ -16,27 +16,29 @@ tcs :: [(String, IRProgram)]
 tcs = map (second mkP)
   [
   ( "TailCall"
-  , TailCall (mkV "x") (mkV "y")
+  , TailCall (mkV "x") (mkV "y") NoPos
   ),
   ( "Ret"
-  , Ret (mkV "x")
+  , Ret (mkV "x") NoPos
   ),
   ( "LibExport"
-  , LibExport (mkV "x")
+  , LibExport (mkV "x") NoPos
   ),
   -- NOTE: We use libexport as terminator because it generates least extra code
   ( "If"
   , If (mkV "x")
-       (BB [Assign (VN "b1") (Base "v1") ] (LibExport (mkV "b1")))
-       (BB [Assign (VN "b2") (Base "v2") ] (LibExport (mkV "b2")))
+       (BB [Assign (VN "b1") (Base "v1") NoPos] (LibExport (mkV "b1") NoPos))
+       (BB [Assign (VN "b2") (Base "v2") NoPos] (LibExport (mkV "b2") NoPos))
+       NoPos
   ),
   ( "StackExpand"
   , StackExpand (VN "x")
-       (BB [Assign (VN "b1") (Base "v1") ] (LibExport (mkV "b1")))
-       (BB [Assign (VN "b2") (Base "v2") ] (LibExport (mkV "b2")))
+       (BB [Assign (VN "b1") (Base "v1") NoPos] (LibExport (mkV "b1") NoPos))
+       (BB [Assign (VN "b2") (Base "v2") NoPos] (LibExport (mkV "b2") NoPos))
+       NoPos
   ),
   ( "AssertElseError"
-  , AssertElseError (mkV "x") (BB [Assign (VN "b") (Base "v")] (LibExport (mkV "b"))) (mkV "verr") NoPos
+  , AssertElseError (mkV "x") (BB [Assign (VN "b") (Base "v") NoPos] (LibExport (mkV "b") NoPos)) (mkV "verr") NoPos
   ),
   ( "Error"
   , Error (mkV "verr") NoPos

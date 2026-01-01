@@ -16,10 +16,10 @@ mkP tree = IRProgram (Core.Atoms []) [FunDef (HFN "main") (VN "arg") [] tree]
 tcs :: [(String, IRProgram)]
 tcs = map (second mkP)
   [ ( "TreeEmpty"
-    , BB [] (Ret (mkV "r"))
+    , BB [] (Ret (mkV "r") NoPos)
     )
   ,
     ( "TreeAssign"
-    , BB [Assign (VN "r") (Tuple [])] (Ret (mkV "r"))
+    , BB [Assign (VN "r") (Tuple []) NoPos] (Ret (mkV "r") NoPos)
     )
   ]
