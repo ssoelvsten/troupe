@@ -45,7 +45,7 @@ instance FreeNames ContDef where
   freeVars  (Cont vn kt) = restrictFree kt [vn]
 
 instance FreeNames FunDef where
-  freeVars (Fun fn klam) = restrictFree klam [fn]
+  freeVars (Fun fn klam _) = restrictFree klam [fn]
 
 instance FreeNames SimpleTerm where
   freeVars (Bin _ v1 v2 _) = FreeVars (Set.fromList [v1, v2])
@@ -77,7 +77,7 @@ instance FreeNames KTerm where
 
   freeVars (LetFun fdefs kt _) =
      (unionMany (map freeVars fdefs)) `unionFreeVars` (restrictFree kt  (map fname fdefs))
-        where fname (Fun n _) = n
+        where fname (Fun n _ _) = n
 
   freeVars (KontReturn v _) = FreeVars (Set.singleton v)
 

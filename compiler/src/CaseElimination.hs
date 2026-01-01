@@ -231,7 +231,7 @@ transDecl (S.FunDecs fundecs) succ = do
             return ( (App (Var n pos) [args'] pos)
                    , (ValDecl n (Abs lam pos)) : decls)
           ) (return (errorMsg, [])) (zip names lams')
-      return (FunDecl f (Lambda args (Let (reverse decls) fst pos)))
+      return (FunDecl f (Lambda args (Let (reverse decls) fst pos)) pos)
 
 transTerm :: S.Term -> Trans Term
 transTerm (S.Lit lit) = return (T.Lit (transLit lit))

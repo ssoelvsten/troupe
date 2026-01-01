@@ -97,9 +97,9 @@ instance Substitutable ContDef where
      in Cont vn (apply subst' kt)
 
 instance Substitutable FunDef where
-  apply subst@(Subst varmap) (Fun vn klam) =
+  apply subst@(Subst varmap) (Fun vn klam pos) =
     let subst' = Subst (Map.delete vn varmap)
-    in Fun vn (apply subst' klam)
+    in Fun vn (apply subst' klam) pos
 
 instance Substitutable KTerm where
   apply subst@(Subst varmap) kontTerm =
@@ -111,7 +111,7 @@ instance Substitutable KTerm where
             kt'   = apply subst kt
         in LetRet kdef' kt' p
       LetFun fdefs kt p ->
-         let fnames = map (\(Fun v _) -> v) fdefs
+         let fnames = map (\(Fun v _ _) -> v) fdefs
              subst' = Subst ( foldl (\m v -> Map.delete v m) varmap fnames)
              kt' = apply subst' kt
              fdefs' = map (apply subst') fdefs
@@ -169,8 +169,8 @@ instance CensusCollectible SVal where
 instance CensusCollectible ContDef where 
   updateCensus (Cont _ kt) = updateCensus kt 
 
-instance CensusCollectible FunDef where 
-  updateCensus (Fun _ kl) = updateCensus kl 
+instance CensusCollectible FunDef where
+  updateCensus (Fun _ kl _) = updateCensus kl 
 
 instance CensusCollectible KTerm where
   updateCensus t = case t of
@@ -231,8 +231,8 @@ class Simplifiable a where
 instance Simplifiable a => Simplifiable [a] where 
   simpl = mapM simpl
 
-instance Simplifiable FunDef where 
-  simpl (Fun arg kl) = simpl kl  >>= return . Fun arg
+instance Simplifiable FunDef where
+  simpl (Fun arg kl pos) = simpl kl  >>= \kl' -> return $ Fun arg kl' pos
 
 instance Simplifiable ContDef where 
   simpl (Cont v kt) = simpl kt >>= return . Cont v
@@ -539,7 +539,7 @@ isApplied f k =
     LetSimple _  _ k' _ -> isApplied f k'
     LetFun fdefs k' _ ->
        or $ (isApplied f k') :
-            [ isApplied f k'' | Fun _ kl <- fdefs, let k'' = kTermOfLambda kl]
+            [ isApplied f k'' | Fun _ kl _ <- fdefs, let k'' = kTermOfLambda kl]
     ApplyFun g _ _ -> g == f
     If _ k1 k2 _ -> isApplied f k1 || isApplied f k2
     AssertElseError  _ k' _ _ -> isApplied f k'

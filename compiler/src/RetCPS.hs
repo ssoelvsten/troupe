@@ -52,7 +52,7 @@ data SVal
 
 data ContDef = Cont VarName KTerm
                deriving (Eq, Ord)
-data FunDef = Fun VarName KLambda
+data FunDef = Fun VarName KLambda PosInf
               deriving (Eq, Ord)
 
 type Fields = [(Basics.FieldName, VarName)]
@@ -239,9 +239,9 @@ ppKTerm' (LetFun fdefs kt _) =
   nest 3 (ppKTerm 0 kt) $$
   text "end"
   where
-    ppFunDecl (Fun fname (Unary pat body)) =
+    ppFunDecl (Fun fname (Unary pat body) _) =
        (textv fname  <+> textv pat <+> text "=" , ppKTerm 0 body)
-    ppFunDecl (Fun fname (Nullary body)) =
+    ppFunDecl (Fun fname (Nullary body) _) =
        (textv fname  <+> text "()" <+> text "=" , ppKTerm 0 body)
     ppFuns (doc:docs) =
       let pp' prefix (docHead,docBody) = text prefix  <+> docHead  $$ nest 2 docBody

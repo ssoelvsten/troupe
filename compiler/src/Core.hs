@@ -52,7 +52,7 @@ data Decl
     | FunDecs [FunDecl]
   deriving (Eq )
 
-data FunDecl = FunDecl VarName Lambda
+data FunDecl = FunDecl VarName Lambda PosInf
   deriving (Eq)
 
 -- Numeric type represents integer and floating point numeric literals
@@ -264,7 +264,7 @@ lower (D.Let decls e pi) =
   foldr (\ decl t -> Let (lowerDecl decl) t pi) (lower e) decls
   where lowerDecl (D.ValDecl vname e) = ValDecl vname (lower e)
         lowerDecl (D.FunDecs decs) = FunDecs (map lowerFun decs)
-        lowerFun  (D.FunDecl v lam) = FunDecl v (lowerLam lam)
+        lowerFun  (D.FunDecl v lam pos) = FunDecl v (lowerLam lam) pos
 -- lower (D.Case t patTermLst) = Case (lower t) (map (\(p,t) -> (lowerDeclPat p, lower t)) patTermLst)
 lower (D.If e1 e2 e3 pi) = If (lower e1) (lower e2) (lower e3) pi
 lower (D.AssertElseError e1 e2 e3 p) = AssertElseError (lower e1) (lower e2) (lower e3) p
@@ -511,10 +511,10 @@ renameDecl (ValDecl v t) m = do
 
 renameDecl (FunDecs decs) m = do
   m' <- foldM ext_funDecl m decs
-  decs' <- mapM (\(FunDecl v l) -> liftM (FunDecl (lookforalpha v m')) (renameLambda l m')) decs
+  decs' <- mapM (\(FunDecl v l pos) -> liftM (\l' -> FunDecl (lookforalpha v m') l' pos) (renameLambda l m')) decs
   let decl' = (FunDecs decs')
   return (m', decl')
-  where ext_funDecl m (FunDecl v _) = do
+  where ext_funDecl m (FunDecl v _ _) = do
           v' <- unique v
           return $ extend v v' m
 
@@ -655,7 +655,7 @@ ppDecl (ValDecl arg t) =
     <+> ppTerm 0 t
 ppDecl (FunDecs fs) = ppFuns fs
   where
-    ppFunDecl prefix (FunDecl fname lam) =
+    ppFunDecl prefix (FunDecl fname lam _) =
       ppFunOptions (prefix ++ " " ++ fname) lam
 
     ppFunOptions prefix lam =

@@ -203,12 +203,12 @@ cpsToIR (CPS.LetRet (CPS.Cont arg kt') kt pos) = do
     t  <- cpsToIR kt
     t' <- local (insVar arg) (cpsToIR kt')
     return $ CCIR.BB [] $ StackExpand arg t t' pos
-cpsToIR (CPS.LetFun fdefs kt pos) = do
-    let vnames_orig = map (\(CPS.Fun fname _) -> fname) fdefs
+cpsToIR (CPS.LetFun fdefs kt _pos) = do
+    let vnames_orig = map (\(CPS.Fun fname _ _) -> fname) fdefs
     let localExt = local (insVars vnames_orig)
     t <- localExt (cpsToIR kt) -- translate the body
 
-    frees <- mapM (\(CPS.Fun fname klam) ->
+    frees <- mapM (\(CPS.Fun fname klam _) ->
                         localExt (transFunDec fname klam))
                 fdefs
 
@@ -217,7 +217,11 @@ cpsToIR (CPS.LetFun fdefs kt pos) = do
     let vnames_orig' = map (\x -> (x, lev)) vnames_orig
     envBindings <- mkEnvBindings (freeVars \\ vnames_orig')
     let fnBindings = map (\x@(VN i) -> (x, HFN i)) vnames_orig
-    return $ (CCIR.MkFunClosures envBindings fnBindings pos) `consBB` t
+    -- Use the position of the first function definition for the closure instruction
+    let funDeclPos = case fdefs of
+          (CPS.Fun _ _ p : _) -> p
+          [] -> NoPos
+    return $ (CCIR.MkFunClosures envBindings fnBindings funDeclPos) `consBB` t
 
 -- Special Halt continuation, for exiting program
 cpsToIR (CPS.Halt v pos) = do

@@ -23,7 +23,7 @@ data Decl
     | FunDecs [FunDecl]
   deriving (Eq)
 
-data FunDecl = FunDecl VarName Lambda
+data FunDecl = FunDecl VarName Lambda PosInf
   deriving (Eq)
 
 -- Numeric type represents integer and floating point numeric literals
@@ -229,7 +229,7 @@ qqLambda (Lambda args body) =
 ppDecl (ValDecl x t) = text "val" <+> text x <+> text "=" <+> ppTerm 0 t
 ppDecl (FunDecs fs) = ppFuns (map ppFunDecl fs)
   where
-    ppFunDecl ( FunDecl fname (Lambda args body)) =
+    ppFunDecl ( FunDecl fname (Lambda args body) _) =
       let ppArgs = if args == [] then text "()" else hsep ( map text args)
       in (text fname <+> ppArgs <+> text "=" , ppTerm 0 body)
     ppFuns (doc:docs) =

@@ -23,14 +23,14 @@ transFunDecs decls = do
   mapM transFunDecl decls
 
 transFunDecl :: Core.FunDecl -> S CPS.FunDef
-transFunDecl (Core.FunDecl fname (Core.Unary pat e)) = do
+transFunDecl (Core.FunDecl fname (Core.Unary pat e) pos) = do
 --  k <- freshK
   e' <- transExplicit e
-  return $ CPS.Fun (VN fname) (CPS.Unary (VN pat) e')
-transFunDecl (Core.FunDecl fname (Core.Nullary e)) = do
+  return $ CPS.Fun (VN fname) (CPS.Unary (VN pat) e') pos
+transFunDecl (Core.FunDecl fname (Core.Nullary e) pos) = do
 --  k <- freshK
   e' <- transExplicit e
-  return $ CPS.Fun (VN fname) (CPS.Nullary e')
+  return $ CPS.Fun (VN fname) (CPS.Nullary e') pos
 
 transProg :: Core.Prog -> CPS.Prog
 transProg (Core.Prog imports atoms t) =

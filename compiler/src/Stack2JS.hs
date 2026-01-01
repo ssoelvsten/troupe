@@ -464,12 +464,13 @@ ir2js (StoreStack x i _pos) = return $
    text "_STACK[ _SP + " PP.<> text (show i) PP.<> text "] = " <+> ppId x
 
 
-ir2js (MkFunClosures envBindings funBindings _pos) = do
+ir2js (MkFunClosures envBindings funBindings pos) = do
     -- Create new environment
+    marker <- emitMarker pos
     env <- freshEnvVar
     dd_env_ids <- ppEnvIds env envBindings
-    let ppEnv = vcat [ semi $ hsep [ ppLet env
-                                   , text "new rt.Env()"]
+    let ppEnv = vcat [ marker PP.<> semi (hsep [ ppLet env
+                                   , text "new rt.Env()"])
                      , dd_env_ids]
     let ppFF = map (\(v, f) -> jsClosure v env f) funBindings
     return $ vcat (ppEnv : ppFF)

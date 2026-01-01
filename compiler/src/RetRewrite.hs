@@ -84,9 +84,9 @@ instance Substitutable ContDef where
      in Cont vn (apply subst' kt)
 
 instance Substitutable FunDef where
-  apply subst@(Subst varmap) (Fun vn klam) =
+  apply subst@(Subst varmap) (Fun vn klam pos) =
     let subst' = Subst (Map.delete vn varmap)
-    in Fun vn (apply subst' klam)
+    in Fun vn (apply subst' klam) pos
 
 
 instance Substitutable KTerm where
@@ -101,7 +101,7 @@ instance Substitutable KTerm where
         in LetRet kdef' kt' p
 
       LetFun fdefs kt p ->
-         let fnames = map (\(Fun v _) -> v) fdefs
+         let fnames = map (\(Fun v _ _) -> v) fdefs
              subst' = Subst ( foldl (\m v -> Map.delete v m) varmap fnames)
              kt' = apply subst' kt
              fdefs' = map (apply subst') fdefs
@@ -243,7 +243,7 @@ instance KWalkable ContDef KTerm where
 
 
 instance KWalkable FunDef KTerm where
-  walk pred f (Fun v klam) = Fun v (walk pred f klam)
+  walk pred f (Fun v klam pos) = Fun v (walk pred f klam) pos
 
 
 
@@ -260,7 +260,7 @@ instance FreeNames Context where
   freeVars (CtxtLetCont cdef@(Cont vn kt') ctxt) = freeOfLet cdef [vn] ctxt
   freeVars (CtxtLetFunK fdefs ctxt) =
       (unionMany (map freeVars fdefs)) `unionFreeVars` (restrictFree ctxt  (map fname fdefs))
-        where fname (Fun n _) = n
+        where fname (Fun n _ _) = n
   freeVars (CtxtAssert vn1 vn2 _ ctxt) = unionMany [freeVars ctxt, FreeVars $ Set.fromList [vn1, vn2]]
 
 -- todo: eliminate redundancy in code ; 2018-01-25 ; aa
@@ -308,14 +308,14 @@ deadContPred _ = False
 -- β-Fun (-Lin)
 --------------------------------------------------
 
-betaFunPred (LetFun [Fun fn (Unary vn kt')] kt _) = True
+betaFunPred (LetFun [Fun fn (Unary vn kt') _] kt _) = True
 betaFunPred (LetSimple fn (ValSimpleTerm (KAbs (Unary vn kt')) _) kt _) = True
 betaFunPred _ = False
 
 betaFun :: KTerm -> KTerm
-betaFun (LetFun [Fun fn klam@(Unary xn kt)] kt' p) =
+betaFun (LetFun [Fun fn klam@(Unary xn kt) funPos] kt' p) =
   let klam' = walk betaFunPred betaFun klam
-      noChange = LetFun [Fun fn klam'] (walk betaFunPred betaFun kt') p
+      noChange = LetFun [Fun fn klam' funPos] (walk betaFunPred betaFun kt') p
   in
      case matchterm kt' (PatFunApply fn) of
        Just (ctxt, ApplyFun _ yn _) ->
