@@ -19,8 +19,8 @@ Implement V3 source maps so all Troupe runtime errors show source location (`fil
 | 4 | IR + PosInf | IR.hs, ClosureConv.hs, IR2Raw.hs, IROpt.hs | DONE | - |
 | 5 | Optimizations preserve positions | IROpt.hs, CPSOpt.hs, RawOpt.hs | DONE | - |
 | 6 | CPS + PosInf | RetCPS.hs, RetDFCPS.hs, CPSOpt.hs, etc. | DONE | - |
-| 7 | Core + PosInf | Core.hs | **NEXT** | [phase-07-core.md](phase-07-core.md) |
-| 8 | DirectWOPats + PosInf | DirectWOPats.hs, CaseElimination.hs | Pending | [phase-08-directwopats.md](phase-08-directwopats.md) |
+| 7 | Core + PosInf | Core.hs, RetDFCPS.hs | DONE | [phase-07-core.md](phase-07-core.md) |
+| 8 | DirectWOPats + PosInf | DirectWOPats.hs, CaseElimination.hs | **NEXT** | [phase-08-directwopats.md](phase-08-directwopats.md) |
 | 9 | Direct + PosInf | Direct.hs, Parser.y | Pending | [phase-09-direct.md](phase-09-direct.md) |
 | 10 | Capture positions in Parser | Parser.y | Pending | [phase-10-parser-positions.md](phase-10-parser-positions.md) |
 | 11 | Thread positions through pipeline | CaseElimination.hs, Core.hs, etc. | Pending | [phase-11-threading.md](phase-11-threading.md) |
@@ -77,6 +77,16 @@ Each phase:
 ---
 
 ## Implementation Progress
+
+### Phase 7: Core + PosInf - COMPLETE (2026-01-01)
+
+**All tests pass (397/397)**
+
+**Files modified**:
+- `compiler/src/Core.hs` - Added `PosInf` to 14 Term constructors (Var, Abs, App, Let, If, Tuple, Record, WithRecord, ProjField, ProjIdx, List, ListCons, Bin, Un), updated `lower`, `rename`, and pretty printer functions
+- `compiler/src/RetDFCPS.hs` - Updated all pattern matches for Core types with new PosInf fields
+
+---
 
 ### Phase 6: CPS + PosInf - COMPLETE (2026-01-01)
 

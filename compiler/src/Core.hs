@@ -149,21 +149,21 @@ data VarAccess
  deriving (Eq)
 data Term
     = Lit Lit
-    | Var VarAccess
-    | Abs Lambda
-    | App Term Term
-    | Let Decl Term
-    | If Term Term Term
+    | Var VarAccess PosInf
+    | Abs Lambda PosInf
+    | App Term Term PosInf
+    | Let Decl Term PosInf
+    | If Term Term Term PosInf
     | AssertElseError Term Term Term PosInf
-    | Tuple [Term]
-    | Record Fields 
-    | WithRecord Term Fields
-    | ProjField Term FieldName 
-    | ProjIdx Term Word
-    | List [Term]
-    | ListCons Term Term
-    | Bin BinOp Term Term
-    | Un UnaryOp Term
+    | Tuple [Term] PosInf
+    | Record Fields PosInf
+    | WithRecord Term Fields PosInf
+    | ProjField Term FieldName PosInf
+    | ProjIdx Term Word PosInf
+    | List [Term] PosInf
+    | ListCons Term Term PosInf
+    | Bin BinOp Term Term PosInf
+    | Un UnaryOp Term PosInf
     | Error Term PosInf
   deriving (Eq)
 
@@ -211,7 +211,7 @@ trans (D.Atoms atms) = Atoms atms
 lowerLam (D.Lambda vs t) =
   case vs of
     [] -> Unary "$unit" (lower t)
-    x:xs -> Unary x (foldr (\x b -> (Abs (Unary x b))) (lower t) xs)
+    x:xs -> Unary x (foldr (\x b -> (Abs (Unary x b) NoPos)) (lower t) xs)
 
 
 lowerLit (D.LNumeric n pi) = LNumeric (lowerNumeric n) pi
@@ -228,7 +228,7 @@ lowerLit (D.LAtom n) = LAtom n
 lower :: D.Term -> Core.Term
 lower (D.Lit l) = Lit (lowerLit l)
 lower (D.Error t p) = Error (lower t) p
-lower (D.Var v) = Var (RegVar v)
+lower (D.Var v) = Var (RegVar v) NoPos
   -- 2018-07-01: AA: note that we are mapping all vars to RegVar at
   -- this stage. This is a bit of a hack. A cleaner apporach is to
   -- have a separate intermediate representation. For now we save on
@@ -237,31 +237,31 @@ lower (D.Var v) = Var (RegVar v)
   -- names, which are lib names, and which are actually just regular
   -- variables.
 
-lower (D.Abs lam) = Abs (lowerLam lam)
+lower (D.Abs lam) = Abs (lowerLam lam) NoPos
 
-lower (D.App e []) = Core.App (lower e) (Lit LUnit) -- does this form even exist?
-lower (D.App e es) = foldl Core.App (lower e) (map lower es)
+lower (D.App e []) = Core.App (lower e) (Lit LUnit) NoPos -- does this form even exist?
+lower (D.App e es) = foldl (\acc t -> Core.App acc t NoPos) (lower e) (map lower es)
 lower (D.Let decls e) =
-  foldr (\ decl t -> Let (lowerDecl decl) t) (lower e) decls
+  foldr (\ decl t -> Let (lowerDecl decl) t NoPos) (lower e) decls
   where lowerDecl (D.ValDecl vname e) = ValDecl vname (lower e)
         lowerDecl (D.FunDecs decs) = FunDecs (map lowerFun decs)
         lowerFun  (D.FunDecl v lam) = FunDecl v (lowerLam lam)
 -- lower (D.Case t patTermLst) = Case (lower t) (map (\(p,t) -> (lowerDeclPat p, lower t)) patTermLst)
-lower (D.If e1 e2 e3) = If (lower e1) (lower e2) (lower e3)
+lower (D.If e1 e2 e3) = If (lower e1) (lower e2) (lower e3) NoPos
 lower (D.AssertElseError e1 e2 e3 p) = AssertElseError (lower e1 ) (lower e2) (lower e3) p
-lower (D.Tuple terms) = Tuple (map lower terms)
-lower (D.Record fields) = Record (map (\(f, t) -> (f, lower t)) fields)
-lower (D.WithRecord  e fields) = WithRecord (lower e) (map (\(f, t) -> (f, lower t)) fields)
-lower (D.ProjField t f) = ProjField (lower t) f
-lower (D.ProjIdx t idx) = ProjIdx (lower t) idx
-lower (D.List terms) = List (map lower terms)
-lower (D.ListCons t1 t2) = ListCons (lower t1) (lower t2)
+lower (D.Tuple terms) = Tuple (map lower terms) NoPos
+lower (D.Record fields) = Record (map (\(f, t) -> (f, lower t)) fields) NoPos
+lower (D.WithRecord  e fields) = WithRecord (lower e) (map (\(f, t) -> (f, lower t)) fields) NoPos
+lower (D.ProjField t f) = ProjField (lower t) f NoPos
+lower (D.ProjIdx t idx) = ProjIdx (lower t) idx NoPos
+lower (D.List terms) = List (map lower terms) NoPos
+lower (D.ListCons t1 t2) = ListCons (lower t1) (lower t2) NoPos
 
 -- special casing shortcutting semantics; 2018-03-06;
 lower (D.Bin And e1 e2) = lower (D.If e1 e2 (D.Lit (D.LBool False)))
 lower (D.Bin Or e1 e2) = lower (D.If e1 (D.Lit (D.LBool True)) e2)
-lower (D.Bin op e1 e2) = Bin op (lower e1) (lower e2)
-lower (D.Un op e) = Un op (lower e)
+lower (D.Bin op e1 e2) = Bin op (lower e1) (lower e2) NoPos
+lower (D.Un op e) = Un op (lower e) NoPos
 
 
 --------------------------------------------------
@@ -380,93 +380,97 @@ extend v v' m = Map.insert v v' m
 
 rename :: Core.Term -> Env -> S Core.Term
 rename (Lit l) m = return (Lit l)
-rename (Error t p) m = do 
-      t' <- rename t m 
+rename (Error t p) m = do
+      t' <- rename t m
       return $ Error t' p
-rename (Var (RegVar v)) m = do
+rename (Var (RegVar v) pi) m = do
   v <- lookforgen v m
-  return $ Var v
+  return $ Var v pi
 
 
-rename (Var x) m  = return $ Var x
-rename (Abs l) m =
-  liftM Abs $ renameLambda l m
-rename (App t1 t2) m = do
+rename (Var x pi) m  = return $ Var x pi
+rename (Abs l pi) m = do
+  l' <- renameLambda l m
+  return $ Abs l' pi
+rename (App t1 t2 pi) m = do
   t1' <- rename t1 m
   t2' <- rename t2 m
-  return $ App t1' t2'
-rename (Let decl t) m = do
+  return $ App t1' t2' pi
+rename (Let decl t pi) m = do
   (m', decl') <- renameDecl decl m
   t' <- rename t m'
-  return $ Let decl' t'
+  return $ Let decl' t' pi
 
-rename (If t1 t2 t3) m = do
+rename (If t1 t2 t3 pi) m = do
   t1' <- rename t1 m
   t2' <- rename t2 m
   t3' <- rename t3 m
-  return $ If t1' t2' t3'
+  return $ If t1' t2' t3' pi
 
-rename (AssertElseError t1 t2 t3 p) m = do  
+rename (AssertElseError t1 t2 t3 p) m = do
   t1' <- rename t1 m
   t2' <- rename t2 m
   t3' <- rename t3 m
   return $ AssertElseError t1' t2' t3' p
 
 
-rename (Tuple terms) m =
-  Tuple <$> mapM (flip rename m) terms
+rename (Tuple terms pi) m = do
+  terms' <- mapM (flip rename m) terms
+  return $ Tuple terms' pi
 
-rename (Record fields) m = 
-  Record <$> mapM renameField fields 
-     where renameField (f, t) = do 
-                   t' <- rename t m 
+rename (Record fields pi) m = do
+  fields' <- mapM renameField fields
+  return $ Record fields' pi
+     where renameField (f, t) = do
+                   t' <- rename t m
                    return (f, t')
 
-rename (WithRecord e fields) m = do 
-  t' <- rename e m 
-  fs <- mapM renameField fields 
-  return $ WithRecord  t' fs
-  where renameField (f, t) = do 
-                   t' <- rename t m 
+rename (WithRecord e fields pi) m = do
+  t' <- rename e m
+  fs <- mapM renameField fields
+  return $ WithRecord t' fs pi
+  where renameField (f, t) = do
+                   t' <- rename t m
                    return (f, t')
-  
-rename (ProjField t f) m = do
+
+rename (ProjField t f pi) m = do
   maybeQualified <- tryQualifiedAccess
   case maybeQualified of
     Just term -> return term
     Nothing   -> do
       t' <- rename t m
-      return $ ProjField t' f
+      return $ ProjField t' f pi
   where
     tryQualifiedAccess = case t of
       -- Check if this is a qualified module access (e.g., A.foo or Alias.foo)
       -- At this stage, vars are RegVar from lowering, so we check RegVar
-      Var (RegVar v) | not (Map.member v m) -> do
+      Var (RegVar v) _ | not (Map.member v m) -> do
         (_, libExports) <- ask
         case Map.lookup (LibName v) libExports of
           Just (originalLib, exports) ->
             if Set.member f exports
-            then return $ Just (Var (LibVar originalLib f))  -- Use original lib for codegen
+            then return $ Just (Var (LibVar originalLib f) pi)  -- Use original lib for codegen
             else lift $ throwError $
               "Library '" ++ v ++ "' does not export '" ++ f ++ "'"
           Nothing -> return Nothing  -- Not a library access
       _ -> return Nothing
-rename (ProjIdx t idx) m = do
+rename (ProjIdx t idx pi) m = do
   t' <- rename t m
-  return $ ProjIdx t' idx
-rename (List terms) m =
-  List <$> mapM (flip rename m) terms
-rename (ListCons t1 t2) m = do
+  return $ ProjIdx t' idx pi
+rename (List terms pi) m = do
+  terms' <- mapM (flip rename m) terms
+  return $ List terms' pi
+rename (ListCons t1 t2 pi) m = do
   t1' <- rename t1 m
   t2' <- rename t2 m
-  return $ ListCons  t1' t2'
-rename (Bin op t1 t2) m = do
+  return $ ListCons t1' t2' pi
+rename (Bin op t1 t2 pi) m = do
   t1' <- rename t1 m
   t2' <- rename t2 m
-  return $ Bin op t1' t2'
-rename (Un op e) m = do
+  return $ Bin op t1' t2' pi
+rename (Un op e pi) m = do
   e' <- rename e m
-  return $ Un op e'
+  return $ Un op e' pi
 
 renameLambda :: Core.Lambda -> Env -> S Core.Lambda
 renameLambda (Unary v t) m = do
@@ -539,43 +543,43 @@ ppTerm' (Lit literal) = ppLit literal
 
 ppTerm' (Error t _) = text "error " PP.<> ppTerm' t
 
-ppTerm'  (Tuple ts) =
+ppTerm'  (Tuple ts _) =
   PP.parens $
   PP.hcat $
   PP.punctuate (text ",") (map (ppTerm 0) ts)
 
-ppTerm'  (List ts) =
+ppTerm'  (List ts _) =
   PP.brackets $
   PP.hcat $
   PP.punctuate (text ",") (map (ppTerm 0) ts)
 
-ppTerm' (Record fs) = PP.braces $ qqFields fs
+ppTerm' (Record fs _) = PP.braces $ qqFields fs
 
-ppTerm' (WithRecord e fs) = 
+ppTerm' (WithRecord e fs _) =
     PP.braces $ PP.hsep [ ppTerm 0 e, text "with", qqFields fs]
 
-ppTerm' (ProjField t fn) =
+ppTerm' (ProjField t fn _) =
   ppTerm projPrec t PP.<> text "." PP.<> PP.text fn
 
-ppTerm' (ProjIdx t idx) =
+ppTerm' (ProjIdx t idx _) =
   ppTerm projPrec t PP.<> text "." PP.<> PP.text (show idx)
 
 
-ppTerm' (ListCons hd tl) =
+ppTerm' (ListCons hd tl _) =
    ppTerm consPrec hd PP.<> text "::" PP.<> ppTerm consPrec tl
 
-ppTerm' (Var (RegVar x)) = text x
-ppTerm' (Var (LibVar (LibName lib) var)) = text lib <+> text "." <+> text var
-ppTerm' (Var (BaseName v)) = text v
-ppTerm' (Abs lam) =
+ppTerm' (Var (RegVar x) _) = text x
+ppTerm' (Var (LibVar (LibName lib) var) _) = text lib <+> text "." <+> text var
+ppTerm' (Var (BaseName v) _) = text v
+ppTerm' (Abs lam _) =
   let (ppArgs, ppBody) = qqLambda lam
   in text "fn" <+> ppArgs <+> text "=>" <+> ppBody
 
-ppTerm' (App t1 t2s) =
+ppTerm' (App t1 t2s _) =
     ppTerm appPrec t1
           <+> (ppTerm argPrec t2s)
 
-ppTerm' (Let dec body) =
+ppTerm' (Let dec body _) =
   text "let" <+>
   nest 3 (ppDecl dec) $$
   text "in" <+>
@@ -583,7 +587,7 @@ ppTerm' (Let dec body) =
   text "end"
 
 
-ppTerm' (If e0 e1 e2) =
+ppTerm' (If e0 e1 e2 _) =
   text "if" <+>
   ppTerm 0 e0 $$
   text "then" <+>
@@ -601,14 +605,14 @@ ppTerm' (AssertElseError e0 e1 e2 _) =
 
 
 
-ppTerm' (Bin op t1 t2) =
+ppTerm' (Bin op t1 t2 _) =
   let binOpPrec = opPrec op
   in
      ppTerm binOpPrec t1 <+>
      text (show op) <+>
      ppTerm binOpPrec t2
 
-ppTerm' (Un op t) =
+ppTerm' (Un op t _) =
   let unOpPrec = op1Prec op
   in
      text (show op) <+>
@@ -662,11 +666,11 @@ ppLit (LDCLabel dc) = ppDCLabelExpLit dc
 
 
 termPrec :: Term -> Precedence
-termPrec (Lit _)         = maxPrec
-termPrec (Tuple _)       = maxPrec
-termPrec (List _ )       = maxPrec
-termPrec (Var _)         = maxPrec
-termPrec (App _ _)       = appPrec
-termPrec (Bin op _ _)    = opPrec op
-termPrec (ListCons _ _)  = 200
-termPrec _               = 0
+termPrec (Lit _)           = maxPrec
+termPrec (Tuple _ _)       = maxPrec
+termPrec (List _ _)        = maxPrec
+termPrec (Var _ _)         = maxPrec
+termPrec (App _ _ _)       = appPrec
+termPrec (Bin op _ _ _)    = opPrec op
+termPrec (ListCons _ _ _)  = 200
+termPrec _                 = 0
