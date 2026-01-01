@@ -13,6 +13,7 @@ import Basics
 import TroupePositionInfo
 
 import Control.Monad.Except
+import Data.List (group, sort, intercalate)
 
 }
 
@@ -158,11 +159,11 @@ VarList : VAR              { [varTok $1] }
         | VAR ',' VarList  { (varTok $1) : $3 }
 
 
-AtomsDecl : datatype Atoms '=' VAR AtomsList    { (varTok $4):$5 }
+AtomsDecl : datatype Atoms '=' VAR AtomsList    {% checkDuplicateAtoms ((varTok $4, pos $4):$5) }
           |  {[]}
 
 AtomsList : { [] }
-          | '|' VAR AtomsList  { (varTok $2): $3 }
+          | '|' VAR AtomsList  { (varTok $2, pos $2): $3 }
 
 
 Expr: Form                        { $1 }
@@ -403,8 +404,20 @@ strTok (L _ (TokenString x)) = x
 varTok (L _ (TokenSym x ))   = x
 lblTok (L _ (TokenLabel x))  = x
 
-pos l = let (AlexPn _ line col ) = getPos l 
-        in SrcPosInf "" line col 
+pos l = let (AlexPn _ line col ) = getPos l
+        in SrcPosInf "" line col
 
+-- Check for duplicate atom names and report all duplicates with positions
+checkDuplicateAtoms :: [(String, PosInf)] -> Except String [AtomName]
+checkDuplicateAtoms atoms
+  | null dups = return names
+  | otherwise = throwError $ intercalate "\n" (map formatOne dups)
+  where
+    names = map fst atoms
+    dups = [n | (n:_:_) <- group (sort names)]
+    formatOne d =
+      let positions = [p | (n, p) <- atoms, n == d]
+      in "Duplicate constructor '" ++ d ++ "' at " ++
+         intercalate " and " (map show positions)
 
 }
