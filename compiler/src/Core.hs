@@ -228,7 +228,7 @@ lowerLit (D.LAtom n) = LAtom n
 lower :: D.Term -> Core.Term
 lower (D.Lit l) = Lit (lowerLit l)
 lower (D.Error t p) = Error (lower t) p
-lower (D.Var v) = Var (RegVar v) NoPos
+lower (D.Var v pi) = Var (RegVar v) pi
   -- 2018-07-01: AA: note that we are mapping all vars to RegVar at
   -- this stage. This is a bit of a hack. A cleaner apporach is to
   -- have a separate intermediate representation. For now we save on
@@ -237,31 +237,31 @@ lower (D.Var v) = Var (RegVar v) NoPos
   -- names, which are lib names, and which are actually just regular
   -- variables.
 
-lower (D.Abs lam) = Abs (lowerLam lam) NoPos
+lower (D.Abs lam pi) = Abs (lowerLam lam) pi
 
-lower (D.App e []) = Core.App (lower e) (Lit LUnit) NoPos -- does this form even exist?
-lower (D.App e es) = foldl (\acc t -> Core.App acc t NoPos) (lower e) (map lower es)
-lower (D.Let decls e) =
-  foldr (\ decl t -> Let (lowerDecl decl) t NoPos) (lower e) decls
+lower (D.App e [] pi) = Core.App (lower e) (Lit LUnit) pi -- does this form even exist?
+lower (D.App e es pi) = foldl (\acc t -> Core.App acc t pi) (lower e) (map lower es)
+lower (D.Let decls e pi) =
+  foldr (\ decl t -> Let (lowerDecl decl) t pi) (lower e) decls
   where lowerDecl (D.ValDecl vname e) = ValDecl vname (lower e)
         lowerDecl (D.FunDecs decs) = FunDecs (map lowerFun decs)
         lowerFun  (D.FunDecl v lam) = FunDecl v (lowerLam lam)
 -- lower (D.Case t patTermLst) = Case (lower t) (map (\(p,t) -> (lowerDeclPat p, lower t)) patTermLst)
-lower (D.If e1 e2 e3) = If (lower e1) (lower e2) (lower e3) NoPos
-lower (D.AssertElseError e1 e2 e3 p) = AssertElseError (lower e1 ) (lower e2) (lower e3) p
-lower (D.Tuple terms) = Tuple (map lower terms) NoPos
-lower (D.Record fields) = Record (map (\(f, t) -> (f, lower t)) fields) NoPos
-lower (D.WithRecord  e fields) = WithRecord (lower e) (map (\(f, t) -> (f, lower t)) fields) NoPos
-lower (D.ProjField t f) = ProjField (lower t) f NoPos
-lower (D.ProjIdx t idx) = ProjIdx (lower t) idx NoPos
-lower (D.List terms) = List (map lower terms) NoPos
-lower (D.ListCons t1 t2) = ListCons (lower t1) (lower t2) NoPos
+lower (D.If e1 e2 e3 pi) = If (lower e1) (lower e2) (lower e3) pi
+lower (D.AssertElseError e1 e2 e3 p) = AssertElseError (lower e1) (lower e2) (lower e3) p
+lower (D.Tuple terms pi) = Tuple (map lower terms) pi
+lower (D.Record fields pi) = Record (map (\(f, t) -> (f, lower t)) fields) pi
+lower (D.WithRecord e fields pi) = WithRecord (lower e) (map (\(f, t) -> (f, lower t)) fields) pi
+lower (D.ProjField t f pi) = ProjField (lower t) f pi
+lower (D.ProjIdx t idx pi) = ProjIdx (lower t) idx pi
+lower (D.List terms pi) = List (map lower terms) pi
+lower (D.ListCons t1 t2 pi) = ListCons (lower t1) (lower t2) pi
 
 -- special casing shortcutting semantics; 2018-03-06;
-lower (D.Bin And e1 e2) = lower (D.If e1 e2 (D.Lit (D.LBool False)))
-lower (D.Bin Or e1 e2) = lower (D.If e1 (D.Lit (D.LBool True)) e2)
-lower (D.Bin op e1 e2) = Bin op (lower e1) (lower e2) NoPos
-lower (D.Un op e) = Un op (lower e) NoPos
+lower (D.Bin And e1 e2 pi) = lower (D.If e1 e2 (D.Lit (D.LBool False)) pi)
+lower (D.Bin Or e1 e2 pi) = lower (D.If e1 (D.Lit (D.LBool True)) e2 pi)
+lower (D.Bin op e1 e2 pi) = Bin op (lower e1) (lower e2) pi
+lower (D.Un op e pi) = Un op (lower e) pi
 
 
 --------------------------------------------------

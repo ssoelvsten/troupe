@@ -49,21 +49,21 @@ type Fields = [(FieldName, Term)]
 
 data Term
     = Lit Lit
-    | Var VarName
-    | Abs Lambda
-    | App Term [Term]
-    | Let [Decl] Term    
-    | If Term Term Term
+    | Var VarName PosInf
+    | Abs Lambda PosInf
+    | App Term [Term] PosInf
+    | Let [Decl] Term PosInf
+    | If Term Term Term PosInf
     | AssertElseError Term Term Term PosInf
-    | Tuple [Term]
-    | Record Fields 
-    | WithRecord Term Fields
-    | ProjField Term FieldName 
-    | ProjIdx Term Word
-    | List [Term]
-    | ListCons Term Term
-    | Bin BinOp Term Term
-    | Un UnaryOp Term
+    | Tuple [Term] PosInf
+    | Record Fields PosInf
+    | WithRecord Term Fields PosInf
+    | ProjField Term FieldName PosInf
+    | ProjIdx Term Word PosInf
+    | List [Term] PosInf
+    | ListCons Term Term PosInf
+    | Bin BinOp Term Term PosInf
+    | Un UnaryOp Term PosInf
     | Error Term PosInf
     deriving (Eq)
 
@@ -117,44 +117,44 @@ ppTerm' (Lit literal) = ppLit literal
 
 ppTerm' (Error t _) = text "error " PP.<> ppTerm' t
 
-ppTerm'  (Tuple ts) =
+ppTerm'  (Tuple ts _) =
   PP.parens $
   PP.hcat $
   PP.punctuate (text ",") (map (ppTerm 0) ts)
 
-ppTerm' (Record fs) = 
+ppTerm' (Record fs _) =
     PP.braces $  qqFields fs
 
-ppTerm' (WithRecord e fs) =
+ppTerm' (WithRecord e fs _) =
     PP.braces $ PP.hsep [ ppTerm 0 e, text "with", qqFields fs ]
 
-ppTerm' (ProjField t fn) =
+ppTerm' (ProjField t fn _) =
   ppTerm projPrec t PP.<> text "." PP.<> PP.text fn
 
-ppTerm' (ProjIdx t idx) =
+ppTerm' (ProjIdx t idx _) =
   ppTerm projPrec t PP.<> text "." PP.<> PP.text (show idx)
 
 
-ppTerm'  (List ts) =
+ppTerm'  (List ts _) =
   PP.brackets $
   PP.hcat $
   PP.punctuate (text ",") (map (ppTerm 0) ts)
 
 
 
-ppTerm' (ListCons hd tl) =
+ppTerm' (ListCons hd tl _) =
    ppTerm consPrec hd PP.<> text "::" PP.<> ppTerm consPrec tl
 
-ppTerm' (Var x) = text x
-ppTerm' (Abs lam) =
+ppTerm' (Var x _) = text x
+ppTerm' (Abs lam _) =
   let (ppArgs, ppBody) = qqLambda lam
   in text "fn" <+> ppArgs <+> text "=>" <+> ppBody
 
-ppTerm' (App t1 t2s) =
+ppTerm' (App t1 t2s _) =
     ppTerm appPrec t1
           <+> (hsep (map (ppTerm argPrec) t2s))
 
-ppTerm' (Let decs body) =
+ppTerm' (Let decs body _) =
   text "let" <+>
   nest 3 (vcat (map ppDecl decs)) $$
   text "in" <+>
@@ -162,7 +162,7 @@ ppTerm' (Let decs body) =
   text "end"
 
 
-ppTerm' (If e0 e1 e2) =
+ppTerm' (If e0 e1 e2 _) =
   text "if" <+>
   ppTerm 0 e0 $$
   text "then" <+>
@@ -177,16 +177,16 @@ ppTerm' (AssertElseError e0 e1 e2 _) =
   ppTerm 0 e1 $$
   text "elseError" <+>
   ppTerm 0 e2
-  
 
-ppTerm' (Bin op t1 t2) =
+
+ppTerm' (Bin op t1 t2 _) =
   let binOpPrec = opPrec op
   in
      ppTerm binOpPrec t1 <+>
      text (show op) <+>
      ppTerm binOpPrec t2
 
-ppTerm' (Un op t) =
+ppTerm' (Un op t _) =
   let unOpPrec = op1Prec op
   in
      text (show op) <+>
@@ -235,11 +235,11 @@ ppLit (LAtom a) = text a
 
 
 termPrec :: Term -> Precedence
-termPrec (Lit _)         = maxPrec
-termPrec (Tuple _)       = maxPrec
-termPrec (List _ )       = maxPrec
-termPrec (Var _)         = maxPrec
-termPrec (App _ _)       = appPrec
-termPrec (Bin op _ _)    = opPrec op
-termPrec (ListCons _ _)  = 200
-termPrec _               = 0
+termPrec (Lit _)           = maxPrec
+termPrec (Tuple _ _)       = maxPrec
+termPrec (List _ _)        = maxPrec
+termPrec (Var _ _)         = maxPrec
+termPrec (App _ _ _)       = appPrec
+termPrec (Bin op _ _ _)    = opPrec op
+termPrec (ListCons _ _ _)  = 200
+termPrec _                 = 0

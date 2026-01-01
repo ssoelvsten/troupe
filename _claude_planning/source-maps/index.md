@@ -20,8 +20,8 @@ Implement V3 source maps so all Troupe runtime errors show source location (`fil
 | 5 | Optimizations preserve positions | IROpt.hs, CPSOpt.hs, RawOpt.hs | DONE | - |
 | 6 | CPS + PosInf | RetCPS.hs, RetDFCPS.hs, CPSOpt.hs, etc. | DONE | - |
 | 7 | Core + PosInf | Core.hs, RetDFCPS.hs | DONE | [phase-07-core.md](phase-07-core.md) |
-| 8 | DirectWOPats + PosInf | DirectWOPats.hs, CaseElimination.hs | **NEXT** | [phase-08-directwopats.md](phase-08-directwopats.md) |
-| 9 | Direct + PosInf | Direct.hs, Parser.y | Pending | [phase-09-direct.md](phase-09-direct.md) |
+| 8 | DirectWOPats + PosInf | DirectWOPats.hs, CaseElimination.hs | DONE | [phase-08-directwopats.md](phase-08-directwopats.md) |
+| 9 | Direct + PosInf | Direct.hs, Parser.y | **NEXT** | [phase-09-direct.md](phase-09-direct.md) |
 | 10 | Capture positions in Parser | Parser.y | Pending | [phase-10-parser-positions.md](phase-10-parser-positions.md) |
 | 11 | Thread positions through pipeline | CaseElimination.hs, Core.hs, etc. | Pending | [phase-11-threading.md](phase-11-threading.md) |
 | 12 | Emit real source maps | Stack2JS.hs, Main.hs | Pending | [phase-12-emit-source-maps.md](phase-12-emit-source-maps.md) |
@@ -35,8 +35,8 @@ Implement V3 source maps so all Troupe runtime errors show source location (`fil
 | Layer | File | Has PosInf | Missing PosInf |
 |-------|------|------------|----------------|
 | Parser AST | Direct.hs | LNumeric, Case, ValDecl, FunDecl | Var, App, Bin, Un, If, Let, Tuple, Record, List, Abs, etc. |
-| Pattern-free | DirectWOPats.hs | LNumeric, AssertElseError, Error | Same as above |
-| Core | Core.hs | LNumeric, AssertElseError, Error | Same as above |
+| Pattern-free | DirectWOPats.hs | **All constructs** | - |
+| Core | Core.hs | **All constructs** | - |
 | CPS | RetCPS.hs | **All constructs** | - |
 | IR | IR.hs | **All constructs** | - |
 | Raw | Raw.hs | **All constructs** | - |
@@ -77,6 +77,17 @@ Each phase:
 ---
 
 ## Implementation Progress
+
+### Phase 8: DirectWOPats + PosInf - COMPLETE (2026-01-01)
+
+**All tests pass (397/397)**
+
+**Files modified**:
+- `compiler/src/DirectWOPats.hs` - Added `PosInf` to 14 Term constructors (Var, Abs, App, Let, If, Tuple, Record, WithRecord, ProjField, ProjIdx, List, ListCons, Bin, Un), updated pretty printer and termPrec functions
+- `compiler/src/CaseElimination.hs` - Updated all pattern compilation and term transformation to pass `NoPos` for new PosInf fields
+- `compiler/src/Core.hs` - Updated `lower` function to propagate PosInf from DirectWOPats to Core (positions now flow through instead of being discarded)
+
+---
 
 ### Phase 7: Core + PosInf - COMPLETE (2026-01-01)
 
