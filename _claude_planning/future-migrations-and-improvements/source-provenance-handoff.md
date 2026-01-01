@@ -20,27 +20,34 @@ Implement V3 source maps so all Troupe runtime errors show source location (`fil
 
 ## Modular Development Overview
 
-| Phase | Changes | Breaks Pipeline? | Test |
-|-------|---------|------------------|------|
-| 0 | Parser filename | No | Pattern match errors show filename |
-| 1 | Source map infrastructure | No | Empty .map files generated |
-| 2 | Stack + PosInf (NoPos default) | No | Infrastructure ready |
-| 3 | Raw + PosInf (NoPos default) | No | Positions flow Raw→Stack |
-| 4 | IR + PosInf (NoPos default) | No | Positions flow IR→Raw→Stack |
-| 5 | Fix optimizations | No | Test with --no-rawopt first |
-| 6 | Thread from CPS | No | **Source maps populated!** |
-| 7 | Runtime source map resolver | No (runtime only) | Errors show locations |
-| 8 | Error message positions | No | Messages include `at file:line` |
+| Phase | Changes | Breaks Pipeline? | Test | Status |
+|-------|---------|------------------|------|--------|
+| 0 | Parser filename | No | Pattern match errors show filename | ✅ DONE |
+| 1 | Source map infrastructure | No | Empty .map files generated | ✅ DONE |
+| 2 | Stack + PosInf (NoPos default) | No | Infrastructure ready | **NEXT** |
+| 3 | Raw + PosInf (NoPos default) | No | Positions flow Raw→Stack | Pending |
+| 4 | IR + PosInf (NoPos default) | No | Positions flow IR→Raw→Stack | Pending |
+| 5 | Fix optimizations | No | Test with --no-rawopt first | Pending |
+| 6 | Thread from CPS | No | **Source maps populated!** | Pending |
+| 7 | Runtime source map resolver | No (runtime only) | Errors show locations | Pending |
+| 8 | Error message positions | No | Messages include `at file:line` | Pending |
 
 ---
 
 ## Root Causes (3 issues being fixed)
 
-### 1. Parser doesn't track filename
+### 1. ~~Parser doesn't track filename~~ ✅ FIXED
 ```haskell
--- compiler/src/Parser.y line 408
+-- BEFORE: compiler/src/Parser.y line 408
 pos l = let (AlexPn _ line col) = getPos l
         in SrcPosInf "" line col  -- ← Filename always ""
+
+-- AFTER: Now uses ReaderT monad to thread filename
+pos :: L Token -> ReaderT FilePath (Except String) PosInf
+pos l = do
+    filename <- ask
+    let (AlexPn _ line col) = getPos l
+    return $ SrcPosInf filename line col
 ```
 
 ### 2. Only 2 IR instructions carry position
@@ -255,8 +262,17 @@ bin/golden      # Run golden tests
 
 ---
 
-## Starting Point
+## Current Status
 
-Start with **Phase 0** (parser filename) - it's completely isolated and immediately improves existing error messages.
+**Phase 0 is COMPLETE** (2026-01-01). Parser now tracks filenames correctly.
+
+**Phase 1 is COMPLETE** (2026-01-01). Source map infrastructure in place:
+- Added `sourcemap >= 0.1.7` dependency to `package.yaml`
+- Created `TroupeSourceMap.hs` wrapper module with `collectMapping`, `buildSourceMap`, `emptySourceMap`
+- Added `--source-map` / `-m` flag to compiler
+- Compiler generates valid V3 source map JSON files (currently empty mappings)
+- All 397 golden tests pass
+
+**Next step**: Phase 2 (Stack + PosInf) - add `PosInf` field to Stack types, pass `NoPos` initially.
 
 Each subsequent phase can be developed and tested independently.

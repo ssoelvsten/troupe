@@ -23,7 +23,10 @@ import qualified RawOpt
 import qualified Data.ByteString.Char8 as BS
 import Data.ByteString.Base64 (decode)
 import qualified Data.ByteString.Lazy.Char8 as BSLazyChar8
+import qualified Data.ByteString.Lazy as BL
+import Data.Aeson (encode)
 import System.IO
+import TroupeSourceMap (emptySourceMap)
 import System.Exit
 import ProcessImports
 import AddAmbientMethods
@@ -49,6 +52,7 @@ data Flag
   | Verbose
   | Help
   | Debug
+  | SourceMap
   deriving (Show, Eq)
 
 options :: [OptDescr Flag]
@@ -61,6 +65,7 @@ options =
   , Option ['l'] ["lib"]       (NoArg LibMode)            "compiling a library"
   , Option ['h'] ["help"]      (NoArg Help)               "print usage"
   , Option ['o'] ["output"]    (ReqArg OutputFile "FILE") "output FILE"
+  , Option ['m'] ["source-map"] (NoArg SourceMap)         "generate source map"
   ]
 
 --------------------------------------------------------------------------------
@@ -75,6 +80,7 @@ process flags fname input = do
   let verbose = Verbose `elem` flags
       noRawOpt = NoRawOpt `elem` flags
       debugJS = Debug `elem` flags
+      sourceMapEnabled = SourceMap `elem` flags
 
   case ast of
     Left err -> do
@@ -162,6 +168,11 @@ process flags fname input = do
                                             debugJS
                                             (Stack.ProgramStackUnit stack)
       writeFile outPath stackjs
+
+      ----- SOURCE MAP -------------------------------------
+      when sourceMapEnabled $ do
+        let mapJson = emptySourceMap outPath
+        BL.writeFile (outPath ++ ".map") (encode mapJson)
 
       -- case compileMode of Library -> ...
       case exports of Nothing -> return ()

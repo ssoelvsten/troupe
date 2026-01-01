@@ -41,6 +41,7 @@ dependencies:
 - tagged
 - optparse-applicative
 - shellwords
+- sourcemap >= 0.1.7
 
 build-tools:
 - alex
