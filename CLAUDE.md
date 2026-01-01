@@ -42,6 +42,34 @@ make libs       # Compile standard libraries
 make service    # Compile service module
 ```
 
+### When to Rebuild
+
+Before running Troupe programs or tests, check for stale builds:
+
+**Compiler needs rebuilding if:**
+- Any `.hs` file in `compiler/src/` was modified
+- `bin/troupec` doesn't exist or isn't executable
+- Error: "troupec: command not found" or parse errors in valid code
+
+**Runtime needs rebuilding if:**
+- Any `.mts` file in `rt/src/` was modified
+- `rt/built/troupe.mjs` doesn't exist
+- Error: "Cannot find module" for runtime files
+
+**Libraries need rebuilding if:**
+- Compiler was rebuilt
+- Any `.trp` file in `lib/` was modified
+- Error: "Cannot find module" for library files
+
+| Changed                   | Command          |
+|---------------------------|------------------|
+| Haskell (`compiler/`)     | `make compiler`  |
+| TypeScript (`rt/src/`)    | `make rt`        |
+| Troupe libraries (`lib/`) | `make lib`       |
+| Everything                | `make all`       |
+
+**After git operations:** Always run `make all` after `git pull`, `git checkout`, or `git merge`.
+
 ### Running Tests
 
 ```bash
@@ -53,6 +81,10 @@ bin/golden
 
 # Run a test with specific pattern. Beware that slashes are not allowed in the patterns.
 bin/golden -p <the-pattern>
+
+# Quick mode: skip unoptimized pass for faster iteration
+bin/golden --quick
+bin/golden -p <the-pattern> --quick
 ```
 
 ### Running Troupe Programs
