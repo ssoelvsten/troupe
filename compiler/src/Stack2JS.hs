@@ -174,6 +174,7 @@ stack2JSON compileMode debugMode su =
   let (ppDoc, (libs, atoms, konts)) = stack2PPDoc compileMode debugMode su
       fname = case su of FunStackUnit (FunDef (HFN n) _ _ _ _) -> Just n
                          AtomStackUnit _                       -> Nothing
+                         ProgramStackUnit _                    -> error "Internal error: stack2JSON called with ProgramStackUnit"
   in Aeson.encode $ JSOutput { libs = libs
                              , fname = fname
                              , atoms = atoms
