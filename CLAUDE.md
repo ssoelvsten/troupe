@@ -360,3 +360,16 @@ if the test `t.trp` fails, run `./local.sh t.trp` to see what the output is.
 Be careful making untested claims about information flow relationships between levels; 
 do use `debugpc()` functionality to see the present values of the pc and blocking labels
 for correct information.
+
+
+## Working on changes that affect the whole compiler pipeline
+
+When working on changes that affect the whole compiler, consider approaches that 
+would maintain a working compiler at each changed phase, so that changes can be
+modularly tested. 
+
+
+## Estimates 
+
+All estimates should be given in the degree of autonomy (as opposed to weeks that make little sense 
+for the agent-assisted development)
