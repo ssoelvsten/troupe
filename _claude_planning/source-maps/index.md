@@ -23,8 +23,8 @@ Implement V3 source maps so all Troupe runtime errors show source location (`fil
 | 8 | DirectWOPats + PosInf | DirectWOPats.hs, CaseElimination.hs | DONE | [phase-08-directwopats.md](phase-08-directwopats.md) |
 | 9 | Direct + PosInf | Direct.hs, Parser.y | DONE | [phase-09-direct.md](phase-09-direct.md) |
 | 10 | Capture positions in Parser | Parser.y | DONE | [phase-10-parser-positions.md](phase-10-parser-positions.md) |
-| 11 | Thread positions through pipeline | CaseElimination.hs, Core.hs, etc. | **NEXT** | [phase-11-threading.md](phase-11-threading.md) |
-| 12 | Emit real source maps | Stack2JS.hs, Main.hs | Pending | [phase-12-emit-source-maps.md](phase-12-emit-source-maps.md) |
+| 11 | Thread positions through pipeline | CaseElimination.hs, Core.hs, etc. | DONE | [phase-11-threading.md](phase-11-threading.md) |
+| 12 | Emit real source maps | Stack2JS.hs, Main.hs | **NEXT** | [phase-12-emit-source-maps.md](phase-12-emit-source-maps.md) |
 | 13 | Runtime source map resolver | SourceMapResolver.mts, Thread.mts | Pending | [phase-13-runtime-resolver.md](phase-13-runtime-resolver.md) |
 | 14 | Error message positions | Asserts.mts, BuiltinArith.mts | Pending | [phase-14-position-params.md](phase-14-position-params.md) |
 
@@ -77,6 +77,30 @@ Each phase:
 ---
 
 ## Implementation Progress
+
+### Phase 11: Thread Positions Through Pipeline - COMPLETE (2026-01-01)
+
+**All tests pass (397/397)**
+
+**Files modified**:
+- `compiler/src/CaseElimination.hs` - Thread positions from `Direct.Term` to `DirectWOPats.Term`:
+  - Updated `transTerm` to pass positions from source Direct terms to target DirectWOPats terms
+  - Updated `compilePattern` to use `posInfo v` from matched variable for generated code
+  - Updated `ifpat` to accept position parameter
+  - Updated `transDecl` and `transFunDecl` to propagate positions
+  - Updated `transFields` to accept position parameter
+- `compiler/src/DirectWOPats.hs` - Added `GetPosInfo` instance for `Term`
+- `compiler/src/Core.hs` - Thread positions in `lowerLam` function, added `GetPosInfo` instance for `Term`
+- `compiler/src/RetDFCPS.hs` - Thread positions from `Core.Term` to CPS `KTerm`/`SimpleTerm`:
+  - Updated all `transExplicit` cases to extract positions from Core terms
+  - Updated all `trans` cases to extract positions from Core terms
+  - Updated `transFields` and `transFieldsExplicit` to accept position parameter
+- `compiler/src/RetCPS.hs` - Added `GetPosInfo` instances for `SimpleTerm` and `KTerm`
+- `compiler/src/ClosureConv.hs` - Thread positions from CPS to IR:
+  - Updated `cpsToIR` to extract positions from CPS `KTerm` and `SimpleTerm`
+  - Positions from `SimpleTerm` (e.g., Bin, Un, Tuple) are now used for IR `Assign` instructions
+
+---
 
 ### Phase 10: Capture Positions in Parser - COMPLETE (2026-01-01)
 

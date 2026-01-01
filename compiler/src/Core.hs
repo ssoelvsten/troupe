@@ -176,8 +176,27 @@ instance Serialize Atoms
 data Prog = Prog Imports Atoms Term
   deriving (Eq, Show)
 
+instance GetPosInfo Term where
+  posInfo (Lit l) = posInfo l
+  posInfo (Var _ p) = p
+  posInfo (Abs _ p) = p
+  posInfo (App _ _ p) = p
+  posInfo (Let _ _ p) = p
+  posInfo (If _ _ _ p) = p
+  posInfo (AssertElseError _ _ _ p) = p
+  posInfo (Tuple _ p) = p
+  posInfo (Record _ p) = p
+  posInfo (WithRecord _ _ p) = p
+  posInfo (ProjField _ _ p) = p
+  posInfo (ProjIdx _ _ p) = p
+  posInfo (List _ p) = p
+  posInfo (ListCons _ _ p) = p
+  posInfo (Bin _ _ _ p) = p
+  posInfo (Un _ _ p) = p
+  posInfo (Error _ p) = p
 
-{-- 
+
+{--
 
 This module defines the Core front-level intermediate representation,
 and includes two phases of the compilation pipeline that involve that
@@ -211,7 +230,7 @@ trans (D.Atoms atms) = Atoms atms
 lowerLam (D.Lambda vs t) =
   case vs of
     [] -> Unary "$unit" (lower t)
-    x:xs -> Unary x (foldr (\x b -> (Abs (Unary x b) NoPos)) (lower t) xs)
+    x:xs -> Unary x (foldr (\x b -> (Abs (Unary x b) (posInfo t))) (lower t) xs)
 
 
 lowerLit (D.LNumeric n pi) = LNumeric (lowerNumeric n) pi

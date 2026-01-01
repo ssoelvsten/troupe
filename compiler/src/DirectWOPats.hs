@@ -73,6 +73,25 @@ data Atoms = Atoms [AtomName]
 data Prog = Prog Imports Atoms Term
   deriving (Eq, Show)
 
+instance GetPosInfo Term where
+  posInfo (Lit _) = NoPos
+  posInfo (Var _ p) = p
+  posInfo (Abs _ p) = p
+  posInfo (App _ _ p) = p
+  posInfo (Let _ _ p) = p
+  posInfo (If _ _ _ p) = p
+  posInfo (AssertElseError _ _ _ p) = p
+  posInfo (Tuple _ p) = p
+  posInfo (Record _ p) = p
+  posInfo (WithRecord _ _ p) = p
+  posInfo (ProjField _ _ p) = p
+  posInfo (ProjIdx _ _ p) = p
+  posInfo (List _ p) = p
+  posInfo (ListCons _ _ p) = p
+  posInfo (Bin _ _ _ p) = p
+  posInfo (Un _ _ p) = p
+  posInfo (Error _ p) = p
+
 
 
 

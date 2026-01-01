@@ -6,7 +6,7 @@ import           Control.Monad.State.Lazy as State
 import           qualified RetCPS as CPS
 import           RetCPS
 import qualified Core
-import           TroupePositionInfo (PosInf(..))
+import           TroupePositionInfo (PosInf(..), GetPosInfo(..))
 
 type S = State Integer
 
@@ -34,87 +34,89 @@ transFunDecl (Core.FunDecl fname (Core.Nullary e)) = do
 
 transProg :: Core.Prog -> CPS.Prog
 transProg (Core.Prog imports atoms t) =
-  Prog atoms $ evalState (trans t (\z -> return $ Halt z NoPos)) 1
+  let pos = posInfo t
+  in Prog atoms $ evalState (trans t (\z -> return $ Halt z pos)) 1
 
 
-transFields k fields context =
+transFields pos k fields context =
   transRecord fields [] context
     where
       transRecord [] acc context = do
           v <- freshV
           e' <- context v
-          return $ LetSimple v (k (reverse acc) NoPos) e' NoPos
+          return $ LetSimple v (k (reverse acc) pos) e' pos
       transRecord ((f, t):fields) acc context =
         trans t (\v -> transRecord fields ((f,v):acc) context)
 
 
-transFieldsExplicit k fields =
+transFieldsExplicit pos k fields =
   iter fields []
     where iter [] acc = do
               v <- freshV
-              return $ LetSimple v (k (reverse acc) NoPos) (KontReturn v NoPos) NoPos
+              return $ LetSimple v (k (reverse acc) pos) (KontReturn v pos) pos
           iter ((f,t):fields) acc  =
               trans t (\v -> iter fields ((f,v):acc))
 
 
 transExplicit :: Core.Term -> S CPS.KTerm
-transExplicit (Core.Var (Core.RegVar x) _)  = return $ KontReturn (VN x) NoPos
+transExplicit (Core.Var (Core.RegVar x) pos)  = return $ KontReturn (VN x) pos
 
-transExplicit (Core.Var (Core.BaseName baseName) _) = do
+transExplicit (Core.Var (Core.BaseName baseName) pos) = do
   x  <- freshV
-  return $ LetSimple x (Base baseName) (KontReturn x NoPos) NoPos
+  return $ LetSimple x (Base baseName) (KontReturn x pos) pos
 
-transExplicit (Core.Var (Core.LibVar lib v) _) = do
+transExplicit (Core.Var (Core.LibVar lib v) pos) = do
   x <- freshV
-  return $ LetSimple x (Lib lib v) (KontReturn x NoPos) NoPos
+  return $ LetSimple x (Lib lib v) (KontReturn x pos) pos
 
 transExplicit (Core.Lit lit) = do
   x <- freshV
-  return $ LetSimple x (ValSimpleTerm (CPS.Lit lit) NoPos) (KontReturn x NoPos) NoPos
+  let pos = posInfo lit
+  return $ LetSimple x (ValSimpleTerm (CPS.Lit lit) pos) (KontReturn x pos) pos
 
 transExplicit (Core.Error term p) = do
   trans term (\v -> return $ Error v p)
 
-transExplicit (Core.App e1 e2 _) = do
+transExplicit (Core.App e1 e2 pos) = do
   trans e1 (\x1 ->
     trans e2 (\x2 ->
-      return $ ApplyFun x1 x2 NoPos))
+      return $ ApplyFun x1 x2 pos))
 
-transExplicit (Core.Bin op e1 e2 _) = do
+transExplicit (Core.Bin op e1 e2 pos) = do
   x <- freshV
   trans e1 (\x1 ->
     trans e2 (\x2 ->
-      return $ LetSimple x (CPS.Bin op x1 x2 NoPos) (KontReturn x NoPos) NoPos))
+      return $ LetSimple x (CPS.Bin op x1 x2 pos) (KontReturn x pos) pos))
 
-transExplicit (Core.Un op e _) = do
+transExplicit (Core.Un op e pos) = do
   x <- freshV
   trans e (\x' ->
-      return $ LetSimple x (CPS.Un op x' NoPos) (KontReturn x NoPos) NoPos)
+      return $ LetSimple x (CPS.Un op x' pos) (KontReturn x pos) pos)
 
-transExplicit (Core.Abs (Core.Unary x e) _) = do
+transExplicit (Core.Abs (Core.Unary x e) pos) = do
   f <- freshV
   e' <- transExplicit e
-  return $ LetSimple f (ValSimpleTerm (KAbs (Unary (VN x) e')) NoPos) (KontReturn f NoPos) NoPos
+  return $ LetSimple f (ValSimpleTerm (KAbs (Unary (VN x) e')) pos) (KontReturn f pos) pos
 
-transExplicit (Core.Abs (Core.Nullary e) _) = do
+transExplicit (Core.Abs (Core.Nullary e) pos) = do
   f <- freshV
   e' <- transExplicit e
-  return $ LetSimple f (ValSimpleTerm (KAbs (Nullary e')) NoPos) (KontReturn f NoPos) NoPos
+  return $ LetSimple f (ValSimpleTerm (KAbs (Nullary e')) pos) (KontReturn f pos) pos
 
-transExplicit (Core.Let (Core.ValDecl v e1) e2 _)  = do
+transExplicit (Core.Let (Core.ValDecl v e1) e2 pos)  = do
   e2' <- transExplicit e2
   e1' <- transExplicit e1
-  return $ LetRet (Cont (VN v) e2') e1' NoPos
+  return $ LetRet (Cont (VN v) e2') e1' pos
 
-transExplicit (Core.Let (Core.FunDecs decs) e2 _)  = do
+transExplicit (Core.Let (Core.FunDecs decs) e2 pos)  = do
   decs' <- transFunDecs decs
   e2' <- transExplicit e2
-  return $ LetFun decs' e2' NoPos
+  return $ LetFun decs' e2' pos
 
-transExplicit (Core.If e0 e1 e2 _)  = do
+transExplicit (Core.If e0 e1 e2 pos)  = do
   e1' <- transExplicit e1
   e2' <- transExplicit e2
-  trans e0 (\z -> return $ If z e1' e2' NoPos)
+  trans e0 (\z -> return $ If z e1' e2' pos)
 
 -- 2018-09-28: AA; gotta double check this part of
 -- the translation
@@ -125,45 +127,45 @@ transExplicit (Core.AssertElseError e0 e1 e2 p) = do
       return $ AssertElseError v0 e1' v2 p))
 
 
-transExplicit (Core.Tuple ts _)  =
+transExplicit (Core.Tuple ts pos)  =
   transTuple ts []
   where
     transTuple :: [Core.Term] -> [CPS.VarName] -> S KTerm
     transTuple [] acc  = do
       v <- freshV
-      return $ LetSimple v (Tuple (reverse acc) NoPos) (KontReturn v NoPos) NoPos
+      return $ LetSimple v (Tuple (reverse acc) pos) (KontReturn v pos) pos
     transTuple (t:ts) acc  =
       trans t (\v -> transTuple ts (v:acc) )
 
-transExplicit (Core.Record fields _) =
-    transFieldsExplicit Record fields
+transExplicit (Core.Record fields pos) =
+    transFieldsExplicit pos Record fields
 
-transExplicit (Core.WithRecord e fields _) =
-  trans e (\x -> transFieldsExplicit (WithRecord x) fields)
+transExplicit (Core.WithRecord e fields pos) =
+  trans e (\x -> transFieldsExplicit pos (WithRecord x) fields)
 
 
-transExplicit (Core.ProjField t f _)= do
+transExplicit (Core.ProjField t f pos)= do
   x <- freshV
   trans t (\x' ->
-    return $ LetSimple x (CPS.ProjField x' f NoPos) (KontReturn x NoPos) NoPos)
+    return $ LetSimple x (CPS.ProjField x' f pos) (KontReturn x pos) pos)
 
-transExplicit (Core.ProjIdx t idx _) = do
+transExplicit (Core.ProjIdx t idx pos) = do
   x <- freshV
   trans t (\x' ->
-    return $ LetSimple x (CPS.ProjIdx x' idx NoPos) (KontReturn x NoPos) NoPos)
+    return $ LetSimple x (CPS.ProjIdx x' idx pos) (KontReturn x pos) pos)
 
-transExplicit (Core.List ts _) =
+transExplicit (Core.List ts pos) =
   transList ts []
   where
     transList [] acc  = do
       v <- freshV
-      return $ LetSimple v (List (reverse acc) NoPos) (KontReturn v NoPos) NoPos
+      return $ LetSimple v (List (reverse acc) pos) (KontReturn v pos) pos
     transList (t:ts) acc =
       trans t (\v -> transList ts (v:acc))
 
-transExplicit (Core.ListCons h t _) = do
+transExplicit (Core.ListCons h t pos) = do
   v <- freshV
-  trans h (\h' -> trans t (\t' -> return $ LetSimple v (ListCons h' t' NoPos) (KontReturn v NoPos) NoPos))
+  trans h (\h' -> trans t (\t' -> return $ LetSimple v (ListCons h' t' pos) (KontReturn v pos) pos))
 
 transFunDef :: Core.Lambda -> S CPS.KLambda
 transFunDef (Core.Unary x e) = do
@@ -178,75 +180,76 @@ trans :: Core.Term -> (CPS.VarName -> S CPS.KTerm) -> S CPS.KTerm
 
 trans (Core.Var (Core.RegVar x) _) context = context (VN x)
 
-trans (Core.Var (Core.BaseName baseName) _) context = do
+trans (Core.Var (Core.BaseName baseName) pos) context = do
   x <- freshV
   kterm' <- context x
-  return $ LetSimple x (Base baseName) kterm' NoPos
+  return $ LetSimple x (Base baseName) kterm' pos
 
 
-trans (Core.Var (Core.LibVar lib v) _) context = do
+trans (Core.Var (Core.LibVar lib v) pos) context = do
   x <- freshV
   kterm' <- context x
-  return $ LetSimple x (Lib lib v) kterm' NoPos
+  return $ LetSimple x (Lib lib v) kterm' pos
 
 
 trans (Core.Lit i) context =
   do x <- freshV
      kterm' <- context x
-     return $ LetSimple x (ValSimpleTerm (CPS.Lit i) NoPos) kterm' NoPos
+     let pos = posInfo i
+     return $ LetSimple x (ValSimpleTerm (CPS.Lit i) pos) kterm' pos
 
 trans (Core.Error e p) context = do
   x  <- freshV
   kterm <- context x
-  trans e (\z -> return $ LetRet (Cont x kterm) (Error z p) NoPos)
+  trans e (\z -> return $ LetRet (Cont x kterm) (Error z p) p)
 
-trans (Core.App e1 e2 _) context = do
+trans (Core.App e1 e2 pos) context = do
   x  <- freshV
   kterm <- context x
   trans e1 (\z1 ->
     trans e2 (\z2 ->
-      return $ LetRet (Cont x kterm) (ApplyFun z1 z2 NoPos) NoPos))
+      return $ LetRet (Cont x kterm) (ApplyFun z1 z2 pos) pos))
 
-trans (Core.Bin op e1 e2 _) context = do
+trans (Core.Bin op e1 e2 pos) context = do
   x <- freshV
   kterm <- context x
   trans e1 (\z1 ->
     trans e2 (\z2 ->
-      return $ LetSimple x (CPS.Bin op z1 z2 NoPos) kterm NoPos))
+      return $ LetSimple x (CPS.Bin op z1 z2 pos) kterm pos))
 
-trans (Core.Un op e _) context = do
+trans (Core.Un op e pos) context = do
   x <- freshV
   kterm <- context x
-  trans e (\z -> return $ LetSimple x (CPS.Un op z NoPos) kterm NoPos)
+  trans e (\z -> return $ LetSimple x (CPS.Un op z pos) kterm pos)
 
-trans (Core.Abs (Core.Unary x e) _) context = do
+trans (Core.Abs (Core.Unary x e) pos) context = do
   f <- freshV
   kterm <- context f
   e' <- transExplicit e
-  return $ LetSimple f (ValSimpleTerm (KAbs (Unary (VN x) e')) NoPos) kterm NoPos
+  return $ LetSimple f (ValSimpleTerm (KAbs (Unary (VN x) e')) pos) kterm pos
 
-trans (Core.Abs (Core.Nullary e) _) context = do
+trans (Core.Abs (Core.Nullary e) pos) context = do
   f <- freshV
   kterm <- context f
   e' <- transExplicit e
-  return $ LetSimple f (ValSimpleTerm (KAbs (Nullary e')) NoPos) kterm NoPos
+  return $ LetSimple f (ValSimpleTerm (KAbs (Nullary e')) pos) kterm pos
 
-trans (Core.Let (Core.ValDecl v e1) e2 _) context = do
+trans (Core.Let (Core.ValDecl v e1) e2 pos) context = do
   e2' <- trans e2 context
   e1' <- transExplicit e1
-  return $ LetRet (Cont (VN v) e2') e1' NoPos
+  return $ LetRet (Cont (VN v) e2') e1' pos
 
-trans (Core.Let (Core.FunDecs decs) e2 _) context = do
+trans (Core.Let (Core.FunDecs decs) e2 pos) context = do
   decs' <- transFunDecs decs
   e2' <- trans e2 context
-  return $ LetFun decs' e2' NoPos
+  return $ LetFun decs' e2' pos
 
-trans (Core.If e0 e1 e2 _) context = do
+trans (Core.If e0 e1 e2 pos) context = do
   v <- freshV
   kterm <- context v
   e1' <- transExplicit e1
   e2' <- transExplicit e2
-  trans e0 (\z -> return $ LetRet (Cont v kterm) (If z e1' e2' NoPos) NoPos)
+  trans e0 (\z -> return $ LetRet (Cont v kterm) (If z e1' e2' pos) pos)
 
 
 trans (Core.AssertElseError e0 e1 e2 p) context = do
@@ -255,50 +258,50 @@ trans (Core.AssertElseError e0 e1 e2 p) context = do
   e1' <- transExplicit e1
   trans e0 (\z ->
     trans e2 (\z2 ->
-      return $ LetRet (Cont x kterm) (AssertElseError z e1' z2 p) NoPos))
+      return $ LetRet (Cont x kterm) (AssertElseError z e1' z2 p) p))
 
 
 
-trans (Core.Tuple ts _) context =
+trans (Core.Tuple ts pos) context =
   transTuple ts [] context
   where
     transTuple [] acc context = do
       v <- freshV
       e' <- context v
-      return $ LetSimple v (Tuple (reverse acc) NoPos) e' NoPos
+      return $ LetSimple v (Tuple (reverse acc) pos) e' pos
     transTuple (t:ts) acc context =
       trans t (\v -> transTuple ts (v:acc) context)
 
-trans (Core.Record fields _) context = transFields Record fields context
+trans (Core.Record fields pos) context = transFields pos Record fields context
 
-trans (Core.WithRecord e fields _) context =
-  trans e (\ rr -> transFields (WithRecord rr) fields context )
+trans (Core.WithRecord e fields pos) context =
+  trans e (\ rr -> transFields pos (WithRecord rr) fields context )
 
 
-trans (Core.ProjField t f _) context = do
+trans (Core.ProjField t f pos) context = do
   x <- freshV
   kterm <- context x
-  trans t (\z -> return $ LetSimple x (CPS.ProjField z f NoPos) kterm NoPos)
+  trans t (\z -> return $ LetSimple x (CPS.ProjField z f pos) kterm pos)
 
-trans (Core.ProjIdx t idx _) context = do
+trans (Core.ProjIdx t idx pos) context = do
   x <- freshV
   kterm <- context x
-  trans t (\z -> return $ LetSimple x (CPS.ProjIdx z idx NoPos) kterm NoPos)
+  trans t (\z -> return $ LetSimple x (CPS.ProjIdx z idx pos) kterm pos)
 
-trans (Core.List ts _) context =
+trans (Core.List ts pos) context =
   transList ts [] context
   where
     transList [] acc context = do
       v <- freshV
       e' <- context v
-      return $ LetSimple v (List (reverse acc) NoPos) e' NoPos
+      return $ LetSimple v (List (reverse acc) pos) e' pos
     transList (t:ts) acc context =
       trans t (\v -> transList ts (v:acc) context)
 
-trans (Core.ListCons h t _) context = do
+trans (Core.ListCons h t pos) context = do
   v <- freshV
   e' <- context v
-  trans h (\h' -> trans t (\t' -> return $ LetSimple v (ListCons h' t' NoPos) e' NoPos))
+  trans h (\h' -> trans t (\t' -> return $ LetSimple v (ListCons h' t' pos) e' pos))
 
 
 freshSymbol :: S String

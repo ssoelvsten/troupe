@@ -89,6 +89,31 @@ data KTerm
 data Prog = Prog C.Atoms KTerm
   deriving (Eq, Show)
 
+instance GetPosInfo SimpleTerm where
+  posInfo (Bin _ _ _ p) = p
+  posInfo (Un _ _ p) = p
+  posInfo (ValSimpleTerm _ p) = p
+  posInfo (Tuple _ p) = p
+  posInfo (Record _ p) = p
+  posInfo (WithRecord _ _ p) = p
+  posInfo (ProjField _ _ p) = p
+  posInfo (ProjIdx _ _ p) = p
+  posInfo (List _ p) = p
+  posInfo (ListCons _ _ p) = p
+  posInfo (Base _) = NoPos
+  posInfo (Lib _ _) = NoPos
+
+instance GetPosInfo KTerm where
+  posInfo (LetSimple _ _ _ p) = p
+  posInfo (LetFun _ _ p) = p
+  posInfo (LetRet _ _ p) = p
+  posInfo (KontReturn _ p) = p
+  posInfo (ApplyFun _ _ p) = p
+  posInfo (If _ _ _ p) = p
+  posInfo (AssertElseError _ _ _ p) = p
+  posInfo (Error _ p) = p
+  posInfo (Halt _ p) = p
+
 --------------------------------------------------
 -- show is defined via pretty printing
 instance Show KTerm
