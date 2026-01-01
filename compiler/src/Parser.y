@@ -13,6 +13,7 @@ import Basics
 import TroupePositionInfo
 
 import Control.Monad.Except
+import Control.Monad.Reader
 import Data.List (group, sort, intercalate)
 
 }
@@ -23,8 +24,8 @@ import Data.List (group, sort, intercalate)
 -- Lexer structure
 %tokentype { L Token }
 
--- Parser monad
-%monad { Except String } { (>>=) } { return }
+-- Parser monad (ReaderT to thread filename for position info)
+%monad { ReaderT FilePath (Except String) } { (>>=) } { return }
 %error { parseError }
 
 -- Token Names
@@ -159,11 +160,11 @@ VarList : VAR              { [varTok $1] }
         | VAR ',' VarList  { (varTok $1) : $3 }
 
 
-AtomsDecl : datatype Atoms '=' VAR AtomsList    {% checkDuplicateAtoms ((varTok $4, pos $4):$5) }
+AtomsDecl : datatype Atoms '=' VAR AtomsList    {% do { p <- pos $4; checkDuplicateAtoms ((varTok $4, p):$5) } }
           |  {[]}
 
 AtomsList : { [] }
-          | '|' VAR AtomsList  { (varTok $2, pos $2): $3 }
+          | '|' VAR AtomsList  {% do { p <- pos $2; return ((varTok $2, p): $3) } }
 
 
 Expr: Form                        { $1 }
@@ -175,7 +176,7 @@ Expr: Form                        { $1 }
     | hn Pattern '|' Pattern '=>' Expr      { Hnd (Handler $2 (Just $4) Nothing $6) }
     | hn Pattern when Expr '=>' Expr        { Hnd (Handler $2 Nothing (Just $4) $6)}
     | hn Pattern '|' Pattern when Expr '=>' Expr      { Hnd (Handler $2 (Just $4) (Just $6) $8)}
-    | case Expr of Match          { Case $2 $4 (pos $1) }
+    | case Expr of Match          {% do { p <- pos $1; return (Case $2 $4 p) } }
     | Expr ';' Expr               { mkSeq $1 $3 }
     | Expr '-' Expr               { Bin Minus $1 $3 }
     | Expr '+' Expr               { Bin Plus $1 $3 }
@@ -240,8 +241,8 @@ IntLabelExp :                      { ConstComponent LabelTrue }
 DCLabelExp:
      ConfLabelExp ';' IntLabelExp         { DCLabelExp ($1, $3) } 
 
-Lit:   NUM                        { LNumeric (NumInt (numTok $1)) (pos $1) }
-     | FLOAT                       { LNumeric (NumFloat (floatTok $1)) (pos $1) }
+Lit:   NUM                        {% do { p <- pos $1; return (LNumeric (NumInt (numTok $1)) p) } }
+     | FLOAT                       {% do { p <- pos $1; return (LNumeric (NumFloat (floatTok $1)) p) } }
      | STRING                      { LString (strTok $1) }
      | true                        { LBool True }
      | false                       { LBool False }
@@ -326,7 +327,7 @@ CSPattern : Pattern ','         { [$1] }
     | CSPattern  Pattern ','    { ($2:$1) }
 
 
-Dec : val Pattern '=' Expr      { ValDecl $2 $4 (pos $1 )}
+Dec : val Pattern '=' Expr      {% do { p <- pos $1; return (ValDecl $2 $4 p) } }
     | FunDecs                      { FunDecs $1 }
 
 Decs : Dec                         { [$1] }
@@ -352,8 +353,8 @@ FirstFunOption : FunArgs '=' Expr   { Lambda $1 $3}
 OtherFunOption : '|' VAR FunArgs '=' Expr { Lambda $3 $5}
 
 
-FunDecl    : fun VAR FunOptions { FunDecl (varTok $2) $3 (pos $2) }
-AndFunDecl : and VAR FunOptions { FunDecl (varTok $2) $3 (pos $2) }
+FunDecl    : fun VAR FunOptions {% do { p <- pos $2; return (FunDecl (varTok $2) $3 p) } }
+AndFunDecl : and VAR FunOptions {% do { p <- pos $2; return (FunDecl (varTok $2) $3 p) } }
 
 FunArgs : Pattern                        { [$1]  }
         | Pattern FunArgs                { $1 : $2}
@@ -380,11 +381,13 @@ fromFact xs =
   in App y ys
 
 
-parseError :: [L Token] -> Except String a
+parseError :: [L Token] -> ReaderT FilePath (Except String) a
 parseError (l:ls) = do
+    filename <- ask
     let (AlexPn _ line col) = getPos l
-    let tks = unPos l 
-    throwError $ show line ++ ":" ++ show col  ++ " unexpected token " ++ (show tks)
+    let tks = unPos l
+    let prefix = if null filename then "" else filename ++ ":"
+    throwError $ prefix ++ show line ++ ":" ++ show col  ++ " unexpected token " ++ (show tks)
 parseError [] = throwError "Unexpected end of input"
 
 
@@ -392,10 +395,10 @@ parseTokens :: String -> Either String [L Token]
 parseTokens = runExcept . scanTokens
 
 
-parseProg :: String -> Either String Prog
-parseProg input = runExcept $ do
+parseProg :: FilePath -> String -> Either String Prog
+parseProg filename input = runExcept $ do
   tokenStream <- scanTokens input
-  prog tokenStream
+  runReaderT (prog tokenStream) filename
 
 
 numTok (L _ (TokenNum x))    = x
@@ -404,11 +407,14 @@ strTok (L _ (TokenString x)) = x
 varTok (L _ (TokenSym x ))   = x
 lblTok (L _ (TokenLabel x))  = x
 
-pos l = let (AlexPn _ line col ) = getPos l
-        in SrcPosInf "" line col
+pos :: L Token -> ReaderT FilePath (Except String) PosInf
+pos l = do
+    filename <- ask
+    let (AlexPn _ line col) = getPos l
+    return $ SrcPosInf filename line col
 
 -- Check for duplicate atom names and report all duplicates with positions
-checkDuplicateAtoms :: [(String, PosInf)] -> Except String [AtomName]
+checkDuplicateAtoms :: [(String, PosInf)] -> ReaderT FilePath (Except String) [AtomName]
 checkDuplicateAtoms atoms
   | null dups = return names
   | otherwise = throwError $ intercalate "\n" (map formatOne dups)

@@ -1,2 +1,2 @@
 Parse Error:
-1:37 unexpected token TokenSemi
+tests/cmp/dc-label-multiple-semicolons.trp:1:37 unexpected token TokenSemi

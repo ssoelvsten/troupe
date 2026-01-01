@@ -1,2 +1,2 @@
 Parse Error:
-3:13 unexpected token TokenEq
+tests/cmp/record-pat-dotdot-as-field.trp:3:13 unexpected token TokenEq

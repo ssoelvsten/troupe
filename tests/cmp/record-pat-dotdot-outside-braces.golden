@@ -1,2 +1,2 @@
 Parse Error:
-3:9 unexpected token TokenDotDot
+tests/cmp/record-pat-dotdot-outside-braces.trp:3:9 unexpected token TokenDotDot

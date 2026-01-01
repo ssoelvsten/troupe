@@ -1,2 +1,2 @@
 Parse Error:
-1:33 unexpected token TokenSym "bob"
+tests/cmp/dc-label-missing-semicolon.trp:1:33 unexpected token TokenSym "bob"

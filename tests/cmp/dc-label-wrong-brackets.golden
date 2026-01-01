@@ -1,2 +1,2 @@
 Parse Error:
-1:25 unexpected token TokenLt
+tests/cmp/dc-label-wrong-brackets.trp:1:25 unexpected token TokenLt

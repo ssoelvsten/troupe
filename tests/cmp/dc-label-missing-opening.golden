@@ -1,2 +1,2 @@
 Parse Error:
-1:39 unexpected token TokenDCLabelRight
+tests/cmp/dc-label-missing-opening.trp:1:39 unexpected token TokenDCLabelRight

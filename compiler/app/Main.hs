@@ -68,7 +68,7 @@ options =
 
 process :: [Flag] -> Maybe String -> String -> IO ExitCode
 process flags fname input = do
-  let ast    = parseProg input
+  let ast    = parseProg (maybe "" id fname) input
 
   let compileMode = if LibMode `elem` flags then Library else Normal
 

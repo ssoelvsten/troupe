@@ -1,2 +1,2 @@
 Parse Error:
-1:27 unexpected token TokenDCRootInteg
+tests/cmp/dc-label-wrong-order.trp:1:27 unexpected token TokenDCRootInteg

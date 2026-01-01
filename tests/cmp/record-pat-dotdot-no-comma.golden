@@ -1,2 +1,2 @@
 Parse Error:
-3:12 unexpected token TokenDotDot
+tests/cmp/record-pat-dotdot-no-comma.trp:3:12 unexpected token TokenDotDot
