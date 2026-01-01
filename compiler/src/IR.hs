@@ -357,11 +357,12 @@ instance WellFormedIRCheck IRExpr where
 
 
 
--- todo; 2018-02-18; not checking atoms at the moment
--- they may need to be checked too...
-
 wfIRProg :: IRProgram -> Except String ()
-wfIRProg (IRProgram _ funs) = mapM_ wfFun funs
+wfIRProg (IRProgram (C.Atoms atms) funs) = do
+  let duplicates = atms \\ nub atms
+  when (not (null duplicates)) $
+    throwError $ "Duplicate atom names: " ++ show (nub duplicates)
+  mapM_ wfFun funs
 
 wfFun :: FunDef -> Except String () 
 wfFun (FunDef (HFN fn) (VN arg) consts bb) = 
