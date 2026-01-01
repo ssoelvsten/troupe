@@ -27,8 +27,8 @@ Implement V3 source maps so all Troupe runtime errors show source location (`fil
 | 2 | Stack + PosInf (NoPos default) | No | Infrastructure ready | ✅ DONE |
 | 3 | Raw + PosInf (NoPos default) | No | Positions flow Raw→Stack | ✅ DONE |
 | 4 | IR + PosInf (NoPos default) | No | Positions flow IR→Raw→Stack | ✅ DONE |
-| 5 | Fix optimizations | No | Test with --no-rawopt first | **NEXT** |
-| 6 | Thread from CPS | No | **Source maps populated!** | Pending |
+| 5 | Fix optimizations | No | Test with --no-rawopt first | ✅ DONE |
+| 6 | Thread from CPS | No | **Source maps populated!** | **NEXT** |
 | 7 | Runtime source map resolver | No (runtime only) | Errors show locations | Pending |
 | 8 | Error message positions | No | Messages include `at file:line` | Pending |
 
@@ -302,6 +302,13 @@ bin/golden      # Run golden tests
 - Updated pretty printing in `IR.hs` for new fields
 - All 397 golden tests pass
 
-**Next step**: Phase 5 (Fix optimizations) - ensure optimizations preserve positions, test with `--no-rawopt` first.
+**Phase 5 is COMPLETE** (2026-01-01). Optimizations preserve positions:
+- Verified `RawOpt.hs` - all `Substitutable` instances and `pevalInst`/`peval` correctly thread positions
+- Verified `IROpt.hs` - all `Substitutable` instances and `trPeval`/`insPeval`/`bbPeval` correctly thread positions
+- Verified `CPSOpt.hs` - `Substitutable` and `Simplifiable` instances correctly preserve positions on `AssertElseError` and `Error`
+- Tested with `--no-rawopt` flag - compiler generates valid output
+- All 397 golden tests pass
+
+**Next step**: Phase 6 (Thread from CPS) - extend CCEnv with PosInf, generate real positions in ClosureConv.hs so source maps get populated.
 
 Each subsequent phase can be developed and tested independently.
