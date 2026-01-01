@@ -16,6 +16,7 @@ import Control.Monad.Except
 import Control.Monad.Reader
 import Data.List (group, sort, intercalate)
 
+
 }
 
 -- Entry point
@@ -168,45 +169,43 @@ AtomsList : { [] }
 
 
 Expr: Form                        { $1 }
-    | let pini Expr Decs in Expr end  { Let (piniDecl $3 $4)  $6 NoPos }
-    | let Decs in Expr end        { Let $2 $4 NoPos }
-    | if Expr then Expr else Expr { If $2 $4 $6 NoPos }
-    | fn Pattern '=>' Expr                  { Abs (Lambda [$2] $4) NoPos }
-    | hn Pattern '=>' Expr                  { Hnd (Handler $2 Nothing Nothing $4) NoPos }
-    | hn Pattern '|' Pattern '=>' Expr      { Hnd (Handler $2 (Just $4) Nothing $6) NoPos }
-    | hn Pattern when Expr '=>' Expr        { Hnd (Handler $2 Nothing (Just $4) $6) NoPos }
-    | hn Pattern '|' Pattern when Expr '=>' Expr      { Hnd (Handler $2 (Just $4) (Just $6) $8) NoPos }
-    | case Expr of Match          {% do { p <- pos $1; return (Case $2 $4 p) } }
-    | Expr ';' Expr               { mkSeq $1 $3 }
-    | Expr '-' Expr               { Bin Minus $1 $3 NoPos }
-    | Expr '+' Expr               { Bin Plus $1 $3 NoPos }
-    | Expr '>=' Expr              { Bin Ge $1 $3 NoPos }
-    | Expr '*' Expr               { Bin Mult $1 $3 NoPos }
-    | Expr '/' Expr               { Bin Div $1 $3 NoPos }
-    | Expr div Expr             { Bin IntDiv $1 $3 NoPos }
-    | Expr mod Expr             { Bin Mod $1 $3 NoPos }
-    | Expr '^' Expr               { Bin Concat $1 $3 NoPos }
-    | Expr '=' Expr               { Bin Eq $1 $3 NoPos }
-    | Expr '<=' Expr              { Bin Le $1 $3 NoPos }
-
-    | Expr '<' Expr               { Bin Lt $1 $3 NoPos }
-    | Expr '>' Expr               { Bin Gt $1 $3 NoPos }
-    | Expr '<>' Expr              { Bin Neq $1 $3 NoPos }
-    | Expr andalso Expr           { Bin And $1 $3 NoPos }
-    | Expr orelse  Expr           { Bin Or $1 $3 NoPos }
-
-    | Expr andb Expr              { Bin BinAnd $1 $3 NoPos }
-    | Expr orb Expr               { Bin BinOr $1 $3 NoPos }
-    | Expr xorb Expr              { Bin BinXor $1 $3 NoPos }
-    | Expr '<<' Expr              { Bin BinShiftLeft $1 $3 NoPos }
-    | Expr '>>' Expr              { Bin BinShiftRight $1 $3 NoPos }
-    | Expr '~>>' Expr             { Bin BinZeroShiftRight $1 $3 NoPos }
-    | Expr '::' Expr              { ListCons $1 $3 NoPos }
-    | Expr 'raisedTo' Expr        { Bin RaisedTo $1 $3 NoPos }
-    | 'isTuple' Expr              { Un IsTuple $2 NoPos }
-    | 'isList' Expr              { Un IsList $2 NoPos }
-    | 'isRecord' Expr              { Un IsRecord $2 NoPos }
-    | 'not' Expr                  { Un Not $2 NoPos }
+    | let pini Expr Decs in Expr end  {% Let (piniDecl $3 $4) $6 <\$> pos $1 }
+    | let Decs in Expr end        {% Let $2 $4 <\$> pos $1 }
+    | if Expr then Expr else Expr {% If $2 $4 $6 <\$> pos $1 }
+    | fn Pattern '=>' Expr        {% Abs (Lambda [$2] $4) <\$> pos $1 }
+    | hn Pattern '=>' Expr        {% Hnd (Handler $2 Nothing Nothing $4) <\$> pos $1 }
+    | hn Pattern '|' Pattern '=>' Expr      {% Hnd (Handler $2 (Just $4) Nothing $6) <\$> pos $1 }
+    | hn Pattern when Expr '=>' Expr        {% Hnd (Handler $2 Nothing (Just $4) $6) <\$> pos $1 }
+    | hn Pattern '|' Pattern when Expr '=>' Expr      {% Hnd (Handler $2 (Just $4) (Just $6) $8) <\$> pos $1 }
+    | case Expr of Match          {% Case $2 $4 <\$> pos $1 }
+    | Expr ';' Expr               {% mkSeq $1 $3 <\$> pos $2 }
+    | Expr '-' Expr               {% Bin Minus $1 $3 <\$> pos $2 }
+    | Expr '+' Expr               {% Bin Plus $1 $3 <\$> pos $2 }
+    | Expr '>=' Expr              {% Bin Ge $1 $3 <\$> pos $2 }
+    | Expr '*' Expr               {% Bin Mult $1 $3 <\$> pos $2 }
+    | Expr '/' Expr               {% Bin Div $1 $3 <\$> pos $2 }
+    | Expr div Expr               {% Bin IntDiv $1 $3 <\$> pos $2 }
+    | Expr mod Expr               {% Bin Mod $1 $3 <\$> pos $2 }
+    | Expr '^' Expr               {% Bin Concat $1 $3 <\$> pos $2 }
+    | Expr '=' Expr               {% Bin Eq $1 $3 <\$> pos $2 }
+    | Expr '<=' Expr              {% Bin Le $1 $3 <\$> pos $2 }
+    | Expr '<' Expr               {% Bin Lt $1 $3 <\$> pos $2 }
+    | Expr '>' Expr               {% Bin Gt $1 $3 <\$> pos $2 }
+    | Expr '<>' Expr              {% Bin Neq $1 $3 <\$> pos $2 }
+    | Expr andalso Expr           {% Bin And $1 $3 <\$> pos $2 }
+    | Expr orelse  Expr           {% Bin Or $1 $3 <\$> pos $2 }
+    | Expr andb Expr              {% Bin BinAnd $1 $3 <\$> pos $2 }
+    | Expr orb Expr               {% Bin BinOr $1 $3 <\$> pos $2 }
+    | Expr xorb Expr              {% Bin BinXor $1 $3 <\$> pos $2 }
+    | Expr '<<' Expr              {% Bin BinShiftLeft $1 $3 <\$> pos $2 }
+    | Expr '>>' Expr              {% Bin BinShiftRight $1 $3 <\$> pos $2 }
+    | Expr '~>>' Expr             {% Bin BinZeroShiftRight $1 $3 <\$> pos $2 }
+    | Expr '::' Expr              {% ListCons $1 $3 <\$> pos $2 }
+    | Expr 'raisedTo' Expr        {% Bin RaisedTo $1 $3 <\$> pos $2 }
+    | 'isTuple' Expr              {% Un IsTuple $2 <\$> pos $1 }
+    | 'isList' Expr               {% Un IsList $2 <\$> pos $1 }
+    | 'isRecord' Expr             {% Un IsRecord $2 <\$> pos $1 }
+    | 'not' Expr                  {% Un Not $2 <\$> pos $1 }
 
 
 Match : Pattern '=>' Expr                      { [($1,$3)] }
@@ -214,7 +213,7 @@ Match : Pattern '=>' Expr                      { [($1,$3)] }
 
 
 Form :: { Term }
-Form :  '-' Form                    { Un UnMinus $2 NoPos }
+Form :  '-' Form                    {% Un UnMinus $2 <\$> pos $1 }
      | Fact                        { fromFact $1 }
 
 
@@ -241,8 +240,8 @@ IntLabelExp :                      { ConstComponent LabelTrue }
 DCLabelExp:
      ConfLabelExp ';' IntLabelExp         { DCLabelExp ($1, $3) } 
 
-Lit:   NUM                        {% do { p <- pos $1; return (LNumeric (NumInt (numTok $1)) p) } }
-     | FLOAT                       {% do { p <- pos $1; return (LNumeric (NumFloat (floatTok $1)) p) } }
+Lit:   NUM                        {% LNumeric (NumInt (numTok $1)) <\$> pos $1 }
+     | FLOAT                       {% LNumeric (NumFloat (floatTok $1)) <\$> pos $1 }
      | STRING                      { LString (strTok $1) }
      | true                        { LBool True }
      | false                       { LBool False }
@@ -253,19 +252,19 @@ Lit:   NUM                        {% do { p <- pos $1; return (LNumeric (NumInt 
 
 Atom : '(' Expr ')'                { $2 }
      | Lit                         { Lit $1 }
-     | VAR                         { Var (varTok $1) NoPos }
+     | VAR                         {% Var (varTok $1) <\$> pos $1 }
      | '(' ')'                     { Lit LUnit }
-     | '(' CSExpr Expr ')'         { Tuple (reverse ($3:$2)) NoPos }
-     | '{' '}'                     { Record [] NoPos }
+     | '(' CSExpr Expr ')'         {% Tuple (reverse ($3:$2)) <\$> pos $1 }
+     | '{' '}'                     {% Record [] <\$> pos $1 }
      | RecordExpr                  { $1 }
      | ListExpr                    { $1 }
-     | Atom '.' VAR                { ProjField $1 (varTok $3) NoPos }
-     | Atom '.' NUM                { ProjIdx $1 (fromInteger (numTok $3)) NoPos }
+     | Atom '.' VAR                {% ProjField $1 (varTok $3) <\$> pos $2 }
+     | Atom '.' NUM                {% ProjIdx $1 (fromInteger (numTok $3)) <\$> pos $2 }
 
 
 RecordExpr
-     : '{' RecordFields  '}'                           { Record $2 NoPos }
-     | '{' Atom with RecordFields'}'                   { WithRecord $2 $4 NoPos }
+     : '{' RecordFields  '}'          {% Record $2 <\$> pos $1 }
+     | '{' Atom with RecordFields'}'  {% WithRecord $2 $4 <\$> pos $1 }
      
 
 RecordFields
@@ -280,9 +279,9 @@ Field
 
 
 ListExpr :: {Term}
-ListExpr : '[' ']'                 { List [] NoPos }
-     | '[' Expr ']'                { List [$2] NoPos }
-     | '[' CSExpr Expr ']'         { List (reverse ($3:$2)) NoPos }
+ListExpr : '[' ']'                 {% List [] <\$> pos $1 }
+     | '[' Expr ']'                {% List [$2] <\$> pos $1 }
+     | '[' CSExpr Expr ']'         {% List (reverse ($3:$2)) <\$> pos $1 }
 
 CSExpr : Expr ','                  { [$1] }
      | CSExpr Expr ','             { ($2:$1) }
@@ -327,7 +326,7 @@ CSPattern : Pattern ','         { [$1] }
     | CSPattern  Pattern ','    { ($2:$1) }
 
 
-Dec : val Pattern '=' Expr      {% do { p <- pos $1; return (ValDecl $2 $4 p) } }
+Dec : val Pattern '=' Expr      {% ValDecl $2 $4 <\$> pos $1 }
     | FunDecs                      { FunDecs $1 }
 
 Decs : Dec                         { [$1] }
@@ -353,8 +352,8 @@ FirstFunOption : FunArgs '=' Expr   { Lambda $1 $3}
 OtherFunOption : '|' VAR FunArgs '=' Expr { Lambda $3 $5}
 
 
-FunDecl    : fun VAR FunOptions {% do { p <- pos $2; return (FunDecl (varTok $2) $3 p) } }
-AndFunDecl : and VAR FunOptions {% do { p <- pos $2; return (FunDecl (varTok $2) $3 p) } }
+FunDecl    : fun VAR FunOptions {% pos $2 >>= \p -> return (FunDecl (varTok $2) $3 p) }
+AndFunDecl : and VAR FunOptions {% pos $2 >>= \p -> return (FunDecl (varTok $2) $3 p) }
 
 FunArgs : Pattern                        { [$1]  }
         | Pattern FunArgs                { $1 : $2}
@@ -368,17 +367,40 @@ piniDecl auth decs =
     in
         (pushDecl:decs) ++ [popDecl]
 
-mkSeq ::Term -> Term ->Term
-mkSeq t1 t2 =
+mkSeq :: Term -> Term -> PosInf -> Term
+mkSeq t1 t2 p =
     let ts = case t2 of (Seq ts _) -> ts
                         _ -> [t2]
-    in Seq (t1: ts) NoPos
+    in Seq (t1: ts) p
 
 
 fromFact [x] = x
 fromFact xs =
   let (y:ys) = reverse xs
-  in App y ys NoPos
+  in App y ys (termPos y)
+
+-- Extract position from a Term (for function application, we use the function's position)
+termPos :: Term -> PosInf
+termPos (Lit (LNumeric _ p)) = p
+termPos (Lit _) = NoPos
+termPos (Var _ p) = p
+termPos (Abs _ p) = p
+termPos (Hnd _ p) = p
+termPos (App _ _ p) = p
+termPos (Let _ _ p) = p
+termPos (Case _ _ p) = p
+termPos (If _ _ _ p) = p
+termPos (Tuple _ p) = p
+termPos (Record _ p) = p
+termPos (WithRecord _ _ p) = p
+termPos (ProjField _ _ p) = p
+termPos (ProjIdx _ _ p) = p
+termPos (List _ p) = p
+termPos (ListCons _ _ p) = p
+termPos (Bin _ _ _ p) = p
+termPos (Un _ _ p) = p
+termPos (Seq _ p) = p
+termPos (Error _ p) = p
 
 
 parseError :: [L Token] -> ReaderT FilePath (Except String) a
