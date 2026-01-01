@@ -340,30 +340,30 @@ unaryOpToJS = \case
 -- omit _ = PP.empty 
 
 ir2js :: StackInst -> W PP.Doc
-ir2js (AssignRaw tt vn e) = do
+ir2js (AssignRaw tt vn e _pos) = do
   jj <- toJS e
-  let pfx = case tt of 
+  let pfx = case tt of
                AssignConst -> text "const"
                AssignLet   -> text "let"
-               AssignMut   -> PP.empty 
-  return $ semi $ pfx <+> ppId vn <+> text "=" <+> jj 
+               AssignMut   -> PP.empty
+  return $ semi $ pfx <+> ppId vn <+> text "=" <+> jj
 
 -- Note: Technically this is handled in the same way as 'AssignRaw' (with 'AssignConst'),
 -- because in JS it is just an assignment to a variable.
 -- The only difference to AssignRaw is the type of variable name (here 'VarName', there 'RawVar') (even though both are wrappers for String)
-ir2js (AssignLVal vn cexpr) = do
+ir2js (AssignLVal vn cexpr _pos) = do
   d <- toJS cexpr
   return $ semi $ ppLet vn <+> d
 
 
-ir2js (FetchStack x i) = return $ 
+ir2js (FetchStack x i _pos) = return $
    ppLet x <+> text "_STACK[ _SP + " PP.<> text (show i) PP.<> text "]"
 
-ir2js (StoreStack x i) = return $ 
-   text "_STACK[ _SP + " PP.<> text (show i) PP.<> text "] = " <+> ppId x 
+ir2js (StoreStack x i _pos) = return $
+   text "_STACK[ _SP + " PP.<> text (show i) PP.<> text "] = " <+> ppId x
 
 
-ir2js (MkFunClosures envBindings funBindings) = do
+ir2js (MkFunClosures envBindings funBindings _pos) = do
     -- Create new environment
     env <- freshEnvVar
     dd_env_ids <- ppEnvIds env envBindings
@@ -391,11 +391,11 @@ ir2js (MkFunClosures envBindings funBindings) = do
              hsepc ls = semi $ PP.hsep (PP.punctuate (text ",") ls)
 
 
-ir2js (SetState c x) = return $ semi $ monStateToJs c <+> "=" <+> ppId x
+ir2js (SetState c x _pos) = return $ semi $ monStateToJs c <+> "=" <+> ppId x
 
-ir2js (RTAssertion a) = return $ ppRTAssertionCode jsFunCall a
+ir2js (RTAssertion a _pos) = return $ ppRTAssertionCode jsFunCall a
 
-ir2js (LabelGroup ii) = do
+ir2js (LabelGroup ii _pos) = do
   ii' <- mapM ppLevelOp ii
   sparseSlot <- ppSparseSlot
   return $ vcat $
@@ -404,15 +404,15 @@ ir2js (LabelGroup ii) = do
            , nest 2 (vcat ii')
            , text "}"
            ]
-    where ppLevelOp (AssignRaw tt vn e) = do
+    where ppLevelOp (AssignRaw tt vn e _p) = do
             jj <- toJS e
-            let pfx = if tt == AssignConst then text "const" else PP.empty 
-            return $ semi $ pfx <+> ppId vn <+> text "=" <+> jj 
-          ppLevelOp x = toJS x  
+            let pfx = if tt == AssignConst then text "const" else PP.empty
+            return $ semi $ pfx <+> ppId vn <+> text "=" <+> jj
+          ppLevelOp x = toJS x
 
-ir2js (SetBranchFlag) = return $
+ir2js (SetBranchFlag _pos) = return $
   text "_T.setBranchFlag()"
-ir2js InvalidateSparseBit = return $
+ir2js (InvalidateSparseBit _pos) = return $
   text "rt.raw_invalidateSparseBit()"
 
 
@@ -423,12 +423,12 @@ ir2js InvalidateSparseBit = return $
 {-- TERMINATORS --}
 
 
-tr2js (StackExpand bb bb2) = do
+tr2js (StackExpand bb bb2 _pos) = do
     _frameSize <- gets frameSize
     _sparseSlot <- gets sparseSlot
     _consts <- gets consts
     modify (\s -> s {frameSize = 0, sparseSlot = _sparseSlot - _frameSize - 5})
-        -- AA; 2021-04-24; Because 
+        -- AA; 2021-04-24; Because
     js <- toJS bb
     modify (\s -> s { frameSize = _frameSize, sparseSlot = _sparseSlot })
         -- TODO: AA; 2021-04-24; we should really be using a reader monad here for frame size
@@ -454,8 +454,8 @@ tr2js (StackExpand bb bb2) = do
                           js2
                         ],
                     "}"
-                    -- debug support; 2021-04-24; AA                    
-                    , "this." PP.<> ppId kname PP.<> text ".debugname = \"" PP.<> ppId kname PP.<> "\""                
+                    -- debug support; 2021-04-24; AA
+                    , "this." PP.<> ppId kname PP.<> text ".debugname = \"" PP.<> ppId kname PP.<> "\""
                     ]
 
 
@@ -464,23 +464,23 @@ tr2js (StackExpand bb bb2) = do
       "_SP_OLD = _SP; ", -- 2021-04-23; hack ! ;AA
       "_SP = _SP + " <+> text (show (_frameSize + 5)) <+> ";",
       "_STACK[_SP - 5] = _SP_OLD;",
-      "_STACK[_SP - 4] = _T.pc;", 
-      "_STACK[_SP - 3] = this." PP.<> ppId kname, 
-      "_STACK[_SP - 2] = _T.mailbox.mclear;", 
+      "_STACK[_SP - 4] = _T.pc;",
+      "_STACK[_SP - 3] = this." PP.<> ppId kname,
+      "_STACK[_SP - 2] = _T.mailbox.mclear;",
       "_STACK[_SP - 1] = false;",
-      "_T._sp = _SP;", 
+      "_T._sp = _SP;",
       js
-      ] 
+      ]
   --  return $ jsFunCall (text "_T.pushFrame") [ text "this." PP.<> ppId kname, (text.show) _frameSize ] $$ js
 
 
 
 
-tr2js (If va bb1 bb2) = do
+tr2js (If va bb1 bb2 _pos) = do
   js1 <- toJS bb1
   js2 <- toJS bb2
   return $
-    vcat [ 
+    vcat [
       -- jsFunCall (text "rt.branch") [ppId va],
       text "if" <+> PP.parens ( ppId va) <+> text "{",
       nest 2 js1,
@@ -489,19 +489,19 @@ tr2js (If va bb1 bb2) = do
       text "}"
     ]
 
-    
 
-tr2js (Ret) = return $
+
+tr2js (Ret _pos) = return $
   jsFunCall (text "return _T.returnImmediate") []
 
 tr2js (Error va pos) = return $
   (jsFunCall (text "rt.rawErrorPos")) [ppId va, ppPosInfo pos]
 
-tr2js (TailCall va1 ) = return $
-    "return" <+> ppId va1 
+tr2js (TailCall va1 _pos) = return $
+    "return" <+> ppId va1
 
-tr2js (LibExport va) = do
-  d <- toJS va 
+tr2js (LibExport va _pos) = do
+  d <- toJS va
   return $ jsFunCall (text "return") [d]
 
 

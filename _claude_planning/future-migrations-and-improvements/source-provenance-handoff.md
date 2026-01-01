@@ -24,8 +24,8 @@ Implement V3 source maps so all Troupe runtime errors show source location (`fil
 |-------|---------|------------------|------|--------|
 | 0 | Parser filename | No | Pattern match errors show filename | ✅ DONE |
 | 1 | Source map infrastructure | No | Empty .map files generated | ✅ DONE |
-| 2 | Stack + PosInf (NoPos default) | No | Infrastructure ready | **NEXT** |
-| 3 | Raw + PosInf (NoPos default) | No | Positions flow Raw→Stack | Pending |
+| 2 | Stack + PosInf (NoPos default) | No | Infrastructure ready | ✅ DONE |
+| 3 | Raw + PosInf (NoPos default) | No | Positions flow Raw→Stack | **NEXT** |
 | 4 | IR + PosInf (NoPos default) | No | Positions flow IR→Raw→Stack | Pending |
 | 5 | Fix optimizations | No | Test with --no-rawopt first | Pending |
 | 6 | Thread from CPS | No | **Source maps populated!** | Pending |
@@ -273,6 +273,14 @@ bin/golden      # Run golden tests
 - Compiler generates valid V3 source map JSON files (currently empty mappings)
 - All 397 golden tests pass
 
-**Next step**: Phase 2 (Stack + PosInf) - add `PosInf` field to Stack types, pass `NoPos` initially.
+**Phase 2 is COMPLETE** (2026-01-01). Stack types now carry position info:
+- Added `PosInf` field to all `StackInst` variants in `Stack.hs`
+- Added `PosInf` field to all `StackTerminator` variants in `Stack.hs`
+- Updated `Raw2Stack.hs` to pass `NoPos` for all new position fields
+- Updated `Stack2JS.hs` pattern matches to handle new position fields
+- Updated pretty printing in `Stack.hs` for new fields
+- All 397 golden tests pass
+
+**Next step**: Phase 3 (Raw + PosInf) - add `PosInf` field to Raw types, thread positions from Raw→Stack.
 
 Each subsequent phase can be developed and tested independently.

@@ -41,12 +41,12 @@ data StackBBTree = BB [StackInst] StackTerminator deriving (Eq, Show)
 
 
 data StackTerminator
-  = TailCall RawVar
-  | Ret 
-  | If RawVar StackBBTree StackBBTree
-  | LibExport VarAccess
+  = TailCall RawVar PosInf
+  | Ret PosInf
+  | If RawVar StackBBTree StackBBTree PosInf
+  | LibExport VarAccess PosInf
   | Error RawVar PosInf
-  | StackExpand  StackBBTree StackBBTree
+  | StackExpand StackBBTree StackBBTree PosInf
   deriving (Eq, Show)
 
 
@@ -61,16 +61,16 @@ data RawAssignType = AssignConst | AssignLet | AssignMut deriving (Eq, Ord, Show
 
 
 data StackInst
-  = AssignRaw RawAssignType RawVar RawExpr
-  | LabelGroup [StackInst]
-  | AssignLVal VarName RawExpr
-  | FetchStack Assignable StackPos
-  | StoreStack Assignable StackPos
-  | SetState MonComponent RawVar 
-  | SetBranchFlag 
-  | InvalidateSparseBit
-  | MkFunClosures [(VarName, VarAccess)] [(VarName, HFN)]
-  | RTAssertion RTAssertion
+  = AssignRaw RawAssignType RawVar RawExpr PosInf
+  | LabelGroup [StackInst] PosInf
+  | AssignLVal VarName RawExpr PosInf
+  | FetchStack Assignable StackPos PosInf
+  | StoreStack Assignable StackPos PosInf
+  | SetState MonComponent RawVar PosInf
+  | SetBranchFlag PosInf
+  | InvalidateSparseBit PosInf
+  | MkFunClosures [(VarName, VarAccess)] [(VarName, HFN)] PosInf
+  | RTAssertion RTAssertion PosInf
    deriving (Eq, Show)
 
 -- Function definition
@@ -122,37 +122,37 @@ ppEsc esc =
 
 
 ppIR :: StackInst -> PP.Doc
-ppIR SetBranchFlag = text "<setbranchflag>"
-ppIR InvalidateSparseBit = text "<invalidate sparse bit>"
-ppIR (AssignRaw  _ vn st) = ppId vn <+> text "=" <+> ppRawExpr st
-ppIR (AssignLVal vn expr) = 
+ppIR (SetBranchFlag _) = text "<setbranchflag>"
+ppIR (InvalidateSparseBit _) = text "<invalidate sparse bit>"
+ppIR (AssignRaw _ vn st _) = ppId vn <+> text "=" <+> ppRawExpr st
+ppIR (AssignLVal vn expr _) =
   ppId vn <+> text "=" <+> ppRawExpr expr
-ppIR (RTAssertion a) = ppRTAssertion a
+ppIR (RTAssertion a _) = ppRTAssertion a
 
-ppIR (SetState comp v) = 
+ppIR (SetState comp v _) =
   ppId comp <+> text "<-" <+> ppId v
-ppIR (FetchStack x i) = 
+ppIR (FetchStack x i _) =
   ppId x <+> text "<- $STACK[" PP.<> text (show i) PP.<> text "]"
-ppIR (StoreStack x i) = 
-  text "$STACK[" PP.<> text (show i) PP.<> text "] = " <+> ppId x 
+ppIR (StoreStack x i _) =
+  text "$STACK[" PP.<> text (show i) PP.<> text "] = " <+> ppId x
 
 
-ppIR (MkFunClosures varmap fdefs) = 
+ppIR (MkFunClosures varmap fdefs _) =
     let vs = hsepc $ ppEnvIds varmap
-        ppFdefs = map (\((VN x), HFN y) ->  text x <+> text "= mkClos" <+> text y ) fdefs 
+        ppFdefs = map (\((VN x), HFN y) ->  text x <+> text "= mkClos" <+> text y ) fdefs
      in text "with env:=" <+> PP.brackets vs $$ nest 2 (vcat ppFdefs)
     where ppEnvIds ls =
             map (\(a,b) -> (ppId a) PP.<+> text "->" <+> ppId b ) ls
           hsepc ls = PP.hsep (PP.punctuate (text ",") ls)
 
-    
-ppIR (LabelGroup insts) = 
+
+ppIR (LabelGroup insts _) =
  text "group" $$ nest 2 (vcat (map ppIR insts))
 
-ppTr (StackExpand bb1 bb2) = (text "= call" $$ nest 2 (ppBB bb1)) $$ (ppBB bb2)
+ppTr (StackExpand bb1 bb2 _) = (text "= call" $$ nest 2 (ppBB bb1)) $$ (ppBB bb2)
 
 
--- ppTr (AssertElseError va ir va2 _) 
+-- ppTr (AssertElseError va ir va2 _)
 --   = text "assert" <+> PP.parens (ppId va) <+>
 --     text "{" $$
 --     nest 2 (ppBB ir) $$
@@ -160,7 +160,7 @@ ppTr (StackExpand bb1 bb2) = (text "= call" $$ nest 2 (ppBB bb1)) $$ (ppBB bb2)
 --     text "elseError" <+> (ppId va2)
 
 
-ppTr (If va ir1 ir2)
+ppTr (If va ir1 ir2 _)
   = text "if" <+> PP.parens (ppId va) <+>
     text "{" $$
     nest 2 (ppBB ir1) $$
@@ -168,9 +168,9 @@ ppTr (If va ir1 ir2)
     text "else {" $$
     nest 2 (ppBB ir2) $$
     text "}"
-ppTr (TailCall va1 ) = ppFunCall (text "tail") [ppId va1]
-ppTr (Ret)  = ppFunCall (text "ret") []
-ppTr (LibExport va) = ppFunCall (text "export") [ppId va]
+ppTr (TailCall va1 _) = ppFunCall (text "tail") [ppId va1]
+ppTr (Ret _)  = ppFunCall (text "ret") []
+ppTr (LibExport va _) = ppFunCall (text "export") [ppId va]
 ppTr (Error va _)  = (text "error") <> (ppId va)
 
 
