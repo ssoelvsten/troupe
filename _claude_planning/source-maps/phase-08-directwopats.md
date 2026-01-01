@@ -40,7 +40,7 @@ Update pattern elimination to pass `NoPos` for all new position fields.
 
 After completing this phase:
 ```bash
-make stack
+make compiler
 bin/golden --quick
 ```
 

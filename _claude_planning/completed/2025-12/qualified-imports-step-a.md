@@ -369,7 +369,7 @@ in print result
 ### Build & Test Commands
 
 ```bash
-make stack      # Rebuild compiler
+make compiler   # Rebuild compiler
 make libs       # Recompile libraries (A, B)
 make test       # Run test suite
 

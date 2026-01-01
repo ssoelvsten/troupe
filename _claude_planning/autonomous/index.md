@@ -27,7 +27,7 @@ Each task file includes all necessary context for execution in a fresh conversat
 ## Execution Instructions
 
 1. Each task file is self-contained with all context needed
-2. After completing a task, run `make rt` (for runtime) or `make stack` (for compiler)
+2. After completing a task, run `make rt` (for runtime) or `make compiler` (for compiler)
 3. Run `make test` to verify no regressions
 4. Mark task as completed in this index
 

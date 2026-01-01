@@ -30,7 +30,7 @@ env:
 ### Build Process
 
 The CI executes this build sequence:
-1. `make stack` - Build Haskell compiler
+1. `make compiler` - Build Haskell compiler
 2. `make rt` - Build TypeScript runtime
 3. `make libs` - Compile standard libraries
 4. `make service` - Compile service module

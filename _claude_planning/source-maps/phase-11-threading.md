@@ -44,7 +44,7 @@ Replace `NoPos` with position extraction from CPS terms.
 
 After completing this phase:
 ```bash
-make stack
+make compiler
 bin/golden --quick
 ```
 

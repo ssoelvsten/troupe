@@ -22,8 +22,8 @@ Implement V3 source maps so all Troupe runtime errors show source location (`fil
 | 7 | Core + PosInf | Core.hs, RetDFCPS.hs | DONE | [phase-07-core.md](phase-07-core.md) |
 | 8 | DirectWOPats + PosInf | DirectWOPats.hs, CaseElimination.hs | DONE | [phase-08-directwopats.md](phase-08-directwopats.md) |
 | 9 | Direct + PosInf | Direct.hs, Parser.y | DONE | [phase-09-direct.md](phase-09-direct.md) |
-| 10 | Capture positions in Parser | Parser.y | **NEXT** | [phase-10-parser-positions.md](phase-10-parser-positions.md) |
-| 11 | Thread positions through pipeline | CaseElimination.hs, Core.hs, etc. | Pending | [phase-11-threading.md](phase-11-threading.md) |
+| 10 | Capture positions in Parser | Parser.y | DONE | [phase-10-parser-positions.md](phase-10-parser-positions.md) |
+| 11 | Thread positions through pipeline | CaseElimination.hs, Core.hs, etc. | **NEXT** | [phase-11-threading.md](phase-11-threading.md) |
 | 12 | Emit real source maps | Stack2JS.hs, Main.hs | Pending | [phase-12-emit-source-maps.md](phase-12-emit-source-maps.md) |
 | 13 | Runtime source map resolver | SourceMapResolver.mts, Thread.mts | Pending | [phase-13-runtime-resolver.md](phase-13-runtime-resolver.md) |
 | 14 | Error message positions | Asserts.mts, BuiltinArith.mts | Pending | [phase-14-position-params.md](phase-14-position-params.md) |
@@ -77,6 +77,22 @@ Each phase:
 ---
 
 ## Implementation Progress
+
+### Phase 10: Capture Positions in Parser - COMPLETE (2026-01-01)
+
+**All tests pass (397/397)**
+
+**Files modified**:
+- `compiler/src/Parser.y` - Updated grammar rules to capture real source positions:
+  - Binary operators (all 24 operators including +, -, *, /, div, mod, comparisons, logical, bitwise, concat, raisedTo, ::)
+  - Unary operators (isTuple, isList, isRecord, not, unary minus)
+  - If-then-else, Let bindings, Seq expressions
+  - Fn (lambda) and Hn (handler) expressions
+  - Var references, Tuples, Records, WithRecord, Lists
+  - Field projections (ProjField, ProjIdx)
+  - Updated mkSeq helper to accept position parameter
+
+---
 
 ### Phase 9: Direct + PosInf - COMPLETE (2026-01-01)
 

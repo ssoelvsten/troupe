@@ -52,7 +52,7 @@ Pass collected mappings to `buildSourceMap` instead of empty list.
 
 After completing this phase:
 ```bash
-make stack
+make compiler
 bin/golden --quick
 ```
 

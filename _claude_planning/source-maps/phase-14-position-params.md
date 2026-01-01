@@ -88,7 +88,7 @@ intdiv = mkBase((x, pos = '') => {
 
 After completing this phase:
 ```bash
-make stack
+make compiler
 make rt
 bin/golden --quick
 ```

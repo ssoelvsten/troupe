@@ -45,7 +45,7 @@ This is a large file with many grammar rules. Each rule that produces a Term con
 
 After completing this phase:
 ```bash
-make stack
+make compiler
 bin/golden --quick
 ```
 

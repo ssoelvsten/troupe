@@ -36,7 +36,7 @@ by the runtime module.
 
 ### Step 3. Install Troupe top-level scripts
 
-Type `make stack` (in the repository's root) to compile Troupe's bin scripts
+Type `make compiler` (in the repository's root) to compile Troupe's bin scripts
 
 ### Step 4. Install Troupe standard library
 
@@ -153,7 +153,7 @@ All DC label tags are normalized to lowercase. For example, `` `<Alice ; Bob>` `
 The following commands build specific parts of the project and install the results to the `bin`, `rt/built` and `lib` directories.
 
 - `make all`: build everything (use this whenever significant changes have been made to the project, to be sure that everything is up-to-date)
-- `make` / `make stack`: build the compiler
+- `make` / `make compiler`: build the compiler
 - `make rt`: build the runtime (into the `rt/built` directory)
 - `make libs`: compile Troupe's built-in libraries (into the `lib` directory)
 - `make service` compile the service module placeholder

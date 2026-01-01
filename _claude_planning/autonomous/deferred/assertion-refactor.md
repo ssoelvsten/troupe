@@ -123,7 +123,7 @@ rtAssertTypeFun t = case t of
 
 1. Build the compiler:
    ```bash
-   make stack
+   make compiler
    ```
 
 2. Run the test suite:

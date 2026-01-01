@@ -172,7 +172,7 @@ This approach is simpler but may expose runtime flags to the Troupe program. The
 
 1. Build the compiler:
    ```bash
-   make stack
+   make compiler
    ```
 
 2. Build the runtime:

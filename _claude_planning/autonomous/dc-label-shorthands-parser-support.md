@@ -156,7 +156,7 @@ end
 
 ## Build and Verification Steps
 
-1. `make stack` - Rebuild compiler
+1. `make compiler` - Rebuild compiler
 2. `make rt` - Rebuild runtime (not strictly necessary for this change)
 3. `bin/troupec tests/rt/pos/ifc/dc-label-shorthands.trp` - Test parsing
 4. `./local.sh tests/rt/pos/ifc/dc-label-shorthands.trp` - Verify runtime execution

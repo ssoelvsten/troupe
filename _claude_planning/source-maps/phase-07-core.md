@@ -42,7 +42,7 @@ This maintains backward compatibility - positions will flow through once we comp
 
 After completing this phase:
 ```bash
-make stack
+make compiler
 bin/golden --quick
 ```
 

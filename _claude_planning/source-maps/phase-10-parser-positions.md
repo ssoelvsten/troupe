@@ -64,7 +64,7 @@ Since `pos` is a monadic function, grammar rules need to use `{% ... %}` for mon
 
 After completing this phase:
 ```bash
-make stack
+make compiler
 bin/golden --quick
 ```
 
