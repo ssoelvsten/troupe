@@ -63,18 +63,18 @@ instance Substitutable SVal where
 instance Substitutable SimpleTerm where
   apply subst@(Subst varmap) simpleTerm =
     case simpleTerm of
-      Bin op v1 v2 -> Bin op (fwd v1) (fwd v2)
-      Un op v -> Un op (fwd v)
-      Tuple vs -> Tuple (map fwd vs)
-      Record fields -> Record $ fwdFields fields
-      WithRecord x fields -> WithRecord (fwd x) $ fwdFields fields
-      ProjField x f -> ProjField (fwd x) f
-      ProjIdx x idx -> ProjIdx (fwd x) idx
-      List vs -> List (map fwd vs)
-      ListCons v v' -> ListCons (fwd v) (fwd v')
-      ValSimpleTerm sv -> ValSimpleTerm (apply subst sv)
+      Bin op v1 v2 p -> Bin op (fwd v1) (fwd v2) p
+      Un op v p -> Un op (fwd v) p
+      Tuple vs p -> Tuple (map fwd vs) p
+      Record fields p -> Record (fwdFields fields) p
+      WithRecord x fields p -> WithRecord (fwd x) (fwdFields fields) p
+      ProjField x f p -> ProjField (fwd x) f p
+      ProjIdx x idx p -> ProjIdx (fwd x) idx p
+      List vs p -> List (map fwd vs) p
+      ListCons v v' p -> ListCons (fwd v) (fwd v') p
+      ValSimpleTerm sv p -> ValSimpleTerm (apply subst sv) p
       Base v -> Base v
-      Lib l v -> Lib l v 
+      Lib l v -> Lib l v
     where fwd x = Map.findWithDefault x x varmap
           fwdFields fields = map (\(f, x) -> (f, fwd x)) fields
 
@@ -92,31 +92,31 @@ instance Substitutable FunDef where
 instance Substitutable KTerm where
   apply subst@(Subst varmap) kontTerm =
     case kontTerm of
-      LetSimple x st kt ->
-        LetSimple (vfwd x) (apply subst st) (apply subst kt)
+      LetSimple x st kt p ->
+        LetSimple (vfwd x) (apply subst st) (apply subst kt) p
 
-      LetRet kdef@(Cont _ _) kt ->
+      LetRet kdef@(Cont _ _) kt p ->
         let kdef' = apply subst kdef
             kt'   = apply subst kt
-        in LetRet kdef' kt'
+        in LetRet kdef' kt' p
 
-      LetFun fdefs kt ->
+      LetFun fdefs kt p ->
          let fnames = map (\(Fun v _) -> v) fdefs
              subst' = Subst ( foldl (\m v -> Map.delete v m) varmap fnames)
              kt' = apply subst' kt
              fdefs' = map (apply subst') fdefs
-         in LetFun fdefs' kt'
+         in LetFun fdefs' kt' p
 
 
       -- LetRet k kt -> LetRet (kfwd k) (apply subst kt)
 
-      Halt v -> Halt (vfwd v)
+      Halt v p -> Halt (vfwd v) p
 
-      KontReturn v  -> KontReturn (vfwd v)
+      KontReturn v p -> KontReturn (vfwd v) p
 
-      ApplyFun fn argn -> ApplyFun (vfwd fn) (vfwd argn)
+      ApplyFun fn argn p -> ApplyFun (vfwd fn) (vfwd argn) p
 
-      If v k1 k2 -> If (vfwd v) (apply subst k1) (apply subst k2)
+      If v k1 k2 p -> If (vfwd v) (apply subst k1) (apply subst k2) p
 
       AssertElseError v k1 z p -> AssertElseError (vfwd v) (apply subst k1) (vfwd z) p
 
@@ -150,32 +150,32 @@ data SearchPat = PatReturn
 
 matchterm :: KTerm -> SearchPat -> Maybe (Context, KTerm)
 
-matchterm found@(LetRet _ _) (PatLetRet)  =
+matchterm found@(LetRet _ _ _) (PatLetRet)  =
   return (CtxtHole, found)
 
-matchterm (LetRet _ _) PatReturn = Nothing  
+matchterm (LetRet _ _ _) PatReturn = Nothing
 
-matchterm found@(KontReturn _) (PatReturn) =
+matchterm found@(KontReturn _ _) (PatReturn) =
   return (CtxtHole, found)
 
-matchterm found@(ApplyFun fn argn) (PatFunApply fn') | fn == fn' =
+matchterm found@(ApplyFun fn argn _) (PatFunApply fn') | fn == fn' =
   return (CtxtHole, found)
 
 
 
-matchterm (LetSimple vn st kt) searchTerm = do
+matchterm (LetSimple vn st kt _) searchTerm = do
   (ctxt, found) <- matchterm kt searchTerm
   return $ (CtxtLetSimple vn st ctxt, found)
 
-matchterm (LetFun fdefs kt) searchTerm = do
+matchterm (LetFun fdefs kt _) searchTerm = do
   (ctxt, found) <- matchterm kt searchTerm
   return $ (CtxtLetFunK fdefs ctxt, found)
 
-matchterm (LetRet kdef kt) searchTerm = do
+matchterm (LetRet kdef kt _) searchTerm = do
   (ctxt, found) <- matchterm kt searchTerm
   return $ (CtxtLetCont kdef ctxt, found)
 
-matchterm (AssertElseError vn kt vn' pos) searchTerm = do 
+matchterm (AssertElseError vn kt vn' pos) searchTerm = do
   (ctxt, found) <- matchterm kt searchTerm
   return $ (CtxtAssert vn vn' pos ctxt, found)
 
@@ -191,12 +191,12 @@ matchterm _ _ = Nothing
 reconstructTerm :: Context -> KTerm -> KTerm
 reconstructTerm CtxtHole kt  = kt
 reconstructTerm (CtxtLetSimple vn st ctxt) kt =
-  LetSimple vn st (reconstructTerm ctxt kt)
+  LetSimple vn st (reconstructTerm ctxt kt) NoPos
 reconstructTerm (CtxtLetCont kdef ctxt) kt =
-  LetRet kdef (reconstructTerm ctxt kt)
+  LetRet kdef (reconstructTerm ctxt kt) NoPos
 reconstructTerm (CtxtLetFunK fdefs ctxt) kt =
-  LetFun fdefs (reconstructTerm ctxt kt)
-reconstructTerm (CtxtAssert vn vn' pos ctxt) kt = 
+  LetFun fdefs (reconstructTerm ctxt kt) NoPos
+reconstructTerm (CtxtAssert vn vn' pos ctxt) kt =
   AssertElseError vn (reconstructTerm ctxt kt) vn' pos
 
 
@@ -210,16 +210,16 @@ instance (KWalkable KTerm KTerm) where
       let w' = walk pred f
       in
        case kt of
-         LetSimple vn st kt' -> LetSimple vn (walk pred f st) (w' kt')
-         LetRet cdef kt'    -> LetRet  (walk pred f cdef) (w' kt')
-         LetFun fdefs kt'    -> LetFun (map (walk pred f) fdefs) (w' kt')
-         If v k1 k2          -> If v (w' k1) (w' k2)
+         LetSimple vn st kt' p -> LetSimple vn (walk pred f st) (w' kt') p
+         LetRet cdef kt' p   -> LetRet  (walk pred f cdef) (w' kt') p
+         LetFun fdefs kt' p   -> LetFun (map (walk pred f) fdefs) (w' kt') p
+         If v k1 k2 p         -> If v (w' k1) (w' k2) p
          AssertElseError v k1 z p -> AssertElseError v (w' k1) z p
          -- LetRet kn kt'       -> LetRet kn (w' kt')
          -- these do not modify anything
-         KontReturn v   -> KontReturn v
-         Halt v -> Halt v
-         ApplyFun v a1 -> ApplyFun v a1
+         KontReturn v p  -> KontReturn v p
+         Halt v p -> Halt v p
+         ApplyFun v a1 p -> ApplyFun v a1 p
          Error x p -> Error x p
 
 
@@ -234,8 +234,8 @@ instance (KWalkable KLambda KTerm) where
 instance (KWalkable SimpleTerm KTerm) where
   walk pred f st =
     case st of
-        ValSimpleTerm (KAbs klam) ->
-          ValSimpleTerm (KAbs (walk pred f klam))
+        ValSimpleTerm (KAbs klam) p ->
+          ValSimpleTerm (KAbs (walk pred f klam)) p
         _ -> st
 
 instance KWalkable ContDef KTerm where
@@ -270,22 +270,22 @@ instance FreeNames Context where
 -- REWRITES
 --------------------------------------------------
 
-betaContPred (LetRet _ _) = True
+betaContPred (LetRet _ _ _) = True
 betaContPred _ = False
 
 
 betaCont :: KTerm -> KTerm
-betaCont (LetRet cdef@(Cont xn kt) kt') =
+betaCont (LetRet cdef@(Cont xn kt) kt' p) =
   let cdef' = walk betaContPred betaCont cdef
   in
     case matchterm kt' PatReturn of
-                  Just (ctxt, KontReturn yn) ->
+                  Just (ctxt, KontReturn yn _) ->
                        let kt'' = let subst = Subst ( Map.fromList ([(xn, yn)] ) )
                                   in reconstructTerm ctxt (apply subst kt)
                        in if retUnchanged ctxt
                           then kt''
-                          else LetRet cdef' kt''
-                  _ -> LetRet cdef'  (walk betaContPred betaCont kt')
+                          else LetRet cdef' kt'' p
+                  _ -> LetRet cdef'  (walk betaContPred betaCont kt') p
 
 betaCont _ = error "should not be called here"
 
@@ -308,17 +308,17 @@ deadContPred _ = False
 -- β-Fun (-Lin)
 --------------------------------------------------
 
-betaFunPred (LetFun [Fun fn (Unary vn kt')] kt) = True 
-betaFunPred (LetSimple fn (ValSimpleTerm (KAbs (Unary vn kt')))  kt) = True
+betaFunPred (LetFun [Fun fn (Unary vn kt')] kt _) = True
+betaFunPred (LetSimple fn (ValSimpleTerm (KAbs (Unary vn kt')) _) kt _) = True
 betaFunPred _ = False
 
 betaFun :: KTerm -> KTerm
-betaFun (LetFun [Fun fn klam@(Unary xn kt)] kt') =
+betaFun (LetFun [Fun fn klam@(Unary xn kt)] kt' p) =
   let klam' = walk betaFunPred betaFun klam
-      noChange = LetFun [Fun fn klam'] (walk betaFunPred betaFun kt')
+      noChange = LetFun [Fun fn klam'] (walk betaFunPred betaFun kt') p
   in
      case matchterm kt' (PatFunApply fn) of
-       Just (ctxt, ApplyFun _ yn) ->
+       Just (ctxt, ApplyFun _ yn _) ->
           let kt'' = let subst = Subst (Map.fromList [(xn, yn)])
                      in reconstructTerm ctxt (apply subst kt)
               FreeVars ( freeVsCtxt ) = freeVars ctxt
@@ -330,12 +330,12 @@ betaFun (LetFun [Fun fn klam@(Unary xn kt)] kt') =
        _ -> noChange
 
 
-betaFun (LetSimple fn (ValSimpleTerm (KAbs klam@(Unary xn kt))) kt') = 
+betaFun (LetSimple fn (ValSimpleTerm (KAbs klam@(Unary xn kt)) p1) kt' p2) =
   let klam' = walk betaFunPred betaFun klam
-      noChange = LetSimple fn (ValSimpleTerm (KAbs klam')) (walk betaFunPred betaFun kt')
+      noChange = LetSimple fn (ValSimpleTerm (KAbs klam') p1) (walk betaFunPred betaFun kt') p2
   in
      case matchterm kt' (PatFunApply fn) of
-       Just (ctxt, ApplyFun _ yn) ->
+       Just (ctxt, ApplyFun _ yn _) ->
           let kt'' = let subst = Subst (Map.fromList [(xn, yn)])
                      in reconstructTerm ctxt (apply subst kt)
               FreeVars ( freeVsCtxt ) = freeVars ctxt

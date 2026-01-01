@@ -48,22 +48,22 @@ instance FreeNames FunDef where
   freeVars (Fun fn klam) = restrictFree klam [fn]
 
 instance FreeNames SimpleTerm where
-  freeVars (Bin _ v1 v2) = FreeVars (Set.fromList [v1, v2])
-  freeVars (Un _ v) = FreeVars (Set.singleton v)
-  freeVars (ValSimpleTerm sval) = freeVars sval
-  freeVars (Tuple vs) = FreeVars (Set.fromList vs)
-  freeVars (List vs)  = FreeVars (Set.fromList vs)
-  freeVars (ListCons v1 v2) = FreeVars (Set.fromList [v1, v2])
+  freeVars (Bin _ v1 v2 _) = FreeVars (Set.fromList [v1, v2])
+  freeVars (Un _ v _) = FreeVars (Set.singleton v)
+  freeVars (ValSimpleTerm sval _) = freeVars sval
+  freeVars (Tuple vs _) = FreeVars (Set.fromList vs)
+  freeVars (List vs _)  = FreeVars (Set.fromList vs)
+  freeVars (ListCons v1 v2 _) = FreeVars (Set.fromList [v1, v2])
   freeVars (Base _ ) = FreeVars $ Set.empty
   freeVars (Lib _ _) = FreeVars $ Set.empty
-  freeVars (Record fields) = unionMany $ 
+  freeVars (Record fields _) = unionMany $
       map (\(f,x) -> FreeVars (if x == VN f then Set.empty else Set.singleton x))
       fields
-  freeVars (WithRecord x fields) = 
-    let _f = map (\(f,x) -> FreeVars ( if x == VN f then Set.empty else Set.singleton x)) fields in 
+  freeVars (WithRecord x fields _) =
+    let _f = map (\(f,x) -> FreeVars ( if x == VN f then Set.empty else Set.singleton x)) fields in
     unionMany $ (FreeVars (Set.singleton x)): _f
-  freeVars (ProjField x _) = FreeVars (Set.singleton x)
-  freeVars (ProjIdx x _) = FreeVars (Set.singleton x)
+  freeVars (ProjField x _ _) = FreeVars (Set.singleton x)
+  freeVars (ProjIdx x _ _) = FreeVars (Set.singleton x)
 
 freeOfLet d vs kt =
    (freeVars d) `unionFreeVars` (restrictFree kt vs)
@@ -71,24 +71,24 @@ freeOfLet d vs kt =
 instance FreeNames KTerm where
   freeVars (Error v _) = FreeVars (Set.singleton v)
 
-  freeVars (LetSimple vn st kt) = freeOfLet st [vn] kt
+  freeVars (LetSimple vn st kt _) = freeOfLet st [vn] kt
 
-  freeVars (LetRet (Cont vn kt')  kt) = freeOfLet kt [vn] kt'
+  freeVars (LetRet (Cont vn kt') kt _) = freeOfLet kt [vn] kt'
 
-  freeVars (LetFun fdefs kt) =
+  freeVars (LetFun fdefs kt _) =
      (unionMany (map freeVars fdefs)) `unionFreeVars` (restrictFree kt  (map fname fdefs))
         where fname (Fun n _) = n
 
-  freeVars (KontReturn v) = FreeVars (Set.singleton v)
+  freeVars (KontReturn v _) = FreeVars (Set.singleton v)
 
 --   freeVars (LetRet cdef@(Cont vn _) kt) =  freeOfLet cdef [vn] kt
 
-  freeVars (ApplyFun fn vn) = FreeVars (Set.fromList [fn, vn])
+  freeVars (ApplyFun fn vn _) = FreeVars (Set.fromList [fn, vn])
 
-  freeVars (If vn k1 k2) =
+  freeVars (If vn k1 k2 _) =
      unionMany [freeVars k1, freeVars k2, FreeVars (Set.singleton vn)]
 
   freeVars (AssertElseError vn k ve _) =
      unionMany [freeVars k, FreeVars $ Set.fromList [vn, ve] ]
 
-  freeVars (Halt x) = FreeVars (Set.singleton x)
+  freeVars (Halt x _) = FreeVars (Set.singleton x)

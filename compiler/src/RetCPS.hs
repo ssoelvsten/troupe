@@ -57,30 +57,30 @@ data FunDef = Fun VarName KLambda
 
 type Fields = [(Basics.FieldName, VarName)]
 data SimpleTerm
-   = Bin BinOp VarName VarName
-   | Un UnaryOp VarName
-   | ValSimpleTerm SVal
-   | Tuple [VarName]
-   | Record Fields 
-   | WithRecord VarName Fields
-   | ProjField VarName Basics.FieldName
-   | ProjIdx VarName Word
-   | List [VarName]
-   | ListCons VarName VarName
+   = Bin BinOp VarName VarName PosInf
+   | Un UnaryOp VarName PosInf
+   | ValSimpleTerm SVal PosInf
+   | Tuple [VarName] PosInf
+   | Record Fields PosInf
+   | WithRecord VarName Fields PosInf
+   | ProjField VarName Basics.FieldName PosInf
+   | ProjIdx VarName Word PosInf
+   | List [VarName] PosInf
+   | ListCons VarName VarName PosInf
    | Base Basics.VarName
    | Lib Basics.LibName Basics.VarName
      deriving (Eq, Show, Ord)
 
 data KTerm
-    = LetSimple VarName SimpleTerm KTerm
-    | LetFun [FunDef] KTerm
-    | LetRet ContDef KTerm
-    | KontReturn VarName
-    | ApplyFun VarName VarName
-    | If VarName KTerm KTerm
+    = LetSimple VarName SimpleTerm KTerm PosInf
+    | LetFun [FunDef] KTerm PosInf
+    | LetRet ContDef KTerm PosInf
+    | KontReturn VarName PosInf
+    | ApplyFun VarName VarName PosInf
+    | If VarName KTerm KTerm PosInf
     | AssertElseError VarName KTerm VarName PosInf
     | Error VarName PosInf
-    | Halt VarName
+    | Halt VarName PosInf
     -- ; aa; 2018-07-02; bringing Halt back because
     -- of exports
 
@@ -133,29 +133,29 @@ ppKTerm parentPrec t =
 textv (VN x) = text x
 
 ppSimpleTerm :: SimpleTerm -> PP.Doc
-ppSimpleTerm (Bin op (VN v1)  (VN v2)) =
+ppSimpleTerm (Bin op (VN v1)  (VN v2) _) =
   text v1 <+> text (show op) <+> text v2
-ppSimpleTerm (Un op (VN v)) =
+ppSimpleTerm (Un op (VN v) _) =
   text (show op) <+> text v
-ppSimpleTerm (ValSimpleTerm (Lit lit)) =
+ppSimpleTerm (ValSimpleTerm (Lit lit) _) =
   ppLit lit
-ppSimpleTerm (ValSimpleTerm (KAbs klam)) =
+ppSimpleTerm (ValSimpleTerm (KAbs klam) _) =
   ppKLambda klam
-ppSimpleTerm (Tuple vars) =
+ppSimpleTerm (Tuple vars _) =
   PP.parens $ PP.hsep $ PP.punctuate (text ",") (map textv vars)
-ppSimpleTerm (List vars) =
+ppSimpleTerm (List vars _) =
   PP.brackets $ PP.hsep $ PP.punctuate (text ",") (map textv vars)
-ppSimpleTerm (ListCons v1 v2) =
+ppSimpleTerm (ListCons v1 v2 _) =
   PP.parens $ textv v1 PP.<> text "::" PP.<> textv v2
 ppSimpleTerm (Base b) = text b PP.<> text "$base"
 ppSimpleTerm (Lib (Basics.LibName lib) v) = text lib <+> text "." <+> text v
-ppSimpleTerm (Record fields) = PP.braces $ qqFields fields 
-ppSimpleTerm (WithRecord x fields) = 
+ppSimpleTerm (Record fields _) = PP.braces $ qqFields fields
+ppSimpleTerm (WithRecord x fields _) =
     PP.braces $ PP.hsep [textv x, text "with", qqFields fields]
 
-ppSimpleTerm (ProjField x f) =
+ppSimpleTerm (ProjField x f _) =
   textv x PP.<> text "." PP.<> PP.text f
-ppSimpleTerm (ProjIdx x idx) =
+ppSimpleTerm (ProjIdx x idx _) =
   textv x PP.<> text "." PP.<> PP.text (show idx)
 
 qqFields fields =
@@ -178,10 +178,10 @@ ppKTerm'  (Error v _) = text "error" PP.<> textv v
 --ppKTerm' (ApplyKont kname varname) =
 --    text (show kname) <+> textv varname
 
-ppKTerm' (Halt varname) =
+ppKTerm' (Halt varname _) =
   text "halt" <+> textv varname
 
-ppKTerm' (KontReturn varname) =
+ppKTerm' (KontReturn varname _) =
   text "return" <+> textv varname
 
 -- ppKTerm' (LetRet kname kterm) =
@@ -190,24 +190,24 @@ ppKTerm' (KontReturn varname) =
 --   nest 3 (ppKTerm 0 kterm) $$
 --   text "end"
 
-ppKTerm' (ApplyFun fname varname) =
+ppKTerm' (ApplyFun fname varname _) =
     textv fname <+> textv varname
 
-ppKTerm' (LetSimple x t k) =
+ppKTerm' (LetSimple x t k _) =
   text "let-simple" <+>
   nest 3 (textv x <+> text "=" <+> ppSimpleTerm t) $$
   text "in" <+>
   nest 3 (ppKTerm 0 k) $$
   text "end"
 
-ppKTerm' (LetRet (Cont pat kt1) kt2) =
+ppKTerm' (LetRet (Cont pat kt1) kt2 _) =
   text "let-ret" <+>
   nest 3 (textv pat <+> text "=" <+> ppKTerm' kt1) $$
   text "in" <+>
   nest 3 (ppKTerm 0 kt2) $$
   text "end"
 
-ppKTerm' (LetFun fdefs kt) =
+ppKTerm' (LetFun fdefs kt _) =
   text "let-fun" <+>
   nest 3 (ppFuns (map ppFunDecl fdefs)) $$
   text "in" <+>
@@ -225,7 +225,7 @@ ppKTerm' (LetFun fdefs kt) =
       in ppFirstFun doc $$ vcat (map ppOtherFun docs)
     ppFuns _ = PP.empty
 
-ppKTerm' (If vname kt1 kt2) =
+ppKTerm' (If vname kt1 kt2 _) =
   text "if" <+>
   textv vname $$
   text "then" <+>
@@ -254,14 +254,14 @@ maxPrec :: Precedence
 maxPrec = 100000
 
 termPrec :: KTerm -> Precedence
-termPrec (Halt _)       = maxPrec
-termPrec (ApplyFun _ _) = appPrec
-termPrec (KontReturn _)    = appPrec
-termPrec (If _ _ _)        = 0
-termPrec (LetSimple _ _ _) = 0
+termPrec (Halt _ _)       = maxPrec
+termPrec (ApplyFun _ _ _) = appPrec
+termPrec (KontReturn _ _)    = appPrec
+termPrec (If _ _ _ _)        = 0
+termPrec (LetSimple _ _ _ _) = 0
 -- termPrec (LetCont   _ _)   = 0
-termPrec (LetFun    _ _)   = 0
+termPrec (LetFun    _ _ _)   = 0
 --termPrec (Case _ _)        = 0
-termPrec (LetRet _ _) = 0
+termPrec (LetRet _ _ _) = 0
 termPrec (AssertElseError _ _ _ _) = 0
 termPrec (Error _ _) = 0
