@@ -26,7 +26,7 @@ import qualified Data.ByteString.Lazy.Char8 as BSLazyChar8
 import qualified Data.ByteString.Lazy as BL
 import Data.Aeson (encode)
 import System.IO
-import TroupeSourceMap (emptySourceMap)
+import TroupeSourceMap (buildSourceMap)
 import System.Exit
 import ProcessImports
 import AddAmbientMethods
@@ -164,14 +164,14 @@ process flags fname input = do
       when verbose $ writeFileD "out/out.stack" (show stack)
 
       ----- JAVASCRIPT -------------------------------------
-      let stackjs = Stack2JS.stack2JSString compileMode
-                                            debugJS
-                                            (Stack.ProgramStackUnit stack)
+      let (stackjs, mappings) = Stack2JS.stack2JSWithMappings compileMode
+                                                              debugJS
+                                                              (Stack.ProgramStackUnit stack)
       writeFile outPath stackjs
 
       ----- SOURCE MAP -------------------------------------
       when sourceMapEnabled $ do
-        let mapJson = emptySourceMap outPath
+        let mapJson = buildSourceMap outPath mappings
         BL.writeFile (outPath ++ ".map") (encode mapJson)
 
       -- case compileMode of Library -> ...

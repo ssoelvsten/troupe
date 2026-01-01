@@ -24,8 +24,8 @@ Implement V3 source maps so all Troupe runtime errors show source location (`fil
 | 9 | Direct + PosInf | Direct.hs, Parser.y | DONE | [phase-09-direct.md](phase-09-direct.md) |
 | 10 | Capture positions in Parser | Parser.y | DONE | [phase-10-parser-positions.md](phase-10-parser-positions.md) |
 | 11 | Thread positions through pipeline | CaseElimination.hs, Core.hs, etc. | DONE | [phase-11-threading.md](phase-11-threading.md) |
-| 12 | Emit real source maps | Stack2JS.hs, Main.hs | **NEXT** | [phase-12-emit-source-maps.md](phase-12-emit-source-maps.md) |
-| 13 | Runtime source map resolver | SourceMapResolver.mts, Thread.mts | Pending | [phase-13-runtime-resolver.md](phase-13-runtime-resolver.md) |
+| 12 | Emit real source maps | Stack2JS.hs, Main.hs | DONE | [phase-12-emit-source-maps.md](phase-12-emit-source-maps.md) |
+| 13 | Runtime source map resolver | SourceMapResolver.mts, Thread.mts | **NEXT** | [phase-13-runtime-resolver.md](phase-13-runtime-resolver.md) |
 | 14 | Error message positions | Asserts.mts, BuiltinArith.mts | Pending | [phase-14-position-params.md](phase-14-position-params.md) |
 
 ---
@@ -77,6 +77,35 @@ Each phase:
 ---
 
 ## Implementation Progress
+
+### Phase 12: Emit Real Source Maps - COMPLETE (2026-01-01)
+
+**All tests pass (397/397)**
+
+**Files modified**:
+- `compiler/src/Stack2JS.hs` - Major changes for source map generation:
+  - Added `markerCounter` to `TheState` for unique marker IDs
+  - Extended `WData` tuple to include `[MarkerData]` for collecting marker positions
+  - Added `emitMarker :: PosInf -> W PP.Doc` function to generate marker comments for real positions
+  - Added `stack2JSWithMappings` function that returns both JS code and source map mappings
+  - Added `processMarkers`, `scanLines`, `processLine`, and `parseMarker` functions to:
+    - Scan rendered output for `/*SM:123*/` markers
+    - Look up source positions from collected marker data
+    - Generate source map mappings using `collectMapping`
+    - Strip markers from final output
+  - Updated `ir2js` for `AssignRaw`, `AssignLVal` to emit markers
+  - Updated `tr2js` for `If` and `Error` terminators to emit markers
+  - Updated all `tell` calls and pattern matches for extended `WData` tuple
+- `compiler/app/Main.hs` - Updated to use new source map generation:
+  - Changed import from `emptySourceMap` to `buildSourceMap`
+  - Updated JavaScript generation to use `stack2JSWithMappings`
+  - Pass real mappings to `buildSourceMap` instead of empty list
+
+**Source map output**: The compiler now generates valid V3 source maps with VLQ-encoded mappings when `--source-map` flag is used. Currently captures positions for `if` statements and some assignments where source positions are available.
+
+**Note**: The number of mappings depends on how many positions flow through the pipeline. Currently `If` terminators capture positions well because they have real `SrcPosInf` positions. More constructs will gain mappings as more positions are threaded through in earlier phases.
+
+---
 
 ### Phase 11: Thread Positions Through Pipeline - COMPLETE (2026-01-01)
 

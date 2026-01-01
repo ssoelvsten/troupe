@@ -55,6 +55,8 @@ import Text.PrettyPrint.HughesPJ (
     (<+>), ($$), text, hsep, vcat, nest)
 import Data.Aeson (ToJSON(toJSON), Value)
 import DCLabels (dcLabelExpToDCLabel)
+import SourceMap.Types (Mapping(..))
+import TroupeSourceMap (collectMapping)
 
 
 data LibAccess = LibAccess Basics.LibName Basics.VarName
@@ -87,11 +89,16 @@ data TheState = TheState { freshCounter :: Integer
                          , frameSize    :: Int
                          , sparseSlot   :: Int
                          , consts       :: Raw.Consts
-                         , stHFN        :: IR.HFN }
+                         , stHFN        :: IR.HFN
+                         , markerCounter :: Int  -- Counter for source map markers
+                         }
 
 type RetKontText = PP.Doc
 
-type WData = ([LibAccess], [Basics.AtomName], [RetKontText])
+-- | Marker data: (marker ID, source position info)
+type MarkerData = (Int, PosInf)
+
+type WData = ([LibAccess], [Basics.AtomName], [RetKontText], [MarkerData])
 type W = RWS Bool WData TheState
 
 
@@ -100,9 +107,29 @@ initState = TheState { freshCounter = 0
                      , sparseSlot = error "sparseSlot should not be accessed yet"
                      , consts = error "consts should not be accessed yet"
                      , stHFN = error "stHFN should not be accessed yet"
+                     , markerCounter = 0
                      }
 
 a $$+ b  = a $$ (nest 2 b)
+
+-- | Emit a source map marker comment and record the mapping.
+-- Returns a PP.Doc containing the marker comment, or empty if position is NoPos/RTGen.
+emitMarker :: PosInf -> W PP.Doc
+emitMarker pos = case pos of
+  p@(SrcPosInf {}) -> do
+    markerId <- gets markerCounter
+    modify (\s -> s { markerCounter = markerId + 1 })
+    tell ([], [], [], [(markerId, p)])
+    return $ text ("/*SM:" ++ show markerId ++ "*/")
+  _ -> return PP.empty
+
+-- | Generate marker prefix for source positions.
+-- Format: /*SM:123*/ where 123 is a unique marker ID
+markerPrefix :: String
+markerPrefix = "/*SM:"
+
+markerSuffix :: String
+markerSuffix = "*/"
 
 
 
@@ -140,7 +167,7 @@ class ToJS a where
 stack2PPDoc :: CompileMode -> Bool -> StackUnit -> (PP.Doc, WData)
 
 stack2PPDoc compileMode debugMode (ProgramStackUnit sp) =
-  let (fns, _, w@(libs, atoms, konts)) = runRWS (toJS sp) debugMode initState
+  let (fns, _, w@(libs, atoms, konts, markers)) = runRWS (toJS sp) debugMode initState
       inner = vcat $
         [ jsLoadLibs
         , addLibs libs
@@ -158,7 +185,7 @@ stack2PPDoc compileMode debugMode (ProgramStackUnit sp) =
   in (ppDoc, w)
 
 stack2PPDoc _           debugMode su =
-  let (inner, _, w@(libs, _, konts)) = runRWS (toJS su) debugMode initState
+  let (inner, _, w@(libs, _, konts, markers)) = runRWS (toJS su) debugMode initState
       ppDoc = vcat $ [ addLibs libs ] ++ (inner:konts)
   in (ppDoc, w)
 
@@ -168,10 +195,82 @@ stack2JSString compileMode debugMode su =
   let (ppDoc, _) = stack2PPDoc compileMode debugMode su
   in PP.render ppDoc
 
+-- | Generate JS string and source map mappings
+-- Returns (JS code with markers stripped, list of source map mappings)
+stack2JSWithMappings :: CompileMode -> Bool -> StackUnit -> (String, [Mapping])
+stack2JSWithMappings compileMode debugMode su =
+  let (ppDoc, (_, _, _, markerData)) = stack2PPDoc compileMode debugMode su
+      rendered = PP.render ppDoc
+      (cleanCode, mappings) = processMarkers rendered markerData
+  in (cleanCode, mappings)
+
+-- | Process markers in rendered output to generate source map mappings
+-- Returns (code with markers stripped, list of mappings)
+processMarkers :: String -> [MarkerData] -> (String, [Mapping])
+processMarkers code markerData =
+  let markerMap = markerData  -- List of (markerId, srcPos)
+      -- Scan the code to find marker positions and build mappings
+      (cleanLines, mappings) = scanLines (lines code) markerMap 1 [] []
+  in (unlines' cleanLines, mappings)
+  where
+    -- Rejoin lines without adding trailing newline if original didn't have one
+    unlines' [] = ""
+    unlines' xs = intercalate "\n" xs
+
+-- | Scan lines for markers and build mappings
+scanLines :: [String]      -- Lines to process
+          -> [MarkerData]  -- Marker data (id, srcPos)
+          -> Int           -- Current line number (1-based)
+          -> [String]      -- Accumulated clean lines
+          -> [Mapping]     -- Accumulated mappings
+          -> ([String], [Mapping])
+scanLines [] _ _ accLines accMappings = (reverse accLines, reverse accMappings)
+scanLines (line:rest) markerData lineNum accLines accMappings =
+  let (cleanLine, lineMappings) = processLine line markerData lineNum
+  in scanLines rest markerData (lineNum + 1) (cleanLine:accLines) (lineMappings ++ accMappings)
+
+-- | Process a single line, extracting markers and generating mappings
+processLine :: String -> [MarkerData] -> Int -> (String, [Mapping])
+processLine line markerData lineNum = go line 1 "" []
+  where
+    go :: String -> Int -> String -> [Mapping] -> (String, [Mapping])
+    go [] _ acc mappings = (reverse acc, mappings)
+    go s@(c:cs) col acc mappings
+      | markerPrefix `isPrefixOf` s =
+          case parseMarker s of
+            Just (markerId, remaining) ->
+              -- Found a marker, look up source position
+              case lookup markerId markerData of
+                Just srcPos ->
+                  -- Create mapping: source position -> current output position
+                  let newMapping = case collectMapping srcPos lineNum col of
+                        Just m -> [m]
+                        Nothing -> []
+                  in go remaining col acc (newMapping ++ mappings)
+                Nothing ->
+                  -- Marker not found in data, skip it
+                  go remaining col acc mappings
+            Nothing ->
+              -- Not a valid marker, include character
+              go cs (col + 1) (c:acc) mappings
+      | otherwise = go cs (col + 1) (c:acc) mappings
+
+-- | Parse a marker from string, returning (markerId, remaining string) or Nothing
+parseMarker :: String -> Maybe (Int, String)
+parseMarker s
+  | markerPrefix `isPrefixOf` s =
+      let afterPrefix = drop (length markerPrefix) s
+          (digits, afterDigits) = span isDigit afterPrefix
+      in if not (null digits) && markerSuffix `isPrefixOf` afterDigits
+         then Just (read digits, drop (length markerSuffix) afterDigits)
+         else Nothing
+  | otherwise = Nothing
+  where
+    isDigit c = c >= '0' && c <= '9'
 
 stack2JSON :: CompileMode -> Bool -> StackUnit -> ByteString
 stack2JSON compileMode debugMode su =
-  let (ppDoc, (libs, atoms, konts)) = stack2PPDoc compileMode debugMode su
+  let (ppDoc, (libs, atoms, konts, _markers)) = stack2PPDoc compileMode debugMode su
       fname = case su of FunStackUnit (FunDef (HFN n) _ _ _ _) -> Just n
                          AtomStackUnit _                       -> Nothing
                          ProgramStackUnit _                    -> error "Internal error: stack2JSON called with ProgramStackUnit"
@@ -340,20 +439,22 @@ unaryOpToJS = \case
 -- omit _ = PP.empty 
 
 ir2js :: StackInst -> W PP.Doc
-ir2js (AssignRaw tt vn e _pos) = do
+ir2js (AssignRaw tt vn e pos) = do
+  marker <- emitMarker pos
   jj <- toJS e
   let pfx = case tt of
                AssignConst -> text "const"
                AssignLet   -> text "let"
                AssignMut   -> PP.empty
-  return $ semi $ pfx <+> ppId vn <+> text "=" <+> jj
+  return $ marker PP.<> semi (pfx <+> ppId vn <+> text "=" <+> jj)
 
 -- Note: Technically this is handled in the same way as 'AssignRaw' (with 'AssignConst'),
 -- because in JS it is just an assignment to a variable.
 -- The only difference to AssignRaw is the type of variable name (here 'VarName', there 'RawVar') (even though both are wrappers for String)
-ir2js (AssignLVal vn cexpr _pos) = do
+ir2js (AssignLVal vn cexpr pos) = do
+  marker <- emitMarker pos
   d <- toJS cexpr
-  return $ semi $ ppLet vn <+> d
+  return $ marker PP.<> semi (ppLet vn <+> d)
 
 
 ir2js (FetchStack x i _pos) = return $
@@ -459,7 +560,7 @@ tr2js (StackExpand bb bb2 _pos) = do
                     ]
 
 
-    tell ([], [], [jsKont] )
+    tell ([], [], [jsKont], [])
     return $ vcat [
       "_SP_OLD = _SP; ", -- 2021-04-23; hack ! ;AA
       "_SP = _SP + " <+> text (show (_frameSize + 5)) <+> ";",
@@ -476,13 +577,14 @@ tr2js (StackExpand bb bb2 _pos) = do
 
 
 
-tr2js (If va bb1 bb2 _pos) = do
+tr2js (If va bb1 bb2 pos) = do
+  marker <- emitMarker pos
   js1 <- toJS bb1
   js2 <- toJS bb2
   return $
     vcat [
       -- jsFunCall (text "rt.branch") [ppId va],
-      text "if" <+> PP.parens ( ppId va) <+> text "{",
+      marker PP.<> text "if" <+> PP.parens ( ppId va) <+> text "{",
       nest 2 js1,
       text "} else {",
       nest 2 js2,
@@ -494,8 +596,9 @@ tr2js (If va bb1 bb2 _pos) = do
 tr2js (Ret _pos) = return $
   jsFunCall (text "return _T.returnImmediate") []
 
-tr2js (Error va pos) = return $
-  (jsFunCall (text "rt.rawErrorPos")) [ppId va, ppPosInfo pos]
+tr2js (Error va pos) = do
+  marker <- emitMarker pos
+  return $ marker PP.<> (jsFunCall (text "rt.rawErrorPos")) [ppId va, ppPosInfo pos]
 
 tr2js (TailCall va1 _pos) = return $
     "return" <+> ppId va1
@@ -584,11 +687,11 @@ instance ToJS RawExpr where
         text "rt.mkV1Label" <> (PP.parens . PP.doubleQuotes) (text s)
       Const lit -> do
         case lit of
-          C.LAtom atom -> tell ([], [atom], [])
+          C.LAtom atom -> tell ([], [atom], [], [])
           _ -> return ()
         return $ ppLit lit
       Lib lib'@(Basics.LibName libname) varname -> do
-        tell ([LibAccess lib' varname], [], [])
+        tell ([LibAccess lib' varname], [], [], [])
         return $
           text "rt.loadLib" <> PP.parens ((PP.doubleQuotes.text) libname <> text ", " <> (PP.doubleQuotes.text) varname <> text ", this")
       ConstructLVal r1 r2 r3 -> return $
