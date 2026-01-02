@@ -374,3 +374,9 @@ modularly tested.
 
 All estimates should be given in the degree of autonomy (as opposed to weeks that make little sense 
 for the agent-assisted development)
+
+
+## Choosing between the cleanest and the partial easy solutions.
+
+When choosing between the obviosuly clean but laborious approach and 
+a quick easy but partial solution, in this code base we almost always want to do the clean thing that is _right_! 

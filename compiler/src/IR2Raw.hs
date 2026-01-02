@@ -43,16 +43,24 @@ import IR (VarAccess(..))
 import Raw
 import RetCPS(VarName(..))
 import Control.Monad
-import Control.Monad.Trans.RWS(RWS, evalRWS, ask, get, put, tell, censor, listen)
+import Control.Monad.Trans.RWS(RWS, evalRWS, ask, get, put, tell, censor, listen, local)
 import TroupePositionInfo (PosInf(..))
 
 -- ===== Monad definition =====
 
 -- | Translation monad
--- Reader: currently not used
+-- Reader: current source position for generated instructions
 -- Writer: collected instructions
 -- State: counter for fresh variables
-type TM = RWS () [RawInst] Int
+type TM = RWS PosInf [RawInst] Int
+
+-- | Get the current source position from the reader context.
+currentPos :: TM PosInf
+currentPos = ask
+
+-- | Run a computation with a specific source position.
+withPos :: PosInf -> TM a -> TM a
+withPos pos = local (const pos)
 
 -- | Execute the given TM computation, returning the result value and the generated instructions,
 -- removing them from the resulting computation (but keeping the counter).
@@ -132,17 +140,19 @@ freshLValVar = do
   i <- nextVarNum
   return $ VN ("lval" ++ show i)
 
--- | Assign an expression to a Raw variable.
+-- | Assign an expression to a Raw variable using the current position context.
 assignRExpr :: RawExpr -> TM RawVar
 assignRExpr e = do
   r <- freshRawVar
-  tell [AssignRaw r e NoPos]
+  pos <- currentPos
+  tell [AssignRaw r e pos]
   return r
 
--- | Assign an expression to the given variable.
+-- | Assign an expression to the given variable using the current position context.
 assignLVal :: VarName -> RawExpr -> TM ()
 assignLVal vn e = do
-  tell [AssignLVal vn e NoPos]
+  pos <- currentPos
+  tell [AssignLVal vn e pos]
 
 -- | Assign an expression to a new variable representing a labelled value.
 assignLVal' :: RawExpr -> TM VarAccess
@@ -153,7 +163,7 @@ assignLVal' e = do
 
 -- | Construct a labelled value in the runtime from the given 'LVal' and assign it to the given variable.
 constructLVal :: VarName -> LVal -> TM ()
-constructLVal vn LVal{..} = assignLVal vn $ ConstructLVal rVal rValLbl rTyLbl
+constructLVal vn LVal{..} = assignLVal vn (ConstructLVal rVal rValLbl rTyLbl)
 
 -- | Construct a labelled value in the runtime from the given 'LVal' and assign it to a new variable.
 constructLVal' :: LVal -> TM VarAccess
@@ -166,9 +176,10 @@ getLVal va = do
   rVal <- freshRawVarWith "_val_"
   rValLbl <- freshRawVarWith "_vlbl_"
   rTyLbl <- freshRawVarWith "_tlbl_"
+  pos <- currentPos
 
   mapM_
-    (\(r, f) -> tell [AssignRaw r (ProjectLVal va f) NoPos])
+    (\(r, f) -> tell [AssignRaw r (ProjectLVal va f) pos])
     [ (rVal, FieldValue),
       (rValLbl, FieldValLev),
       (rTyLbl, FieldTypLev)
@@ -179,10 +190,11 @@ getLVal va = do
 -- | Generate instructions setting the three parts of the R0 register
 -- to the values of the given 'RawVar's.
 setR0 :: LVal -> TM ()
-setR0 LVal{..} =
-    tell [ SetState R0_Val rVal NoPos
-         , SetState R0_Lev rValLbl NoPos
-         , SetState R0_TLev rTyLbl NoPos
+setR0 LVal{..} = do
+    pos <- currentPos
+    tell [ SetState R0_Val rVal pos
+         , SetState R0_Lev rValLbl pos
+         , SetState R0_TLev rTyLbl pos
          ]
 
 -- | Generate instructions assigning the three parts of the R0 register
@@ -192,9 +204,10 @@ getR0 = do
   rVal <- freshRawVarWith "_$reg0_val_"
   rValLbl <- freshRawVarWith "_$reg0_vlbl_"
   rTyLbl <- freshRawVarWith "_$reg0_tlbl_"
-  tell [ AssignRaw rVal (ProjectState R0_Val) NoPos
-       , AssignRaw rValLbl (ProjectState R0_Lev) NoPos
-       , AssignRaw rTyLbl (ProjectState R0_TLev) NoPos
+  pos <- currentPos
+  tell [ AssignRaw rVal (ProjectState R0_Val) pos
+       , AssignRaw rValLbl (ProjectState R0_Lev) pos
+       , AssignRaw rTyLbl (ProjectState R0_TLev) pos
        ]
   return LVal{..}
 
@@ -203,7 +216,8 @@ getR0 = do
 getVal :: VarAccess -> TM RawVar
 getVal va = do
     rVal <- freshRawVarWith "_val_"
-    tell [AssignRaw rVal (ProjectLVal va FieldValue) NoPos]
+    pos <- currentPos
+    tell [AssignRaw rVal (ProjectLVal va FieldValue) pos]
     return rVal
 
 -- | Special case projection for self-references
@@ -216,7 +230,8 @@ projectLVal va field = ProjectLVal va field
 getValLbl :: VarAccess -> TM RawVar
 getValLbl va = do
     rValLbl <- freshRawVarWith "_vlbl_"
-    tell [AssignRaw rValLbl (projectLVal va FieldValLev) NoPos]
+    pos <- currentPos
+    tell [AssignRaw rValLbl (projectLVal va FieldValLev) pos]
     return rValLbl
 
 -- | Generate instructions assigning the type label of the given runtime LVal
@@ -224,21 +239,24 @@ getValLbl va = do
 getTyLbl :: VarAccess -> TM RawVar
 getTyLbl va = do
     rTyLbl <- freshRawVarWith "_tlbl_"
-    tell [AssignRaw rTyLbl (projectLVal va FieldTypLev) NoPos]
+    pos <- currentPos
+    tell [AssignRaw rTyLbl (projectLVal va FieldTypLev) pos]
     return rTyLbl
 
 -- | Generate instructions assigning the current PC label to a new Raw variable.
 getPC :: TM RawVar
 getPC = do
     pc <- freshRawVarWith "_pc_"
-    tell [AssignRaw pc (ProjectState MonPC) NoPos]
+    pos <- currentPos
+    tell [AssignRaw pc (ProjectState MonPC) pos]
     return pc
 
 -- | Generate instructions assigning the current blocking label to a new Raw variable.
 getBlock :: TM RawVar
 getBlock = do
     bl <- freshRawVarWith "_bl_"
-    tell [AssignRaw bl (ProjectState MonBlock) NoPos]
+    pos <- currentPos
+    tell [AssignRaw bl (ProjectState MonBlock) pos]
     return bl
 
 -- | Generate instructions raising the PC with the label in the given variable.
@@ -247,8 +265,9 @@ _raisePC :: RawVar -> TM ()
 _raisePC raiseBy = do
   pc <- getPC
   pc' <- freshRawVarWith "_pc_"
-  tell [ AssignRaw pc' (_default_bin Basics.LatticeJoin pc raiseBy) NoPos
-       , SetState MonPC pc' NoPos
+  pos <- currentPos
+  tell [ AssignRaw pc' (_default_bin Basics.LatticeJoin pc raiseBy) pos
+       , SetState MonPC pc' pos
        ]
 
 _default_bin op r1 r2 = Bin op (UseNativeBinop False) r1 r2
@@ -259,8 +278,9 @@ _raiseBlock :: RawVar -> TM ()
 _raiseBlock raiseBy = do
   bl  <- getBlock
   bl' <- freshRawVarWith "_bl_"
-  tell [ AssignRaw bl' (_default_bin Basics.LatticeJoin bl raiseBy) NoPos
-       , SetState MonBlock bl' NoPos
+  pos <- currentPos
+  tell [ AssignRaw bl' (_default_bin Basics.LatticeJoin bl raiseBy) pos
+       , SetState MonBlock bl' pos
        ]
 
 -- | Generate instructions raising both PC and blocking label with the label in the given variable.
@@ -284,7 +304,8 @@ assertTypeAndRaise :: VarAccess -> RawType -> TM ()
 assertTypeAndRaise va t = do
   raiseBlock $ TyLbl va
   r <- getVal va
-  tell [ RTAssertion (AssertType r t) NoPos ]
+  pos <- currentPos
+  tell [ RTAssertion (AssertType r t) pos ]
 
 -- Note: Currently, RT does not support general type equality check.
 -- assertEqTypes :: [RawType] -> RawVar -> RawVar -> TM ()
@@ -296,7 +317,8 @@ assertTypesBothStringsOrBothNumbers va1 va2 = do
   raiseBlock $ Join (TyLbl va1) (TyLbl va2) []
   r1 <- getVal va1
   r2 <- getVal va2
-  tell [RTAssertion (AssertTypesBothStringsOrBothNumbers r1 r2) NoPos]
+  pos <- currentPos
+  tell [RTAssertion (AssertTypesBothStringsOrBothNumbers r1 r2) pos]
 
 -- | Generate instructions raising the blocking label with the value label of the
 -- given runtime LVal and an assertion based on the value, specified by the given function.
@@ -304,11 +326,14 @@ assertWithValAndRaise :: VarAccess -> (RawVar -> RTAssertion) -> TM ()
 assertWithValAndRaise va f = do
   raiseBlock $ ValLbl va
   r <- getVal va
-  tell [RTAssertion (f r) NoPos]
+  pos <- currentPos
+  tell [RTAssertion (f r) pos]
 
 -- | See 'InvalidateSparseBit'.
 invalidateSparseBit :: TM ()
-invalidateSparseBit = tell [InvalidateSparseBit NoPos]
+invalidateSparseBit = do
+  pos <- currentPos
+  tell [InvalidateSparseBit pos]
 
 
 -- ===== Translations from the defined abstractions to Raw instructions =====
@@ -350,11 +375,12 @@ compLabel = \case
   Join c1 c2 cs -> do
     r <- compLabel c1
     rs <- mapM compLabel (c2:cs)
+    pos <- currentPos
     if null rs
     then return r
     else foldM (\(r1 :: RawVar) (r2 :: RawVar) -> do
                    r' :: RawVar <- freshRawVarWith "_lbl_"
-                   tell [ AssignRaw r' (_default_bin Basics.LatticeJoin r1 r2) NoPos ]
+                   tell [ AssignRaw r' (_default_bin Basics.LatticeJoin r1 r2) pos ]
                    return r'
                ) r rs
   PC -> getPC
@@ -653,7 +679,8 @@ expr2rawComp = \case
 inst2raw :: IR.IRInst -> TM ()
 inst2raw = \case
   -- Note: This is the only place where expressions occur in an IR program.
-  IR.Assign vn expr _pos -> do
+  -- We use withPos to set the position context for all generated instructions.
+  IR.Assign vn expr pos -> withPos pos $ do
     LVal{..} <- expr2raw expr
     -- Joining PC to be safe, even though for now PC is always joined when computing the expression (and it will be optimized away).
     rValLbl' <- compLabel $ Join PC (Lbl rValLbl) []
@@ -700,7 +727,7 @@ tr2raw = \case
     -- Note: The raise here is redundant because we have already raised by the value label above.
     -- However, optimizations aware of the relation between type- and value label will remove it.
     assertTypeAndRaise v RawBoolean
-    tell [ SetBranchFlag NoPos ]
+    tell [ SetBranchFlag pos ]
     r <- getVal v
     return $ If r bb1' bb2' pos
 
@@ -763,7 +790,7 @@ tree2raw (IR.BB irInsts irTr) = do
 fun2raw :: IR.FunDef -> FunDef
 fun2raw irfdef@(IR.FunDef hfn vname consts (IR.BB irInsts irTr) pos) =
    FunDef hfn rawConsts (BB insts tr) irfdef pos
-      where ((tr, rawConsts), insts) = evalRWS comp () 0
+      where ((tr, rawConsts), insts) = evalRWS comp NoPos 0
             comp = do
               -- Store the argument from R0 in the variable under which the argument is expected.
               r0 <- getR0
