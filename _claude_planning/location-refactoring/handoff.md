@@ -29,7 +29,7 @@ After completing the stage:
 | 2     | Parser + Direct                 | Complete    | 9a95cb5 |
 | 3     | DirectWOPats + Core             | Complete    | b327d9a |
 | 4     | CPS                             | Complete    | d787a72 |
-| 5     | IR                              | Complete    | f19977f |
+| 5     | IR                              | Complete    | f7b6511 |
 | 6     | Raw + Stack                     | Not started | -       |
 | 7     | Code generation + source maps   | Not started | -       |
 | 8     | Cleanup                         | Not started | -       |
