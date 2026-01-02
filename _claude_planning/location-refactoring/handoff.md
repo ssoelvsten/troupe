@@ -2,7 +2,7 @@
 
 ## Current Phase
 
-**STAGE: 1 - COMPLETE** (pending commit and test verification)
+**STAGE: 3 - NOT STARTED**
 
 ## How to Continue
 
@@ -23,26 +23,37 @@ After completing the stage:
 
 ## Progress Tracker
 
-| Stage | Description                     | Status      | Commit |
-|-------|---------------------------------|-------------|--------|
-| 1     | Infrastructure                  | Complete    | TBD    |
-| 2     | Parser + Direct                 | Not started | -      |
-| 3     | DirectWOPats + Core             | Not started | -      |
-| 4     | CPS                             | Not started | -      |
-| 5     | IR                              | Not started | -      |
-| 6     | Raw + Stack                     | Not started | -      |
-| 7     | Code generation + source maps   | Not started | -      |
-| 8     | Cleanup                         | Not started | -      |
+| Stage | Description                     | Status      | Commit  |
+|-------|---------------------------------|-------------|---------|
+| 1     | Infrastructure                  | Complete    | a8341b7 |
+| 2     | Parser + Direct                 | Complete    | 9a95cb5 |
+| 3     | DirectWOPats + Core             | Not started | -       |
+| 4     | CPS                             | Not started | -       |
+| 5     | IR                              | Not started | -       |
+| 6     | Raw + Stack                     | Not started | -       |
+| 7     | Code generation + source maps   | Not started | -       |
+| 8     | Cleanup                         | Not started | -       |
 
 ## Next Action
 
-**After verifying tests pass and committing Stage 1**: Proceed to Stage 2 in a fresh context. Read [stage-2-parser-direct.md](stage-2-parser-direct.md) and implement.
+**Execute Stage 3**: Read [stage-3-core.md](stage-3-core.md) and implement in a fresh context.
 
 ## Stage 1 Implementation Notes
 
 - Constructor renamed from `L` to `Loc` to avoid conflict with `Lexer.L` (which wraps tokens)
 - All stage documents have been updated to use `Loc` instead of `L`
 - Fixed pre-existing bugs in `ir2raw-test` test files (wrong `FunDef` arity)
+
+## Stage 2 Implementation Notes
+
+- Added type aliases `LTerm`, `LDecl`, `LDeclPattern`, `LFunDecl`, `LFields` to Direct.hs
+- Updated all Term constructors to use Located wrappers for sub-terms
+- Parser.y: Added `atPos` helper to create Located values from token positions
+- Updated all grammar rules to produce Located terms and patterns
+- CaseElimination.hs: Added `transLTerm` adapter function that extracts position from Located wrapper and embeds it in DirectWOPats terms (maintains backward compatibility)
+- Updated Exports.hs, AtomFolding.hs, AddAmbientMethods.hs to work with new Located types
+- Golden tests for pattern match errors updated: positions now point to the actual pattern location (more accurate) rather than the `val` keyword
+- Literal patterns in Parser now get proper positions (NUM, FLOAT, STRING, true, false, LABEL, DCLabel)
 
 ## Stage Documents
 
