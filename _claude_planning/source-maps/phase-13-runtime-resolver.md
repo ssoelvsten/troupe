@@ -190,4 +190,4 @@ Run a program that triggers an IFC error or type error. Verify source location a
 
 ## Next Phase
 
-After completing this phase, proceed to [Phase 14: Direct Position Parameters](phase-14-position-params.md).
+After completing this phase, proceed to [Phase 14: Error Message Positions](phase-14-position-params.md).

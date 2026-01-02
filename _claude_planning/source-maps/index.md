@@ -25,59 +25,23 @@ Implement V3 source maps so all Troupe runtime errors show source location (`fil
 | 10    | Capture positions in Parser                      | DONE     | [phase-10-parser-positions.md](phase-10-parser-positions.md)     |
 | 11    | Thread positions through pipeline                | DONE     | [phase-11-threading.md](phase-11-threading.md)                   |
 | 12    | Emit real source maps                            | DONE     | [phase-12-emit-source-maps.md](phase-12-emit-source-maps.md)     |
-| 14    | Runtime source map resolver                      | NEXT  | [phase-14-runtime-resolver.md](phase-14-runtime-resolver.md)     |
-| 15    | Error message positions                          | Pending  | [phase-15-position-params.md](phase-15-position-params.md)       |
+| 13    | Runtime source map resolver                      | NEXT     | [phase-13-runtime-resolver.md](phase-13-runtime-resolver.md)     |
+| 14    | Error message positions                          | Pending  | [phase-14-position-params.md](phase-14-position-params.md)       |
 
 ---
 
-## Phase 13: Revised Approach (Non-Breaking)
-
-### Problem with Original Plan
-
-The original phases 13a-13j proposed changing type definitions (e.g., `SimpleTerm` from `VarName` to `PosVar`) which would immediately break all modules that pattern-match on those types.
-
-### Solution: Additive Position Fields
-
-Instead of breaking changes, we:
-1. Add **new** `PosInf` position fields to types
-2. Work **backwards** from Stack2JS to CPS
-3. Default to `NoPos`, so existing code continues to work
-4. Gradually enable position capture
-
-Note: We use plain `PosInf` (not `Maybe PosInf`) since `PosInf` already has a `NoPos` constructor.
-
-### Revised Phase Structure
-
-| Phase | Description                                          | Key Files                            | Breaks? |
-|-------|------------------------------------------------------|--------------------------------------|---------|
-| 13a   | Add PosVar/PosField helper types (infrastructure)    | RetCPS.hs                            | No      |
-| 13b   | Prepare RetDFCPS with posOrFallback helper           | RetDFCPS.hs                          | No      |
-| 13c   | Add operand `PosInf` fields to Raw.RawExpr           | Raw.hs, IR2Raw.hs, RawOpt.hs, etc.   | No      |
-| 13d   | Emit markers for operand positions in Stack2JS       | Stack2JS.hs                          | No      |
-| 13e   | Add operand `PosInf` fields to IR.IRExpr             | IR.hs, IROpt.hs, ClosureConv.hs      | No      |
-| 13f   | Capture statement positions as operand positions     | ClosureConv.hs                       | No      |
-| 13g   | Add operand `PosInf` fields to CPS SimpleTerm        | RetCPS.hs, CPSOpt.hs, etc.           | No      |
-| 13h   | Capture actual operand positions from Core           | RetDFCPS.hs                          | No      |
-| 13i   | Cleanup and verification                             | Various                              | No      |
-| 13j   | Documentation                                        | -                                    | No      |
-
-**Each phase**: `make all && ./bin/golden --quick` passes.
-
-See [phase-13-revised-approach.md](phase-13-revised-approach.md) for the full design rationale.
-
----
 
 ## Position Threading Gap Analysis
 
 | Layer       | File            | Has PosInf         | Operand Positions |
 |-------------|-----------------|--------------------|-------------------|
-| Parser AST  | Direct.hs       | **All constructs** | In Phase 10       |
-| Pattern-free| DirectWOPats.hs | **All constructs** | Via CaseElim      |
-| Core        | Core.hs         | **All constructs** | Via lower         |
-| CPS         | RetCPS.hs       | **All constructs** | Phase 13g adds    |
-| IR          | IR.hs           | **All constructs** | Phase 13e adds    |
-| Raw         | Raw.hs          | **All constructs** | Phase 13c adds    |
-| Stack       | Stack.hs        | **All constructs** | Via Raw           |
+| Parser AST  | Direct.hs       | **All constructs** | DONE (Phase 10)   |
+| Pattern-free| DirectWOPats.hs | **All constructs** | DONE (via CaseElim) |
+| Core        | Core.hs         | **All constructs** | DONE (via lower)  |
+| CPS         | RetCPS.hs       | **All constructs** | DONE (Phase 6)    |
+| IR          | IR.hs           | **All constructs** | DONE (Phase 4)    |
+| Raw         | Raw.hs          | **All constructs** | DONE (Phase 3)    |
+| Stack       | Stack.hs        | **All constructs** | DONE (Phase 2)    |
 
 ---
 
@@ -86,21 +50,9 @@ See [phase-13-revised-approach.md](phase-13-revised-approach.md) for the full de
 ```
 Phase 12 (Emit real source maps)
     |
-Phase 13a-b (Infrastructure - helper types)
+Phase 13 (Runtime resolver)
     |
-Phase 13c-d (Raw layer + Stack2JS emission)
-    |
-Phase 13e (IR layer)
-    |
-Phase 13f (ClosureConv capture)
-    |
-Phase 13g-h (CPS layer + RetDFCPS capture)
-    |
-Phase 13i-j (Cleanup + documentation)
-    |
-Phase 14 (Runtime resolver)
-    |
-Phase 15 (Error message positions)
+Phase 14 (Error message positions)
 ```
 
 ---
