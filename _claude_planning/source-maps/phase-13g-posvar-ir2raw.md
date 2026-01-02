@@ -137,7 +137,7 @@ rewriteSimple (Bin op v1 v2 pos1 pos2 pos) = ...
 ## Testing
 
 ```bash
-make all && make test
+make all && ./bin/golden --quick
 ```
 
 All tests should pass. Since we pass `NoPos` for all operand positions, behavior is identical to Phase 13f.

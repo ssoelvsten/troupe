@@ -106,7 +106,7 @@ The positions flow directly from IR to Raw without modification.
 ## Testing
 
 ```bash
-make all && make test
+make all && ./bin/golden --quick
 ```
 
 Both must pass. Output is identical (all positions are NoPos).

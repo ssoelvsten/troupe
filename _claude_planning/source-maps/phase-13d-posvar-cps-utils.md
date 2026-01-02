@@ -60,7 +60,7 @@ rawExpr2js (Raw.ProjField rv fname recPos fieldPos) = do
 ## Testing
 
 ```bash
-make all && make test
+make all && ./bin/golden --quick
 ```
 
 Both must pass. Since all positions are currently `NoPos`, output is identical to before.

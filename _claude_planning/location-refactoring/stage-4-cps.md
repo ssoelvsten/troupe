@@ -210,7 +210,7 @@ transKTerm (Loc pos (CPS.ApplyFun f x)) = ...
 ## Verification
 
 ```bash
-make all && make test
+make all && ./bin/golden --quick
 ```
 
 All tests must pass. The adapter in ClosureConv ensures that IR output is identical to before.

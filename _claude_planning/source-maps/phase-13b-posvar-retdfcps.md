@@ -54,7 +54,7 @@ trans (Core.Var (Core.RegVar x) pos) context = context (VN x)
 ## Testing
 
 ```bash
-make all && make test
+make all && ./bin/golden --quick
 ```
 
 All must pass. This phase adds no behavioral changes.

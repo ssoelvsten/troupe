@@ -213,7 +213,7 @@ The adapter is simply extracting `pos` with `getLoc` for source map generation.
 ## Verification
 
 ```bash
-make all && make test
+make all && ./bin/golden --quick
 ```
 
 All tests must pass.

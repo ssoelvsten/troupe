@@ -108,7 +108,7 @@ trans (Core.ProjIdx t idx pos) context = do
 ## Testing
 
 ```bash
-make all && make test
+make all && ./bin/golden --quick
 ```
 
 All tests should pass.

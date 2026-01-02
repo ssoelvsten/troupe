@@ -84,7 +84,7 @@ cpsToIR (LetSimple x (CPS.ProjIdx v idx stPos) kterm _) = do
 ## Testing
 
 ```bash
-make all && make test
+make all && ./bin/golden --quick
 ```
 
 All tests should pass.

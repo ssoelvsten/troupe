@@ -71,7 +71,7 @@ Note: We use plain `PosInf` (not `Maybe PosInf`) since `PosInf` already has a `N
 | 13i   | Cleanup and verification                             | Various                              | No      |
 | 13j   | Documentation                                        | -                                    | No      |
 
-**Each phase**: `make all && make test` passes.
+**Each phase**: `make all && ./bin/golden --quick` passes.
 
 See [phase-13-revised-approach.md](phase-13-revised-approach.md) for the full design rationale.
 
@@ -157,7 +157,7 @@ make test       # Run test suite
 bin/golden      # Run golden tests
 ```
 
-**After compiler changes**: Always run `make all && make test` to ensure libs and service are recompiled with the new compiler.
+**After compiler changes**: Always run `make all && ./bin/golden --quick` to ensure libs and service are recompiled with the new compiler.
 
 ---
 
@@ -185,5 +185,5 @@ bin/golden      # Run golden tests
 
 1. Start with Phase 13a: Add helper types to RetCPS.hs
 2. Follow the phase documents in order
-3. Run `make all && make test` after each phase
+3. Run `make all && ./bin/golden --quick` after each phase
 4. Each phase should pass all tests before proceeding

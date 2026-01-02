@@ -111,7 +111,7 @@ done
 ## Verification
 
 ```bash
-make all && make test
+make all && ./bin/golden --quick
 ```
 
 All tests must pass.

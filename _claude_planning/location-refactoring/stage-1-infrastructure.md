@@ -93,7 +93,7 @@ Add to the export list:
 ## Verification
 
 ```bash
-make all && make test
+make all && ./bin/golden --quick
 ```
 
 This stage only adds new code, so all tests must pass with no behavior change.

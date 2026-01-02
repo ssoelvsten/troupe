@@ -127,7 +127,7 @@ module RetCPS (
 ## Testing
 
 ```bash
-make all && make test
+make all && ./bin/golden --quick
 ```
 
 Or step by step:

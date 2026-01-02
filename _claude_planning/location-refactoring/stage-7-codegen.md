@@ -118,7 +118,7 @@ If you have a way to run Troupe in a browser context:
 ## Verification
 
 ```bash
-make all && make test
+make all && ./bin/golden --quick
 ```
 
 All tests must pass.

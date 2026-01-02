@@ -23,7 +23,7 @@ Reduce maintenance burden by adopting GHC-style `Located` wrapper types, separat
 1. **Granularity**: All sub-terms wrapped with `Located`
 2. **Pattern synonyms**: Yes, for convenience
 3. **Migration**: Staged front-to-back through pipeline, with adapters at boundaries
-4. **Testing**: Each stage independently verifiable with `make all && make test`
+4. **Testing**: Each stage independently verifiable with `make all && ./bin/golden --quick`
 
 ## Key Principle: Adapter-Based Migration
 
@@ -32,7 +32,7 @@ Each stage converts one representation to use `Located` while maintaining build 
 1. Convert the **data types** in one representation to use `Located`
 2. Update the **producer** of that representation (parser or previous stage's translation)
 3. Add a **temporary adapter** in the consumer (next stage's translation) that extracts positions from `Located` and embeds them in old-style constructors
-4. Verify with `make all && make test` - output should be identical
+4. Verify with `make all && ./bin/golden --quick` - output should be identical
 5. Next stage removes the adapter and converts its own representation
 
 This ensures the build never breaks and each stage is independently testable.

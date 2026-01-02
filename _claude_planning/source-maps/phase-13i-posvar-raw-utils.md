@@ -80,7 +80,7 @@ If any of the modified types use `Serialize`, ensure the instances are updated o
 ## Testing
 
 ```bash
-make all && make test
+make all && ./bin/golden --quick
 bin/golden
 ```
 

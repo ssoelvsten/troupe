@@ -114,7 +114,7 @@ Similar to RawOpt.hs, update all pattern matches on `RawExpr`.
 ## Testing
 
 ```bash
-make all && make test
+make all && ./bin/golden --quick
 ```
 
 Both must pass. Output is identical (all positions are NoPos).

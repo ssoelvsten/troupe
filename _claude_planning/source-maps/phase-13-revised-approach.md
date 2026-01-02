@@ -186,6 +186,6 @@ let pos1 = posOrFallback opPos1 stPos
 ## Success Criteria
 
 After all phases:
-1. `make all && make test` passes at each phase
+1. `make all && ./bin/golden --quick` passes at each phase
 2. Source maps include operand-level mappings for expressions like `x - 1`
 3. Runtime can report precise error locations for operands

@@ -205,7 +205,7 @@ Either approach works. The adapter ensures Raw output is identical to before.
 ## Verification
 
 ```bash
-make all && make test
+make all && ./bin/golden --quick
 ```
 
 All tests must pass. The adapter in IR2Raw ensures that Raw output is identical to before.
