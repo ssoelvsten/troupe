@@ -10,58 +10,107 @@ Implement V3 source maps so all Troupe runtime errors show source location (`fil
 
 ## Phase Overview
 
-| Phase | Description | Files | Status | Link |
-|-------|-------------|-------|--------|------|
-| 0 | Parser filename tracking | Parser.y, Main.hs | DONE | - |
-| 1 | Source map infrastructure | Main.hs, TroupeSourceMap.hs | DONE | - |
-| 2 | Stack + PosInf | Stack.hs, Raw2Stack.hs, Stack2JS.hs | DONE | - |
-| 3 | Raw + PosInf | Raw.hs, IR2Raw.hs, Raw2Stack.hs, RawOpt.hs | DONE | - |
-| 4 | IR + PosInf | IR.hs, ClosureConv.hs, IR2Raw.hs, IROpt.hs | DONE | - |
-| 5 | Optimizations preserve positions | IROpt.hs, CPSOpt.hs, RawOpt.hs | DONE | - |
-| 6 | CPS + PosInf | RetCPS.hs, RetDFCPS.hs, CPSOpt.hs, etc. | DONE | - |
-| 7 | Core + PosInf | Core.hs, RetDFCPS.hs | DONE | [phase-07-core.md](phase-07-core.md) |
-| 8 | DirectWOPats + PosInf | DirectWOPats.hs, CaseElimination.hs | DONE | [phase-08-directwopats.md](phase-08-directwopats.md) |
-| 9 | Direct + PosInf | Direct.hs, Parser.y | DONE | [phase-09-direct.md](phase-09-direct.md) |
-| 10 | Capture positions in Parser | Parser.y | DONE | [phase-10-parser-positions.md](phase-10-parser-positions.md) |
-| 11 | Thread positions through pipeline | CaseElimination.hs, Core.hs, etc. | DONE | [phase-11-threading.md](phase-11-threading.md) |
-| 12 | Emit real source maps | Stack2JS.hs, Main.hs | DONE | [phase-12-emit-source-maps.md](phase-12-emit-source-maps.md) |
-| 13 | Runtime source map resolver | SourceMapResolver.mts, Thread.mts | **NEXT** | [phase-13-runtime-resolver.md](phase-13-runtime-resolver.md) |
-| 14 | Error message positions | Asserts.mts, BuiltinArith.mts | Pending | [phase-14-position-params.md](phase-14-position-params.md) |
+| Phase | Description                                      | Status   | Link                                                             |
+|-------|--------------------------------------------------|----------|------------------------------------------------------------------|
+| 0     | Parser filename tracking                         | DONE     | -                                                                |
+| 1     | Source map infrastructure                        | DONE     | -                                                                |
+| 2     | Stack + PosInf                                   | DONE     | -                                                                |
+| 3     | Raw + PosInf                                     | DONE     | -                                                                |
+| 4     | IR + PosInf                                      | DONE     | -                                                                |
+| 5     | Optimizations preserve positions                 | DONE     | -                                                                |
+| 6     | CPS + PosInf                                     | DONE     | -                                                                |
+| 7     | Core + PosInf                                    | DONE     | [phase-07-core.md](phase-07-core.md)                             |
+| 8     | DirectWOPats + PosInf                            | DONE     | [phase-08-directwopats.md](phase-08-directwopats.md)             |
+| 9     | Direct + PosInf                                  | DONE     | [phase-09-direct.md](phase-09-direct.md)                         |
+| 10    | Capture positions in Parser                      | DONE     | [phase-10-parser-positions.md](phase-10-parser-positions.md)     |
+| 11    | Thread positions through pipeline                | DONE     | [phase-11-threading.md](phase-11-threading.md)                   |
+| 12    | Emit real source maps                            | DONE     | [phase-12-emit-source-maps.md](phase-12-emit-source-maps.md)     |
+| 13a   | Add PosVar/PosField types (infrastructure)       | **NEXT** | [phase-13a-posvar-retcps.md](phase-13a-posvar-retcps.md)         |
+| 13b   | Prepare RetDFCPS                                 | Pending  | [phase-13b-posvar-retdfcps.md](phase-13b-posvar-retdfcps.md)     |
+| 13c   | Add optional positions to Raw                    | Pending  | [phase-13c-posvar-cpsopt.md](phase-13c-posvar-cpsopt.md)         |
+| 13d   | Emit operand markers in Stack2JS                 | Pending  | [phase-13d-posvar-cps-utils.md](phase-13d-posvar-cps-utils.md)   |
+| 13e   | Add optional positions to IR                     | Pending  | [phase-13e-posvar-closureconv.md](phase-13e-posvar-closureconv.md) |
+| 13f   | Capture statement positions as operand positions | Pending  | [phase-13f-posvar-ir.md](phase-13f-posvar-ir.md)                 |
+| 13g   | Add optional positions to CPS SimpleTerm         | Pending  | [phase-13g-posvar-ir2raw.md](phase-13g-posvar-ir2raw.md)         |
+| 13h   | Capture actual operand positions in RetDFCPS     | Pending  | [phase-13h-posvar-raw.md](phase-13h-posvar-raw.md)               |
+| 13i   | Cleanup and verification                         | Pending  | [phase-13i-posvar-raw-utils.md](phase-13i-posvar-raw-utils.md)   |
+| 13j   | Documentation and summary                        | Pending  | [phase-13j-posvar-stack.md](phase-13j-posvar-stack.md)           |
+| 14    | Runtime source map resolver                      | Pending  | [phase-14-runtime-resolver.md](phase-14-runtime-resolver.md)     |
+| 15    | Error message positions                          | Pending  | [phase-15-position-params.md](phase-15-position-params.md)       |
+
+---
+
+## Phase 13: Revised Approach (Non-Breaking)
+
+### Problem with Original Plan
+
+The original phases 13a-13j proposed changing type definitions (e.g., `SimpleTerm` from `VarName` to `PosVar`) which would immediately break all modules that pattern-match on those types.
+
+### Solution: Additive Position Fields
+
+Instead of breaking changes, we:
+1. Add **new** `PosInf` position fields to types
+2. Work **backwards** from Stack2JS to CPS
+3. Default to `NoPos`, so existing code continues to work
+4. Gradually enable position capture
+
+Note: We use plain `PosInf` (not `Maybe PosInf`) since `PosInf` already has a `NoPos` constructor.
+
+### Revised Phase Structure
+
+| Phase | Description                                          | Key Files                            | Breaks? |
+|-------|------------------------------------------------------|--------------------------------------|---------|
+| 13a   | Add PosVar/PosField helper types (infrastructure)    | RetCPS.hs                            | No      |
+| 13b   | Prepare RetDFCPS with posOrFallback helper           | RetDFCPS.hs                          | No      |
+| 13c   | Add operand `PosInf` fields to Raw.RawExpr           | Raw.hs, IR2Raw.hs, RawOpt.hs, etc.   | No      |
+| 13d   | Emit markers for operand positions in Stack2JS       | Stack2JS.hs                          | No      |
+| 13e   | Add operand `PosInf` fields to IR.IRExpr             | IR.hs, IROpt.hs, ClosureConv.hs      | No      |
+| 13f   | Capture statement positions as operand positions     | ClosureConv.hs                       | No      |
+| 13g   | Add operand `PosInf` fields to CPS SimpleTerm        | RetCPS.hs, CPSOpt.hs, etc.           | No      |
+| 13h   | Capture actual operand positions from Core           | RetDFCPS.hs                          | No      |
+| 13i   | Cleanup and verification                             | Various                              | No      |
+| 13j   | Documentation                                        | -                                    | No      |
+
+**Each phase**: `make all && make test` passes.
+
+See [phase-13-revised-approach.md](phase-13-revised-approach.md) for the full design rationale.
 
 ---
 
 ## Position Threading Gap Analysis
 
-| Layer | File | Has PosInf | Missing PosInf |
-|-------|------|------------|----------------|
-| Parser AST | Direct.hs | **All constructs** | - |
-| Pattern-free | DirectWOPats.hs | **All constructs** | - |
-| Core | Core.hs | **All constructs** | - |
-| CPS | RetCPS.hs | **All constructs** | - |
-| IR | IR.hs | **All constructs** | - |
-| Raw | Raw.hs | **All constructs** | - |
-| Stack | Stack.hs | **All constructs** | - |
+| Layer       | File            | Has PosInf         | Operand Positions |
+|-------------|-----------------|--------------------|-------------------|
+| Parser AST  | Direct.hs       | **All constructs** | In Phase 10       |
+| Pattern-free| DirectWOPats.hs | **All constructs** | Via CaseElim      |
+| Core        | Core.hs         | **All constructs** | Via lower         |
+| CPS         | RetCPS.hs       | **All constructs** | Phase 13g adds    |
+| IR          | IR.hs           | **All constructs** | Phase 13e adds    |
+| Raw         | Raw.hs          | **All constructs** | Phase 13c adds    |
+| Stack       | Stack.hs        | **All constructs** | Via Raw           |
 
 ---
 
 ## Phase Dependencies
 
 ```
-Phase 7 (Core types)
-    |
-Phase 8 (DirectWOPats types)
-    |
-Phase 9 (Direct types + Parser infrastructure)
-    |
-Phase 10 (Parser captures real positions)
-    |
-Phase 11 (Thread positions through pipeline)
-    |
 Phase 12 (Emit real source maps)
     |
-Phase 13 (Runtime resolver)
+Phase 13a-b (Infrastructure - helper types)
     |
-Phase 14 (Direct position parameters)
+Phase 13c-d (Raw layer + Stack2JS emission)
+    |
+Phase 13e (IR layer)
+    |
+Phase 13f (ClosureConv capture)
+    |
+Phase 13g-h (CPS layer + RetDFCPS capture)
+    |
+Phase 13i-j (Cleanup + documentation)
+    |
+Phase 14 (Runtime resolver)
+    |
+Phase 15 (Error message positions)
 ```
 
 ---
@@ -69,9 +118,9 @@ Phase 14 (Direct position parameters)
 ## Key Principles
 
 Each phase:
-1. Adds infrastructure (type changes, NoPos defaults)
+1. Adds infrastructure (type changes with defaults)
 2. Is independently testable (`make test` passes)
-3. Produces identical compiler output until Phase 11-12
+3. Produces identical compiler output until positions are captured
 4. Can be committed separately
 
 ---
@@ -83,116 +132,16 @@ Each phase:
 **All tests pass (397/397)**
 
 **Files modified**:
-- `compiler/src/Stack2JS.hs` - Major changes for source map generation:
-  - Added `markerCounter` to `TheState` for unique marker IDs
-  - Extended `WData` tuple to include `[MarkerData]` for collecting marker positions
-  - Added `emitMarker :: PosInf -> W PP.Doc` function to generate marker comments for real positions
-  - Added `stack2JSWithMappings` function that returns both JS code and source map mappings
-  - Added `processMarkers`, `scanLines`, `processLine`, and `parseMarker` functions to:
-    - Scan rendered output for `/*SM:123*/` markers
-    - Look up source positions from collected marker data
-    - Generate source map mappings using `collectMapping`
-    - Strip markers from final output
-  - Updated `ir2js` for `AssignRaw`, `AssignLVal` to emit markers
-  - Updated `tr2js` for `If` and `Error` terminators to emit markers
-  - Updated all `tell` calls and pattern matches for extended `WData` tuple
-- `compiler/app/Main.hs` - Updated to use new source map generation:
-  - Changed import from `emptySourceMap` to `buildSourceMap`
-  - Updated JavaScript generation to use `stack2JSWithMappings`
-  - Pass real mappings to `buildSourceMap` instead of empty list
+- `compiler/src/Stack2JS.hs` - Major changes for source map generation
+- `compiler/app/Main.hs` - Updated to use new source map generation
 
-**Source map output**: The compiler now generates valid V3 source maps with VLQ-encoded mappings when `--source-map` flag is used. Currently captures positions for `if` statements and some assignments where source positions are available.
-
-**Note**: The number of mappings depends on how many positions flow through the pipeline. Currently `If` terminators capture positions well because they have real `SrcPosInf` positions. More constructs will gain mappings as more positions are threaded through in earlier phases.
+**Source map output**: Valid V3 source maps with VLQ-encoded mappings.
 
 ---
 
-### Phase 11: Thread Positions Through Pipeline - COMPLETE (2026-01-01)
+### Phases 6-11: COMPLETE
 
-**All tests pass (397/397)**
-
-**Files modified**:
-- `compiler/src/CaseElimination.hs` - Thread positions from `Direct.Term` to `DirectWOPats.Term`:
-  - Updated `transTerm` to pass positions from source Direct terms to target DirectWOPats terms
-  - Updated `compilePattern` to use `posInfo v` from matched variable for generated code
-  - Updated `ifpat` to accept position parameter
-  - Updated `transDecl` and `transFunDecl` to propagate positions
-  - Updated `transFields` to accept position parameter
-- `compiler/src/DirectWOPats.hs` - Added `GetPosInfo` instance for `Term`
-- `compiler/src/Core.hs` - Thread positions in `lowerLam` function, added `GetPosInfo` instance for `Term`
-- `compiler/src/RetDFCPS.hs` - Thread positions from `Core.Term` to CPS `KTerm`/`SimpleTerm`:
-  - Updated all `transExplicit` cases to extract positions from Core terms
-  - Updated all `trans` cases to extract positions from Core terms
-  - Updated `transFields` and `transFieldsExplicit` to accept position parameter
-- `compiler/src/RetCPS.hs` - Added `GetPosInfo` instances for `SimpleTerm` and `KTerm`
-- `compiler/src/ClosureConv.hs` - Thread positions from CPS to IR:
-  - Updated `cpsToIR` to extract positions from CPS `KTerm` and `SimpleTerm`
-  - Positions from `SimpleTerm` (e.g., Bin, Un, Tuple) are now used for IR `Assign` instructions
-
----
-
-### Phase 10: Capture Positions in Parser - COMPLETE (2026-01-01)
-
-**All tests pass (397/397)**
-
-**Files modified**:
-- `compiler/src/Parser.y` - Updated grammar rules to capture real source positions:
-  - Binary operators (all 24 operators including +, -, *, /, div, mod, comparisons, logical, bitwise, concat, raisedTo, ::)
-  - Unary operators (isTuple, isList, isRecord, not, unary minus)
-  - If-then-else, Let bindings, Seq expressions
-  - Fn (lambda) and Hn (handler) expressions
-  - Var references, Tuples, Records, WithRecord, Lists
-  - Field projections (ProjField, ProjIdx)
-  - Updated mkSeq helper to accept position parameter
-
----
-
-### Phase 9: Direct + PosInf - COMPLETE (2026-01-01)
-
-**All tests pass (397/397)**
-
-**Files modified**:
-- `compiler/src/Direct.hs` - Added `PosInf` to 17 Term constructors (Var, Abs, Hnd, App, Let, If, Tuple, Record, WithRecord, ProjField, ProjIdx, List, ListCons, Bin, Un, Seq, Error), updated pretty printer and termPrec functions
-- `compiler/src/Parser.y` - Updated all grammar rules to pass `NoPos` for new PosInf fields, updated helper functions (piniDecl, mkSeq, fromFact)
-- `compiler/src/CaseElimination.hs` - Updated all pattern matches and term construction to handle new PosInf fields from Direct.hs
-- `compiler/src/AtomFolding.hs` - Updated all visitTerm pattern matches for new PosInf fields
-- `compiler/src/AddAmbientMethods.hs` - Updated ambient method declarations with NoPos for new PosInf fields
-- `compiler/src/Exports.hs` - Updated pattern matches in extractMain and checkOne for new PosInf fields
-
----
-
-### Phase 8: DirectWOPats + PosInf - COMPLETE (2026-01-01)
-
-**All tests pass (397/397)**
-
-**Files modified**:
-- `compiler/src/DirectWOPats.hs` - Added `PosInf` to 14 Term constructors (Var, Abs, App, Let, If, Tuple, Record, WithRecord, ProjField, ProjIdx, List, ListCons, Bin, Un), updated pretty printer and termPrec functions
-- `compiler/src/CaseElimination.hs` - Updated all pattern compilation and term transformation to pass `NoPos` for new PosInf fields
-- `compiler/src/Core.hs` - Updated `lower` function to propagate PosInf from DirectWOPats to Core (positions now flow through instead of being discarded)
-
----
-
-### Phase 7: Core + PosInf - COMPLETE (2026-01-01)
-
-**All tests pass (397/397)**
-
-**Files modified**:
-- `compiler/src/Core.hs` - Added `PosInf` to 14 Term constructors (Var, Abs, App, Let, If, Tuple, Record, WithRecord, ProjField, ProjIdx, List, ListCons, Bin, Un), updated `lower`, `rename`, and pretty printer functions
-- `compiler/src/RetDFCPS.hs` - Updated all pattern matches for Core types with new PosInf fields
-
----
-
-### Phase 6: CPS + PosInf - COMPLETE (2026-01-01)
-
-**All tests pass (397/397)**
-
-**Files modified**:
-- `compiler/src/RetCPS.hs` - Added `PosInf` to SimpleTerm and KTerm constructors
-- `compiler/src/RetDFCPS.hs` - Updated all CPS term construction to pass `NoPos`
-- `compiler/src/CPSOpt.hs` - Updated all pattern matches for new PosInf fields
-- `compiler/src/ClosureConv.hs` - Updated pattern matches for CPS types
-- `compiler/src/RetRewrite.hs` - Updated pattern matches for CPS types
-- `compiler/src/RetFreeVars.hs` - Updated pattern matches for CPS types
+All layers (CPS, Core, DirectWOPats, Direct) now have PosInf on all constructs. Positions flow from Parser through to Stack2JS.
 
 ---
 
@@ -201,31 +150,40 @@ Each phase:
 ```bash
 make compiler   # Build compiler after Haskell changes
 make rt         # Build runtime after TypeScript changes
+make libs       # Recompile standard libraries (required after compiler changes)
+make service    # Recompile service module (required after compiler changes)
+make all        # Build everything (compiler, rt, libs, service)
 make test       # Run test suite
 bin/golden      # Run golden tests
 ```
+
+**After compiler changes**: Always run `make all && make test` to ensure libs and service are recompiled with the new compiler.
 
 ---
 
 ## Libraries Used
 
-| Component | Library | Version | Purpose |
-|-----------|---------|---------|---------|
-| Compiler | [`sourcemap`](https://hackage.haskell.org/package/sourcemap) | >= 0.1.7 | V3 source map generation |
-| Runtime | [`source-map`](https://npmjs.com/package/source-map) | ^0.7.4 | Parse/resolve source maps |
+| Component | Library                                                    | Version  | Purpose                  |
+|-----------|------------------------------------------------------------|----------|--------------------------|
+| Compiler  | [`sourcemap`](https://hackage.haskell.org/package/sourcemap) | >= 0.1.7 | V3 source map generation |
+| Runtime   | [`source-map`](https://npmjs.com/package/source-map)       | ^0.7.4   | Parse/resolve source maps |
 
 ---
 
 ## Root Causes Being Fixed
 
-1. **Parser filename tracking** - DONE - Parser uses ReaderT monad to thread filename
-2. **Limited IR positions** - DONE - All IR/Raw/Stack types have PosInf
-3. **No CPS positions** - DONE - All CPS types have PosInf (Phase 6)
-4. **No Direct/Core positions** - DONE - All Direct/DirectWOPats/Core types have PosInf (Phases 7-9)
-5. **Runtime has no way to show source** - Phases 13-14
+1. **Parser filename tracking** - DONE
+2. **Limited IR positions** - DONE
+3. **No CPS positions** - DONE (Phase 6)
+4. **No Direct/Core positions** - DONE (Phases 7-9)
+5. **Operand positions lost during CPS** - Phase 13 (using optional positions)
+6. **Runtime has no way to show source** - Phases 14-15
 
 ---
 
 ## How to Continue
 
-See [handoff.md](handoff.md) for instructions on starting each phase.
+1. Start with Phase 13a: Add helper types to RetCPS.hs
+2. Follow the phase documents in order
+3. Run `make all && make test` after each phase
+4. Each phase should pass all tests before proceeding
