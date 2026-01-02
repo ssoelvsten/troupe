@@ -193,6 +193,33 @@ Note: CLI arguments are treated as sensitive data and are labeled at the highest
 Script `dev-utils/build.sh` runs `make` and copies the executables to `../bin/<current git HEAD hash>`.
 This is useful when wanting to compile some snapshots to compare how different versions behave.
 
+## Source Maps
+
+The Troupe compiler can generate source maps to help with debugging by mapping generated JavaScript code back to the original Troupe source.
+
+### Generating Source Maps
+
+Use the `-m` or `--source-map` flag when compiling:
+
+```bash
+bin/troupec -m myprogram.trp -o myprogram.js
+```
+
+This generates both `myprogram.js` and `myprogram.js.map`.
+
+### Inspecting Source Maps
+
+A tool is provided for inspecting generated source maps:
+
+```bash
+npx ts-node rt/src/tools/inspect-sourcemap.ts <file.js.map>
+```
+
+This displays:
+- Source map metadata (file, sources, version)
+- All decoded mappings grouped by source file
+- Line/column mappings from generated to original code
+
 ## Networking
 
 When the program starts, once the keys are loaded (or generated), the runtime starts by connecting to
