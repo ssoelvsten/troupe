@@ -2,7 +2,7 @@
 
 ## Current Phase
 
-**STAGE: 3 - NOT STARTED**
+**STAGE: 4 - NOT STARTED**
 
 ## How to Continue
 
@@ -27,7 +27,7 @@ After completing the stage:
 |-------|---------------------------------|-------------|---------|
 | 1     | Infrastructure                  | Complete    | a8341b7 |
 | 2     | Parser + Direct                 | Complete    | 9a95cb5 |
-| 3     | DirectWOPats + Core             | Not started | -       |
+| 3     | DirectWOPats + Core             | Complete    | b327d9a |
 | 4     | CPS                             | Not started | -       |
 | 5     | IR                              | Not started | -       |
 | 6     | Raw + Stack                     | Not started | -       |
@@ -36,7 +36,7 @@ After completing the stage:
 
 ## Next Action
 
-**Execute Stage 3**: Read [stage-3-core.md](stage-3-core.md) and implement in a fresh context.
+**Execute Stage 4**: Read [stage-4-cps.md](stage-4-cps.md) and implement in a fresh context.
 
 ## Stage 1 Implementation Notes
 
@@ -54,6 +54,18 @@ After completing the stage:
 - Updated Exports.hs, AtomFolding.hs, AddAmbientMethods.hs to work with new Located types
 - Golden tests for pattern match errors updated: positions now point to the actual pattern location (more accurate) rather than the `val` keyword
 - Literal patterns in Parser now get proper positions (NUM, FLOAT, STRING, true, false, LABEL, DCLabel)
+
+## Stage 3 Implementation Notes
+
+- Added type aliases `LTerm`, `LDecl`, `LFields` to Core.hs
+- Updated all Term constructors to remove embedded PosInf - positions now in Located wrapper
+- Lambda type updated: `Unary VarName PosInf LTerm` (keeps argument position separate)
+- FunDecl keeps embedded PosInf for function definition position
+- Updated `lower` function to produce `LTerm` instead of `Term`
+- Updated `rename` function with new `renameTerm` helper to work with Located terms
+- RetDFCPS.hs: Added adapter pattern - `trans` and `transExplicit` now take `Core.LTerm` and extract position from `Loc` wrapper to embed in old-style CPS constructors
+- Note: `TypeSynonymInstances` and `FlexibleInstances` pragmas added to Core.hs for Show instance
+- GetPosInfo instance for LTerm comes from TroupePositionInfo's generic `GetPosInfo (Located a)` instance
 
 ## Stage Documents
 
