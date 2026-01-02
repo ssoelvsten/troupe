@@ -320,9 +320,14 @@ lit2JS (C.LDCLabel dc) =
 
 lit2JS lit = ppLit lit
 
-constsToJS consts = 
-     vcat $ map toJsConst consts 
-               where toJsConst (x,lit) = hsep ["const", ppId x , text "=", lit2JS lit ]
+constsToJS :: Raw.Consts -> W PP.Doc
+constsToJS consts = do
+     docs <- mapM toJsConst consts
+     return $ vcat docs
+  where
+    toJsConst (x, lit) = do
+      marker <- emitMarker (posInfo lit)
+      return $ marker PP.<> hsep ["const", ppId x , text "=", lit2JS lit ]
 
 instance ToJS FunDef where
     toJS (FunDef hfn stacksize consts bb irfdef pos) = do
@@ -336,7 +341,7 @@ instance ToJS FunDef where
        let _frameSize = stacksize + 1
 
        modify (\s -> s { frameSize = _frameSize, sparseSlot = stacksize, stHFN = hfn, consts = consts } ) -- + 1 for the sparse flag; 2021-03-17; AA
-       let lits = constsToJS consts
+       lits <- constsToJS consts
        jj <- toJS bb
        debug <- ask
        let (irdeps, libdeps, _atomdeps) = IR.ppDepsAsJSON irfdef
@@ -540,6 +545,7 @@ tr2js (StackExpand bb bb2 _pos) = do
     js2 <- toJS bb2
     kname <- freshKontName
     sparseSlotIdxPP <- ppSparseSlotIdx
+    constsJS <- constsToJS _consts  -- 2021-05-18; TODO: optimize by including only the _used_ constants
     let jsKont =
            vcat ["this." PP.<> ppId kname <+> text "= () => {",
                   nest 2 $
@@ -554,7 +560,7 @@ tr2js (StackExpand bb bb2 _pos) = do
                           -- Requires sparseSlot to be updated first.
                           "_T.sparseSlot =" <+> sparseSlotIdxPP,
                           "_T.updateSparseBitOnReturn()",
-                          constsToJS _consts , -- 2021-05-18; TODO: optimize by including only the _used_ constants
+                          constsJS,
                           js2
                         ],
                     "}"
