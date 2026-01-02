@@ -216,15 +216,15 @@ trBB (Raw.BB insts tr) = do
 
 
 trFun :: Raw.FunDef -> Stack.FunDef
-trFun fdef@(Raw.FunDef hfn consts bb ir) = 
-  let defUseInfo = defUse fdef 
+trFun fdef@(Raw.FunDef hfn consts bb ir pos) =
+  let defUseInfo = defUse fdef
       constMap = Map.fromList consts
       offsets = offsetMap constMap defUseInfo
-      
+
       env = TEnv { defsUses = defUseInfo
                  , offsets = offsets
                  , localCallDepth = 0
-                 , __consts = constMap 
+                 , __consts = constMap
                  }
       (bb', _, _) =runRWS (trBB bb) env 0
       Stack.BB insts bb_ = bb'
@@ -232,7 +232,7 @@ trFun fdef@(Raw.FunDef hfn consts bb ir) =
                      Nothing -> insts
                      Just ee  -> (Stack.StoreStack Raw.Env ee NoPos) :insts
       frameSize = Map.size offsets
-  in Stack.FunDef hfn frameSize consts (Stack.BB insts_ bb_) ir
+  in Stack.FunDef hfn frameSize consts (Stack.BB insts_ bb_) ir pos
 
 
 rawProg2Stack :: Raw.RawProgram -> Stack.StackProgram

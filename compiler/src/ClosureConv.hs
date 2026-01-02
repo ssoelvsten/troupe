@@ -110,19 +110,19 @@ transVars = mapM transVar
 
 isDeclaredEarlierThan lev (_, l)  = l < lev
 
-transFunDec f@(VN fname) (CPS.Unary var kt) = do   
+transFunDec f@(VN fname) (CPS.Unary var kt) pos = do
   lev <- askLev
   let filt = isDeclaredEarlierThan lev
-  (bb, (_, frees, consts_wo_levs)) <- 
+  (bb, (_, frees, consts_wo_levs)) <-
       censor (\(a,b,c ) -> (a, filter filt b, filter (\(_, l) -> l == lev ) c))
-     $ listen 
+     $ listen
         $ local ((insVar var) . (incLev f))
            $ cpsToIR kt
   let consts = (fst.unzip) consts_wo_levs
-  tell ([FunDef (HFN fname) var consts bb], [], [])
+  tell ([FunDef (HFN fname) var consts bb pos], [], [])
   return (nub frees)
 
-transFunDec (VN _) (CPS.Nullary _) = error "not implemented"
+transFunDec (VN _) (CPS.Nullary _) _ = error "not implemented"
 
 -- state accessors
 
@@ -190,7 +190,7 @@ cpsToIR (CPS.LetSimple vname@(VN ident) st kt pos) = do
                                                 tell ([],[],[((vname, lit), lev)])
                                                 return Nothing
         CPS.ValSimpleTerm (CPS.KAbs klam) stPos -> do
-          freeVars <- transFunDec vname klam
+          freeVars <- transFunDec vname klam stPos
           envBindings <- mkEnvBindings freeVars
           return $ Just $ CCIR.MkFunClosures envBindings [(vname, HFN ident)] stPos
 
@@ -208,8 +208,8 @@ cpsToIR (CPS.LetFun fdefs kt _pos) = do
     let localExt = local (insVars vnames_orig)
     t <- localExt (cpsToIR kt) -- translate the body
 
-    frees <- mapM (\(CPS.Fun fname klam _) ->
-                        localExt (transFunDec fname klam))
+    frees <- mapM (\(CPS.Fun fname klam pos) ->
+                        localExt (transFunDec fname klam pos))
                 fdefs
 
     let freeVars = (nub.concat) frees
@@ -289,7 +289,8 @@ closureConvert compileMode (CPS.Prog (C.Atoms atms) t) =
 
       -- obs that our 'main' may have two names depending on the compilation mode; 2018-07-02; AA
       consts = (fst.unzip) consts_wo_levs
-      main = FunDef (HFN toplevel) (VN argumentName) consts bb
+      -- The main entry point is compiler-generated, so it has no source position
+      main = FunDef (HFN toplevel) (VN argumentName) consts bb NoPos
 
       irProg = CCIR.IRProgram (C.Atoms atms) $ fdefs++[main]
     in do CCIR.wfIRProg irProg 

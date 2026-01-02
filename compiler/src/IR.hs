@@ -108,11 +108,12 @@ data IRInst
 -- | A literal together with the variable name the constant is accessed through.
 type Consts = [(VarName, C.Lit)]
 -- Function definition
-data FunDef = FunDef 
+data FunDef = FunDef
                     HFN         -- name of the function
                     VarName     -- name of the argument
-                    Consts      -- constants used in the function  
+                    Consts      -- constants used in the function
                     IRBBTree    -- body
+                    PosInf      -- source position of function definition
                 deriving (Eq,Generic)
 
 -- An IR program is just a collection of atoms declarations 
@@ -150,7 +151,7 @@ instance ComputesDependencies IRTerminator where
 
     dependencies _              = return ()
 instance ComputesDependencies FunDef where
-  dependencies (FunDef _ _ _ bb) = dependencies bb
+  dependencies (FunDef _ _ _ bb _) = dependencies bb
 
 
 ppDepsAsJSON :: ComputesDependencies a => a -> (PP.Doc , PP.Doc, PP.Doc)
@@ -364,16 +365,16 @@ wfIRProg (IRProgram (C.Atoms atms) funs) = do
     throwError $ "Duplicate atom names: " ++ show (nub duplicates)
   mapM_ wfFun funs
 
-wfFun :: FunDef -> Except String () 
-wfFun (FunDef (HFN fn) (VN arg) consts bb) = 
+wfFun :: FunDef -> Except String ()
+wfFun (FunDef (HFN fn) (VN arg) consts bb _) =
     let initVars =[ fn,arg] ++ [i  | VN i <-  fst (unzip consts)]
-        act = do 
-            mapM checkId initVars 
-            wfir bb 
-    in 
-            
-    case evalState (runExceptT act) [] of 
-      Right _ -> return () 
+        act = do
+            mapM checkId initVars
+            wfir bb
+    in
+
+    case evalState (runExceptT act) [] of
+      Right _ -> return ()
       Left s -> throwError s 
 
 
@@ -398,7 +399,7 @@ ppConsts consts =
   vcat $ map ppConst consts 
     where ppConst (x, lit) = hsep [ ppId x , text "=", ppLit lit ]
 
-ppFunDef (FunDef hfn  arg consts insts)
+ppFunDef (FunDef hfn arg consts insts _)
   = vcat [ text "func" <+> ppFunCall (ppId hfn) [ppId arg] <+> text "{"
          , nest 2 (ppConsts consts)
          , nest 2 (ppBB insts)

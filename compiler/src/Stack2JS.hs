@@ -271,7 +271,7 @@ parseMarker s
 stack2JSON :: CompileMode -> Bool -> StackUnit -> ByteString
 stack2JSON compileMode debugMode su =
   let (ppDoc, (libs, atoms, konts, _markers)) = stack2PPDoc compileMode debugMode su
-      fname = case su of FunStackUnit (FunDef (HFN n) _ _ _ _) -> Just n
+      fname = case su of FunStackUnit (FunDef (HFN n) _ _ _ _ _) -> Just n
                          AtomStackUnit _                       -> Nothing
                          ProgramStackUnit _                    -> error "Internal error: stack2JSON called with ProgramStackUnit"
   in Aeson.encode $ JSOutput { libs = libs
@@ -324,29 +324,31 @@ constsToJS consts =
      vcat $ map toJsConst consts 
                where toJsConst (x,lit) = hsep ["const", ppId x , text "=", lit2JS lit ]
 
-instance ToJS FunDef where 
-    toJS fdef@(FunDef hfn stacksize consts bb irfdef) = do
+instance ToJS FunDef where
+    toJS (FunDef hfn stacksize consts bb irfdef pos) = do
        {--
-          |  |  | ... | <sparse slot> | 
+          |  |  | ... | <sparse slot> |
           ^           ^
           |           |
-          SP          stacksize 
-       
-       --}       
-       let _frameSize = stacksize + 1 
+          SP          stacksize
+
+       --}
+       let _frameSize = stacksize + 1
 
        modify (\s -> s { frameSize = _frameSize, sparseSlot = stacksize, stHFN = hfn, consts = consts } ) -- + 1 for the sparse flag; 2021-03-17; AA
        let lits = constsToJS consts
        jj <- toJS bb
        debug <- ask
-       let (irdeps, libdeps, atomdeps ) = IR.ppDepsAsJSON irfdef
+       let (irdeps, libdeps, _atomdeps) = IR.ppDepsAsJSON irfdef
        sparseSlotIdxPP <- ppSparseSlotIdx
+       -- Emit source map marker for function definition
+       marker <- emitMarker pos
 
        return $
-          vcat [text "this." PP.<>  ppId hfn <+> text "=" <+> ppArgs ["$env"] <+> text "=> {"
+          vcat [marker PP.<> text "this." PP.<> ppId hfn <+> text "=" <+> ppArgs ["$env"] <+> text "=> {"
                , if debug then nest 2 $ text "rt.debug" <+> (PP.parens . PP.doubleQuotes.  ppId) hfn
-                          else PP.empty 
-               , nest 2 $ vcat $ [ 
+                          else PP.empty
+               , nest 2 $ vcat $ [
                   "let _T = rt.runtime.$t",
                   "let _STACK = _T.callStack",
                   "let _SP = _T._sp",

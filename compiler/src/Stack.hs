@@ -74,12 +74,13 @@ data StackInst
    deriving (Eq, Show)
 
 -- Function definition
-data FunDef = FunDef 
-                    HFN         -- name of the function     
-                    Int         -- frame size     
-                    Raw.Consts      -- constant literars
+data FunDef = FunDef
+                    HFN            -- name of the function
+                    Int            -- frame size
+                    Raw.Consts     -- constant literals
                     StackBBTree    -- body
-                    IR.FunDef    -- original definition for serialization
+                    IR.FunDef      -- original definition for serialization
+                    PosInf         -- source position of function definition
                 deriving (Eq)
 
 -- An IR program is just a collection of atoms declarations 
@@ -101,7 +102,7 @@ ppProg (StackProgram atoms funs) =
 instance Show StackProgram where
   show = PP.render.ppProg
 
-ppFunDef ( FunDef hfn _ consts insts _ )
+ppFunDef ( FunDef hfn _ consts insts _ _ )
   = vcat [ text "func" <+> ppFunCall (ppId hfn) [] <+> text "{"
          , nest 2 (ppConsts consts)
          , nest 2 (ppBB insts)

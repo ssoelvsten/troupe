@@ -316,8 +316,8 @@ class Trav a where
    trav :: a -> Tr ()
 
 
-defUse :: FunDef -> DefUse 
-defUse (FunDef _ consts bb _) = 
+defUse :: FunDef -> DefUse
+defUse (FunDef _ consts bb _ _) = 
   let constVars = ( fst . unzip )consts 
       insertConsts = mapM define constVars 
       (defUse, _) = execRWS 

@@ -190,11 +190,12 @@ ppRTAssertion = ppRTAssertionCode ppFunCall
 type Consts = [(RawVar, C.Lit )]
 
 -- Function definition
-data FunDef = FunDef 
-                    HFN          -- name of the function          
-                    Consts   
+data FunDef = FunDef
+                    HFN          -- name of the function
+                    Consts
                     RawBBTree    -- body
                     IR.FunDef    -- original definition for serialization
+                    PosInf       -- source position of function definition
                 deriving (Eq)
 
 -- An IR program is just a collection of atoms declarations 
@@ -268,7 +269,7 @@ ppProg (RawProgram atoms funs) =
 instance Show RawProgram where
   show = PP.render.ppProg
 
-ppFunDef ( FunDef hfn consts insts  _ )
+ppFunDef ( FunDef hfn consts insts _ _ )
   = vcat [ text "func" <+> ppFunCall (ppId hfn) [] <+> text "{"
          , nest 2 (ppConsts consts )
          , nest 2 (ppBB insts)
