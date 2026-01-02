@@ -2,8 +2,24 @@
 {-# LANGUAGE DeriveTraversable #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DefaultSignatures #-}
+{-# LANGUAGE PatternSynonyms #-}
+{-# LANGUAGE StandaloneDeriving #-}
 
 module RetCPS
+  ( VarName(..)
+  , KLambda(..)
+  , SVal(..)
+  , ContDef(..)
+  , FunDef(..)
+  , Fields
+  , SimpleTerm(..)
+  , KTerm(..)
+  , Prog(..)
+  , LKTerm
+  , LSimpleTerm
+  , ppKTerm
+  , ppSimpleTerm
+  )
 where
 
 import GHC.Generics
@@ -18,7 +34,7 @@ import Text.PrettyPrint.HughesPJ (
     (<+>), ($$), text, hsep, vcat, nest)
 import           ShowIndent
 
-import TroupePositionInfo
+import TroupePositionInfo (Located(..), getLoc, unLoc, noLoc, atLoc, PosInf(..), GetPosInfo(..))
 
 newtype VarName = VN Basics.VarName
     deriving (Eq, Ord, Generic)
@@ -41,85 +57,67 @@ doing that from this language
 
  -}
 
-data KLambda = Unary VarName PosInf KTerm
-             | Nullary KTerm
-  deriving (Eq, Show, Ord)
+-- Located type aliases
+type LKTerm = Located KTerm
+type LSimpleTerm = Located SimpleTerm
+
+data KLambda = Unary VarName PosInf LKTerm   -- Keep argument position, body is Located
+             | Nullary LKTerm
+  deriving (Eq, Ord, Show)
 
 data SVal
    = KAbs KLambda
    | Lit C.Lit
-     deriving (Eq, Show, Ord)
+     deriving (Eq, Ord, Show)
 
-data ContDef = Cont VarName KTerm
+data ContDef = Cont VarName LKTerm
                deriving (Eq, Ord)
-data FunDef = Fun VarName KLambda PosInf
+data FunDef = Fun VarName KLambda   -- Position is on the Located wrapper when used
               deriving (Eq, Ord)
 
 type Fields = [(Basics.FieldName, VarName)]
 data SimpleTerm
-   = Bin BinOp VarName VarName PosInf
-   | Un UnaryOp VarName PosInf
-   | ValSimpleTerm SVal PosInf
-   | Tuple [VarName] PosInf
-   | Record Fields PosInf
-   | WithRecord VarName Fields PosInf
-   | ProjField VarName Basics.FieldName PosInf
-   | ProjIdx VarName Word PosInf
-   | List [VarName] PosInf
-   | ListCons VarName VarName PosInf
+   = Bin BinOp VarName VarName
+   | Un UnaryOp VarName
+   | ValSimpleTerm SVal
+   | Tuple [VarName]
+   | Record Fields
+   | WithRecord VarName Fields
+   | ProjField VarName Basics.FieldName
+   | ProjIdx VarName Word
+   | List [VarName]
+   | ListCons VarName VarName
    | Base Basics.VarName
    | Lib Basics.LibName Basics.VarName
-     deriving (Eq, Show, Ord)
+     deriving (Eq, Ord, Show)
 
 data KTerm
-    = LetSimple VarName SimpleTerm KTerm PosInf
-    | LetFun [FunDef] KTerm PosInf
-    | LetRet ContDef KTerm PosInf
-    | KontReturn VarName PosInf
-    | ApplyFun VarName VarName PosInf
-    | If VarName KTerm KTerm PosInf
-    | AssertElseError VarName KTerm VarName PosInf
+    = LetSimple VarName LSimpleTerm LKTerm
+    | LetFun [(Located FunDef)] LKTerm
+    | LetRet ContDef LKTerm
+    | KontReturn VarName
+    | ApplyFun VarName VarName
+    | If VarName LKTerm LKTerm
+    | AssertElseError VarName LKTerm VarName PosInf
     | Error VarName PosInf
-    | Halt VarName PosInf
+    | Halt VarName
     -- ; aa; 2018-07-02; bringing Halt back because
     -- of exports
 
       deriving (Eq, Ord)
 
-data Prog = Prog C.Atoms KTerm
+data Prog = Prog C.Atoms LKTerm
   deriving (Eq, Show)
 
-instance GetPosInfo SimpleTerm where
-  posInfo (Bin _ _ _ p) = p
-  posInfo (Un _ _ p) = p
-  posInfo (ValSimpleTerm _ p) = p
-  posInfo (Tuple _ p) = p
-  posInfo (Record _ p) = p
-  posInfo (WithRecord _ _ p) = p
-  posInfo (ProjField _ _ p) = p
-  posInfo (ProjIdx _ _ p) = p
-  posInfo (List _ p) = p
-  posInfo (ListCons _ _ p) = p
-  posInfo (Base _) = NoPos
-  posInfo (Lib _ _) = NoPos
-
-instance GetPosInfo KTerm where
-  posInfo (LetSimple _ _ _ p) = p
-  posInfo (LetFun _ _ p) = p
-  posInfo (LetRet _ _ p) = p
-  posInfo (KontReturn _ p) = p
-  posInfo (ApplyFun _ _ p) = p
-  posInfo (If _ _ _ p) = p
-  posInfo (AssertElseError _ _ _ p) = p
-  posInfo (Error _ p) = p
-  posInfo (Halt _ p) = p
+-- GetPosInfo instances are now provided by the Located wrapper
+-- via TroupePositionInfo's instance: GetPosInfo (Located a)
 
 --------------------------------------------------
 -- show is defined via pretty printing
 instance Show KTerm
-  where show t = PP.render (ppKTerm 0 t)
+  where show t = PP.render (ppKTerm 0 (noLoc t))
 
-instance Show ContDef 
+instance Show ContDef
   where show (Cont x t) = PP.render ( ppKTerm 0 t)
 instance ShowIndent Prog where
   showIndent k p = PP.render (nest k (ppProg p))
@@ -128,17 +126,17 @@ instance ShowIndent Prog where
 --
 
 ppProg :: Prog -> PP.Doc
-ppProg (Prog (C.Atoms atoms) kterm) =
+ppProg (Prog (C.Atoms atoms) lkterm) =
   let ppAtoms =
         if null atoms
           then PP.empty
           else (text "datatype Atoms = ") <+>
                (hsep $ PP.punctuate (text " |") (map text atoms))
-  in ppAtoms $$ ppKTerm 0 kterm
+  in ppAtoms $$ ppKTerm 0 lkterm
 
-ppKTerm :: Precedence -> KTerm -> PP.Doc
+ppKTerm :: Precedence -> LKTerm -> PP.Doc
 
-ppKTerm parentPrec t =
+ppKTerm parentPrec (Loc _ t) =
    let thisTermPrec = 1000
    in PP.maybeParens (thisTermPrec < parentPrec   )  $ ppKTerm' t
 
@@ -158,29 +156,29 @@ ppKTerm parentPrec t =
 textv (VN x) = text x
 
 ppSimpleTerm :: SimpleTerm -> PP.Doc
-ppSimpleTerm (Bin op (VN v1)  (VN v2) _) =
+ppSimpleTerm (Bin op (VN v1)  (VN v2)) =
   text v1 <+> text (show op) <+> text v2
-ppSimpleTerm (Un op (VN v) _) =
+ppSimpleTerm (Un op (VN v)) =
   text (show op) <+> text v
-ppSimpleTerm (ValSimpleTerm (Lit lit) _) =
+ppSimpleTerm (ValSimpleTerm (Lit lit)) =
   ppLit lit
-ppSimpleTerm (ValSimpleTerm (KAbs klam) _) =
+ppSimpleTerm (ValSimpleTerm (KAbs klam)) =
   ppKLambda klam
-ppSimpleTerm (Tuple vars _) =
+ppSimpleTerm (Tuple vars) =
   PP.parens $ PP.hsep $ PP.punctuate (text ",") (map textv vars)
-ppSimpleTerm (List vars _) =
+ppSimpleTerm (List vars) =
   PP.brackets $ PP.hsep $ PP.punctuate (text ",") (map textv vars)
-ppSimpleTerm (ListCons v1 v2 _) =
+ppSimpleTerm (ListCons v1 v2) =
   PP.parens $ textv v1 PP.<> text "::" PP.<> textv v2
 ppSimpleTerm (Base b) = text b PP.<> text "$base"
 ppSimpleTerm (Lib (Basics.LibName lib) v) = text lib <+> text "." <+> text v
-ppSimpleTerm (Record fields _) = PP.braces $ qqFields fields
-ppSimpleTerm (WithRecord x fields _) =
+ppSimpleTerm (Record fields) = PP.braces $ qqFields fields
+ppSimpleTerm (WithRecord x fields) =
     PP.braces $ PP.hsep [textv x, text "with", qqFields fields]
 
-ppSimpleTerm (ProjField x f _) =
+ppSimpleTerm (ProjField x f) =
   textv x PP.<> text "." PP.<> PP.text f
-ppSimpleTerm (ProjIdx x idx _) =
+ppSimpleTerm (ProjIdx x idx) =
   textv x PP.<> text "." PP.<> PP.text (show idx)
 
 qqFields fields =
@@ -203,10 +201,10 @@ ppKTerm'  (Error v _) = text "error" PP.<> textv v
 --ppKTerm' (ApplyKont kname varname) =
 --    text (show kname) <+> textv varname
 
-ppKTerm' (Halt varname _) =
+ppKTerm' (Halt varname) =
   text "halt" <+> textv varname
 
-ppKTerm' (KontReturn varname _) =
+ppKTerm' (KontReturn varname) =
   text "return" <+> textv varname
 
 -- ppKTerm' (LetRet kname kterm) =
@@ -215,33 +213,33 @@ ppKTerm' (KontReturn varname _) =
 --   nest 3 (ppKTerm 0 kterm) $$
 --   text "end"
 
-ppKTerm' (ApplyFun fname varname _) =
+ppKTerm' (ApplyFun fname varname) =
     textv fname <+> textv varname
 
-ppKTerm' (LetSimple x t k _) =
+ppKTerm' (LetSimple x (Loc _ t) k) =
   text "let-simple" <+>
   nest 3 (textv x <+> text "=" <+> ppSimpleTerm t) $$
   text "in" <+>
   nest 3 (ppKTerm 0 k) $$
   text "end"
 
-ppKTerm' (LetRet (Cont pat kt1) kt2 _) =
+ppKTerm' (LetRet (Cont pat kt1) kt2) =
   text "let-ret" <+>
-  nest 3 (textv pat <+> text "=" <+> ppKTerm' kt1) $$
+  nest 3 (textv pat <+> text "=" <+> ppKTerm 0 kt1) $$
   text "in" <+>
   nest 3 (ppKTerm 0 kt2) $$
   text "end"
 
-ppKTerm' (LetFun fdefs kt _) =
+ppKTerm' (LetFun lfdefs kt) =
   text "let-fun" <+>
-  nest 3 (ppFuns (map ppFunDecl fdefs)) $$
+  nest 3 (ppFuns (map ppFunDecl lfdefs)) $$
   text "in" <+>
   nest 3 (ppKTerm 0 kt) $$
   text "end"
   where
-    ppFunDecl (Fun fname (Unary pat _ body) _) =
+    ppFunDecl (Loc _ (Fun fname (Unary pat _ body))) =
        (textv fname  <+> textv pat <+> text "=" , ppKTerm 0 body)
-    ppFunDecl (Fun fname (Nullary body) _) =
+    ppFunDecl (Loc _ (Fun fname (Nullary body))) =
        (textv fname  <+> text "()" <+> text "=" , ppKTerm 0 body)
     ppFuns (doc:docs) =
       let pp' prefix (docHead,docBody) = text prefix  <+> docHead  $$ nest 2 docBody
@@ -250,7 +248,7 @@ ppKTerm' (LetFun fdefs kt _) =
       in ppFirstFun doc $$ vcat (map ppOtherFun docs)
     ppFuns _ = PP.empty
 
-ppKTerm' (If vname kt1 kt2 _) =
+ppKTerm' (If vname kt1 kt2) =
   text "if" <+>
   textv vname $$
   text "then" <+>
@@ -279,14 +277,14 @@ maxPrec :: Precedence
 maxPrec = 100000
 
 termPrec :: KTerm -> Precedence
-termPrec (Halt _ _)       = maxPrec
-termPrec (ApplyFun _ _ _) = appPrec
-termPrec (KontReturn _ _)    = appPrec
-termPrec (If _ _ _ _)        = 0
-termPrec (LetSimple _ _ _ _) = 0
+termPrec (Halt _)       = maxPrec
+termPrec (ApplyFun _ _) = appPrec
+termPrec (KontReturn _)    = appPrec
+termPrec (If _ _ _)        = 0
+termPrec (LetSimple _ _ _) = 0
 -- termPrec (LetCont   _ _)   = 0
-termPrec (LetFun    _ _ _)   = 0
+termPrec (LetFun    _ _)   = 0
 --termPrec (Case _ _)        = 0
-termPrec (LetRet _ _ _) = 0
+termPrec (LetRet _ _) = 0
 termPrec (AssertElseError _ _ _ _) = 0
 termPrec (Error _ _) = 0

@@ -50,6 +50,11 @@ instance GetPosInfo PosInf where
 data Located a = Loc !PosInf a
   deriving (Eq, Show, Generic, Functor, Foldable, Traversable)
 
+-- | Ord instance compares content only, ignoring position.
+-- This is useful for CSE maps and other structural comparisons.
+instance Ord a => Ord (Located a) where
+  compare (Loc _ x) (Loc _ y) = compare x y
+
 instance Serialize a => Serialize (Located a)
 
 instance GetPosInfo (Located a) where
