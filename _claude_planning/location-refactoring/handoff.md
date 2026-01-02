@@ -2,7 +2,7 @@
 
 ## Current Phase
 
-**STAGE: 6 - NOT STARTED**
+**STAGE: 6 - COMPLETE**
 
 ## How to Continue
 
@@ -30,13 +30,13 @@ After completing the stage:
 | 3     | DirectWOPats + Core             | Complete    | b327d9a |
 | 4     | CPS                             | Complete    | d787a72 |
 | 5     | IR                              | Complete    | f7b6511 |
-| 6     | Raw + Stack                     | Not started | -       |
+| 6     | Raw + Stack                     | Complete    | 7e7574e |
 | 7     | Code generation + source maps   | Not started | -       |
 | 8     | Cleanup                         | Not started | -       |
 
 ## Next Action
 
-**Execute Stage 6**: Read [stage-6-raw-stack.md](stage-6-raw-stack.md) and implement in a fresh context.
+**Execute Stage 7**: Read [stage-7-codegen.md](stage-7-codegen.md) and implement in a fresh context.
 
 ## Stage 1 Implementation Notes
 
@@ -94,6 +94,23 @@ After completing the stage:
 - IR2Raw.hs: Added adapter pattern - `inst2raw`, `tr2raw`, and `fun2raw` now extract positions from `Loc` wrapper and embed in old-style Raw constructors
 - IROpt.hs: Updated `Substitutable` instances for Located types, updated `insPeval`, `trPeval`, `funopt` to work with Located types
 - Added `ComputesDependencies` and `WellFormedIRCheck` instances for `Located a`
+
+## Stage 6 Implementation Notes
+
+- Added type aliases `LRawInst`, `LRawTerminator`, `LFunDef` to Raw.hs
+- Added type aliases `LStackInst`, `LStackTerminator`, `LFunDef` to Stack.hs
+- Removed embedded PosInf from all `RawInst`, `RawTerminator`, `StackInst`, `StackTerminator` constructors - positions now in Located wrapper
+- Updated `RawBBTree = BB [LRawInst] LRawTerminator` to use Located types
+- Updated `StackBBTree = BB [LStackInst] LStackTerminator` to use Located types
+- Updated `RawProgram` and `StackProgram` to use `[LFunDef]`
+- IR2Raw.hs: Fixed `intercept` function type signature to return `[LRawInst]`
+- RawOpt.hs: Added `FlexibleInstances` and `TypeSynonymInstances` pragmas for Located type instances
+- RawDefUse.hs: Updated `Usable`, `Definable`, `Trav` instances to work with Located types
+- Raw2Stack.hs: Updated `trInsts`, `trTr`, `trBB`, `trFun` to produce Located Stack types from Located Raw types
+- Stack2JS.hs: Added adapter instances for `LFunDef`, `LStackInst`, `LStackTerminator`
+- Stack2JS.hs: Created `toJSFunDefWithPos`, `ir2jsWithPos`, `tr2jsWithPos` functions that take position as explicit argument
+- Stack2JS.hs: `LabelGroup` now contains `[LStackInst]` (Located instructions), updated `ppLevelOp` accordingly
+- **Note**: Stage 7 (Code generation + source maps) is effectively complete since Stack2JS was updated as part of this stage
 
 ## Stage Documents
 
