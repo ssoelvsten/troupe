@@ -19,23 +19,23 @@ import TroupePositionInfo
 
 printDecl :: FunDecl
 printDecl = FunDecl "print"
-    [Lambda [VarPattern "x"] $
-        Let [ValDecl (VarPattern "out") (App (Var "getStdout" NoPos) [Var "authority" NoPos] NoPos) NoPos]
+    [Lambda [VarPattern "x" NoPos] $
+        Let [ValDecl (VarPattern "out" NoPos) (App (Var "getStdout" NoPos) [Var "authority" NoPos] NoPos) NoPos]
             (App (Var "fprintln" NoPos) [Tuple [Var "out" NoPos, Var "x" NoPos] NoPos] NoPos) NoPos
     ] NoPos
 
 printWithLabelsDecl :: FunDecl
 printWithLabelsDecl = FunDecl "printWithLabels"
-    [Lambda [VarPattern "x"] $
-        Let [ValDecl (VarPattern "out") (App (Var "getStdout" NoPos) [Var "authority" NoPos] NoPos) NoPos]
+    [Lambda [VarPattern "x" NoPos] $
+        Let [ValDecl (VarPattern "out" NoPos) (App (Var "getStdout" NoPos) [Var "authority" NoPos] NoPos) NoPos]
             (App (Var "fprintlnWithLabels" NoPos) [Tuple [Var "out" NoPos, Var "x" NoPos] NoPos] NoPos) NoPos
     ] NoPos
 
 
 printStringDecl :: FunDecl
 printStringDecl = FunDecl "printString"
-    [Lambda [VarPattern "x"] $
-        Let [ValDecl (VarPattern "out") (App (Var "getStdout" NoPos) [Var "authority" NoPos] NoPos) NoPos]
+    [Lambda [VarPattern "x" NoPos] $
+        Let [ValDecl (VarPattern "out" NoPos) (App (Var "getStdout" NoPos) [Var "authority" NoPos] NoPos) NoPos]
             (App (Var "fwrite" NoPos) [Tuple [Var "out" NoPos, Bin Concat (Var "x" NoPos) (Lit (LString "\\n")) NoPos] NoPos] NoPos) NoPos
     ] NoPos
 

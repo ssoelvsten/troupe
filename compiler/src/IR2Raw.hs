@@ -788,12 +788,13 @@ tree2raw (IR.BB irInsts irTr) = do
 
 -- Revision 2023-08: new code, but equivalent
 fun2raw :: IR.FunDef -> FunDef
-fun2raw irfdef@(IR.FunDef hfn vname consts (IR.BB irInsts irTr) pos) =
+fun2raw irfdef@(IR.FunDef hfn vname argPos consts (IR.BB irInsts irTr) pos) =
    FunDef hfn rawConsts (BB insts tr) irfdef pos
       where ((tr, rawConsts), insts) = evalRWS comp NoPos 0
             comp = do
               -- Store the argument from R0 in the variable under which the argument is expected.
-              r0 <- getR0
+              -- Use the argument's source position for the R0 read instructions.
+              r0 <- withPos argPos getR0
               constructLVal vname r0
               -- Generate instructions creating LVals for the constants
               pc <- getPC

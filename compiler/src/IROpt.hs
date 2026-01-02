@@ -539,11 +539,11 @@ instance PEval IRBBTree where
 
 
 funopt :: FunDef -> FunDef
-funopt (FunDef hfn argname consts bb pos) =
+funopt (FunDef hfn argname argPos consts bb pos) =
     let initEnv = (Map.singleton argname Unknown, False)
         (bb', (_, _hasChanges), _) = runRWS (peval bb) () initEnv
 
-        new = FunDef hfn argname consts bb' pos
+        new = FunDef hfn argname argPos consts bb' pos
     in if (bb /= bb')  then funopt new
                        else new 
 

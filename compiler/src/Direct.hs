@@ -51,15 +51,25 @@ data Handler = Handler DeclPattern (Maybe DeclPattern) Guard Term
 
 
 data DeclPattern
-    = VarPattern VarName --SrcPosInf
-    | ValPattern Lit 
-    | AtPattern DeclPattern String --SrcPosInf
-    | Wildcard --SrcPosInf
-    | TuplePattern [DeclPattern] --SrcPosInf
-    | ConsPattern DeclPattern DeclPattern --SrcPosInf
-    | ListPattern [DeclPattern] --SrcPosInf
-    | RecordPattern [(FieldName, Maybe DeclPattern)] RecordPatternMode
+    = VarPattern VarName PosInf
+    | ValPattern Lit PosInf
+    | AtPattern DeclPattern String PosInf
+    | Wildcard PosInf
+    | TuplePattern [DeclPattern] PosInf
+    | ConsPattern DeclPattern DeclPattern PosInf
+    | ListPattern [DeclPattern] PosInf
+    | RecordPattern [(FieldName, Maybe DeclPattern)] RecordPatternMode PosInf
       deriving (Eq)
+
+instance GetPosInfo DeclPattern where
+    posInfo (VarPattern _ p) = p
+    posInfo (ValPattern _ p) = p
+    posInfo (AtPattern _ _ p) = p
+    posInfo (Wildcard p) = p
+    posInfo (TuplePattern _ p) = p
+    posInfo (ConsPattern _ _ p) = p
+    posInfo (ListPattern _ p) = p
+    posInfo (RecordPattern _ _ p) = p
 
 data RecordPatternMode = ExactMatch | WildcardMatch
   deriving (Eq, Show)
@@ -329,26 +339,26 @@ ppDecl (FunDecs fs) = ppFuns fs
 
 
 ppDeclPattern :: DeclPattern -> PP.Doc
-ppDeclPattern (VarPattern x) = text x
-ppDeclPattern (Wildcard ) = text "_"
-ppDeclPattern (AtPattern p l ) = ppDeclPattern p PP.<> text ("@ " ++ l)
-ppDeclPattern (ValPattern literal ) = ppLit literal
-ppDeclPattern (TuplePattern patterns ) =
+ppDeclPattern (VarPattern x _) = text x
+ppDeclPattern (Wildcard _) = text "_"
+ppDeclPattern (AtPattern p l _) = ppDeclPattern p PP.<> text ("@ " ++ l)
+ppDeclPattern (ValPattern literal _) = ppLit literal
+ppDeclPattern (TuplePattern patterns _) =
   PP.parens $
   PP.hsep $
   PP.punctuate (text ",") (map ppDeclPattern patterns)
-ppDeclPattern (ListPattern pats ) =
+ppDeclPattern (ListPattern pats _) =
   PP.brackets $
   PP.hsep $
   PP.punctuate (text ",") (map ppDeclPattern pats)
-ppDeclPattern (ConsPattern headPattern tailPattern ) =
+ppDeclPattern (ConsPattern headPattern tailPattern _) =
   PP.parens $
   ppDeclPattern headPattern PP.<> text "::" PP.<> ppDeclPattern tailPattern
-ppDeclPattern (RecordPattern fields mode) = 
-  PP.braces $ 
-    PP.hsep $ 
+ppDeclPattern (RecordPattern fields mode _) =
+  PP.braces $
+    PP.hsep $
       PP.punctuate (text ",") (map ppField fields ++ wildcard)
-        where ppField (f, Nothing) = text f 
+        where ppField (f, Nothing) = text f
               ppField (f, Just pat) = PP.hsep[text f, text "=", ppDeclPattern pat]
               wildcard = case mode of
                 ExactMatch -> []

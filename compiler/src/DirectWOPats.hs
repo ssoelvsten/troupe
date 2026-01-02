@@ -42,7 +42,7 @@ data Lit
 
 
 
-data Lambda = Lambda [VarName] Term
+data Lambda = Lambda [(VarName, PosInf)] Term
   deriving (Eq)
 
 type Fields = [(FieldName, Term)]
@@ -223,14 +223,14 @@ qqLambda :: Lambda -> (PP.Doc, PP.Doc)
 qqLambda (Lambda args body) =
   let ppArgs' =
         if null args then text "()"
-                     else hsep $ map text args
+                     else hsep $ map (text . fst) args
   in ( ppArgs', ppTerm 0 body)
 
 ppDecl (ValDecl x t) = text "val" <+> text x <+> text "=" <+> ppTerm 0 t
 ppDecl (FunDecs fs) = ppFuns (map ppFunDecl fs)
   where
     ppFunDecl ( FunDecl fname (Lambda args body) _) =
-      let ppArgs = if args == [] then text "()" else hsep ( map text args)
+      let ppArgs = if args == [] then text "()" else hsep ( map (text . fst) args)
       in (text fname <+> ppArgs <+> text "=" , ppTerm 0 body)
     ppFuns (doc:docs) =
       let pp' prefix (docHead,docBody) = text prefix  <+> docHead  $$ nest 2 docBody

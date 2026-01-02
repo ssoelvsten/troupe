@@ -60,9 +60,9 @@ idSubst = Subst (Map.empty)
 instance Substitutable KLambda where
   apply subst@(Subst varmap) kl =
     case kl of
-      Unary vn kt ->
+      Unary vn vnPos kt ->
         let subst' = Subst (Map.delete vn varmap)
-        in  Unary vn (apply subst' kt)
+        in  Unary vn vnPos (apply subst' kt)
       Nullary kt ->
         let subst' = Subst (varmap)
         in Nullary (apply subst' kt)
@@ -156,9 +156,9 @@ instance CensusCollectible SimpleTerm where
       Base _ -> return ()
       Lib _ _ -> return ()
 
-instance CensusCollectible KLambda where   
-  updateCensus kl = case kl of 
-      Unary _ kt -> updateCensus kt 
+instance CensusCollectible KLambda where
+  updateCensus kl = case kl of
+      Unary _ _ kt -> updateCensus kt
       Nullary kt -> updateCensus kt 
 
 instance CensusCollectible SVal where 
@@ -237,8 +237,8 @@ instance Simplifiable FunDef where
 instance Simplifiable ContDef where 
   simpl (Cont v kt) = simpl kt >>= return . Cont v
     
-instance Simplifiable KLambda where 
-  simpl (Unary v k) = simpl k >>= return . Unary v 
+instance Simplifiable KLambda where
+  simpl (Unary v vPos k) = simpl k >>= return . Unary v vPos
   simpl (Nullary k) = simpl k >>= return . Nullary
 
 look :: VarName -> Opt Term 
@@ -449,7 +449,7 @@ instance Simplifiable KTerm where
             x_uses <- censusInfo x
             case (x_uses, st) of
               (0, _) | failFree st  -> simpl kt
-              (1, ValSimpleTerm (KAbs klambda@(Unary _ _ )) _)
+              (1, ValSimpleTerm (KAbs klambda@(Unary _ _ _ )) _)
                 | isApplied x kt ->  do
                       bindenv x (St st)
                       simpl kt          -- remove the let-declaration
@@ -488,7 +488,7 @@ instance Simplifiable KTerm where
         case x_uses of
           1 -> do v <- look x
                   case v of
-                    (St (ValSimpleTerm (KAbs (Unary arg body)) _)) -> do
+                    (St (ValSimpleTerm (KAbs (Unary arg _ body)) _)) -> do
                       simpl $ subst arg y body
                     _ -> return k
           _ -> return k
@@ -546,7 +546,7 @@ isApplied f k =
     Halt _ _ -> False
     Error _ _ -> False
     LetRet (Cont _ k') k'' _ -> isApplied f k' || isApplied f k''
-   where kTermOfLambda (Unary _ k') = k'
+   where kTermOfLambda (Unary _ _ k') = k'
          kTermOfLambda (Nullary k') = k'
     
 

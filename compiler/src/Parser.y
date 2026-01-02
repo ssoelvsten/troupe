@@ -287,24 +287,24 @@ CSExpr : Expr ','                  { [$1] }
      | CSExpr Expr ','             { ($2:$1) }
 
 
-Pattern : VAR                               { VarPattern (varTok $1) }
+Pattern : VAR                               {% pos $1 >>= \p -> return (VarPattern (varTok $1) p) }
     | '(' Pattern ')'                       { $2 }
-    | Pattern '@' LABEL                     { AtPattern $1 (lblTok $3) }
-    | '(' ')'                               { ValPattern LUnit }
-    | '_'                                   { Wildcard }
-    | Lit                                   { ValPattern $1 }
-    | '(' CSPattern Pattern ')'             { TuplePattern (reverse ($3:$2)) }
+    | Pattern '@' LABEL                     {% pos $2 >>= \p -> return (AtPattern $1 (lblTok $3) p) }
+    | '(' ')'                               {% pos $1 >>= \p -> return (ValPattern LUnit p) }
+    | '_'                                   {% pos $1 >>= \p -> return (Wildcard p) }
+    | Lit                                   { ValPattern $1 NoPos }
+    | '(' CSPattern Pattern ')'             {% pos $1 >>= \p -> return (TuplePattern (reverse ($3:$2)) p) }
     | FieldPattern                          { $1 }
     | ListPattern   { $1}
 
 
 FieldPattern :
-      '{' '}'                                        { RecordPattern [] ExactMatch }
-    | '{' '..' '}'                                   { RecordPattern [] WildcardMatch }
-    | '{' FieldPat '}'                               { RecordPattern [$2] ExactMatch }
-    | '{' FieldPat ',' '..' '}'                      { RecordPattern [$2] WildcardMatch }     
-    | '{' FieldPatterns FieldPat '}'                 { RecordPattern (reverse ($3:$2)) ExactMatch }
-    | '{' FieldPatterns FieldPat ',' '..' '}'        { RecordPattern (reverse ($3:$2)) WildcardMatch }
+      '{' '}'                                        {% pos $1 >>= \p -> return (RecordPattern [] ExactMatch p) }
+    | '{' '..' '}'                                   {% pos $1 >>= \p -> return (RecordPattern [] WildcardMatch p) }
+    | '{' FieldPat '}'                               {% pos $1 >>= \p -> return (RecordPattern [$2] ExactMatch p) }
+    | '{' FieldPat ',' '..' '}'                      {% pos $1 >>= \p -> return (RecordPattern [$2] WildcardMatch p) }
+    | '{' FieldPatterns FieldPat '}'                 {% pos $1 >>= \p -> return (RecordPattern (reverse ($3:$2)) ExactMatch p) }
+    | '{' FieldPatterns FieldPat ',' '..' '}'        {% pos $1 >>= \p -> return (RecordPattern (reverse ($3:$2)) WildcardMatch p) }
 
 
 FieldPatterns
@@ -316,10 +316,10 @@ FieldPat
     : VAR              {(varTok $1, Nothing) }
     | VAR '=' Pattern  {(varTok $1, Just $3) }
 
-ListPattern:  '[' ']'                              { ListPattern [] }
-    | '[' Pattern ']'                              { ListPattern [$2] }
-    | '[' CSPattern Pattern ']'                    { ListPattern (reverse ($3:$2)) }
-    |     Pattern '::' Pattern                     { ConsPattern  $1 $3 }
+ListPattern:  '[' ']'                              {% pos $1 >>= \p -> return (ListPattern [] p) }
+    | '[' Pattern ']'                              {% pos $1 >>= \p -> return (ListPattern [$2] p) }
+    | '[' CSPattern Pattern ']'                    {% pos $1 >>= \p -> return (ListPattern (reverse ($3:$2)) p) }
+    |     Pattern '::' Pattern                     {% pos $2 >>= \p -> return (ConsPattern $1 $3 p) }
 
 
 CSPattern : Pattern ','         { [$1] }
@@ -362,8 +362,8 @@ FunArgs : Pattern                        { [$1]  }
 
 
 piniDecl auth decs =
-    let pushDecl = ValDecl (VarPattern "$pini") (App  (Var "pinipush" NoPos) [auth] NoPos) (RTGen "parser")
-        popDecl  = ValDecl Wildcard (App (Var "pinipop" NoPos) [Var "$pini" NoPos] NoPos) (RTGen "parser")
+    let pushDecl = ValDecl (VarPattern "$pini" (RTGen "parser")) (App  (Var "pinipush" NoPos) [auth] NoPos) (RTGen "parser")
+        popDecl  = ValDecl (Wildcard (RTGen "parser")) (App (Var "pinipop" NoPos) [Var "$pini" NoPos] NoPos) (RTGen "parser")
     in
         (pushDecl:decs) ++ [popDecl]
 

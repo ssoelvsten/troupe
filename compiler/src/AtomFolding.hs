@@ -64,18 +64,18 @@ visitFields atms fs  =  map visitField fs
           visitField (f, Just t) = (f, Just (visitTerm atms t))
 
 visitPattern :: [AtomName] -> DeclPattern -> DeclPattern
-visitPattern atms pat@(VarPattern nm) =
+visitPattern atms pat@(VarPattern nm pos) =
   if (elem nm atms)
-  then ValPattern (LAtom nm)
+  then ValPattern (LAtom nm) pos
   else pat
-visitPattern _ pat@(ValPattern _) = pat
-visitPattern atms (AtPattern p l) = AtPattern (visitPattern atms p) l
-visitPattern _ pat@Wildcard = pat
-visitPattern atms (TuplePattern pats) = TuplePattern (map (visitPattern atms) pats)
-visitPattern atms (ConsPattern p1 p2) = ConsPattern (visitPattern atms p1) (visitPattern atms p2)
-visitPattern atms (ListPattern pats) = ListPattern (map (visitPattern atms) pats)
-visitPattern atms (RecordPattern fields mode) = RecordPattern (map visitField fields) mode
-      where visitField pat@(_, Nothing) = pat 
+visitPattern _ pat@(ValPattern _ _) = pat
+visitPattern atms (AtPattern p l pos) = AtPattern (visitPattern atms p) l pos
+visitPattern _ pat@(Wildcard _) = pat
+visitPattern atms (TuplePattern pats pos) = TuplePattern (map (visitPattern atms) pats) pos
+visitPattern atms (ConsPattern p1 p2 pos) = ConsPattern (visitPattern atms p1) (visitPattern atms p2) pos
+visitPattern atms (ListPattern pats pos) = ListPattern (map (visitPattern atms) pats) pos
+visitPattern atms (RecordPattern fields mode pos) = RecordPattern (map visitField fields) mode pos
+      where visitField pat@(_, Nothing) = pat
             visitField (f, Just p) = (f, Just (visitPattern atms p))
 
 visitLambda :: [AtomName] -> Lambda -> Lambda

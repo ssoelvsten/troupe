@@ -111,6 +111,7 @@ type Consts = [(VarName, C.Lit)]
 data FunDef = FunDef
                     HFN         -- name of the function
                     VarName     -- name of the argument
+                    PosInf      -- source position of the argument
                     Consts      -- constants used in the function
                     IRBBTree    -- body
                     PosInf      -- source position of function definition
@@ -151,7 +152,7 @@ instance ComputesDependencies IRTerminator where
 
     dependencies _              = return ()
 instance ComputesDependencies FunDef where
-  dependencies (FunDef _ _ _ bb _) = dependencies bb
+  dependencies (FunDef _ _ _ _ bb _) = dependencies bb
 
 
 ppDepsAsJSON :: ComputesDependencies a => a -> (PP.Doc , PP.Doc, PP.Doc)
@@ -366,7 +367,7 @@ wfIRProg (IRProgram (C.Atoms atms) funs) = do
   mapM_ wfFun funs
 
 wfFun :: FunDef -> Except String ()
-wfFun (FunDef (HFN fn) (VN arg) consts bb _) =
+wfFun (FunDef (HFN fn) (VN arg) _ consts bb _) =
     let initVars =[ fn,arg] ++ [i  | VN i <-  fst (unzip consts)]
         act = do
             mapM checkId initVars
@@ -399,7 +400,7 @@ ppConsts consts =
   vcat $ map ppConst consts 
     where ppConst (x, lit) = hsep [ ppId x , text "=", ppLit lit ]
 
-ppFunDef (FunDef hfn arg consts insts _)
+ppFunDef (FunDef hfn arg _ consts insts _)
   = vcat [ text "func" <+> ppFunCall (ppId hfn) [ppId arg] <+> text "{"
          , nest 2 (ppConsts consts)
          , nest 2 (ppBB insts)

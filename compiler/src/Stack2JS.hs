@@ -55,6 +55,7 @@ import Text.PrettyPrint.HughesPJ (
     (<+>), ($$), text, hsep, vcat, nest)
 import Data.Aeson (ToJSON(toJSON), Value)
 import DCLabels (dcLabelExpToDCLabel)
+import Debug.Trace (trace, traceShow)
 import SourceMap.Types (Mapping(..))
 import TroupeSourceMap (collectMapping)
 

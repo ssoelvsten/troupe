@@ -41,7 +41,7 @@ doing that from this language
 
  -}
 
-data KLambda = Unary VarName KTerm
+data KLambda = Unary VarName PosInf KTerm
              | Nullary KTerm
   deriving (Eq, Show, Ord)
 
@@ -191,7 +191,7 @@ qqFields fields =
 
 
 ppKLambda :: KLambda -> PP.Doc
-ppKLambda (Unary pat kt) =
+ppKLambda (Unary pat _ kt) =
   text "fn" <+>  textv pat <+> text "=>" <+> ppKTerm 0 kt
 ppKLambda (Nullary kt) =
   text "fn" <+> text "()" <+> text "=>" <+> ppKTerm 0 kt
@@ -239,7 +239,7 @@ ppKTerm' (LetFun fdefs kt _) =
   nest 3 (ppKTerm 0 kt) $$
   text "end"
   where
-    ppFunDecl (Fun fname (Unary pat body) _) =
+    ppFunDecl (Fun fname (Unary pat _ body) _) =
        (textv fname  <+> textv pat <+> text "=" , ppKTerm 0 body)
     ppFunDecl (Fun fname (Nullary body) _) =
        (textv fname  <+> text "()" <+> text "=" , ppKTerm 0 body)

@@ -23,10 +23,10 @@ transFunDecs decls = do
   mapM transFunDecl decls
 
 transFunDecl :: Core.FunDecl -> S CPS.FunDef
-transFunDecl (Core.FunDecl fname (Core.Unary pat e) pos) = do
+transFunDecl (Core.FunDecl fname (Core.Unary pat patPos e) pos) = do
 --  k <- freshK
   e' <- transExplicit e
-  return $ CPS.Fun (VN fname) (CPS.Unary (VN pat) e') pos
+  return $ CPS.Fun (VN fname) (CPS.Unary (VN pat) patPos e') pos
 transFunDecl (Core.FunDecl fname (Core.Nullary e) pos) = do
 --  k <- freshK
   e' <- transExplicit e
@@ -93,10 +93,10 @@ transExplicit (Core.Un op e pos) = do
   trans e (\x' ->
       return $ LetSimple x (CPS.Un op x' pos) (KontReturn x pos) pos)
 
-transExplicit (Core.Abs (Core.Unary x e) pos) = do
+transExplicit (Core.Abs (Core.Unary x xPos e) pos) = do
   f <- freshV
   e' <- transExplicit e
-  return $ LetSimple f (ValSimpleTerm (KAbs (Unary (VN x) e')) pos) (KontReturn f pos) pos
+  return $ LetSimple f (ValSimpleTerm (KAbs (Unary (VN x) xPos e')) pos) (KontReturn f pos) pos
 
 transExplicit (Core.Abs (Core.Nullary e) pos) = do
   f <- freshV
@@ -168,9 +168,9 @@ transExplicit (Core.ListCons h t pos) = do
   trans h (\h' -> trans t (\t' -> return $ LetSimple v (ListCons h' t' pos) (KontReturn v pos) pos))
 
 transFunDef :: Core.Lambda -> S CPS.KLambda
-transFunDef (Core.Unary x e) = do
+transFunDef (Core.Unary x xPos e) = do
   e' <- transExplicit e
-  return (CPS.Unary (VN x) e')
+  return (CPS.Unary (VN x) xPos e')
 transFunDef (Core.Nullary e) = do
   e' <- transExplicit e
   return (CPS.Nullary e')
@@ -222,11 +222,11 @@ trans (Core.Un op e pos) context = do
   kterm <- context x
   trans e (\z -> return $ LetSimple x (CPS.Un op z pos) kterm pos)
 
-trans (Core.Abs (Core.Unary x e) pos) context = do
+trans (Core.Abs (Core.Unary x xPos e) pos) context = do
   f <- freshV
   kterm <- context f
   e' <- transExplicit e
-  return $ LetSimple f (ValSimpleTerm (KAbs (Unary (VN x) e')) pos) kterm pos
+  return $ LetSimple f (ValSimpleTerm (KAbs (Unary (VN x) xPos e')) pos) kterm pos
 
 trans (Core.Abs (Core.Nullary e) pos) context = do
   f <- freshV

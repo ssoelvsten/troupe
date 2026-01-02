@@ -43,7 +43,7 @@ import           DCLabels (DCLabelExp, ppDCLabelExpLit, dcLabelEq, v1LabelEq, v1
 --------------------------------------------------
 -- AST is the same as Direct, but lambda are unary (or nullary)
 
-data Lambda = Unary VarName Term
+data Lambda = Unary VarName PosInf Term
             | Nullary Term
   deriving (Eq)
 
@@ -229,8 +229,8 @@ trans (D.Atoms atms) = Atoms atms
 
 lowerLam (D.Lambda vs t) =
   case vs of
-    [] -> Unary "$unit" (lower t)
-    x:xs -> Unary x (foldr (\x b -> (Abs (Unary x b) (posInfo t))) (lower t) xs)
+    [] -> Unary "$unit" NoPos (lower t)
+    (x, xpos):xs -> Unary x xpos (foldr (\(x', xpos') b -> (Abs (Unary x' xpos' b) (posInfo t))) (lower t) xs)
 
 
 lowerLit (D.LNumeric n pi) = LNumeric (lowerNumeric n) pi
@@ -492,10 +492,10 @@ rename (Un op e pi) m = do
   return $ Un op e' pi
 
 renameLambda :: Core.Lambda -> Env -> S Core.Lambda
-renameLambda (Unary v t) m = do
+renameLambda (Unary v vpos t) m = do
   v' <- unique v
   t' <- rename t $ extend v v' m
-  return $ Unary v' t'
+  return $ Unary v' vpos t'
 renameLambda (Nullary t) m = do
   t' <- rename t m
   return $ Nullary t'
@@ -644,7 +644,7 @@ qqFields fs = PP.hcat $
               PP.hcat [PP.text name, PP.text "=", ppTerm 0 t ]
 
 qqLambda :: Lambda -> (PP.Doc, PP.Doc)
-qqLambda (Unary arg body) =
+qqLambda (Unary arg _ body) =
   ( text arg, ppTerm 0 body )
 qqLambda (Nullary body) =
   ( text "()", ppTerm 0 body)

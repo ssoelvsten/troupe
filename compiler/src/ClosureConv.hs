@@ -110,7 +110,7 @@ transVars = mapM transVar
 
 isDeclaredEarlierThan lev (_, l)  = l < lev
 
-transFunDec f@(VN fname) (CPS.Unary var kt) pos = do
+transFunDec f@(VN fname) (CPS.Unary var varPos kt) pos = do
   lev <- askLev
   let filt = isDeclaredEarlierThan lev
   (bb, (_, frees, consts_wo_levs)) <-
@@ -119,7 +119,7 @@ transFunDec f@(VN fname) (CPS.Unary var kt) pos = do
         $ local ((insVar var) . (incLev f))
            $ cpsToIR kt
   let consts = (fst.unzip) consts_wo_levs
-  tell ([FunDef (HFN fname) var consts bb pos], [], [])
+  tell ([FunDef (HFN fname) var varPos consts bb pos], [], [])
   return (nub frees)
 
 transFunDec (VN _) (CPS.Nullary _) _ = error "not implemented"
@@ -290,7 +290,7 @@ closureConvert compileMode (CPS.Prog (C.Atoms atms) t) =
       -- obs that our 'main' may have two names depending on the compilation mode; 2018-07-02; AA
       consts = (fst.unzip) consts_wo_levs
       -- The main entry point is compiler-generated, so it has no source position
-      main = FunDef (HFN toplevel) (VN argumentName) consts bb NoPos
+      main = FunDef (HFN toplevel) (VN argumentName) NoPos consts bb NoPos
 
       irProg = CCIR.IRProgram (C.Atoms atms) $ fdefs++[main]
     in do CCIR.wfIRProg irProg 

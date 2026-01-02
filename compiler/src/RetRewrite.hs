@@ -47,9 +47,9 @@ idSubst = Subst (Map.empty)
 instance Substitutable KLambda where
   apply subst@(Subst (varmap)) kl =
     case kl of
-      Unary vn kt ->
+      Unary vn vnPos kt ->
         let subst' = Subst (Map.delete vn varmap)
-        in  Unary vn (apply subst' kt)
+        in  Unary vn vnPos (apply subst' kt)
       Nullary kt ->
         let subst' = Subst (varmap)
         in Nullary (apply subst' kt)
@@ -225,8 +225,8 @@ instance (KWalkable KTerm KTerm) where
 
 
 instance (KWalkable KLambda KTerm) where
-  walk pred f (Unary vn kt) =
-    Unary vn (walk pred f kt)
+  walk pred f (Unary vn vnPos kt) =
+    Unary vn vnPos (walk pred f kt)
   walk pred f (Nullary kt) =
     Nullary (walk pred f kt)
 
@@ -308,12 +308,12 @@ deadContPred _ = False
 -- β-Fun (-Lin)
 --------------------------------------------------
 
-betaFunPred (LetFun [Fun fn (Unary vn kt') _] kt _) = True
-betaFunPred (LetSimple fn (ValSimpleTerm (KAbs (Unary vn kt')) _) kt _) = True
+betaFunPred (LetFun [Fun fn (Unary vn _ kt') _] kt _) = True
+betaFunPred (LetSimple fn (ValSimpleTerm (KAbs (Unary vn _ kt')) _) kt _) = True
 betaFunPred _ = False
 
 betaFun :: KTerm -> KTerm
-betaFun (LetFun [Fun fn klam@(Unary xn kt) funPos] kt' p) =
+betaFun (LetFun [Fun fn klam@(Unary xn xnPos kt) funPos] kt' p) =
   let klam' = walk betaFunPred betaFun klam
       noChange = LetFun [Fun fn klam' funPos] (walk betaFunPred betaFun kt') p
   in
@@ -330,7 +330,7 @@ betaFun (LetFun [Fun fn klam@(Unary xn kt) funPos] kt' p) =
        _ -> noChange
 
 
-betaFun (LetSimple fn (ValSimpleTerm (KAbs klam@(Unary xn kt)) p1) kt' p2) =
+betaFun (LetSimple fn (ValSimpleTerm (KAbs klam@(Unary xn xnPos kt)) p1) kt' p2) =
   let klam' = walk betaFunPred betaFun klam
       noChange = LetSimple fn (ValSimpleTerm (KAbs klam') p1) (walk betaFunPred betaFun kt') p2
   in
