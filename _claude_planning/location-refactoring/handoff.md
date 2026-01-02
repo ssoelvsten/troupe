@@ -2,7 +2,7 @@
 
 ## Current Phase
 
-**STAGE: 7 - COMPLETE**
+**STAGE: 8 - COMPLETE (Migration Complete)**
 
 ## How to Continue
 
@@ -32,11 +32,13 @@ After completing the stage:
 | 5     | IR                              | Complete    | f7b6511 |
 | 6     | Raw + Stack                     | Complete    | 7e7574e |
 | 7     | Code generation + source maps   | Complete    | (merged with Stage 6) |
-| 8     | Cleanup                         | Not started | -       |
+| 8     | Cleanup                         | Complete    | (verification only)   |
 
 ## Next Action
 
-**Execute Stage 8**: Read [stage-8-cleanup.md](stage-8-cleanup.md) and implement in a fresh context.
+**Migration Complete!** All stages have been successfully implemented and verified.
+
+The Located wrapper migration is now complete. All AST types (Direct, Core, CPS, IR, Raw, Stack) use Located wrappers for position information, simplifying transformations and reducing boilerplate.
 
 ## Stage 1 Implementation Notes
 
@@ -122,6 +124,33 @@ After completing the stage:
 - TroupeSourceMap.hs `collectMapping` works with `PosInf` directly (callers use `getLoc`)
 - Source map generation verified working: produces valid JSON with correct source references and VLQ-encoded mappings
 - All 397 golden tests pass
+
+## Stage 8 Implementation Notes
+
+- Verified all `GetPosInfo` instances are still in use:
+  - `GetPosInfo PosInf` - fundamental identity instance
+  - `GetPosInfo (Located a)` - the new generic instance for Located types
+  - `GetPosInfo Lit` in Core.hs - for numeric literals that keep embedded position
+  - `GetPosInfo Term` in DirectWOPats.hs - still used by CaseElimination for pattern compilation
+- No dead code or unused helper functions found
+- DirectWOPats representation intentionally left with embedded positions (intermediate representation)
+- All 397 golden tests pass
+- Source map generation verified working with multiple test files
+
+## Migration Summary
+
+| Before | After |
+|--------|-------|
+| `PosInf` embedded in every constructor | `Located a` wrapper |
+| 17+ patterns per `GetPosInfo` instance | Single generic instance |
+| Manual position threading | `fmap` over `Located` |
+| Inconsistent position handling | Uniform `getLoc`/`atLoc` API |
+
+## Remaining Notes
+
+- DirectWOPats still uses embedded positions (acceptable for intermediate representation)
+- `Error` and `AssertElseError` constructors keep embedded PosInf for error source location
+- Numeric literals (`LNumeric`) keep embedded position in Lit type
 
 ## Stage Documents
 
