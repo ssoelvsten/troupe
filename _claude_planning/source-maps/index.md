@@ -25,8 +25,8 @@ Implement V3 source maps so all Troupe runtime errors show source location (`fil
 | 10    | Capture positions in Parser                      | DONE     | [phase-10-parser-positions.md](phase-10-parser-positions.md)     |
 | 11    | Thread positions through pipeline                | DONE     | [phase-11-threading.md](phase-11-threading.md)                   |
 | 12    | Emit real source maps                            | DONE     | [phase-12-emit-source-maps.md](phase-12-emit-source-maps.md)     |
-| 13    | Runtime source map resolver                      | NEXT     | [phase-13-runtime-resolver.md](phase-13-runtime-resolver.md)     |
-| 14    | Error message positions                          | Pending  | [phase-14-position-params.md](phase-14-position-params.md)       |
+| 13    | Runtime source map resolver                      | SKIPPED  | [phase-13-runtime-resolver.md](phase-13-runtime-resolver.md)     |
+| 14    | Error message positions                          | NEXT     | [phase-14-position-params.md](phase-14-position-params.md)       |
 
 ---
 
@@ -69,6 +69,16 @@ Each phase:
 
 ## Implementation Progress
 
+### Phase 13: Runtime Source Map Resolver - SKIPPED (2026-01-02)
+
+**All tests pass (397/397)**
+
+**Files modified**: None
+
+**Key insight**: Phase 13 is not needed. After recognizing that Troupe's call stack is independent of JavaScript's stack trace, and that threads can execute code from multiple sources, we determined that runtime source map resolution is the wrong approach. Instead, position strings will be passed directly from the compiler as parameters (Phase 14). This is simpler, more accurate, and faster than runtime resolution.
+
+---
+
 ### Phase 12: Emit Real Source Maps - COMPLETE (2026-01-01)
 
 **All tests pass (397/397)**
@@ -108,7 +118,7 @@ bin/golden      # Run golden tests
 | Component | Library                                                    | Version  | Purpose                  |
 |-----------|------------------------------------------------------------|----------|--------------------------|
 | Compiler  | [`sourcemap`](https://hackage.haskell.org/package/sourcemap) | >= 0.1.7 | V3 source map generation |
-| Runtime   | [`source-map`](https://npmjs.com/package/source-map)       | ^0.7.4   | Parse/resolve source maps |
+| Dev Tools | [`source-map`](https://npmjs.com/package/source-map) (dev) | ^0.7.4   | Inspect source maps (debugging tool) |
 
 ---
 
