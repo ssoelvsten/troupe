@@ -1,8 +1,20 @@
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DefaultSignatures #-}
+{-# LANGUAGE DeriveFunctor #-}
+{-# LANGUAGE DeriveFoldable #-}
+{-# LANGUAGE DeriveTraversable #-}
 
 module TroupePositionInfo
-
+  ( PosInf(..)
+  , GetPosInfo(..)
+  , Located(..)
+  , getLoc
+  , unLoc
+  , noLoc
+  , atLoc
+  , mapLoc
+  , withLocOf
+  )
 
 where 
 
@@ -27,5 +39,42 @@ instance Show PosInf
 class GetPosInfo a where 
          posInfo :: a -> PosInf
 
-instance GetPosInfo PosInf where 
+instance GetPosInfo PosInf where
          posInfo x = x
+
+
+-- | A value annotated with source position information.
+-- This wrapper separates position tracking from AST node content,
+-- following the GHC approach to source locations.
+-- Note: Uses 'Loc' instead of 'L' to avoid conflict with Lexer.L
+data Located a = Loc !PosInf a
+  deriving (Eq, Show, Generic, Functor, Foldable, Traversable)
+
+instance Serialize a => Serialize (Located a)
+
+instance GetPosInfo (Located a) where
+  posInfo = getLoc
+
+-- | Extract position from a located value
+getLoc :: Located a -> PosInf
+getLoc (Loc p _) = p
+
+-- | Extract content from a located value
+unLoc :: Located a -> a
+unLoc (Loc _ x) = x
+
+-- | Wrap a value with no position information
+noLoc :: a -> Located a
+noLoc = Loc NoPos
+
+-- | Wrap a value with a specific position
+atLoc :: PosInf -> a -> Located a
+atLoc = Loc
+
+-- | Map over the content of a located value (same as fmap, but explicit)
+mapLoc :: (a -> b) -> Located a -> Located b
+mapLoc = fmap
+
+-- | Combine two located values, keeping the position of the first
+withLocOf :: Located a -> b -> Located b
+withLocOf (Loc p _) x = Loc p x

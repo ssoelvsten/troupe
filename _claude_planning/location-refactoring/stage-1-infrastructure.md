@@ -1,6 +1,6 @@
 # Stage 1: Infrastructure
 
-**Status**: Not started
+**Status**: Complete
 **Depends on**: Nothing
 **Fresh context**: Yes - start a new Claude Code session for this stage
 
@@ -30,7 +30,8 @@ Add to the top of the file:
 -- | A value annotated with source position information.
 -- This wrapper separates position tracking from AST node content,
 -- following the GHC approach to source locations.
-data Located a = L !PosInf a
+-- Note: Uses 'Loc' instead of 'L' to avoid conflict with Lexer.L
+data Located a = Loc !PosInf a
   deriving (Eq, Show, Generic, Functor, Foldable, Traversable)
 ```
 
@@ -45,19 +46,19 @@ instance Serialize a => Serialize (Located a)
 ```haskell
 -- | Extract position from a located value
 getLoc :: Located a -> PosInf
-getLoc (L p _) = p
+getLoc (Loc p _) = p
 
 -- | Extract content from a located value
 unLoc :: Located a -> a
-unLoc (L _ x) = x
+unLoc (Loc _ x) = x
 
 -- | Wrap a value with no position information
 noLoc :: a -> Located a
-noLoc = L NoPos
+noLoc = Loc NoPos
 
 -- | Wrap a value with a specific position
 atLoc :: PosInf -> a -> Located a
-atLoc = L
+atLoc = Loc
 
 -- | Map over the content of a located value (same as fmap, but explicit)
 mapLoc :: (a -> b) -> Located a -> Located b
@@ -65,7 +66,7 @@ mapLoc = fmap
 
 -- | Combine two located values, keeping the position of the first
 withLocOf :: Located a -> b -> Located b
-withLocOf (L p _) x = L p x
+withLocOf (Loc p _) x = Loc p x
 ```
 
 ### 5. Add GetPosInfo Instance

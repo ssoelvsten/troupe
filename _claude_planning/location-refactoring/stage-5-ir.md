@@ -127,13 +127,13 @@ data IRBB = IRBB [LIRInst] LIRTerminator
 
 ```haskell
 pattern Assign' :: VarName -> IRExpr -> LIRInst
-pattern Assign' v e <- L _ (Assign v e)
+pattern Assign' v e <- Loc _ (Assign v e)
 
 pattern TailCall' :: VarAccess -> VarName -> LIRTerminator
-pattern TailCall' f x <- L _ (TailCall f x)
+pattern TailCall' f x <- Loc _ (TailCall f x)
 
 pattern Ret' :: VarName -> LIRTerminator
-pattern Ret' v <- L _ (Ret v)
+pattern Ret' v <- Loc _ (Ret v)
 ```
 
 #### Remove Old GetPosInfo Instances
@@ -156,15 +156,15 @@ Remove the temporary adapter from Stage 4 and produce proper `Located` IR.
 **Before (adapter from Stage 4):**
 ```haskell
 transKTerm :: CPS.LKTerm -> ...
-transKTerm (L pos (CPS.ApplyFun f x)) =
+transKTerm (Loc pos (CPS.ApplyFun f x)) =
     ... TailCall (translateVar f) (translateVar x) pos ...
 ```
 
 **After (proper Located output):**
 ```haskell
 transKTerm :: CPS.LKTerm -> ...
-transKTerm (L pos (CPS.ApplyFun f x)) =
-    ... L pos (TailCall (translateVar f) (translateVar x)) ...
+transKTerm (Loc pos (CPS.ApplyFun f x)) =
+    ... Loc pos (TailCall (translateVar f) (translateVar x)) ...
 ```
 
 ### 3. Add Temporary Adapter in IR2Raw.hs
@@ -196,7 +196,7 @@ transInst linst = withPos (getLoc linst) $ case unLoc linst of
 **Option B: Extract directly, embed in old-style Raw**
 ```haskell
 transInst :: IR.LIRInst -> TM ()
-transInst (L pos (IR.Assign v e)) = do
+transInst (Loc pos (IR.Assign v e)) = do
     ... tell [AssignRaw r expr pos] ...  -- embed pos in old-style Raw
 ```
 

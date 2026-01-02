@@ -23,7 +23,7 @@ The "adapter" from Stage 6 was simply using `getLoc` to extract positions. In th
 
 ```haskell
 genInst :: LStackInst -> JSGen ()
-genInst (L pos inst) = withSourcePos pos $ case inst of
+genInst (Loc pos inst) = withSourcePos pos $ case inst of
     SAssign v e -> do
         emitJS $ genAssign v e
     SPush v -> do
@@ -47,7 +47,7 @@ genInst linst = do
 
 ```haskell
 genTerminator :: LStackTerminator -> JSGen ()
-genTerminator (L pos term) = withSourcePos pos $ case term of
+genTerminator (Loc pos term) = withSourcePos pos $ case term of
     SRet v -> emitJS $ genReturn v
     STailCall f x -> emitJS $ genTailCall f x
     -- etc.

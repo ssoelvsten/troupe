@@ -140,10 +140,10 @@ Add near the `pos` function:
 
 ```haskell
 -- | Create a Located value at the position of the given token
-atPos :: L Token -> a -> ReaderT FilePath (Except String) (Located a)
+atPos :: Lexer.L Token -> a -> ReaderT FilePath (Except String) (Located a)
 atPos tok x = do
     p <- pos tok
-    return (L p x)
+    return (Loc p x)
 ```
 
 #### Update Grammar Rules
@@ -199,8 +199,8 @@ lower (D.App e1 e2 pos) = Core.App (lower e1) (lower e2) pos
 **After (adapter pattern):**
 ```haskell
 lower :: D.LTerm -> Core.Term
-lower (L pos (D.Var x)) = Core.Var (Core.RegVar x) pos
-lower (L pos (D.App e1 e2)) = Core.App (lower e1) (lower e2) pos
+lower (Loc pos (D.Var x)) = Core.Var (Core.RegVar x) pos
+lower (Loc pos (D.App e1 e2)) = Core.App (lower e1) (lower e2) pos
 -- Pattern: extract pos from Located, embed in old-style Core constructor
 ```
 
@@ -209,7 +209,7 @@ The key insight: `lower` now receives `Located Term` and extracts the position t
 ## Verification
 
 ```bash
-make all && make test
+make compiler && ./bin/golden --quick
 ```
 
 All tests must pass. The adapter ensures that Core.Term output is identical to before the migration.

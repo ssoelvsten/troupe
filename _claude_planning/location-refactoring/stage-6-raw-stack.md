@@ -119,7 +119,7 @@ type TM = RWS () [LRawInst] Int
 assignRExpr :: PosInf -> RawExpr -> TM RawVar
 assignRExpr pos e = do
     r <- freshRawVar
-    tell [L pos (AssignRaw r e)]
+    tell [Loc pos (AssignRaw r e)]
     return r
 ```
 
@@ -128,9 +128,9 @@ assignRExpr pos e = do
 ```haskell
 -- Extract position from Located IR, wrap in Located Raw
 transInst :: IR.LIRInst -> TM ()
-transInst (L pos (IR.Assign v e)) = do
+transInst (Loc pos (IR.Assign v e)) = do
     rcomp <- expr2RawComp e
-    ... tell [L pos (AssignRaw r expr)] ...
+    ... tell [Loc pos (AssignRaw r expr)] ...
 ```
 
 ### 3. Update Stack.hs
@@ -178,7 +178,7 @@ Produce `Located` Stack from `Located` Raw.
 
 ```haskell
 transInst :: LRawInst -> [LStackInst]
-transInst (L pos (AssignRaw v e)) = [L pos (SAssign (toStackVar v) (transExpr e))]
+transInst (Loc pos (AssignRaw v e)) = [Loc pos (SAssign (toStackVar v) (transExpr e))]
 -- etc.
 ```
 
@@ -190,7 +190,7 @@ Stack2JS generates JavaScript code. It needs positions for source maps.
 
 ```haskell
 genInst :: LStackInst -> JSGen ()
-genInst (L pos inst) = do
+genInst (Loc pos inst) = do
     recordSourceMapping pos
     case inst of
         SAssign v e -> ...

@@ -103,19 +103,19 @@ Note: The argument position in `Unary` is kept separate because it refers to the
 ```haskell
 -- For pattern matching when you don't need the position
 pattern Var' :: VarAccess -> LTerm
-pattern Var' v <- L _ (Var v)
+pattern Var' v <- Loc _ (Var v)
 
 pattern App' :: LTerm -> LTerm -> LTerm
-pattern App' e1 e2 <- L _ (App e1 e2)
+pattern App' e1 e2 <- Loc _ (App e1 e2)
 
 pattern If' :: LTerm -> LTerm -> LTerm -> LTerm
-pattern If' c t e <- L _ (If c t e)
+pattern If' c t e <- Loc _ (If c t e)
 
 pattern Let' :: Decl -> LTerm -> LTerm
-pattern Let' d body <- L _ (Let d body)
+pattern Let' d body <- Loc _ (Let d body)
 
 pattern Lit' :: Lit -> LTerm
-pattern Lit' l <- L _ (Lit l)
+pattern Lit' l <- Loc _ (Lit l)
 
 -- Add for all Term constructors as needed
 ```
@@ -153,17 +153,17 @@ import qualified Direct as D
 **Before (adapter from Stage 2):**
 ```haskell
 lower :: D.LTerm -> Core.Term
-lower (L pos (D.Var x)) = Core.Var (Core.RegVar x) pos
-lower (L pos (D.App e1 e2)) = Core.App (lower e1) (lower e2) pos
+lower (Loc pos (D.Var x)) = Core.Var (Core.RegVar x) pos
+lower (Loc pos (D.App e1 e2)) = Core.App (lower e1) (lower e2) pos
 ```
 
 **After (proper Located output):**
 ```haskell
 lower :: D.LTerm -> Core.LTerm
-lower (L pos (D.Var x)) = L pos (Core.Var (Core.RegVar x))
-lower (L pos (D.App e1 e2)) = L pos (Core.App (lower e1) (lower e2))
-lower (L pos (D.Lit lit)) = L pos (Core.Lit lit)
-lower (L pos (D.If c t e)) = L pos (Core.If (lower c) (lower t) (lower e))
+lower (Loc pos (D.Var x)) = Loc pos (Core.Var (Core.RegVar x))
+lower (Loc pos (D.App e1 e2)) = Loc pos (Core.App (lower e1) (lower e2))
+lower (Loc pos (D.Lit lit)) = Loc pos (Core.Lit lit)
+lower (Loc pos (D.If c t e)) = Loc pos (Core.If (lower c) (lower t) (lower e))
 -- etc. for all cases
 ```
 
@@ -193,8 +193,8 @@ transExplicit (Core.App e1 e2 pos) = do
 **After (adapter pattern):**
 ```haskell
 transExplicit :: Core.LTerm -> S CPS.KTerm
-transExplicit (L pos (Core.Var (Core.RegVar x))) = return $ KontReturn (VN x) pos
-transExplicit (L pos (Core.App e1 e2)) = do
+transExplicit (Loc pos (Core.Var (Core.RegVar x))) = return $ KontReturn (VN x) pos
+transExplicit (Loc pos (Core.App e1 e2)) = do
   trans e1 (\x1 ->
     trans e2 (\x2 ->
       return $ ApplyFun x1 x2 pos))
@@ -206,7 +206,7 @@ Update `trans` similarly to work with `Core.LTerm`.
 ## Verification
 
 ```bash
-make all && make test
+make compiler && ./bin/golden --quick
 ```
 
 All tests must pass. The adapter in RetDFCPS ensures that CPS output is identical to before.

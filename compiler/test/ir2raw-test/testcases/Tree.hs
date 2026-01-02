@@ -11,7 +11,7 @@ import qualified Basics
 
 
 mkP :: IRBBTree -> IRProgram
-mkP tree = IRProgram (Core.Atoms []) [FunDef (HFN "main") (VN "arg") [] tree]
+mkP tree = IRProgram (Core.Atoms []) [FunDef (HFN "main") (VN "arg") NoPos [] tree NoPos]
 
 tcs :: [(String, IRProgram)]
 tcs = map (second mkP)

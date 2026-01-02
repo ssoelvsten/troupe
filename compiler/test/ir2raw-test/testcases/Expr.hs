@@ -14,7 +14,7 @@ import Basics
 
 
 mkP :: IRExpr -> IRProgram
-mkP e = IRProgram (Core.Atoms []) [FunDef (HFN "main") (VN "arg") [] body]
+mkP e = IRProgram (Core.Atoms []) [FunDef (HFN "main") (VN "arg") NoPos [] body NoPos]
   where body = BB [Assign (VN "r") e NoPos] (LibExport (mkV "r") NoPos) -- need to use assigned variable so that it is not optimized away
 
 tcs :: [(String, IRProgram)]

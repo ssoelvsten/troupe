@@ -125,13 +125,13 @@ data KLambda
 
 ```haskell
 pattern LetSimple' :: VarName -> LSimpleTerm -> LKTerm -> LKTerm
-pattern LetSimple' v st kt <- L _ (LetSimple v st kt)
+pattern LetSimple' v st kt <- Loc _ (LetSimple v st kt)
 
 pattern KontReturn' :: VarName -> LKTerm
-pattern KontReturn' v <- L _ (KontReturn v)
+pattern KontReturn' v <- Loc _ (KontReturn v)
 
 pattern ApplyFun' :: VarName -> VarName -> LKTerm
-pattern ApplyFun' f x <- L _ (ApplyFun f x)
+pattern ApplyFun' f x <- Loc _ (ApplyFun f x)
 
 -- etc.
 ```
@@ -163,20 +163,20 @@ transFunDecl :: Core.FunDecl -> S CPS.FunDef
 **Before (adapter from Stage 3):**
 ```haskell
 transExplicit :: Core.LTerm -> S CPS.KTerm
-transExplicit (L pos (Core.Var (Core.RegVar x))) = return $ KontReturn (VN x) pos
+transExplicit (Loc pos (Core.Var (Core.RegVar x))) = return $ KontReturn (VN x) pos
 ```
 
 **After (proper Located output):**
 ```haskell
 transExplicit :: Core.LTerm -> S CPS.LKTerm
-transExplicit (L pos (Core.Var (Core.RegVar x))) = return $ L pos (KontReturn (VN x))
-transExplicit (L pos (Core.App e1 e2)) = do
+transExplicit (Loc pos (Core.Var (Core.RegVar x))) = return $ Loc pos (KontReturn (VN x))
+transExplicit (Loc pos (Core.App e1 e2)) = do
   trans e1 (\x1 ->
     trans e2 (\x2 ->
-      return $ L pos (ApplyFun x1 x2)))
-transExplicit (L pos (Core.Lit lit)) = do
+      return $ Loc pos (ApplyFun x1 x2)))
+transExplicit (Loc pos (Core.Lit lit)) = do
   x <- freshV
-  return $ L pos (LetSimple x (L (posInfo lit) (ValSimpleTerm (CPS.Lit lit))) (L pos (KontReturn x)))
+  return $ Loc pos (LetSimple x (Loc (posInfo lit) (ValSimpleTerm (CPS.Lit lit))) (Loc pos (KontReturn x)))
 -- etc.
 ```
 
@@ -203,8 +203,8 @@ transKTerm (CPS.ApplyFun f x pos) = ...
 **After (adapter pattern):**
 ```haskell
 transKTerm :: CPS.LKTerm -> ...
-transKTerm (L pos (CPS.LetSimple v st kt)) = ...  -- extract pos, embed in old IR
-transKTerm (L pos (CPS.ApplyFun f x)) = ...
+transKTerm (Loc pos (CPS.LetSimple v st kt)) = ...  -- extract pos, embed in old IR
+transKTerm (Loc pos (CPS.ApplyFun f x)) = ...
 ```
 
 ## Verification

@@ -2,7 +2,7 @@
 
 ## Current Phase
 
-**STAGE: 1 - NOT STARTED**
+**STAGE: 1 - COMPLETE** (pending commit and test verification)
 
 ## How to Continue
 
@@ -25,7 +25,7 @@ After completing the stage:
 
 | Stage | Description                     | Status      | Commit |
 |-------|---------------------------------|-------------|--------|
-| 1     | Infrastructure                  | Not started | -      |
+| 1     | Infrastructure                  | Complete    | TBD    |
 | 2     | Parser + Direct                 | Not started | -      |
 | 3     | DirectWOPats + Core             | Not started | -      |
 | 4     | CPS                             | Not started | -      |
@@ -36,7 +36,13 @@ After completing the stage:
 
 ## Next Action
 
-**Execute Stage 1**: Read [stage-1-infrastructure.md](stage-1-infrastructure.md) and implement.
+**After verifying tests pass and committing Stage 1**: Proceed to Stage 2 in a fresh context. Read [stage-2-parser-direct.md](stage-2-parser-direct.md) and implement.
+
+## Stage 1 Implementation Notes
+
+- Constructor renamed from `L` to `Loc` to avoid conflict with `Lexer.L` (which wraps tokens)
+- All stage documents have been updated to use `Loc` instead of `L`
+- Fixed pre-existing bugs in `ir2raw-test` test files (wrong `FunDef` arity)
 
 ## Stage Documents
 
