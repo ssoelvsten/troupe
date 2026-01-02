@@ -603,8 +603,9 @@ tr2js (Error va pos) = do
   marker <- emitMarker pos
   return $ marker PP.<> (jsFunCall (text "rt.rawErrorPos")) [ppId va, ppPosInfo pos]
 
-tr2js (TailCall va1 _pos) = return $
-    "return" <+> ppId va1
+tr2js (TailCall va1 pos) = do
+  marker <- emitMarker pos
+  return $ marker PP.<> ("return" <+> ppId va1)
 
 tr2js (LibExport va _pos) = do
   d <- toJS va
