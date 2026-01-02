@@ -272,7 +272,7 @@ parseMarker s
 stack2JSON :: CompileMode -> Bool -> StackUnit -> ByteString
 stack2JSON compileMode debugMode su =
   let (ppDoc, (libs, atoms, konts, _markers)) = stack2PPDoc compileMode debugMode su
-      fname = case su of FunStackUnit (FunDef (HFN n) _ _ _ _ _) -> Just n
+      fname = case su of FunStackUnit (Loc _ (FunDef (HFN n) _ _ _ _)) -> Just n
                          AtomStackUnit _                       -> Nothing
                          ProgramStackUnit _                    -> error "Internal error: stack2JSON called with ProgramStackUnit"
   in Aeson.encode $ JSOutput { libs = libs
@@ -283,9 +283,21 @@ stack2JSON compileMode debugMode su =
 
 
 instance ToJS StackUnit where
-  toJS (FunStackUnit fdecl) = toJS fdecl
+  toJS (FunStackUnit lfdecl) = toJS lfdecl
   toJS (AtomStackUnit ca) = toJS ca
   toJS (ProgramStackUnit p) = error "not implemented"
+
+-- | Instance for Located FunDef - extracts position and delegates to FunDef ToJS
+instance ToJS LFunDef where
+  toJS (Loc pos fdef) = toJSFunDefWithPos pos fdef
+
+-- | Instance for Located StackInst - extracts position and delegates to ir2js
+instance ToJS LStackInst where
+  toJS (Loc pos inst) = ir2jsWithPos pos inst
+
+-- | Instance for Located StackTerminator - extracts position and delegates to tr2js
+instance ToJS LStackTerminator where
+  toJS (Loc pos tr) = tr2jsWithPos pos tr
 
 instance ToJS IR.VarAccess where 
   toJS (IR.VarLocal vn) = return $ IR.ppVarName vn 
@@ -330,8 +342,9 @@ constsToJS consts = do
       marker <- emitMarker (posInfo lit)
       return $ marker PP.<> hsep ["const", ppId x , text "=", lit2JS lit ]
 
-instance ToJS FunDef where
-    toJS (FunDef hfn stacksize consts bb irfdef pos) = do
+-- | Helper function for FunDef ToJS with explicit position
+toJSFunDefWithPos :: PosInf -> FunDef -> W PP.Doc
+toJSFunDefWithPos pos (FunDef hfn stacksize consts bb irfdef) = do
        {--
           |  |  | ... | <sparse slot> |
           ^           ^
@@ -383,11 +396,13 @@ instance ToJS StackBBTree where
       return $ vcat $ jj ++ [j']
 
 
+-- These instances are not used directly since StackBBTree now has Located types,
+-- but we keep them for cases where the unwrapped types might be used elsewhere.
 instance ToJS StackInst where
-  toJS = ir2js
+  toJS = ir2jsWithPos NoPos
 
-instance ToJS StackTerminator where 
-  toJS = tr2js
+instance ToJS StackTerminator where
+  toJS = tr2jsWithPos NoPos
 
 binOpToJS :: BinOp -> Raw.UseNativeBinop ->  String
 binOpToJS op (Raw.UseNativeBinop isNative) = case op of 
@@ -444,10 +459,11 @@ unaryOpToJS = \case
 {-- INSTRUCTIONS --}
 
 
--- omit _ = PP.empty 
+-- omit _ = PP.empty
 
-ir2js :: StackInst -> W PP.Doc
-ir2js (AssignRaw tt vn e pos) = do
+-- | Translate StackInst to JS with explicit position
+ir2jsWithPos :: PosInf -> StackInst -> W PP.Doc
+ir2jsWithPos pos (AssignRaw tt vn e) = do
   marker <- emitMarker pos
   jj <- toJS e
   let pfx = case tt of
@@ -459,20 +475,20 @@ ir2js (AssignRaw tt vn e pos) = do
 -- Note: Technically this is handled in the same way as 'AssignRaw' (with 'AssignConst'),
 -- because in JS it is just an assignment to a variable.
 -- The only difference to AssignRaw is the type of variable name (here 'VarName', there 'RawVar') (even though both are wrappers for String)
-ir2js (AssignLVal vn cexpr pos) = do
+ir2jsWithPos pos (AssignLVal vn cexpr) = do
   marker <- emitMarker pos
   d <- toJS cexpr
   return $ marker PP.<> semi (ppLet vn <+> d)
 
 
-ir2js (FetchStack x i _pos) = return $
+ir2jsWithPos _pos (FetchStack x i) = return $
    ppLet x <+> text "_STACK[ _SP + " PP.<> text (show i) PP.<> text "]"
 
-ir2js (StoreStack x i _pos) = return $
+ir2jsWithPos _pos (StoreStack x i) = return $
    text "_STACK[ _SP + " PP.<> text (show i) PP.<> text "] = " <+> ppId x
 
 
-ir2js (MkFunClosures envBindings funBindings pos) = do
+ir2jsWithPos pos (MkFunClosures envBindings funBindings) = do
     -- Create new environment
     marker <- emitMarker pos
     env <- freshEnvVar
@@ -484,29 +500,30 @@ ir2js (MkFunClosures envBindings funBindings pos) = do
     return $ vcat (ppEnv : ppFF)
 
        where ppEnvIds :: VarName ->  [(VarName, IR.VarAccess)] -> W PP.Doc
-             ppEnvIds env ls = do 
-               let penv = ppId env 
-               d1 <- mapM (\(a,b) -> do 
+             ppEnvIds env ls = do
+               let penv = ppId env
+               d1 <- mapM (\(a,b) -> do
                                   d_b <- toJS b
                                   return $ semi $ penv PP.<> text "." PP.<> (ppId a) <+> text "=" <+> d_b
-                          ) 
+                          )
                           ls
-               d3 <- mapM (\(_, b) -> do 
-                              d_b <- toJS b 
+               d3 <- mapM (\(_, b) -> do
+                              d_b <- toJS b
                               return $ d_b <> text ".dataLevel") ls
-               let d2 = penv PP.<> text ".__dataLevel = " 
+               let d2 = penv PP.<> text ".__dataLevel = "
                         <+> jsFunCall (text $ binOpToJS Basics.LatticeJoin (Raw.UseNativeBinop False)) d3
-                                
+
                return $ vcat ( d1 ++ [d2])
              hsepc ls = semi $ PP.hsep (PP.punctuate (text ",") ls)
 
 
-ir2js (SetState c x _pos) = return $ semi $ monStateToJs c <+> "=" <+> ppId x
+ir2jsWithPos _pos (SetState c x) = return $ semi $ monStateToJs c <+> "=" <+> ppId x
 
-ir2js (RTAssertion a _pos) = return $ ppRTAssertionCode jsFunCall a
+ir2jsWithPos _pos (RTAssertion a) = return $ ppRTAssertionCode jsFunCall a
 
-ir2js (LabelGroup ii _pos) = do
-  ii' <- mapM ppLevelOp ii
+-- Note: LabelGroup now contains [LStackInst] (Located instructions)
+ir2jsWithPos _pos (LabelGroup lii) = do
+  ii' <- mapM ppLevelOp lii
   sparseSlot <- ppSparseSlot
   return $ vcat $
            [ -- "if (! _T.getSparseBit()) {" -- Alternative, but involves extra call to RT
@@ -514,15 +531,15 @@ ir2js (LabelGroup ii _pos) = do
            , nest 2 (vcat ii')
            , text "}"
            ]
-    where ppLevelOp (AssignRaw tt vn e _p) = do
+    where ppLevelOp (Loc _p (AssignRaw tt vn e)) = do
             jj <- toJS e
             let pfx = if tt == AssignConst then text "const" else PP.empty
             return $ semi $ pfx <+> ppId vn <+> text "=" <+> jj
-          ppLevelOp x = toJS x
+          ppLevelOp lx = toJS lx  -- Delegate to LStackInst instance
 
-ir2js (SetBranchFlag _pos) = return $
+ir2jsWithPos _pos SetBranchFlag = return $
   text "_T.setBranchFlag()"
-ir2js (InvalidateSparseBit _pos) = return $
+ir2jsWithPos _pos InvalidateSparseBit = return $
   text "rt.raw_invalidateSparseBit()"
 
 
@@ -532,8 +549,9 @@ ir2js (InvalidateSparseBit _pos) = return $
 
 {-- TERMINATORS --}
 
-
-tr2js (StackExpand bb bb2 _pos) = do
+-- | Translate StackTerminator to JS with explicit position
+tr2jsWithPos :: PosInf -> StackTerminator -> W PP.Doc
+tr2jsWithPos _pos (StackExpand bb bb2) = do
     _frameSize <- gets frameSize
     _sparseSlot <- gets sparseSlot
     _consts <- gets consts
@@ -587,7 +605,7 @@ tr2js (StackExpand bb bb2 _pos) = do
 
 
 
-tr2js (If va bb1 bb2 pos) = do
+tr2jsWithPos pos (If va bb1 bb2) = do
   marker <- emitMarker pos
   js1 <- toJS bb1
   js2 <- toJS bb2
@@ -603,18 +621,18 @@ tr2js (If va bb1 bb2 pos) = do
 
 
 
-tr2js (Ret _pos) = return $
+tr2jsWithPos _pos Ret = return $
   jsFunCall (text "return _T.returnImmediate") []
 
-tr2js (Error va pos) = do
+tr2jsWithPos pos (Error va) = do
   marker <- emitMarker pos
   return $ marker PP.<> (jsFunCall (text "rt.rawErrorPos")) [ppId va, ppPosInfo pos]
 
-tr2js (TailCall va1 pos) = do
+tr2jsWithPos pos (TailCall va1) = do
   marker <- emitMarker pos
   return $ marker PP.<> ("return" <+> ppId va1)
 
-tr2js (LibExport va _pos) = do
+tr2jsWithPos _pos (LibExport va) = do
   d <- toJS va
   return $ jsFunCall (text "return") [d]
 

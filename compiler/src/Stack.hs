@@ -32,21 +32,25 @@ import qualified Data.ByteString           as BS
 
 import           Text.PrettyPrint.HughesPJ (hsep, nest, text, vcat, ($$), (<+>))
 import qualified Text.PrettyPrint.HughesPJ as PP
-import           TroupePositionInfo
+import           TroupePositionInfo (Located(..), getLoc, unLoc, noLoc, PosInf(..), GetPosInfo(..))
+
+-- Located type aliases
+type LStackInst = Located StackInst
+type LStackTerminator = Located StackTerminator
+type LFunDef = Located FunDef
 
 
-
-data StackBBTree = BB [StackInst] StackTerminator deriving (Eq, Show)
+data StackBBTree = BB [LStackInst] LStackTerminator deriving (Eq, Show)
 
 
 
 data StackTerminator
-  = TailCall RawVar PosInf
-  | Ret PosInf
-  | If RawVar StackBBTree StackBBTree PosInf
-  | LibExport VarAccess PosInf
-  | Error RawVar PosInf
-  | StackExpand StackBBTree StackBBTree PosInf
+  = TailCall RawVar
+  | Ret
+  | If RawVar StackBBTree StackBBTree
+  | LibExport VarAccess
+  | Error RawVar
+  | StackExpand StackBBTree StackBBTree
   deriving (Eq, Show)
 
 
@@ -61,35 +65,34 @@ data RawAssignType = AssignConst | AssignLet | AssignMut deriving (Eq, Ord, Show
 
 
 data StackInst
-  = AssignRaw RawAssignType RawVar RawExpr PosInf
-  | LabelGroup [StackInst] PosInf
-  | AssignLVal VarName RawExpr PosInf
-  | FetchStack Assignable StackPos PosInf
-  | StoreStack Assignable StackPos PosInf
-  | SetState MonComponent RawVar PosInf
-  | SetBranchFlag PosInf
-  | InvalidateSparseBit PosInf
-  | MkFunClosures [(VarName, VarAccess)] [(VarName, HFN)] PosInf
-  | RTAssertion RTAssertion PosInf
+  = AssignRaw RawAssignType RawVar RawExpr
+  | LabelGroup [LStackInst]  -- Note: LabelGroup contains Located instructions
+  | AssignLVal VarName RawExpr
+  | FetchStack Assignable StackPos
+  | StoreStack Assignable StackPos
+  | SetState MonComponent RawVar
+  | SetBranchFlag
+  | InvalidateSparseBit
+  | MkFunClosures [(VarName, VarAccess)] [(VarName, HFN)]
+  | RTAssertion RTAssertion
    deriving (Eq, Show)
 
--- Function definition
+-- Function definition (position is on the Located wrapper when used as LFunDef)
 data FunDef = FunDef
                     HFN            -- name of the function
                     Int            -- frame size
                     Raw.Consts     -- constant literals
                     StackBBTree    -- body
                     IR.FunDef      -- original definition for serialization
-                    PosInf         -- source position of function definition
                 deriving (Eq)
 
--- An IR program is just a collection of atoms declarations 
+-- An IR program is just a collection of atoms declarations
 -- and function definitions
-data StackProgram = StackProgram C.Atoms [FunDef] 
+data StackProgram = StackProgram C.Atoms [LFunDef]
 
-data StackUnit 
-  = FunStackUnit FunDef 
-  | AtomStackUnit C.Atoms 
+data StackUnit
+  = FunStackUnit LFunDef
+  | AtomStackUnit C.Atoms
   | ProgramStackUnit StackProgram
 
 -----------------------------------------------------------
@@ -97,48 +100,50 @@ data StackUnit
 -----------------------------------------------------------
 
 ppProg (StackProgram atoms funs) =
-  vcat $ (map ppFunDef funs)
+  vcat $ (map ppLFunDef funs)
 
 instance Show StackProgram where
   show = PP.render.ppProg
 
-ppFunDef ( FunDef hfn _ consts insts _ _ )
+ppFunDef ( FunDef hfn _ consts insts _ )
   = vcat [ text "func" <+> ppFunCall (ppId hfn) [] <+> text "{"
          , nest 2 (ppConsts consts)
          , nest 2 (ppBB insts)
          , text "}"]
 
+ppLFunDef :: LFunDef -> PP.Doc
+ppLFunDef (Loc _ fdef) = ppFunDef fdef
 
 
 qqFields fields =
   PP.hsep $ PP.punctuate (text ",") (map ppField fields)
-    where 
-      ppField (name, v) = 
+    where
+      ppField (name, v) =
         PP.hcat [PP.text name, PP.text "=", ppId v]
 
 ppEsc esc =
-  case esc of 
+  case esc of
     NotEscaping -> PP.empty
     Escaping x -> PP.text "*" <+> PP.text (show x )
 
 
 ppIR :: StackInst -> PP.Doc
-ppIR (SetBranchFlag _) = text "<setbranchflag>"
-ppIR (InvalidateSparseBit _) = text "<invalidate sparse bit>"
-ppIR (AssignRaw _ vn st _) = ppId vn <+> text "=" <+> ppRawExpr st
-ppIR (AssignLVal vn expr _) =
+ppIR SetBranchFlag = text "<setbranchflag>"
+ppIR InvalidateSparseBit = text "<invalidate sparse bit>"
+ppIR (AssignRaw _ vn st) = ppId vn <+> text "=" <+> ppRawExpr st
+ppIR (AssignLVal vn expr) =
   ppId vn <+> text "=" <+> ppRawExpr expr
-ppIR (RTAssertion a _) = ppRTAssertion a
+ppIR (RTAssertion a) = ppRTAssertion a
 
-ppIR (SetState comp v _) =
+ppIR (SetState comp v) =
   ppId comp <+> text "<-" <+> ppId v
-ppIR (FetchStack x i _) =
+ppIR (FetchStack x i) =
   ppId x <+> text "<- $STACK[" PP.<> text (show i) PP.<> text "]"
-ppIR (StoreStack x i _) =
+ppIR (StoreStack x i) =
   text "$STACK[" PP.<> text (show i) PP.<> text "] = " <+> ppId x
 
 
-ppIR (MkFunClosures varmap fdefs _) =
+ppIR (MkFunClosures varmap fdefs) =
     let vs = hsepc $ ppEnvIds varmap
         ppFdefs = map (\((VN x), HFN y) ->  text x <+> text "= mkClos" <+> text y ) fdefs
      in text "with env:=" <+> PP.brackets vs $$ nest 2 (vcat ppFdefs)
@@ -147,10 +152,14 @@ ppIR (MkFunClosures varmap fdefs _) =
           hsepc ls = PP.hsep (PP.punctuate (text ",") ls)
 
 
-ppIR (LabelGroup insts _) =
- text "group" $$ nest 2 (vcat (map ppIR insts))
+ppIR (LabelGroup insts) =
+ text "group" $$ nest 2 (vcat (map ppLStackInst insts))
 
-ppTr (StackExpand bb1 bb2 _) = (text "= call" $$ nest 2 (ppBB bb1)) $$ (ppBB bb2)
+ppLStackInst :: LStackInst -> PP.Doc
+ppLStackInst (Loc _ i) = ppIR i
+
+ppTr :: StackTerminator -> PP.Doc
+ppTr (StackExpand bb1 bb2) = (text "= call" $$ nest 2 (ppBB bb1)) $$ (ppBB bb2)
 
 
 -- ppTr (AssertElseError va ir va2 _)
@@ -161,7 +170,7 @@ ppTr (StackExpand bb1 bb2 _) = (text "= call" $$ nest 2 (ppBB bb1)) $$ (ppBB bb2
 --     text "elseError" <+> (ppId va2)
 
 
-ppTr (If va ir1 ir2 _)
+ppTr (If va ir1 ir2)
   = text "if" <+> PP.parens (ppId va) <+>
     text "{" $$
     nest 2 (ppBB ir1) $$
@@ -169,10 +178,12 @@ ppTr (If va ir1 ir2 _)
     text "else {" $$
     nest 2 (ppBB ir2) $$
     text "}"
-ppTr (TailCall va1 _) = ppFunCall (text "tail") [ppId va1]
-ppTr (Ret _)  = ppFunCall (text "ret") []
-ppTr (LibExport va _) = ppFunCall (text "export") [ppId va]
-ppTr (Error va _)  = (text "error") <> (ppId va)
+ppTr (TailCall va1) = ppFunCall (text "tail") [ppId va1]
+ppTr Ret  = ppFunCall (text "ret") []
+ppTr (LibExport va) = ppFunCall (text "export") [ppId va]
+ppTr (Error va)  = (text "error") <> (ppId va)
 
+ppLStackTr :: LStackTerminator -> PP.Doc
+ppLStackTr (Loc _ tr) = ppTr tr
 
-ppBB (BB insts tr) = vcat $ (map ppIR insts) ++ [ppTr tr]
+ppBB (BB insts ltr) = vcat $ (map ppLStackInst insts) ++ [ppLStackTr ltr]

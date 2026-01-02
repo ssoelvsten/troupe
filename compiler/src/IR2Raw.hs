@@ -44,15 +44,15 @@ import Raw
 import RetCPS(VarName(..))
 import Control.Monad
 import Control.Monad.Trans.RWS(RWS, evalRWS, ask, get, put, tell, censor, listen, local)
-import TroupePositionInfo (Located(..), getLoc, unLoc, PosInf(..))
+import TroupePositionInfo (Located(..), getLoc, unLoc, noLoc, PosInf(..))
 
 -- ===== Monad definition =====
 
 -- | Translation monad
 -- Reader: current source position for generated instructions
--- Writer: collected instructions
+-- Writer: collected Located instructions
 -- State: counter for fresh variables
-type TM = RWS PosInf [RawInst] Int
+type TM = RWS PosInf [LRawInst] Int
 
 -- | Get the current source position from the reader context.
 currentPos :: TM PosInf
@@ -64,7 +64,7 @@ withPos pos = local (const pos)
 
 -- | Execute the given TM computation, returning the result value and the generated instructions,
 -- removing them from the resulting computation (but keeping the counter).
-intercept :: TM a -> TM (a, [RawInst])
+intercept :: TM a -> TM (a, [LRawInst])
 intercept = censor (const []) . listen
 
 
@@ -145,14 +145,14 @@ assignRExpr :: RawExpr -> TM RawVar
 assignRExpr e = do
   r <- freshRawVar
   pos <- currentPos
-  tell [AssignRaw r e pos]
+  tell [Loc pos (AssignRaw r e)]
   return r
 
 -- | Assign an expression to the given variable using the current position context.
 assignLVal :: VarName -> RawExpr -> TM ()
 assignLVal vn e = do
   pos <- currentPos
-  tell [AssignLVal vn e pos]
+  tell [Loc pos (AssignLVal vn e)]
 
 -- | Assign an expression to a new variable representing a labelled value.
 assignLVal' :: RawExpr -> TM VarAccess
@@ -179,7 +179,7 @@ getLVal va = do
   pos <- currentPos
 
   mapM_
-    (\(r, f) -> tell [AssignRaw r (ProjectLVal va f) pos])
+    (\(r, f) -> tell [Loc pos (AssignRaw r (ProjectLVal va f))])
     [ (rVal, FieldValue),
       (rValLbl, FieldValLev),
       (rTyLbl, FieldTypLev)
@@ -192,9 +192,9 @@ getLVal va = do
 setR0 :: LVal -> TM ()
 setR0 LVal{..} = do
     pos <- currentPos
-    tell [ SetState R0_Val rVal pos
-         , SetState R0_Lev rValLbl pos
-         , SetState R0_TLev rTyLbl pos
+    tell [ Loc pos (SetState R0_Val rVal)
+         , Loc pos (SetState R0_Lev rValLbl)
+         , Loc pos (SetState R0_TLev rTyLbl)
          ]
 
 -- | Generate instructions assigning the three parts of the R0 register
@@ -205,9 +205,9 @@ getR0 = do
   rValLbl <- freshRawVarWith "_$reg0_vlbl_"
   rTyLbl <- freshRawVarWith "_$reg0_tlbl_"
   pos <- currentPos
-  tell [ AssignRaw rVal (ProjectState R0_Val) pos
-       , AssignRaw rValLbl (ProjectState R0_Lev) pos
-       , AssignRaw rTyLbl (ProjectState R0_TLev) pos
+  tell [ Loc pos (AssignRaw rVal (ProjectState R0_Val))
+       , Loc pos (AssignRaw rValLbl (ProjectState R0_Lev))
+       , Loc pos (AssignRaw rTyLbl (ProjectState R0_TLev))
        ]
   return LVal{..}
 
@@ -217,7 +217,7 @@ getVal :: VarAccess -> TM RawVar
 getVal va = do
     rVal <- freshRawVarWith "_val_"
     pos <- currentPos
-    tell [AssignRaw rVal (ProjectLVal va FieldValue) pos]
+    tell [Loc pos (AssignRaw rVal (ProjectLVal va FieldValue))]
     return rVal
 
 -- | Special case projection for self-references
@@ -231,7 +231,7 @@ getValLbl :: VarAccess -> TM RawVar
 getValLbl va = do
     rValLbl <- freshRawVarWith "_vlbl_"
     pos <- currentPos
-    tell [AssignRaw rValLbl (projectLVal va FieldValLev) pos]
+    tell [Loc pos (AssignRaw rValLbl (projectLVal va FieldValLev))]
     return rValLbl
 
 -- | Generate instructions assigning the type label of the given runtime LVal
@@ -240,7 +240,7 @@ getTyLbl :: VarAccess -> TM RawVar
 getTyLbl va = do
     rTyLbl <- freshRawVarWith "_tlbl_"
     pos <- currentPos
-    tell [AssignRaw rTyLbl (projectLVal va FieldTypLev) pos]
+    tell [Loc pos (AssignRaw rTyLbl (projectLVal va FieldTypLev))]
     return rTyLbl
 
 -- | Generate instructions assigning the current PC label to a new Raw variable.
@@ -248,7 +248,7 @@ getPC :: TM RawVar
 getPC = do
     pc <- freshRawVarWith "_pc_"
     pos <- currentPos
-    tell [AssignRaw pc (ProjectState MonPC) pos]
+    tell [Loc pos (AssignRaw pc (ProjectState MonPC))]
     return pc
 
 -- | Generate instructions assigning the current blocking label to a new Raw variable.
@@ -256,7 +256,7 @@ getBlock :: TM RawVar
 getBlock = do
     bl <- freshRawVarWith "_bl_"
     pos <- currentPos
-    tell [AssignRaw bl (ProjectState MonBlock) pos]
+    tell [Loc pos (AssignRaw bl (ProjectState MonBlock))]
     return bl
 
 -- | Generate instructions raising the PC with the label in the given variable.
@@ -266,8 +266,8 @@ _raisePC raiseBy = do
   pc <- getPC
   pc' <- freshRawVarWith "_pc_"
   pos <- currentPos
-  tell [ AssignRaw pc' (_default_bin Basics.LatticeJoin pc raiseBy) pos
-       , SetState MonPC pc' pos
+  tell [ Loc pos (AssignRaw pc' (_default_bin Basics.LatticeJoin pc raiseBy))
+       , Loc pos (SetState MonPC pc')
        ]
 
 _default_bin op r1 r2 = Bin op (UseNativeBinop False) r1 r2
@@ -279,8 +279,8 @@ _raiseBlock raiseBy = do
   bl  <- getBlock
   bl' <- freshRawVarWith "_bl_"
   pos <- currentPos
-  tell [ AssignRaw bl' (_default_bin Basics.LatticeJoin bl raiseBy) pos
-       , SetState MonBlock bl' pos
+  tell [ Loc pos (AssignRaw bl' (_default_bin Basics.LatticeJoin bl raiseBy))
+       , Loc pos (SetState MonBlock bl')
        ]
 
 -- | Generate instructions raising both PC and blocking label with the label in the given variable.
@@ -305,7 +305,7 @@ assertTypeAndRaise va t = do
   raiseBlock $ TyLbl va
   r <- getVal va
   pos <- currentPos
-  tell [ RTAssertion (AssertType r t) pos ]
+  tell [ Loc pos (RTAssertion (AssertType r t)) ]
 
 -- Note: Currently, RT does not support general type equality check.
 -- assertEqTypes :: [RawType] -> RawVar -> RawVar -> TM ()
@@ -318,7 +318,7 @@ assertTypesBothStringsOrBothNumbers va1 va2 = do
   r1 <- getVal va1
   r2 <- getVal va2
   pos <- currentPos
-  tell [RTAssertion (AssertTypesBothStringsOrBothNumbers r1 r2) pos]
+  tell [Loc pos (RTAssertion (AssertTypesBothStringsOrBothNumbers r1 r2))]
 
 -- | Generate instructions raising the blocking label with the value label of the
 -- given runtime LVal and an assertion based on the value, specified by the given function.
@@ -327,13 +327,13 @@ assertWithValAndRaise va f = do
   raiseBlock $ ValLbl va
   r <- getVal va
   pos <- currentPos
-  tell [RTAssertion (f r) pos]
+  tell [Loc pos (RTAssertion (f r))]
 
 -- | See 'InvalidateSparseBit'.
 invalidateSparseBit :: TM ()
 invalidateSparseBit = do
   pos <- currentPos
-  tell [InvalidateSparseBit pos]
+  tell [Loc pos InvalidateSparseBit]
 
 
 -- ===== Translations from the defined abstractions to Raw instructions =====
@@ -380,7 +380,7 @@ compLabel = \case
     then return r
     else foldM (\(r1 :: RawVar) (r2 :: RawVar) -> do
                    r' :: RawVar <- freshRawVarWith "_lbl_"
-                   tell [ AssignRaw r' (_default_bin Basics.LatticeJoin r1 r2) pos ]
+                   tell [ Loc pos (AssignRaw r' (_default_bin Basics.LatticeJoin r1 r2)) ]
                    return r'
                ) r rs
   PC -> getPC
@@ -691,12 +691,12 @@ inst2raw (Loc pos inst) = case inst of
   IR.MkFunClosures vs env -> do
     -- The generation of closures and the related monitoring is first implemented in stack generation,
     -- to be able to use cyclic pointers for constructing the environments.
-    tell [MkFunClosures vs env pos]
+    tell [Loc pos (MkFunClosures vs env)]
 
 
--- | Translate a Located IR terminator to a Raw terminator, generating instructions.
--- Adapter: extracts position from Located wrapper and uses it for generated terminators.
-tr2raw :: IR.LIRTerminator -> TM RawTerminator
+-- | Translate a Located IR terminator to a Located Raw terminator, generating instructions.
+-- Extracts position from Located wrapper and uses it for generated terminators.
+tr2raw :: IR.LIRTerminator -> TM LRawTerminator
 tr2raw (Loc pos term) = case term of
   -- Revision 2023-08: Equivalent except for the additional redundant raise.
   IR.TailCall v1 v2 -> do
@@ -706,7 +706,7 @@ tr2raw (Loc pos term) = case term of
     assertTypeAndRaise v1 RawFunction
     setR0 =<< getLVal v2
     r <- getVal v1 -- labels of v1 are dismissed at this point
-    return $ TailCall r pos
+    return $ Loc pos (TailCall r)
 
   -- Revision 2023-08: This generates now more instructions than before,
   -- as we also construct LVals instead of just working on single RawVars,
@@ -716,10 +716,10 @@ tr2raw (Loc pos term) = case term of
     -- as both value and type can depend on it. Note: when implementing more fine-grained type labels,
     -- the type label should not always be tainted here.
     setR0 =<< getLVal =<< pcTaint v
-    return $ Ret pos
+    return $ Loc pos Ret
 
   IR.LibExport x ->
-    return $ LibExport x pos
+    return $ Loc pos (LibExport x)
 
   -- Revision 2023-08: Equivalent except for the additional redundant raise.
   IR.If v bb1 bb2 -> do
@@ -729,9 +729,9 @@ tr2raw (Loc pos term) = case term of
     -- Note: The raise here is redundant because we have already raised by the value label above.
     -- However, optimizations aware of the relation between type- and value label will remove it.
     assertTypeAndRaise v RawBoolean
-    tell [ SetBranchFlag pos ]
+    tell [ Loc pos SetBranchFlag ]
     r <- getVal v
-    return $ If r bb1' bb2' pos
+    return $ Loc pos (If r bb1' bb2')
 
   -- Revision 2023-08: Equivalent, only way of modifying bb2 changed.
   IR.StackExpand v irBB1 irBB2 -> do
@@ -746,7 +746,7 @@ tr2raw (Loc pos term) = case term of
                                   -- generally using Sequence (faster concatenation) for instructions
                                   -- might improve performance
     let bb2 = BB insts2' tr2
-    return $ StackExpand bb1 bb2 pos
+    return $ Loc pos (StackExpand bb1 bb2)
 
   -- Note: This is translated into branching and Error for throwing RT exception
   -- Revision 2023-08: More fine-grained raising of blocking label, see below.
@@ -765,7 +765,7 @@ tr2raw (Loc pos term) = case term of
     (tr_err, insts_err) <- intercept $ tr2rawError verr errPos
     let bb_err = BB insts_err tr_err
     r <- getVal v1
-    return $ If r bb bb_err pos
+    return $ Loc pos (If r bb bb_err)
 
   -- Revision 2023-08: Now asserting that verr is a string. Also raising both PC
   -- and blocking label to the error message's value label (which will become
@@ -775,14 +775,16 @@ tr2raw (Loc pos term) = case term of
   IR.Error verr errPos -> tr2rawError verr errPos
 
 -- | Helper for Error translation with explicit error position
-tr2rawError :: VarAccess -> PosInf -> TM RawTerminator
+-- Note: errPos is the error source location (kept embedded in Error constructor)
+tr2rawError :: VarAccess -> PosInf -> TM LRawTerminator
 tr2rawError verr errPos = do
   -- Note: first raising block with type label and then with value label; see AssertElseError for explanation.
   assertTypeAndRaise verr RawString
   -- Note: There is no value label anymore at Raw level; instead join the label into PC (which e.g. determines whether are allowed to print the message)
   raisePCAndBlock $ ValLbl verr
   r <- getVal verr
-  return $ Error r errPos
+  -- Note: Error still contains errPos as the error source location for runtime error messages
+  return $ Loc errPos (Error r)
 
 
 -- Revision 2023-08: unchanged
@@ -795,10 +797,10 @@ tree2raw (IR.BB irInsts irTr) = do
     return $ BB insts tr
 
 -- Revision 2023-08: new code, but equivalent
--- Adapter: extracts position from Located wrapper and FunDef.
-fun2raw :: IR.LFunDef -> FunDef
+-- Now produces LFunDef (Located FunDef) with position on wrapper.
+fun2raw :: IR.LFunDef -> LFunDef
 fun2raw lirfdef@(Loc funDefPos irfdef@(IR.FunDef hfn vname argPos consts (IR.BB irInsts irTr))) =
-   FunDef hfn rawConsts (BB insts tr) irfdef funDefPos
+   Loc funDefPos (FunDef hfn rawConsts (BB insts tr) irfdef)
       where ((tr, rawConsts), insts) = evalRWS comp NoPos 0
             comp = do
               -- Store the argument from R0 in the variable under which the argument is expected.
@@ -817,15 +819,13 @@ fun2raw lirfdef@(Loc funDefPos irfdef@(IR.FunDef hfn vname argPos consts (IR.BB 
               tr' <- tr2raw irTr
               return (tr', rawConsts)
 
--- Revision 2023-08: unchanged
 -- Note: FunSerialization contains FunDef without Located wrapper,
--- so we wrap with NoPos when deserializing.
+-- so we wrap with noLoc when deserializing.
 ir2raw :: IR.SerializationUnit -> RawUnit
 ir2raw (IR.FunSerialization f) = FunRawUnit (fun2raw (Loc NoPos f))
 ir2raw (IR.AtomsSerialization c) = AtomRawUnit c
 ir2raw (IR.ProgramSerialization prog) = ProgramRawUnit (prog2raw prog)
 
--- Revision 2023-08: unchanged
 prog2raw :: IR.IRProgram -> RawProgram
 prog2raw (IR.IRProgram atoms funs) =
     RawProgram atoms (map fun2raw funs)
