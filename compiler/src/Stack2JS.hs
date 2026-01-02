@@ -113,18 +113,9 @@ initState = TheState { freshCounter = 0
 
 a $$+ b  = a $$ (nest 2 b)
 
--- | Vertical concatenation that filters out empty documents to avoid blank lines.
--- We need to render and check for whitespace-only content because PP.isEmpty doesn't
--- catch all cases (e.g., docs that render to just spaces).
-vcatNonEmpty :: [PP.Doc] -> PP.Doc
-vcatNonEmpty docs =
-  let nonEmpty = filter isNonEmptyDoc docs
-  in vcat nonEmpty
-  where
-    isNonEmptyDoc d =
-      let rendered = PP.render d
-      in not (null rendered || all isWhitespace rendered)
-    isWhitespace c = c `elem` [' ', '\t', '\n', '\r']
+-- | Check if a string contains only whitespace characters
+isWhitespaceOnly :: String -> Bool
+isWhitespaceOnly s = null s || all (\c -> c `elem` [' ', '\t', '\r']) s
 
 -- | Emit a source map marker comment and record the mapping.
 -- Returns a PP.Doc containing the marker comment, or empty if position is NoPos/RTGen.
@@ -210,7 +201,6 @@ stack2JSString compileMode debugMode su =
       rendered = PP.render ppDoc
       -- Remove lines that contain only whitespace
       cleanedLines = filter (not . isWhitespaceOnly) (lines rendered)
-      isWhitespaceOnly line = null line || all (\c -> c `elem` [' ', '\t', '\r']) line
   in unlines cleanedLines
 
 -- | Generate JS string and source map mappings
@@ -247,7 +237,6 @@ scanLines :: [String]      -- Lines to process
 scanLines [] _ _ accLines accMappings = (reverse accLines, reverse accMappings)
 scanLines (line:rest) markerData outLineNum accLines accMappings =
   let (cleanLine, lineMappings) = processLine line markerData outLineNum
-      isWhitespaceOnly s = null s || all (\c -> c `elem` [' ', '\t', '\r']) s
       shouldEmit = not (isWhitespaceOnly cleanLine && not (null rest))
       -- Increment output line number only if we emit this line
       nextLineNum = if shouldEmit then outLineNum + 1 else outLineNum
@@ -361,7 +350,7 @@ lit2JS lit = ppLit lit
 constsToJS :: Raw.Consts -> W PP.Doc
 constsToJS consts = do
      docs <- mapM toJsConst consts
-     return $ vcatNonEmpty docs
+     return $ vcat docs
   where
     toJsConst (x, lit) = do
       marker <- emitMarker (posInfo lit)
@@ -389,10 +378,10 @@ toJSFunDefWithPos pos (FunDef hfn stacksize consts bb irfdef) = do
        marker <- emitMarker pos
 
        return $
-          vcatNonEmpty [marker PP.<> text "this." PP.<> ppId hfn <+> text "=" <+> ppArgs ["$env"] <+> text "=> {"
+          vcat [marker PP.<> text "this." PP.<> ppId hfn <+> text "=" <+> ppArgs ["$env"] <+> text "=> {"
                , if debug then nest 2 $ text "rt.debug" <+> (PP.parens . PP.doubleQuotes.  ppId) hfn
                           else PP.empty
-               , nest 2 $ vcatNonEmpty $ [
+               , nest 2 $ vcat $ [
                   "let _T = rt.runtime.$t",
                   "let _STACK = _T.callStack",
                   "let _SP = _T._sp",
@@ -418,7 +407,7 @@ instance ToJS StackBBTree where
     toJS (BB ins tr) = do
       jj  <- mapM toJS ins
       j'  <- toJS tr
-      return $ vcatNonEmpty $ jj ++ [j']
+      return $ vcat $ jj ++ [j']
 
 
 -- These instances are not used directly since StackBBTree now has Located types,
@@ -518,11 +507,11 @@ ir2jsWithPos pos (MkFunClosures envBindings funBindings) = do
     marker <- emitMarker pos
     env <- freshEnvVar
     dd_env_ids <- ppEnvIds env envBindings
-    let ppEnv = vcatNonEmpty [ marker PP.<> semi (hsep [ ppLet env
+    let ppEnv = vcat [ marker PP.<> semi (hsep [ ppLet env
                                    , text "new rt.Env()"])
                      , dd_env_ids]
     let ppFF = map (\(v, f) -> jsClosure v env f) funBindings
-    return $ vcatNonEmpty (ppEnv : ppFF)
+    return $ vcat (ppEnv : ppFF)
 
        where ppEnvIds :: VarName ->  [(VarName, IR.VarAccess)] -> W PP.Doc
              ppEnvIds env ls = do
@@ -538,7 +527,7 @@ ir2jsWithPos pos (MkFunClosures envBindings funBindings) = do
                let d2 = penv PP.<> text ".__dataLevel = "
                         <+> jsFunCall (text $ binOpToJS Basics.LatticeJoin (Raw.UseNativeBinop False)) d3
 
-               return $ vcatNonEmpty ( d1 ++ [d2])
+               return $ vcat ( d1 ++ [d2])
              hsepc ls = semi $ PP.hsep (PP.punctuate (text ",") ls)
 
 
@@ -553,7 +542,7 @@ ir2jsWithPos _pos (LabelGroup lii) = do
   return $ vcat $
            [ -- "if (! _T.getSparseBit()) {" -- Alternative, but involves extra call to RT
              "if (!" <+> sparseSlot <+> ") {"
-           , nest 2 (vcatNonEmpty ii')
+           , nest 2 (vcat ii')
            , text "}"
            ]
     where ppLevelOp (Loc _p (AssignRaw tt vn e)) = do
@@ -598,9 +587,9 @@ tr2jsWithPos _pos (StackExpand bb bb2) = do
     sparseSlotIdxPP <- ppSparseSlotIdx
     constsJS <- constsToJS _consts  -- 2021-05-18; TODO: optimize by including only the _used_ constants
     let jsKont =
-           vcatNonEmpty ["this." PP.<> ppId kname <+> text "= () => {",
+           vcat ["this." PP.<> ppId kname <+> text "= () => {",
                   nest 2 $
-                        vcatNonEmpty [
+                        vcat [
                           "let _T = rt.runtime.$t",
                           "let _STACK = _T.callStack",
                           "let _SP = _T._sp",
