@@ -1,10 +1,11 @@
--- 2019-03-22: closure converted IR based on ANF 
+-- 2019-03-22: closure converted IR based on ANF
 --
 
 {-# LANGUAGE DefaultSignatures #-}
 {-# LANGUAGE DeriveGeneric     #-}
 {-# LANGUAGE TypeSynonymInstances #-}
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE PatternSynonyms #-}
 
 module IR where
 
@@ -30,8 +31,17 @@ import           GHC.Generics              (Generic)
 
 import           Text.PrettyPrint.HughesPJ (hsep, nest, text, vcat, ($$), (<+>))
 import qualified Text.PrettyPrint.HughesPJ as PP
-import           TroupePositionInfo
+import           TroupePositionInfo (Located(..), getLoc, unLoc, noLoc, atLoc, PosInf(..), GetPosInfo(..))
 import           DCLabels
+
+------------------------------------------------------------
+-- Located type aliases
+------------------------------------------------------------
+
+type LIRInst = Located IRInst
+type LIRTerminator = Located IRTerminator
+type LFunDef = Located FunDef
+type LIRExpr = Located IRExpr
 
 -- | Describes a variable containing a labelled value.
 data VarAccess
@@ -71,55 +81,64 @@ data IRExpr
   deriving (Eq, Show, Generic)
 
 -- | A block of instructions followed by a terminator, which can contain further 'IRBBTree's.
-data IRBBTree = BB [IRInst] IRTerminator deriving (Eq, Show, Generic)
+-- Instructions and terminator are wrapped in Located for position tracking.
+data IRBBTree = BB [LIRInst] LIRTerminator deriving (Eq, Show, Generic)
 
+-- | IRTerminator represents control flow endings of a basic block.
+-- Positions are tracked via Located wrapper (LIRTerminator).
+-- Exception: Error and AssertElseError keep embedded PosInf for error source location.
 data IRTerminator
   -- | Call the function referred to by the first variable with the argument in the second variable.
-  = TailCall VarAccess VarAccess PosInf
+  = TailCall VarAccess VarAccess
   -- | Return from the current Call with the given variable as return value.
-  | Ret VarAccess PosInf
-  | If VarAccess IRBBTree IRBBTree PosInf
+  | Ret VarAccess
+  | If VarAccess IRBBTree IRBBTree
   -- | Check whether the value of the first variable is true. If yes, continue with the given tree.
   -- If not, terminate the current thread with a runtime error, printing the message stored in the second variable (which is asserted to be a string) with the given PosInf.
+  -- The PosInf is the error source location (kept embedded).
   | AssertElseError VarAccess IRBBTree VarAccess PosInf
   -- | Make the library available under the given variable.
-  | LibExport VarAccess PosInf
+  | LibExport VarAccess
   -- | Terminate the current thread with a runtime error, printing the message stored in the variable (which is asserted to be a string) with the given PosInf.
+  -- The PosInf is the error source location (kept embedded).
   | Error VarAccess PosInf
   -- | Execute the first BB, store the returned result in the given variable
   -- and then execute the second BB, which can refer to this variable and
   -- where PC is reset to the level before entering the first BB.
   -- Represents a "let x = ... in ..." format.
-  | StackExpand VarName IRBBTree IRBBTree PosInf
+  | StackExpand VarName IRBBTree IRBBTree
   deriving (Eq,Show,Generic)
 
 
+-- | IRInst represents instructions within a basic block.
+-- Positions are tracked via Located wrapper (LIRInst).
 data IRInst
-  = Assign VarName IRExpr PosInf
+  = Assign VarName IRExpr
   -- | A closure instruction consists of
   -- - A list of variables that need to be in the environment
   -- - A list of closures with their name and the corresponding compiler-generated name of the function
-  | MkFunClosures [(VarName, VarAccess)] [(VarName, HFN)] PosInf
-
+  | MkFunClosures [(VarName, VarAccess)] [(VarName, HFN)]
  deriving (Eq, Show, Generic)
 
 
 
 -- | A literal together with the variable name the constant is accessed through.
 type Consts = [(VarName, C.Lit)]
--- Function definition
+
+-- | Function definition
+-- The function definition position is on the Located wrapper (LFunDef).
+-- Argument position is kept inline.
 data FunDef = FunDef
                     HFN         -- name of the function
                     VarName     -- name of the argument
                     PosInf      -- source position of the argument
                     Consts      -- constants used in the function
                     IRBBTree    -- body
-                    PosInf      -- source position of function definition
                 deriving (Eq,Generic)
 
--- An IR program is just a collection of atoms declarations 
--- and function definitions
-data IRProgram = IRProgram C.Atoms [FunDef] deriving (Generic)
+-- An IR program is just a collection of atoms declarations
+-- and function definitions (wrapped with Located for position tracking)
+data IRProgram = IRProgram C.Atoms [LFunDef] deriving (Generic)
 
 -----------------------------------------------------------
 -- Dependency calculation
@@ -131,28 +150,33 @@ class ComputesDependencies a where
   dependencies :: a -> Writer ([HFN], [Basics.LibName], [Basics.AtomName])  ()
 
 instance ComputesDependencies IRInst where
-   dependencies (MkFunClosures _ fdefs _) =
+   dependencies (MkFunClosures _ fdefs) =
         mapM_ (\(_, hfn) -> tell ([hfn],[],[])) fdefs
-   dependencies (Assign _ (Lib libname _) _) =
+   dependencies (Assign _ (Lib libname _)) =
         tell ([], [libname],[])
-   dependencies (Assign _ (Const (C.LAtom a)) _) =
+   dependencies (Assign _ (Const (C.LAtom a))) =
         tell ([], [], [a])
 
    dependencies _ = return ()
 
+-- Instance for Located wrapper - extract and delegate
+instance ComputesDependencies a => ComputesDependencies (Located a) where
+  dependencies (Loc _ a) = dependencies a
+
 instance ComputesDependencies IRBBTree where
-    dependencies (BB insts trm) = 
-        do mapM_ dependencies insts 
+    dependencies (BB insts trm) =
+        do mapM_ dependencies insts
            dependencies trm
 
 instance ComputesDependencies IRTerminator where
-    dependencies (If _ bb1 bb2 _) = mapM_ dependencies [bb1, bb2]
+    dependencies (If _ bb1 bb2) = mapM_ dependencies [bb1, bb2]
     dependencies (AssertElseError _ bb1 _ _) = dependencies bb1
-    dependencies (StackExpand _ t1 t2 _) = dependencies t1  >> dependencies t2
+    dependencies (StackExpand _ t1 t2) = dependencies t1  >> dependencies t2
 
     dependencies _              = return ()
+
 instance ComputesDependencies FunDef where
-  dependencies (FunDef _ _ _ _ bb _) = dependencies bb
+  dependencies (FunDef _ _ _ _ bb) = dependencies bb
 
 
 ppDepsAsJSON :: ComputesDependencies a => a -> (PP.Doc , PP.Doc, PP.Doc)
@@ -231,17 +255,20 @@ checkId x = do
     return ()
 
 instance WellFormedIRCheck IRInst where
- wfir (Assign (VN x) e _) = do checkId x
-                               wfir e
- wfir (MkFunClosures _ fdefs _) = mapM_ (\((VN x), _) -> checkId x) fdefs
+ wfir (Assign (VN x) e) = do checkId x
+                             wfir e
+ wfir (MkFunClosures _ fdefs) = mapM_ (\((VN x), _) -> checkId x) fdefs
 
+-- Instance for Located wrapper - extract and delegate
+instance WellFormedIRCheck a => WellFormedIRCheck (Located a) where
+  wfir (Loc _ a) = wfir a
 
 instance WellFormedIRCheck IRTerminator where
-  wfir (If _ bb1 bb2 _) = do
+  wfir (If _ bb1 bb2) = do
     wfir bb1
     wfir bb2
   wfir (AssertElseError _ bb _ _) = wfir bb
-  wfir (StackExpand (VN x) bb1 bb2 _) = do
+  wfir (StackExpand (VN x) bb1 bb2) = do
     checkId x
     wfir bb1
     wfir bb2
@@ -251,7 +278,7 @@ instance WellFormedIRCheck IRTerminator where
 
 instance WellFormedIRCheck IRBBTree where
   wfir (BB insts tr) = do
-    mapM_ wfir insts    
+    mapM_ wfir insts
     wfir tr
 
 instance WellFormedIRCheck IRExpr where
@@ -364,10 +391,14 @@ wfIRProg (IRProgram (C.Atoms atms) funs) = do
   let duplicates = atms \\ nub atms
   when (not (null duplicates)) $
     throwError $ "Duplicate atom names: " ++ show (nub duplicates)
-  mapM_ wfFun funs
+  mapM_ wfLFun funs
+
+-- | Check well-formedness of a Located FunDef
+wfLFun :: LFunDef -> Except String ()
+wfLFun (Loc _ fdef) = wfFun fdef
 
 wfFun :: FunDef -> Except String ()
-wfFun (FunDef (HFN fn) (VN arg) _ consts bb _) =
+wfFun (FunDef (HFN fn) (VN arg) _ consts bb) =
     let initVars =[ fn,arg] ++ [i  | VN i <-  fst (unzip consts)]
         act = do
             mapM checkId initVars
@@ -391,16 +422,19 @@ checkFromBB initState bb =
 -----------------------------------------------------------
 
 ppProg (IRProgram atoms funs) =
-  vcat $ (map ppFunDef funs)
+  vcat $ (map ppLFunDef funs)
 
 instance Show IRProgram where
   show = PP.render.ppProg
 
-ppConsts consts = 
-  vcat $ map ppConst consts 
+ppConsts consts =
+  vcat $ map ppConst consts
     where ppConst (x, lit) = hsep [ ppId x , text "=", ppLit lit ]
 
-ppFunDef (FunDef hfn arg _ consts insts _)
+ppLFunDef :: LFunDef -> PP.Doc
+ppLFunDef (Loc _ fdef) = ppFunDef fdef
+
+ppFunDef (FunDef hfn arg _ consts insts)
   = vcat [ text "func" <+> ppFunCall (ppId hfn) [ppId arg] <+> text "{"
          , nest 2 (ppConsts consts)
          , nest 2 (ppBB insts)
@@ -438,10 +472,13 @@ qqFields fields =
       ppField (name, v) = 
         PP.hcat [PP.text name, PP.text "=", ppId v]
 
-ppIR :: IRInst -> PP.Doc
-ppIR (Assign vn st _) = ppId vn <+> text "=" <+> ppIRExpr st
+ppLIR :: LIRInst -> PP.Doc
+ppLIR (Loc _ inst) = ppIR inst
 
-ppIR (MkFunClosures varmap fdefs _) =
+ppIR :: IRInst -> PP.Doc
+ppIR (Assign vn st) = ppId vn <+> text "=" <+> ppIRExpr st
+
+ppIR (MkFunClosures varmap fdefs) =
     let vs = hsepc $ ppEnvIds varmap
         ppFdefs = map (\((VN x), HFN y) ->  text x <+> text "= mkClos" <+> text y ) fdefs
      in text "with env:=" <+> PP.brackets vs $$ nest 2 (vcat ppFdefs)
@@ -449,13 +486,14 @@ ppIR (MkFunClosures varmap fdefs _) =
             map (\(a,b) -> (ppId a) PP.<+> text "->" <+> ppId b ) ls
           hsepc ls = PP.hsep (PP.punctuate (text ",") ls)
 
-    
+
+ppLTr :: LIRTerminator -> PP.Doc
+ppLTr (Loc _ tr) = ppTr tr
+
+ppTr (StackExpand vn bb1 bb2) = (ppId vn <+> text "= call" $$ nest 2 (ppBB bb1)) $$ (ppBB bb2)
 
 
-ppTr (StackExpand vn bb1 bb2 _) = (ppId vn <+> text "= call" $$ nest 2 (ppBB bb1)) $$ (ppBB bb2)
-
-
-ppTr (AssertElseError va ir va2 _) 
+ppTr (AssertElseError va ir va2 _)
   = text "assert" <+> PP.parens (ppId va) <+>
     text "{" $$
     nest 2 (ppBB ir) $$
@@ -463,7 +501,7 @@ ppTr (AssertElseError va ir va2 _)
     text "elseError" <+> (ppId va2)
 
 
-ppTr (If va ir1 ir2 _)
+ppTr (If va ir1 ir2)
   = text "if" <+> PP.parens (ppId va) <+>
     text "{" $$
     nest 2 (ppBB ir1) $$
@@ -471,13 +509,13 @@ ppTr (If va ir1 ir2 _)
     text "else {" $$
     nest 2 (ppBB ir2) $$
     text "}"
-ppTr (TailCall va1 va2 _) = ppFunCall (text "tail") [ppId va1, ppId va2]
-ppTr (Ret va _)  = ppFunCall (text "ret") [ppId va]
-ppTr (LibExport va _) = ppFunCall (text "export") [ppId va]
+ppTr (TailCall va1 va2) = ppFunCall (text "tail") [ppId va1, ppId va2]
+ppTr (Ret va)  = ppFunCall (text "ret") [ppId va]
+ppTr (LibExport va) = ppFunCall (text "export") [ppId va]
 ppTr (Error va _)  = (text "error") <> (ppId va)
 
 
-ppBB (BB insts tr) = vcat $ (map ppIR insts) ++ [ppTr tr]
+ppBB (BB insts tr) = vcat $ (map ppLIR insts) ++ [ppLTr tr]
 
 
 

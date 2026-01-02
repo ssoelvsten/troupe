@@ -53,25 +53,29 @@ instance Substitutable IRExpr where
 instance Substitutable IRInst where
     apply subst i =
         case i of
-            Assign x e pos -> Assign x (apply subst e) pos
-            MkFunClosures env funs pos ->
+            Assign x e -> Assign x (apply subst e)
+            MkFunClosures env funs ->
                 let env' = map (\(decVar, y) -> (decVar, apply subst y)) env  -- obs: need only subst in y
-                in MkFunClosures env' funs pos 
+                in MkFunClosures env' funs
 
 instance Substitutable IRTerminator where
     apply subst tr =
         case tr of
-            TailCall x y pos -> TailCall (apply subst x) (apply subst y) pos
-            Ret x pos -> Ret (apply subst x) pos
-            If x bb1 bb2 pos -> If (apply subst x) (apply subst bb1) (apply subst bb2) pos
-            AssertElseError x bb y pos ->
-                AssertElseError (apply subst x) (apply subst bb) (apply subst y) pos
-            LibExport x pos -> LibExport (apply subst x) pos
-            Error x pos -> Error (apply subst x) pos
-            StackExpand decVar bb1 bb2 pos -> StackExpand decVar (apply subst bb1) (apply subst bb2) pos
+            TailCall x y -> TailCall (apply subst x) (apply subst y)
+            Ret x -> Ret (apply subst x)
+            If x bb1 bb2 -> If (apply subst x) (apply subst bb1) (apply subst bb2)
+            AssertElseError x bb y errPos ->
+                AssertElseError (apply subst x) (apply subst bb) (apply subst y) errPos
+            LibExport x -> LibExport (apply subst x)
+            Error x errPos -> Error (apply subst x) errPos
+            StackExpand decVar bb1 bb2 -> StackExpand decVar (apply subst bb1) (apply subst bb2)
 
-instance Substitutable IRBBTree where 
-    apply subst (BB insts tr) = 
+-- Instance for Located wrapper - apply substitution to content, preserve position
+instance Substitutable a => Substitutable (Located a) where
+    apply subst (Loc pos a) = Loc pos (apply subst a)
+
+instance Substitutable IRBBTree where
+    apply subst (BB insts tr) =
         BB (map (apply subst) insts) (apply subst tr)
 
 --------------------------------------------------
@@ -414,24 +418,25 @@ irExprPeval e =
             r_ (TupleVal xs, e)
 
 
-data IRInstRes 
-    = RIns IRInst 
-    | RSubst Subst 
+data IRInstRes
+    = RIns LIRInst
+    | RSubst Subst
 
-insPeval :: IRInst -> Opt IRInstRes
-insPeval i =
+-- | Partial evaluation of a Located IR instruction
+insPeval :: LIRInst -> Opt IRInstRes
+insPeval linst@(Loc pos i) =
     case i of
-        Assign x e pos -> do
+        Assign x e -> do
             exprRes <- irExprPeval e
             case exprRes of
                 RExpr (v', e') -> do
                     envInsert x v'
-                    return $ RIns (Assign x e' pos)
+                    return $ RIns (Loc pos (Assign x e'))
                 RMov y ->
                     return $ RSubst $ Subst (Map.singleton x y)
-        (MkFunClosures envs hfns _pos) -> do
+        MkFunClosures envs hfns -> do
             mapM (\(_, x) -> markUsed' x) envs
-            return $ RIns i
+            return $ RIns linst
 
 
 {--
@@ -446,9 +451,10 @@ instance PEval IRInst where
         return i
 --}
 
-trPeval :: IRTerminator -> Opt IRBBTree
+-- | Partial evaluation of a Located IR terminator
+trPeval :: LIRTerminator -> Opt IRBBTree
 
-trPeval (If x bb1 bb2 pos) = do
+trPeval (Loc pos (If x bb1 bb2)) = do
         v <- varPEval x
         let _doThen = do setChangeFlag
                          peval bb1
@@ -463,10 +469,10 @@ trPeval (If x bb1 bb2 pos) = do
 
             _ -> do bb1' <- peval bb1
                     bb2' <- peval bb2
-                    return $ BB [] (If x bb1' bb2' pos)
+                    return $ BB [] (Loc pos (If x bb1' bb2'))
 
 
-trPeval (AssertElseError x bb y_err pos) = do
+trPeval (Loc pos (AssertElseError x bb y_err errPos)) = do
     v <- varPEval x
     markUsed' y_err
     case v of
@@ -474,38 +480,38 @@ trPeval (AssertElseError x bb y_err pos) = do
             setChangeFlag
             peval bb
         _ -> do bb' <- peval bb
-                return $ BB [] (AssertElseError x bb' y_err pos)
+                return $ BB [] (Loc pos (AssertElseError x bb' y_err errPos))
 
 
-trPeval (StackExpand x bb1 bb2 pos) = do
+trPeval (Loc pos (StackExpand x bb1 bb2)) = do
     bb1' <- peval bb1
     bb2' <- peval bb2
 
     case bb1' of
-        BB insts1 (Ret rv1 _retPos) -> do
+        BB insts1 (Loc _retPos (Ret rv1)) -> do
             let subst = Subst (Map.singleton x rv1)
             let (BB insts2 tr2) = apply subst bb2'
             setChangeFlag
             return $ BB (insts1 ++ insts2) tr2
         _ ->
-            return $ BB [] (StackExpand x bb1' bb2' pos)
+            return $ BB [] (Loc pos (StackExpand x bb1' bb2'))
 
-trPeval tr@(Ret x _pos) = do
+trPeval ltr@(Loc _pos (Ret x)) = do
     markUsed' x
-    return $ BB [] tr
+    return $ BB [] ltr
 
-trPeval tr@(LibExport x _pos) = do
+trPeval ltr@(Loc _pos (LibExport x)) = do
     markUsed' x
-    return $ BB [] tr
+    return $ BB [] ltr
 
-trPeval tr@(Error x _) = do
+trPeval ltr@(Loc _pos (Error x _errPos)) = do
     markUsed' x
-    return $ BB [] tr
+    return $ BB [] ltr
 
-trPeval tr@(TailCall x y _pos)  = do
+trPeval ltr@(Loc _pos (TailCall x y)) = do
     markUsed' x
     markUsed' y
-    return $ BB [] tr
+    return $ BB [] ltr
 
 
 bbPeval (BB insts tr) = do 
@@ -524,12 +530,12 @@ bbPeval (BB insts tr) = do
                     
 
 
-instance PEval IRBBTree where    
-    peval bb@(BB insts tr) = do 
-        
+instance PEval IRBBTree where
+    peval bb@(BB insts tr) = do
+
         (BB insts_ tr_, used) <- listen $ bbPeval bb
 
-        let isNotDeadAssign (Assign x e _pos) =
+        let isNotDeadAssign (Loc _ (Assign x e)) =
                 Set.member x used || canFailOrHasEffects e
             isNotDeadAssign _   = True
 
@@ -538,14 +544,15 @@ instance PEval IRBBTree where
 
 
 
-funopt :: FunDef -> FunDef
-funopt (FunDef hfn argname argPos consts bb pos) =
+-- | Optimize a Located FunDef
+funopt :: LFunDef -> LFunDef
+funopt (Loc funDefPos (FunDef hfn argname argPos consts bb)) =
     let initEnv = (Map.singleton argname Unknown, False)
         (bb', (_, _hasChanges), _) = runRWS (peval bb) () initEnv
 
-        new = FunDef hfn argname argPos consts bb' pos
+        new = Loc funDefPos (FunDef hfn argname argPos consts bb')
     in if (bb /= bb')  then funopt new
-                       else new 
+                       else new
 
 
 

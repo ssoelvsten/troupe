@@ -44,7 +44,7 @@ import Raw
 import RetCPS(VarName(..))
 import Control.Monad
 import Control.Monad.Trans.RWS(RWS, evalRWS, ask, get, put, tell, censor, listen, local)
-import TroupePositionInfo (PosInf(..))
+import TroupePositionInfo (Located(..), getLoc, unLoc, PosInf(..))
 
 -- ===== Monad definition =====
 
@@ -675,29 +675,31 @@ expr2rawComp = \case
 
 
 -- Revision 2023-08: Changed and moved handling of the complex operations Eq and Neq to expr2Raw.
--- | Generate raw instructions for the given IR instruction.
-inst2raw :: IR.IRInst -> TM ()
-inst2raw = \case
+-- | Generate raw instructions for the given Located IR instruction.
+-- Adapter: extracts position from Located wrapper and uses it for generated instructions.
+inst2raw :: IR.LIRInst -> TM ()
+inst2raw (Loc pos inst) = case inst of
   -- Note: This is the only place where expressions occur in an IR program.
   -- We use withPos to set the position context for all generated instructions.
-  IR.Assign vn expr pos -> withPos pos $ do
+  IR.Assign vn expr -> withPos pos $ do
     LVal{..} <- expr2raw expr
     -- Joining PC to be safe, even though for now PC is always joined when computing the expression (and it will be optimized away).
     rValLbl' <- compLabel $ Join PC (Lbl rValLbl) []
     rTyLbl' <- compLabel $ Join PC (Lbl rTyLbl) []
     constructLVal vn LVal{rValLbl = rValLbl', rTyLbl = rTyLbl', .. }
 
-  IR.MkFunClosures vs env pos -> do
+  IR.MkFunClosures vs env -> do
     -- The generation of closures and the related monitoring is first implemented in stack generation,
     -- to be able to use cyclic pointers for constructing the environments.
     tell [MkFunClosures vs env pos]
 
 
--- | Translate an IR terminator to a Raw terminator, generating instructions.
-tr2raw :: IR.IRTerminator -> TM RawTerminator
-tr2raw = \case
+-- | Translate a Located IR terminator to a Raw terminator, generating instructions.
+-- Adapter: extracts position from Located wrapper and uses it for generated terminators.
+tr2raw :: IR.LIRTerminator -> TM RawTerminator
+tr2raw (Loc pos term) = case term of
   -- Revision 2023-08: Equivalent except for the additional redundant raise.
-  IR.TailCall v1 v2 pos -> do
+  IR.TailCall v1 v2 -> do
     raisePCAndBlock $ ValLbl v1
     -- Note: The raise here is redundant because we have already raised by the value label above.
     -- However, optimizations aware of the relation between type- and value label will remove it.
@@ -709,18 +711,18 @@ tr2raw = \case
   -- Revision 2023-08: This generates now more instructions than before,
   -- as we also construct LVals instead of just working on single RawVars,
   -- but after optimization with RawOpt the result is the same.
-  IR.Ret v pos -> do
+  IR.Ret v -> do
     -- At this point, we taint value and type label of the to-be-returned value with PC,
     -- as both value and type can depend on it. Note: when implementing more fine-grained type labels,
     -- the type label should not always be tainted here.
     setR0 =<< getLVal =<< pcTaint v
     return $ Ret pos
 
-  IR.LibExport x pos ->
+  IR.LibExport x ->
     return $ LibExport x pos
 
   -- Revision 2023-08: Equivalent except for the additional redundant raise.
-  IR.If v bb1 bb2 pos -> do
+  IR.If v bb1 bb2 -> do
     raisePCAndBlock $ ValLbl v
     bb1' <- tree2raw bb1
     bb2' <- tree2raw bb2
@@ -732,7 +734,7 @@ tr2raw = \case
     return $ If r bb1' bb2' pos
 
   -- Revision 2023-08: Equivalent, only way of modifying bb2 changed.
-  IR.StackExpand v irBB1 irBB2 pos -> do
+  IR.StackExpand v irBB1 irBB2 -> do
     bb1 <- tree2raw irBB1
     BB insts2 tr2 <- tree2raw irBB2
     -- Prepend before insts2 instructions to store in variable v the result
@@ -748,7 +750,8 @@ tr2raw = \case
 
   -- Note: This is translated into branching and Error for throwing RT exception
   -- Revision 2023-08: More fine-grained raising of blocking label, see below.
-  IR.AssertElseError v1 irBB verr pos -> do
+  -- Note: errPos is the error source location (kept embedded), pos is expression position
+  IR.AssertElseError v1 irBB verr errPos -> do
     -- Note: We are first raising the blocking label with the type label,
     -- then assert the type and then raise with the value label.
     -- Raising with the value label directly would be sufficient,
@@ -758,8 +761,8 @@ tr2raw = \case
     assertTypeAndRaise v1 RawBoolean
     raiseBlock $ ValLbl v1
     bb <- tree2raw irBB
-    -- Generate the BB for the error case
-    (tr_err, insts_err) <- intercept $ tr2raw $ IR.Error verr pos
+    -- Generate the BB for the error case, using the error source position
+    (tr_err, insts_err) <- intercept $ tr2rawError verr errPos
     let bb_err = BB insts_err tr_err
     r <- getVal v1
     return $ If r bb bb_err pos
@@ -768,13 +771,18 @@ tr2raw = \case
   -- and blocking label to the error message's value label (which will become
   -- obsolete with an improvement moving the arguments of the Raw.Error
   -- instruction to R0).
-  IR.Error verr pos -> do
-    -- Note: first raising block with type label and then with value label; see AssertElseError for explanation.
-    assertTypeAndRaise verr RawString
-    -- Note: There is no value label anymore at Raw level; instead join the label into PC (which e.g. determines whether are allowed to print the message)
-    raisePCAndBlock $ ValLbl verr
-    r <- getVal verr
-    return $ Error r pos
+  -- Note: errPos is the error source location (kept embedded), pos is expression position
+  IR.Error verr errPos -> tr2rawError verr errPos
+
+-- | Helper for Error translation with explicit error position
+tr2rawError :: VarAccess -> PosInf -> TM RawTerminator
+tr2rawError verr errPos = do
+  -- Note: first raising block with type label and then with value label; see AssertElseError for explanation.
+  assertTypeAndRaise verr RawString
+  -- Note: There is no value label anymore at Raw level; instead join the label into PC (which e.g. determines whether are allowed to print the message)
+  raisePCAndBlock $ ValLbl verr
+  r <- getVal verr
+  return $ Error r errPos
 
 
 -- Revision 2023-08: unchanged
@@ -787,9 +795,10 @@ tree2raw (IR.BB irInsts irTr) = do
     return $ BB insts tr
 
 -- Revision 2023-08: new code, but equivalent
-fun2raw :: IR.FunDef -> FunDef
-fun2raw irfdef@(IR.FunDef hfn vname argPos consts (IR.BB irInsts irTr) pos) =
-   FunDef hfn rawConsts (BB insts tr) irfdef pos
+-- Adapter: extracts position from Located wrapper and FunDef.
+fun2raw :: IR.LFunDef -> FunDef
+fun2raw lirfdef@(Loc funDefPos irfdef@(IR.FunDef hfn vname argPos consts (IR.BB irInsts irTr))) =
+   FunDef hfn rawConsts (BB insts tr) irfdef funDefPos
       where ((tr, rawConsts), insts) = evalRWS comp NoPos 0
             comp = do
               -- Store the argument from R0 in the variable under which the argument is expected.
@@ -809,8 +818,10 @@ fun2raw irfdef@(IR.FunDef hfn vname argPos consts (IR.BB irInsts irTr) pos) =
               return (tr', rawConsts)
 
 -- Revision 2023-08: unchanged
+-- Note: FunSerialization contains FunDef without Located wrapper,
+-- so we wrap with NoPos when deserializing.
 ir2raw :: IR.SerializationUnit -> RawUnit
-ir2raw (IR.FunSerialization f) = FunRawUnit (fun2raw f)
+ir2raw (IR.FunSerialization f) = FunRawUnit (fun2raw (Loc NoPos f))
 ir2raw (IR.AtomsSerialization c) = AtomRawUnit c
 ir2raw (IR.ProgramSerialization prog) = ProgramRawUnit (prog2raw prog)
 

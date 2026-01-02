@@ -2,7 +2,7 @@
 
 ## Current Phase
 
-**STAGE: 5 - NOT STARTED**
+**STAGE: 6 - NOT STARTED**
 
 ## How to Continue
 
@@ -29,14 +29,14 @@ After completing the stage:
 | 2     | Parser + Direct                 | Complete    | 9a95cb5 |
 | 3     | DirectWOPats + Core             | Complete    | b327d9a |
 | 4     | CPS                             | Complete    | d787a72 |
-| 5     | IR                              | Not started | -       |
+| 5     | IR                              | Complete    | f19977f |
 | 6     | Raw + Stack                     | Not started | -       |
 | 7     | Code generation + source maps   | Not started | -       |
 | 8     | Cleanup                         | Not started | -       |
 
 ## Next Action
 
-**Execute Stage 5**: Read [stage-5-ir.md](stage-5-ir.md) and implement in a fresh context.
+**Execute Stage 6**: Read [stage-6-raw-stack.md](stage-6-raw-stack.md) and implement in a fresh context.
 
 ## Stage 1 Implementation Notes
 
@@ -81,6 +81,19 @@ After completing the stage:
 - Updated CPSOpt.hs: `Simplifiable` instance for LKTerm, all pattern matches updated for Located terms
 - Updated RetFreeVars.hs: `FreeNames` instances updated for Located terms
 - Updated RetRewrite.hs: All pattern matches and reconstructions updated for Located terms
+
+## Stage 5 Implementation Notes
+
+- Added type aliases `LIRInst`, `LIRTerminator`, `LFunDef`, `LIRExpr` to IR.hs
+- Updated `IRBBTree` to use `[LIRInst]` and `LIRTerminator`
+- Updated `IRProgram` to use `[LFunDef]`
+- Removed embedded PosInf from most `IRInst` and `IRTerminator` constructors - positions now in Located wrapper
+- **Exception**: `Error VarAccess PosInf` and `AssertElseError VarAccess IRBBTree VarAccess PosInf` keep embedded PosInf for error source location
+- Consolidated `FunDef` from two positions to one: function definition position is now on the Located wrapper (`LFunDef`), argument position remains inline
+- ClosureConv.hs: Removed Stage 4 adapter, now produces proper Located IR values
+- IR2Raw.hs: Added adapter pattern - `inst2raw`, `tr2raw`, and `fun2raw` now extract positions from `Loc` wrapper and embed in old-style Raw constructors
+- IROpt.hs: Updated `Substitutable` instances for Located types, updated `insPeval`, `trPeval`, `funopt` to work with Located types
+- Added `ComputesDependencies` and `WellFormedIRCheck` instances for `Located a`
 
 ## Stage Documents
 
