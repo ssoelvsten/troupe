@@ -2,7 +2,7 @@
 
 ## Current Phase
 
-**STAGE: 6 - COMPLETE**
+**STAGE: 7 - COMPLETE**
 
 ## How to Continue
 
@@ -31,12 +31,12 @@ After completing the stage:
 | 4     | CPS                             | Complete    | d787a72 |
 | 5     | IR                              | Complete    | f7b6511 |
 | 6     | Raw + Stack                     | Complete    | 7e7574e |
-| 7     | Code generation + source maps   | Not started | -       |
+| 7     | Code generation + source maps   | Complete    | (merged with Stage 6) |
 | 8     | Cleanup                         | Not started | -       |
 
 ## Next Action
 
-**Execute Stage 7**: Read [stage-7-codegen.md](stage-7-codegen.md) and implement in a fresh context.
+**Execute Stage 8**: Read [stage-8-cleanup.md](stage-8-cleanup.md) and implement in a fresh context.
 
 ## Stage 1 Implementation Notes
 
@@ -111,6 +111,17 @@ After completing the stage:
 - Stack2JS.hs: Created `toJSFunDefWithPos`, `ir2jsWithPos`, `tr2jsWithPos` functions that take position as explicit argument
 - Stack2JS.hs: `LabelGroup` now contains `[LStackInst]` (Located instructions), updated `ppLevelOp` accordingly
 - **Note**: Stage 7 (Code generation + source maps) is effectively complete since Stack2JS was updated as part of this stage
+
+## Stage 7 Implementation Notes
+
+- Stage 7 was effectively completed as part of Stage 6
+- Stack2JS.hs already has `ToJS` instances for `LFunDef`, `LStackInst`, `LStackTerminator` that extract positions via pattern matching on `Loc pos inst`
+- `toJSFunDefWithPos`, `ir2jsWithPos`, `tr2jsWithPos` functions take explicit position arguments
+- `emitMarker` function generates source map markers in the output
+- `stack2JSWithMappings` generates JS code with source map mappings
+- TroupeSourceMap.hs `collectMapping` works with `PosInf` directly (callers use `getLoc`)
+- Source map generation verified working: produces valid JSON with correct source references and VLQ-encoded mappings
+- All 397 golden tests pass
 
 ## Stage Documents
 
