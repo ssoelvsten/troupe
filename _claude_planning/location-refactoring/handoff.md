@@ -2,7 +2,7 @@
 
 ## Current Phase
 
-**STAGE: 4 - NOT STARTED**
+**STAGE: 5 - NOT STARTED**
 
 ## How to Continue
 
@@ -16,7 +16,7 @@ Read `_claude_planning/location-refactoring/index.md` for overview.
 
 Execute the next pending stage according to its stage document.
 After completing the stage:
-1. Run `make all && make test` to verify
+1. Run `make all && ./bin/golden --quick` to verify
 2. Commit with the specified message
 3. Update handoff.md with the new status
 ```
@@ -28,7 +28,7 @@ After completing the stage:
 | 1     | Infrastructure                  | Complete    | a8341b7 |
 | 2     | Parser + Direct                 | Complete    | 9a95cb5 |
 | 3     | DirectWOPats + Core             | Complete    | b327d9a |
-| 4     | CPS                             | Not started | -       |
+| 4     | CPS                             | Complete    | d787a72 |
 | 5     | IR                              | Not started | -       |
 | 6     | Raw + Stack                     | Not started | -       |
 | 7     | Code generation + source maps   | Not started | -       |
@@ -36,7 +36,7 @@ After completing the stage:
 
 ## Next Action
 
-**Execute Stage 4**: Read [stage-4-cps.md](stage-4-cps.md) and implement in a fresh context.
+**Execute Stage 5**: Read [stage-5-ir.md](stage-5-ir.md) and implement in a fresh context.
 
 ## Stage 1 Implementation Notes
 
@@ -67,6 +67,21 @@ After completing the stage:
 - Note: `TypeSynonymInstances` and `FlexibleInstances` pragmas added to Core.hs for Show instance
 - GetPosInfo instance for LTerm comes from TroupePositionInfo's generic `GetPosInfo (Located a)` instance
 
+## Stage 4 Implementation Notes
+
+- Added type aliases `LKTerm = Located KTerm`, `LSimpleTerm = Located SimpleTerm` to RetCPS.hs
+- Removed embedded PosInf from most KTerm and SimpleTerm constructors - positions now in Located wrapper
+- **Exception**: `Error VarName PosInf` and `AssertElseError VarName LKTerm VarName PosInf` keep embedded PosInf because these represent the error source location, not the expression position
+- KLambda: `Unary VarName PosInf LKTerm` (keeps argument position separate, body is Located)
+- FunDef: `Fun VarName KLambda` - position is on the Located wrapper when used
+- ContDef: `Cont VarName LKTerm` - updated to use Located body
+- Added `Ord` instance for `Located` in TroupePositionInfo.hs (needed for CSE map in CPSOpt)
+- RetDFCPS.hs: Removed Stage 3 adapter, now produces proper `Located CPS.KTerm` values
+- ClosureConv.hs: Added adapter pattern - `cpsToIR` takes `CPS.LKTerm` and extracts positions from `Loc` wrapper to embed in old-style IR constructors
+- Updated CPSOpt.hs: `Simplifiable` instance for LKTerm, all pattern matches updated for Located terms
+- Updated RetFreeVars.hs: `FreeNames` instances updated for Located terms
+- Updated RetRewrite.hs: All pattern matches and reconstructions updated for Located terms
+
 ## Stage Documents
 
 - [Stage 1: Infrastructure](stage-1-infrastructure.md) - Add `Located` type
@@ -82,7 +97,7 @@ After completing the stage:
 
 1. **Fresh context per stage**: Start a new Claude Code session for each stage
 2. **Adapter-based migration**: Each stage adds a temporary adapter at the boundary to the next representation
-3. **Verify before commit**: Always run `make all && make test` before committing
+3. **Verify before commit**: Always run `make all && ./bin/golden --quick` before committing
 4. **One representation at a time**: Migrate the data types AND the producer in each stage
 
 ## Stage Completion Checklist
@@ -91,7 +106,7 @@ When completing a stage:
 
 1. [ ] Read the stage document thoroughly
 2. [ ] Implement all changes described
-3. [ ] Run `make all && make test` - all tests must pass
+3. [ ] Run `make all && ./bin/golden --quick` - all tests must pass
 4. [ ] Commit with the specified message format
 5. [ ] Update this handoff document:
    - Change stage status to "Complete"
