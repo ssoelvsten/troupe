@@ -25,17 +25,7 @@ Implement V3 source maps so all Troupe runtime errors show source location (`fil
 | 10    | Capture positions in Parser                      | DONE     | [phase-10-parser-positions.md](phase-10-parser-positions.md)     |
 | 11    | Thread positions through pipeline                | DONE     | [phase-11-threading.md](phase-11-threading.md)                   |
 | 12    | Emit real source maps                            | DONE     | [phase-12-emit-source-maps.md](phase-12-emit-source-maps.md)     |
-| 13a   | Add PosVar/PosField types (infrastructure)       | **NEXT** | [phase-13a-posvar-retcps.md](phase-13a-posvar-retcps.md)         |
-| 13b   | Prepare RetDFCPS                                 | Pending  | [phase-13b-posvar-retdfcps.md](phase-13b-posvar-retdfcps.md)     |
-| 13c   | Add optional positions to Raw                    | Pending  | [phase-13c-posvar-cpsopt.md](phase-13c-posvar-cpsopt.md)         |
-| 13d   | Emit operand markers in Stack2JS                 | Pending  | [phase-13d-posvar-cps-utils.md](phase-13d-posvar-cps-utils.md)   |
-| 13e   | Add optional positions to IR                     | Pending  | [phase-13e-posvar-closureconv.md](phase-13e-posvar-closureconv.md) |
-| 13f   | Capture statement positions as operand positions | Pending  | [phase-13f-posvar-ir.md](phase-13f-posvar-ir.md)                 |
-| 13g   | Add optional positions to CPS SimpleTerm         | Pending  | [phase-13g-posvar-ir2raw.md](phase-13g-posvar-ir2raw.md)         |
-| 13h   | Capture actual operand positions in RetDFCPS     | Pending  | [phase-13h-posvar-raw.md](phase-13h-posvar-raw.md)               |
-| 13i   | Cleanup and verification                         | Pending  | [phase-13i-posvar-raw-utils.md](phase-13i-posvar-raw-utils.md)   |
-| 13j   | Documentation and summary                        | Pending  | [phase-13j-posvar-stack.md](phase-13j-posvar-stack.md)           |
-| 14    | Runtime source map resolver                      | Pending  | [phase-14-runtime-resolver.md](phase-14-runtime-resolver.md)     |
+| 14    | Runtime source map resolver                      | NEXT  | [phase-14-runtime-resolver.md](phase-14-runtime-resolver.md)     |
 | 15    | Error message positions                          | Pending  | [phase-15-position-params.md](phase-15-position-params.md)       |
 
 ---
