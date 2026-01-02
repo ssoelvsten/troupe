@@ -57,23 +57,29 @@ instance FreeNames FunDef where
 instance FreeNames (Located FunDef) where
   freeVars (Loc _ fd) = freeVars fd
 
+-- | Extract VarName from LVarName for free variable analysis
+unLocVar :: LVarName -> VarName
+unLocVar = unLoc
+
 instance FreeNames SimpleTerm where
-  freeVars (Bin _ v1 v2) = FreeVars (Set.fromList [v1, v2])
-  freeVars (Un _ v) = FreeVars (Set.singleton v)
+  -- Extract VarName from LVarName using unLoc
+  freeVars (Bin _ lv1 lv2) = FreeVars (Set.fromList [unLocVar lv1, unLocVar lv2])
+  freeVars (Un _ lv) = FreeVars (Set.singleton (unLocVar lv))
   freeVars (ValSimpleTerm sval) = freeVars sval
-  freeVars (Tuple vs) = FreeVars (Set.fromList vs)
-  freeVars (List vs)  = FreeVars (Set.fromList vs)
-  freeVars (ListCons v1 v2) = FreeVars (Set.fromList [v1, v2])
+  freeVars (Tuple lvs) = FreeVars (Set.fromList (map unLocVar lvs))
+  freeVars (List lvs)  = FreeVars (Set.fromList (map unLocVar lvs))
+  freeVars (ListCons lv1 lv2) = FreeVars (Set.fromList [unLocVar lv1, unLocVar lv2])
   freeVars (Base _ ) = FreeVars $ Set.empty
   freeVars (Lib _ _) = FreeVars $ Set.empty
   freeVars (Record fields) = unionMany $
-      map (\(f,x) -> FreeVars (if x == VN f then Set.empty else Set.singleton x))
+      map (\(f,lx) -> let x = unLocVar lx in FreeVars (if x == VN f then Set.empty else Set.singleton x))
       fields
-  freeVars (WithRecord x fields) =
-    let _f = map (\(f,x) -> FreeVars ( if x == VN f then Set.empty else Set.singleton x)) fields in
-    unionMany $ (FreeVars (Set.singleton x)): _f
-  freeVars (ProjField x _) = FreeVars (Set.singleton x)
-  freeVars (ProjIdx x _) = FreeVars (Set.singleton x)
+  freeVars (WithRecord lx fields) =
+    let x = unLocVar lx
+        _f = map (\(f,lx') -> let x' = unLocVar lx' in FreeVars (if x' == VN f then Set.empty else Set.singleton x')) fields
+    in unionMany $ (FreeVars (Set.singleton x)): _f
+  freeVars (ProjField lx _) = FreeVars (Set.singleton (unLocVar lx))
+  freeVars (ProjIdx lx _) = FreeVars (Set.singleton (unLocVar lx))
 
 instance FreeNames LSimpleTerm where
   freeVars (Loc _ st) = freeVars st

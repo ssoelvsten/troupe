@@ -64,20 +64,24 @@ instance Substitutable SVal where
 instance Substitutable SimpleTerm where
   apply subst@(Subst varmap) simpleTerm =
     case simpleTerm of
-      Bin op v1 v2 -> Bin op (fwd v1) (fwd v2)
-      Un op v -> Un op (fwd v)
-      Tuple vs -> Tuple (map fwd vs)
-      Record fields -> Record (fwdFields fields)
-      WithRecord x fields -> WithRecord (fwd x) (fwdFields fields)
-      ProjField x f -> ProjField (fwd x) f
-      ProjIdx x idx -> ProjIdx (fwd x) idx
-      List vs -> List (map fwd vs)
-      ListCons v v' -> ListCons (fwd v) (fwd v')
+      -- Now using LVarName (Located VarName), need to preserve the Located wrapper
+      Bin op lv1 lv2 -> Bin op (fwdL lv1) (fwdL lv2)
+      Un op lv -> Un op (fwdL lv)
+      Tuple lvs -> Tuple (map fwdL lvs)
+      Record fields -> Record (fwdLFields fields)
+      WithRecord lx fields -> WithRecord (fwdL lx) (fwdLFields fields)
+      ProjField lx f -> ProjField (fwdL lx) f
+      ProjIdx lx idx -> ProjIdx (fwdL lx) idx
+      List lvs -> List (map fwdL lvs)
+      ListCons lv lv' -> ListCons (fwdL lv) (fwdL lv')
       ValSimpleTerm sv -> ValSimpleTerm (apply subst sv)
       Base v -> Base v
       Lib l v -> Lib l v
     where fwd x = Map.findWithDefault x x varmap
-          fwdFields fields = map (\(f, x) -> (f, fwd x)) fields
+          -- Forward a Located VarName, preserving the position
+          fwdL (Loc pos vn) = Loc pos (fwd vn)
+          -- Forward fields with Located VarNames
+          fwdLFields fields = map (\(f, lx) -> (f, fwdL lx)) fields
 
 instance Substitutable LSimpleTerm where
   apply subst (Loc p st) = Loc p (apply subst st)

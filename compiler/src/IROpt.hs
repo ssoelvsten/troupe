@@ -86,12 +86,12 @@ instance Substitutable IRBBTree where
 
 -- | Partial value.
 data PValue = Unknown
-            | TupleVal [VarAccess]
+            | TupleVal [LVarAccess]
             | ListVal
             | NumericConst Numeric
             | BoolConst Bool
             | StringConst String
-            | RecordVal Fields
+            | RecordVal LFields
              
              
 
@@ -126,6 +126,10 @@ markUsed x = tell $ Set.singleton x -- collect the use of the local
 markUsed' (VarEnv _) = return ()
 markUsed' (VarFunSelfRef) = return ()
 markUsed' (VarLocal x) = markUsed x
+
+-- | Mark a Located VarAccess as used (extracts VarAccess from Located wrapper)
+markUsedL' :: LVarAccess -> Opt ()
+markUsedL' (Loc _ va) = markUsed' va
 
 -- | Check if an expression can fail at runtime or has side effects
 -- This is used to prevent unsound dead code elimination
@@ -209,15 +213,19 @@ canFailOrHasEffects expr = case expr of
     Const _ -> False 
 
 -- | Get evaluation of a variable.
-varPEval :: VarAccess -> Opt PValue 
+varPEval :: VarAccess -> Opt PValue
 varPEval (VarEnv _) = return Unknown
 varPEval (VarFunSelfRef) = return Unknown
-varPEval (VarLocal x) = do 
-    env <- getEnv 
+varPEval (VarLocal x) = do
+    env <- getEnv
     markUsed x
-    case Map.lookup x env of 
-        Just v -> return v 
+    case Map.lookup x env of
+        Just v -> return v
         Nothing -> return Unknown
+
+-- | Get evaluation of a Located VarAccess (extracts VarAccess from Located wrapper)
+varPEvalL :: LVarAccess -> Opt PValue
+varPEvalL (Loc _ va) = varPEval va
 
 
 data IRExprRes 
@@ -227,19 +235,19 @@ data IRExprRes
 
         
 irExprPeval :: IRExpr -> Opt IRExprRes -- (PValue, IRExpr)
-irExprPeval e = 
-    let r_ x = return (RExpr x) 
+irExprPeval e =
+    let r_ x = return (RExpr x)
         def_ = r_ (Unknown, e) in
-    case e of 
-        Un Basics.IsTuple x -> do 
-            v <- varPEval x 
-            case v of 
-                TupleVal _ -> do 
+    case e of
+        Un Basics.IsTuple x -> do
+            v <- varPEvalL x
+            case v of
+                TupleVal _ -> do
                     setChangeFlag
                     r_ (BoolConst True, Const (C.LBool True))
                 _ -> def_
         Un Basics.IsRecord x -> do
-            v <- varPEval x
+            v <- varPEvalL x
             case v of
                 RecordVal _ -> do
                     setChangeFlag
@@ -247,7 +255,7 @@ irExprPeval e =
                 _ -> def_
 
         Un Basics.Not x -> do
-            v <- varPEval x
+            v <- varPEvalL x
             case v of
                 BoolConst True -> do
                     setChangeFlag
@@ -258,8 +266,8 @@ irExprPeval e =
                 _ -> def_
 
         Bin Basics.Eq x y -> do
-            v1 <- varPEval x
-            v2 <- varPEval y
+            v1 <- varPEvalL x
+            v2 <- varPEvalL y
             case (v1, v2) of
                 (NumericConst a, NumericConst b) | a == b -> do
                     setChangeFlag
@@ -268,24 +276,24 @@ irExprPeval e =
                     setChangeFlag
                     r_ (BoolConst False, Const (C.LBool False))
                 _ -> r_ (Unknown, e)
-        
 
-        Bin Basics.HasField x y -> do 
-            v1 <- varPEval x 
-            v2 <- varPEval y 
-            case (v1, v2) of 
-                (RecordVal fs, StringConst s) -> 
-                    case lookup s fs of 
+
+        Bin Basics.HasField x y -> do
+            v1 <- varPEvalL x
+            v2 <- varPEvalL y
+            case (v1, v2) of
+                (RecordVal fs, StringConst s) ->
+                    case lookup s (map (\(f, Loc _ va) -> (f, va)) fs) of
                         Just _ -> do
                             setChangeFlag
                             r_ (BoolConst True, Const (C.LBool True))
-                        Nothing -> def_ 
-                _ -> def_ 
-        
-        
+                        Nothing -> def_
+                _ -> def_
+
+
         Bin op x y -> do
-          u <- varPEval x
-          v <- varPEval y
+          u <- varPEvalL x
+          v <- varPEvalL y
           case (u, v) of
             (NumericConst (NumInt a), NumericConst (NumInt b)) -> do
                 let ii f = let c = f a b in do
@@ -311,35 +319,35 @@ irExprPeval e =
                             -- _  -> fail "Type error discovered at compliation time"
 
             _ -> do
-              markUsed' x
-              markUsed' y
+              markUsedL' x
+              markUsedL' y
               def_
-        Record fields -> do mapM pevalField fields 
+        Record fields -> do mapM pevalField fields
                             r_ (RecordVal fields, e)
                             -- def_
-            where pevalField (_, x) = markUsed' x
-        WithRecord r fields -> do   
-                    markUsed' r
-                    mapM (\(_,x) -> markUsed' x) fields
-                    z <- varPEval r 
-                    let fields' = fields ++ ( case z of 
+            where pevalField (_, x) = markUsedL' x
+        WithRecord r fields -> do
+                    markUsedL' r
+                    mapM (\(_,x) -> markUsedL' x) fields
+                    z <- varPEvalL r
+                    let fields' = fields ++ ( case z of
                                                RecordVal f0 -> f0
                                                _ -> [] )
                     r_ (RecordVal fields', e)
-        ProjField x s -> do 
-            v <- varPEval x 
-            case v of 
-                RecordVal fs -> 
-                    case lookup s fs of 
-                        Just y -> do
+        ProjField x s -> do
+            v <- varPEvalL x
+            case v of
+                RecordVal fs ->
+                    case lookup s fs of
+                        Just (Loc _ y) -> do
                             setChangeFlag
-                            return $ RMov y 
+                            return $ RMov y
                             -- r_ (BoolConst True, Const (C.LBool True))
-                        Nothing -> def_ 
-                _ -> def_ 
+                        Nothing -> def_
+                _ -> def_
         -- TODO Implement optimization for ProjIdx
         ProjIdx x idx -> do
-            markUsed' x  -- Mark the tuple variable as used
+            markUsedL' x  -- Mark the tuple variable as used
             def_
         -- ProjIdx x idx -> do 
         --     v <- varPEval x 
@@ -368,13 +376,13 @@ irExprPeval e =
  
 
 
-        (List xs) -> do 
-            mapM_ markUsed' xs
+        (List xs) -> do
+            mapM_ markUsedL' xs
             r_ (Unknown, e)
 
-        (ListCons x y) -> do 
-            markUsed' x 
-            markUsed' y 
+        (ListCons x y) -> do
+            markUsedL' x
+            markUsedL' y
             r_ (Unknown, e)    
 
         (Const x) -> do
@@ -395,26 +403,26 @@ irExprPeval e =
             r_ (Unknown, e)
 
         (Un Basics.TupleLength x) -> do
-            v <- varPEval x
+            v <- varPEvalL x
             case v of
                 TupleVal vars -> do
                     setChangeFlag
                     let n = fromIntegral $ length vars
                     r_ (NumericConst (NumInt n), Const (C.LNumeric (NumInt n) NoPos))
-                _ -> r_ (Unknown, e)    
+                _ -> r_ (Unknown, e)
         -- Not possible as not tracking list content:
-        -- (Un Basics.ListLength x) -> do 
-        --     v <- varPEval x 
-        --     case v of 
-        --         ListVal -> do  
+        -- (Un Basics.ListLength x) -> do
+        --     v <- varPEvalL x
+        --     case v of
+        --         ListVal -> do
 
-        (Un _ x) -> do 
-            markUsed' x 
+        (Un _ x) -> do
+            markUsedL' x
             r_ (Unknown, e)
 
 
         (Tuple xs) -> do
-            mapM_ markUsed' xs 
+            mapM_ markUsedL' xs
             r_ (TupleVal xs, e)
 
 

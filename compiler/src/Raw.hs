@@ -149,6 +149,12 @@ data RawInst
   | InvalidateSparseBit
   | MkFunClosures [(VarName, VarAccess)] [(VarName, HFN)]
   | RTAssertion RTAssertion
+  -- | Source position annotation for source map generation.
+  -- This instruction generates no code but carries position info that was preserved
+  -- when an instruction was eliminated during optimization (e.g., copy propagation).
+  -- The RawVar is the variable that the eliminated instruction was assigning to,
+  -- for debugging purposes.
+  | SourcePosAnnotation RawVar
    deriving (Eq, Show)
 
 -- | A block of instructions followed by a terminator, which can contain further 'RawBBTree's.
@@ -335,6 +341,7 @@ ppIR (RTAssertion a) = ppRTAssertion a
 ppIR (SetState comp v) =
   ppId comp <+> text "<-" <+> ppId v
 ppIR InvalidateSparseBit = text "<invalidate sparse bit>"
+ppIR (SourcePosAnnotation r) = text "<source-pos>" <+> ppId r
 
 ppIR (MkFunClosures varmap fdefs) =
     let vs = hsepc $ ppEnvIds varmap

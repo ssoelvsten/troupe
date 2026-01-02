@@ -7,11 +7,13 @@
 
 module RetCPS
   ( VarName(..)
+  , LVarName
   , KLambda(..)
   , SVal(..)
   , ContDef(..)
   , FunDef(..)
   , Fields
+  , LFields
   , SimpleTerm(..)
   , KTerm(..)
   , Prog(..)
@@ -60,6 +62,7 @@ doing that from this language
 -- Located type aliases
 type LKTerm = Located KTerm
 type LSimpleTerm = Located SimpleTerm
+type LVarName = Located VarName
 
 data KLambda = Unary VarName PosInf LKTerm   -- Keep argument position, body is Located
              | Nullary LKTerm
@@ -75,18 +78,22 @@ data ContDef = Cont VarName LKTerm
 data FunDef = Fun VarName KLambda   -- Position is on the Located wrapper when used
               deriving (Eq, Ord)
 
+-- Fields without location info (for backward compatibility in some contexts)
 type Fields = [(Basics.FieldName, VarName)]
+-- Fields with location info for variable references
+type LFields = [(Basics.FieldName, LVarName)]
+
 data SimpleTerm
-   = Bin BinOp VarName VarName
-   | Un UnaryOp VarName
+   = Bin BinOp LVarName LVarName
+   | Un UnaryOp LVarName
    | ValSimpleTerm SVal
-   | Tuple [VarName]
-   | Record Fields
-   | WithRecord VarName Fields
-   | ProjField VarName Basics.FieldName
-   | ProjIdx VarName Word
-   | List [VarName]
-   | ListCons VarName VarName
+   | Tuple [LVarName]
+   | Record LFields
+   | WithRecord LVarName LFields
+   | ProjField LVarName Basics.FieldName
+   | ProjIdx LVarName Word
+   | List [LVarName]
+   | ListCons LVarName LVarName
    | Base Basics.VarName
    | Lib Basics.LibName Basics.VarName
      deriving (Eq, Ord, Show)
@@ -155,37 +162,43 @@ ppKTerm parentPrec (Loc _ t) =
 
 textv (VN x) = text x
 
+-- Pretty print a Located VarName (extracts the VarName)
+textlv :: LVarName -> PP.Doc
+textlv (Loc _ vn) = textv vn
+
 ppSimpleTerm :: SimpleTerm -> PP.Doc
-ppSimpleTerm (Bin op (VN v1)  (VN v2)) =
-  text v1 <+> text (show op) <+> text v2
-ppSimpleTerm (Un op (VN v)) =
-  text (show op) <+> text v
+ppSimpleTerm (Bin op lv1 lv2) =
+  textlv lv1 <+> text (show op) <+> textlv lv2
+ppSimpleTerm (Un op lv) =
+  text (show op) <+> textlv lv
 ppSimpleTerm (ValSimpleTerm (Lit lit)) =
   ppLit lit
 ppSimpleTerm (ValSimpleTerm (KAbs klam)) =
   ppKLambda klam
 ppSimpleTerm (Tuple vars) =
-  PP.parens $ PP.hsep $ PP.punctuate (text ",") (map textv vars)
+  PP.parens $ PP.hsep $ PP.punctuate (text ",") (map textlv vars)
 ppSimpleTerm (List vars) =
-  PP.brackets $ PP.hsep $ PP.punctuate (text ",") (map textv vars)
+  PP.brackets $ PP.hsep $ PP.punctuate (text ",") (map textlv vars)
 ppSimpleTerm (ListCons v1 v2) =
-  PP.parens $ textv v1 PP.<> text "::" PP.<> textv v2
+  PP.parens $ textlv v1 PP.<> text "::" PP.<> textlv v2
 ppSimpleTerm (Base b) = text b PP.<> text "$base"
 ppSimpleTerm (Lib (Basics.LibName lib) v) = text lib <+> text "." <+> text v
-ppSimpleTerm (Record fields) = PP.braces $ qqFields fields
+ppSimpleTerm (Record fields) = PP.braces $ qqLFields fields
 ppSimpleTerm (WithRecord x fields) =
-    PP.braces $ PP.hsep [textv x, text "with", qqFields fields]
+    PP.braces $ PP.hsep [textlv x, text "with", qqLFields fields]
 
 ppSimpleTerm (ProjField x f) =
-  textv x PP.<> text "." PP.<> PP.text f
+  textlv x PP.<> text "." PP.<> PP.text f
 ppSimpleTerm (ProjIdx x idx) =
-  textv x PP.<> text "." PP.<> PP.text (show idx)
+  textlv x PP.<> text "." PP.<> PP.text (show idx)
 
-qqFields fields =
+-- Pretty print LFields (fields with Located VarNames)
+qqLFields :: LFields -> PP.Doc
+qqLFields fields =
   PP.hcat $
   PP.punctuate (text ",") (map ppField fields)
-    where ppField (name, v) = 
-           PP.hcat [PP.text name, PP.text "=", textv v]
+    where ppField (name, lv) =
+           PP.hcat [PP.text name, PP.text "=", textlv lv]
 
 
 ppKLambda :: KLambda -> PP.Doc

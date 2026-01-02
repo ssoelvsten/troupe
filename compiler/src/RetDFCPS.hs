@@ -35,31 +35,34 @@ transFunDecl (Core.FunDecl fname (Core.Nullary le) pos) = do
 transProg :: Core.Prog -> CPS.Prog
 transProg (Core.Prog imports atoms lt) =
   let pos = posInfo lt
-  in Prog atoms $ evalState (trans lt (\z -> return $ Loc pos (Halt z))) 1
+  -- trans now passes LVarName; extract VarName for Halt
+  in Prog atoms $ evalState (trans lt (\(Loc _ z) -> return $ Loc pos (Halt z))) 1
 
 
 -- | Transform LFields in a context (non-explicit)
-transFields :: PosInf -> ([(FieldName, CPS.VarName)] -> SimpleTerm) -> Core.LFields -> (CPS.VarName -> S CPS.LKTerm) -> S CPS.LKTerm
+-- Now uses LVarName (Located VarName) for position tracking
+transFields :: PosInf -> (CPS.LFields -> SimpleTerm) -> Core.LFields -> (CPS.LVarName -> S CPS.LKTerm) -> S CPS.LKTerm
 transFields pos k fields context =
   transRecord fields [] context
     where
       transRecord [] acc ctx = do
           v <- freshV
-          e' <- ctx v
+          e' <- ctx (Loc pos v)
           return $ Loc pos $ LetSimple v (Loc pos (k (reverse acc))) e'
       transRecord ((f, lt):rest) acc ctx =
-        trans lt (\v -> transRecord rest ((f,v):acc) ctx)
+        trans lt (\lv -> transRecord rest ((f,lv):acc) ctx)
 
 
 -- | Transform LFields in explicit context
-transFieldsExplicit :: PosInf -> ([(FieldName, CPS.VarName)] -> SimpleTerm) -> Core.LFields -> S CPS.LKTerm
+-- Now uses LVarName (Located VarName) for position tracking
+transFieldsExplicit :: PosInf -> (CPS.LFields -> SimpleTerm) -> Core.LFields -> S CPS.LKTerm
 transFieldsExplicit pos k fields =
   iter fields []
     where iter [] acc = do
               v <- freshV
               return $ Loc pos $ LetSimple v (Loc pos (k (reverse acc))) (Loc pos (KontReturn v))
           iter ((f,lt):rest) acc  =
-              trans lt (\v -> iter rest ((f,v):acc))
+              trans lt (\lv -> iter rest ((f,lv):acc))
 
 
 -- | Transform a Located Core term in explicit context
@@ -81,23 +84,27 @@ transExplicit (Loc _ (Core.Lit lit)) = do
   return $ Loc pos $ LetSimple x (Loc pos (ValSimpleTerm (CPS.Lit lit))) (Loc pos (KontReturn x))
 
 transExplicit (Loc pos (Core.Error lterm)) = do
-  trans lterm (\v -> return $ Loc pos (Error v pos))
+  -- trans now passes LVarName; extract VarName for Error
+  trans lterm (\(Loc _ v) -> return $ Loc pos (Error v pos))
 
 transExplicit (Loc pos (Core.App le1 le2)) = do
-  trans le1 (\x1 ->
-    trans le2 (\x2 ->
+  -- trans now passes LVarName; extract VarName for ApplyFun
+  trans le1 (\(Loc _ x1) ->
+    trans le2 (\(Loc _ x2) ->
       return $ Loc pos $ ApplyFun x1 x2))
 
 transExplicit (Loc pos (Core.Bin op le1 le2)) = do
   x <- freshV
-  trans le1 (\x1 ->
-    trans le2 (\x2 ->
-      return $ Loc pos $ LetSimple x (Loc pos (CPS.Bin op x1 x2)) (Loc pos (KontReturn x))))
+  -- trans now passes LVarName; use directly in Bin (which takes LVarName)
+  trans le1 (\lv1 ->
+    trans le2 (\lv2 ->
+      return $ Loc pos $ LetSimple x (Loc pos (CPS.Bin op lv1 lv2)) (Loc pos (KontReturn x))))
 
 transExplicit (Loc pos (Core.Un op le)) = do
   x <- freshV
-  trans le (\x' ->
-      return $ Loc pos $ LetSimple x (Loc pos (CPS.Un op x')) (Loc pos (KontReturn x)))
+  -- trans now passes LVarName; use directly in Un (which takes LVarName)
+  trans le (\lv ->
+      return $ Loc pos $ LetSimple x (Loc pos (CPS.Un op lv)) (Loc pos (KontReturn x)))
 
 transExplicit (Loc pos (Core.Abs (Core.Unary x xPos le))) = do
   f <- freshV
@@ -122,56 +129,64 @@ transExplicit (Loc pos (Core.Let (Core.FunDecs decs) le2))  = do
 transExplicit (Loc pos (Core.If le0 le1 le2))  = do
   e1' <- transExplicit le1
   e2' <- transExplicit le2
-  trans le0 (\z -> return $ Loc pos $ If z e1' e2')
+  -- trans now passes LVarName; extract VarName for If
+  trans le0 (\(Loc _ z) -> return $ Loc pos $ If z e1' e2')
 
 -- 2018-09-28: AA; gotta double check this part of
 -- the translation
 transExplicit (Loc pos (Core.AssertElseError le0 le1 le2)) = do
   e1' <- transExplicit le1
-  trans le0 (\v0 ->
-    trans le2 (\v2 ->
+  -- trans now passes LVarName; extract VarName for AssertElseError
+  trans le0 (\(Loc _ v0) ->
+    trans le2 (\(Loc _ v2) ->
       return $ Loc pos $ AssertElseError v0 e1' v2 pos))
 
 
 transExplicit (Loc pos (Core.Tuple lts))  =
   transTuple lts []
   where
-    transTuple :: [Core.LTerm] -> [CPS.VarName] -> S CPS.LKTerm
+    -- Now uses LVarName for position tracking
+    transTuple :: [Core.LTerm] -> [CPS.LVarName] -> S CPS.LKTerm
     transTuple [] acc  = do
       v <- freshV
       return $ Loc pos $ LetSimple v (Loc pos (Tuple (reverse acc))) (Loc pos (KontReturn v))
     transTuple (lt:rest) acc  =
-      trans lt (\v -> transTuple rest (v:acc) )
+      trans lt (\lv -> transTuple rest (lv:acc) )
 
 transExplicit (Loc pos (Core.Record fields)) =
     transFieldsExplicit pos Record fields
 
 transExplicit (Loc pos (Core.WithRecord le fields)) =
-  trans le (\x -> transFieldsExplicit pos (WithRecord x) fields)
+  -- trans now passes LVarName; use directly in WithRecord
+  trans le (\lv -> transFieldsExplicit pos (WithRecord lv) fields)
 
 
 transExplicit (Loc pos (Core.ProjField lt f))= do
   x <- freshV
-  trans lt (\x' ->
-    return $ Loc pos $ LetSimple x (Loc pos (CPS.ProjField x' f)) (Loc pos (KontReturn x)))
+  -- trans now passes LVarName; use directly in ProjField
+  trans lt (\lv ->
+    return $ Loc pos $ LetSimple x (Loc pos (CPS.ProjField lv f)) (Loc pos (KontReturn x)))
 
 transExplicit (Loc pos (Core.ProjIdx lt idx)) = do
   x <- freshV
-  trans lt (\x' ->
-    return $ Loc pos $ LetSimple x (Loc pos (CPS.ProjIdx x' idx)) (Loc pos (KontReturn x)))
+  -- trans now passes LVarName; use directly in ProjIdx
+  trans lt (\lv ->
+    return $ Loc pos $ LetSimple x (Loc pos (CPS.ProjIdx lv idx)) (Loc pos (KontReturn x)))
 
 transExplicit (Loc pos (Core.List lts)) =
   transList lts []
   where
+    -- Now uses LVarName for position tracking
     transList [] acc  = do
       v <- freshV
       return $ Loc pos $ LetSimple v (Loc pos (List (reverse acc))) (Loc pos (KontReturn v))
     transList (lt:rest) acc =
-      trans lt (\v -> transList rest (v:acc))
+      trans lt (\lv -> transList rest (lv:acc))
 
 transExplicit (Loc pos (Core.ListCons lh lt)) = do
   v <- freshV
-  trans lh (\h' -> trans lt (\t' -> return $ Loc pos $ LetSimple v (Loc pos (ListCons h' t')) (Loc pos (KontReturn v))))
+  -- trans now passes LVarName; use directly in ListCons
+  trans lh (\lvh -> trans lt (\lvt -> return $ Loc pos $ LetSimple v (Loc pos (ListCons lvh lvt)) (Loc pos (KontReturn v))))
 
 transFunDef :: Core.Lambda -> S CPS.KLambda
 transFunDef (Core.Unary x xPos le) = do
@@ -183,61 +198,67 @@ transFunDef (Core.Nullary le) = do
 
 -- | Transform a Located Core term with a continuation
 -- Produces Located CPS terms
-trans :: Core.LTerm -> (CPS.VarName -> S CPS.LKTerm) -> S CPS.LKTerm
+-- The continuation now receives LVarName (Located VarName) to preserve source positions
+trans :: Core.LTerm -> (CPS.LVarName -> S CPS.LKTerm) -> S CPS.LKTerm
 
-trans (Loc _ (Core.Var (Core.RegVar x))) context = context (VN x)
+-- For variables, pass the position from the source location
+trans (Loc pos (Core.Var (Core.RegVar x))) context = context (Loc pos (VN x))
 
 trans (Loc pos (Core.Var (Core.BaseName baseName))) context = do
   x <- freshV
-  kterm' <- context x
+  kterm' <- context (Loc pos x)
   return $ Loc pos $ LetSimple x (Loc pos (Base baseName)) kterm'
 
 
 trans (Loc pos (Core.Var (Core.LibVar lib v))) context = do
   x <- freshV
-  kterm' <- context x
+  kterm' <- context (Loc pos x)
   return $ Loc pos $ LetSimple x (Loc pos (Lib lib v)) kterm'
 
 
 trans (Loc _ (Core.Lit lit)) context =
   do x <- freshV
-     kterm' <- context x
      let pos = posInfo lit
+     kterm' <- context (Loc pos x)
      return $ Loc pos $ LetSimple x (Loc pos (ValSimpleTerm (CPS.Lit lit))) kterm'
 
 trans (Loc pos (Core.Error le)) context = do
   x  <- freshV
-  kterm <- context x
-  trans le (\z -> return $ Loc pos $ LetRet (Cont x kterm) (Loc pos (Error z pos)))
+  kterm <- context (Loc pos x)
+  -- Extract VarName from LVarName for Error
+  trans le (\(Loc _ z) -> return $ Loc pos $ LetRet (Cont x kterm) (Loc pos (Error z pos)))
 
 trans (Loc pos (Core.App le1 le2)) context = do
   x  <- freshV
-  kterm <- context x
-  trans le1 (\z1 ->
-    trans le2 (\z2 ->
+  kterm <- context (Loc pos x)
+  -- Extract VarName from LVarName for ApplyFun
+  trans le1 (\(Loc _ z1) ->
+    trans le2 (\(Loc _ z2) ->
       return $ Loc pos $ LetRet (Cont x kterm) (Loc pos (ApplyFun z1 z2))))
 
 trans (Loc pos (Core.Bin op le1 le2)) context = do
   x <- freshV
-  kterm <- context x
-  trans le1 (\z1 ->
-    trans le2 (\z2 ->
-      return $ Loc pos $ LetSimple x (Loc pos (CPS.Bin op z1 z2)) kterm))
+  kterm <- context (Loc pos x)
+  -- Use LVarName directly in Bin
+  trans le1 (\lv1 ->
+    trans le2 (\lv2 ->
+      return $ Loc pos $ LetSimple x (Loc pos (CPS.Bin op lv1 lv2)) kterm))
 
 trans (Loc pos (Core.Un op le)) context = do
   x <- freshV
-  kterm <- context x
-  trans le (\z -> return $ Loc pos $ LetSimple x (Loc pos (CPS.Un op z)) kterm)
+  kterm <- context (Loc pos x)
+  -- Use LVarName directly in Un
+  trans le (\lv -> return $ Loc pos $ LetSimple x (Loc pos (CPS.Un op lv)) kterm)
 
 trans (Loc pos (Core.Abs (Core.Unary x xPos le))) context = do
   f <- freshV
-  kterm <- context f
+  kterm <- context (Loc pos f)
   e' <- transExplicit le
   return $ Loc pos $ LetSimple f (Loc pos (ValSimpleTerm (KAbs (Unary (VN x) xPos e')))) kterm
 
 trans (Loc pos (Core.Abs (Core.Nullary le))) context = do
   f <- freshV
-  kterm <- context f
+  kterm <- context (Loc pos f)
   e' <- transExplicit le
   return $ Loc pos $ LetSimple f (Loc pos (ValSimpleTerm (KAbs (Nullary e')))) kterm
 
@@ -253,18 +274,20 @@ trans (Loc pos (Core.Let (Core.FunDecs decs) le2)) context = do
 
 trans (Loc pos (Core.If le0 le1 le2)) context = do
   v <- freshV
-  kterm <- context v
+  kterm <- context (Loc pos v)
   e1' <- transExplicit le1
   e2' <- transExplicit le2
-  trans le0 (\z -> return $ Loc pos $ LetRet (Cont v kterm) (Loc pos (If z e1' e2')))
+  -- Extract VarName from LVarName for If
+  trans le0 (\(Loc _ z) -> return $ Loc pos $ LetRet (Cont v kterm) (Loc pos (If z e1' e2')))
 
 
 trans (Loc pos (Core.AssertElseError le0 le1 le2)) context = do
   x <- freshV
-  kterm <- context x
+  kterm <- context (Loc pos x)
   e1' <- transExplicit le1
-  trans le0 (\z ->
-    trans le2 (\z2 ->
+  -- Extract VarName from LVarName for AssertElseError
+  trans le0 (\(Loc _ z) ->
+    trans le2 (\(Loc _ z2) ->
       return $ Loc pos $ LetRet (Cont x kterm) (Loc pos (AssertElseError z e1' z2 pos))))
 
 
@@ -272,43 +295,49 @@ trans (Loc pos (Core.AssertElseError le0 le1 le2)) context = do
 trans (Loc pos (Core.Tuple lts)) context =
   transTuple lts [] context
   where
+    -- Now uses LVarName for position tracking
     transTuple [] acc ctx = do
       v <- freshV
-      e' <- ctx v
+      e' <- ctx (Loc pos v)
       return $ Loc pos $ LetSimple v (Loc pos (Tuple (reverse acc))) e'
     transTuple (lt:rest) acc ctx =
-      trans lt (\v -> transTuple rest (v:acc) ctx)
+      trans lt (\lv -> transTuple rest (lv:acc) ctx)
 
 trans (Loc pos (Core.Record fields)) context = transFields pos Record fields context
 
 trans (Loc pos (Core.WithRecord le fields)) context =
-  trans le (\ rr -> transFields pos (WithRecord rr) fields context )
+  -- Use LVarName directly in WithRecord
+  trans le (\lv -> transFields pos (WithRecord lv) fields context )
 
 
 trans (Loc pos (Core.ProjField lt f)) context = do
   x <- freshV
-  kterm <- context x
-  trans lt (\z -> return $ Loc pos $ LetSimple x (Loc pos (CPS.ProjField z f)) kterm)
+  kterm <- context (Loc pos x)
+  -- Use LVarName directly in ProjField
+  trans lt (\lv -> return $ Loc pos $ LetSimple x (Loc pos (CPS.ProjField lv f)) kterm)
 
 trans (Loc pos (Core.ProjIdx lt idx)) context = do
   x <- freshV
-  kterm <- context x
-  trans lt (\z -> return $ Loc pos $ LetSimple x (Loc pos (CPS.ProjIdx z idx)) kterm)
+  kterm <- context (Loc pos x)
+  -- Use LVarName directly in ProjIdx
+  trans lt (\lv -> return $ Loc pos $ LetSimple x (Loc pos (CPS.ProjIdx lv idx)) kterm)
 
 trans (Loc pos (Core.List lts)) context =
   transList lts [] context
   where
+    -- Now uses LVarName for position tracking
     transList [] acc ctx = do
       v <- freshV
-      e' <- ctx v
+      e' <- ctx (Loc pos v)
       return $ Loc pos $ LetSimple v (Loc pos (List (reverse acc))) e'
     transList (lt:rest) acc ctx =
-      trans lt (\v -> transList rest (v:acc) ctx)
+      trans lt (\lv -> transList rest (lv:acc) ctx)
 
 trans (Loc pos (Core.ListCons lh lt)) context = do
   v <- freshV
-  e' <- context v
-  trans lh (\h' -> trans lt (\t' -> return $ Loc pos $ LetSimple v (Loc pos (ListCons h' t')) e'))
+  e' <- context (Loc pos v)
+  -- Use LVarName directly in ListCons
+  trans lh (\lvh -> trans lt (\lvt -> return $ Loc pos $ LetSimple v (Loc pos (ListCons lvh lvt)) e'))
 
 
 freshSymbol :: S String

@@ -75,6 +75,9 @@ data StackInst
   | InvalidateSparseBit
   | MkFunClosures [(VarName, VarAccess)] [(VarName, HFN)]
   | RTAssertion RTAssertion
+  -- | Source position annotation for source map generation.
+  -- Generates no code but emits a source map marker at the current position.
+  | SourcePosAnnotation RawVar
    deriving (Eq, Show)
 
 -- Function definition (position is on the Located wrapper when used as LFunDef)
@@ -154,6 +157,7 @@ ppIR (MkFunClosures varmap fdefs) =
 
 ppIR (LabelGroup insts) =
  text "group" $$ nest 2 (vcat (map ppLStackInst insts))
+ppIR (SourcePosAnnotation r) = text "<source-pos>" <+> ppId r
 
 ppLStackInst :: LStackInst -> PP.Doc
 ppLStackInst (Loc _ i) = ppIR i

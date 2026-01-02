@@ -98,6 +98,7 @@ trInsts ii = work [] [] ii  where
         let stores = concat $ map (\v -> store (Raw.AssignableLVal v)) (fst (unzip vars))
         return $ (Loc pos (Stack.MkFunClosures envmap vars)):stores
       Raw.RTAssertion a -> return [Loc pos (Stack.RTAssertion a)]
+      Raw.SourcePosAnnotation r -> return [Loc pos (Stack.SourcePosAnnotation r)]
 
   translateGroup [] = return []
   translateGroup linsts = do
@@ -160,9 +161,10 @@ trInsts ii = work [] [] ii  where
                   _ -> error "impossible case/bug: only label instructions must be passed to this translation function"
 
         -- Get position for the group (use first instruction's position)
+        -- Note: linsts is non-empty here due to the guard at translateGroup []
         groupPos = case linsts of
           (li:_) -> getLoc li
-          [] -> NoPos
+          _ -> NoPos  -- unreachable, but needed for exhaustiveness
 
         insts' = Loc groupPos (Stack.LabelGroup (map tri linsts))
 

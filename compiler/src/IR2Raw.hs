@@ -75,13 +75,14 @@ intercept = censor (const []) . listen
 data LVal = LVal { rVal :: RawVar, rValLbl :: RawVar, rTyLbl :: RawVar }
 
 -- | Abstraction of a label computation.
+-- Now uses LVarAccess (Located VarAccess) to preserve source positions
 data LabelComp
     -- | The label stored in the given Raw variable.
     = Lbl RawVar
     -- | The value label of the given variable.
-    | ValLbl VarAccess
+    | ValLbl IR.LVarAccess
     -- | The type label of the given variable.
-    | TyLbl VarAccess
+    | TyLbl IR.LVarAccess
     -- | The join of the labels described by the given label computations.
     | Join LabelComp LabelComp [LabelComp]
     -- | The current PC label.
@@ -89,15 +90,16 @@ data LabelComp
 
 -- | Describes the computation of a simple or labelled value (depending on the expression).
 -- See 'RawComp'.
+-- Now uses LVarAccess (Located VarAccess) to preserve source positions
 data ValueComp
     -- | Result is (or is the value of) the given labelled value.
-    = RVar VarAccess
+    = RVar IR.LVarAccess
     -- | Result is what the given expression computes to.
     | RExpr RawExpr
     -- | Result is what the given expression, parametrized over one variable, computes to.
-    | RUn VarAccess (RawVar -> RawExpr)
+    | RUn IR.LVarAccess (RawVar -> RawExpr)
     -- | Result is what the given expression, parametrized over two variables, computes to.
-    | RBin VarAccess VarAccess (RawVar -> RawVar -> RawExpr)
+    | RBin IR.LVarAccess IR.LVarAccess (RawVar -> RawVar -> RawExpr)
 
 -- | Describes the computation of a labelled value, divided into a "value computation"
 -- and two label computations.
@@ -171,12 +173,14 @@ constructLVal' LVal{..} = assignLVal' $ ConstructLVal rVal rValLbl rTyLbl
 
 -- | Generate instructions assigning the components of a runtime LVal
 -- to individual variables.
-getLVal :: VarAccess -> TM LVal
-getLVal va = do
+-- Now takes LVarAccess and uses its position for generated instructions.
+getLVal :: IR.LVarAccess -> TM LVal
+getLVal (Loc vaPos va) = do
   rVal <- freshRawVarWith "_val_"
   rValLbl <- freshRawVarWith "_vlbl_"
   rTyLbl <- freshRawVarWith "_tlbl_"
-  pos <- currentPos
+  -- Use the variable's position for the generated instructions
+  let pos = vaPos
 
   mapM_
     (\(r, f) -> tell [Loc pos (AssignRaw r (ProjectLVal va f))])
@@ -213,11 +217,12 @@ getR0 = do
 
 -- | Generate instructions assigning the value of the given runtime LVal
 -- to a new Raw variable.
-getVal :: VarAccess -> TM RawVar
-getVal va = do
+-- Now takes LVarAccess and uses its position for generated instructions.
+getVal :: IR.LVarAccess -> TM RawVar
+getVal (Loc vaPos va) = do
     rVal <- freshRawVarWith "_val_"
-    pos <- currentPos
-    tell [Loc pos (AssignRaw rVal (ProjectLVal va FieldValue))]
+    -- Use the variable's position for the generated instruction
+    tell [Loc vaPos (AssignRaw rVal (ProjectLVal va FieldValue))]
     return rVal
 
 -- | Special case projection for self-references
@@ -227,20 +232,22 @@ projectLVal va field = ProjectLVal va field
 
 -- | Generate instructions assigning the value label of the given runtime LVal
 -- to a new Raw variable.
-getValLbl :: VarAccess -> TM RawVar
-getValLbl va = do
+-- Now takes LVarAccess and uses its position for generated instructions.
+getValLbl :: IR.LVarAccess -> TM RawVar
+getValLbl (Loc vaPos va) = do
     rValLbl <- freshRawVarWith "_vlbl_"
-    pos <- currentPos
-    tell [Loc pos (AssignRaw rValLbl (projectLVal va FieldValLev))]
+    -- Use the variable's position for the generated instruction
+    tell [Loc vaPos (AssignRaw rValLbl (projectLVal va FieldValLev))]
     return rValLbl
 
 -- | Generate instructions assigning the type label of the given runtime LVal
 -- to a new Raw variable.
-getTyLbl :: VarAccess -> TM RawVar
-getTyLbl va = do
+-- Now takes LVarAccess and uses its position for generated instructions.
+getTyLbl :: IR.LVarAccess -> TM RawVar
+getTyLbl (Loc vaPos va) = do
     rTyLbl <- freshRawVarWith "_tlbl_"
-    pos <- currentPos
-    tell [Loc pos (AssignRaw rTyLbl (projectLVal va FieldTypLev))]
+    -- Use the variable's position for the generated instruction
+    tell [Loc vaPos (AssignRaw rTyLbl (projectLVal va FieldTypLev))]
     return rTyLbl
 
 -- | Generate instructions assigning the current PC label to a new Raw variable.
@@ -300,34 +307,37 @@ raiseBlock raiseByComp = do
 -- | Generate instructions for asserting the type of the given runtime LVal.
 -- Consists of first raising the blocking label with the type label of that LVal and
 -- then an assert instruction with the given type.
-assertTypeAndRaise :: VarAccess -> RawType -> TM ()
-assertTypeAndRaise va t = do
-  raiseBlock $ TyLbl va
-  r <- getVal va
-  pos <- currentPos
-  tell [ Loc pos (RTAssertion (AssertType r t)) ]
+-- Now takes LVarAccess and uses its position for generated instructions.
+assertTypeAndRaise :: IR.LVarAccess -> RawType -> TM ()
+assertTypeAndRaise lva@(Loc vaPos _) t = do
+  raiseBlock $ TyLbl lva
+  r <- getVal lva
+  -- Use the variable's position for the assertion
+  tell [ Loc vaPos (RTAssertion (AssertType r t)) ]
 
 -- Note: Currently, RT does not support general type equality check.
 -- assertEqTypes :: [RawType] -> RawVar -> RawVar -> TM ()
 
 -- | Generate instructions for asserting that the types of the given runtime LVals
 -- are either both string or both numbers.
-assertTypesBothStringsOrBothNumbers :: VarAccess -> VarAccess -> TM ()
-assertTypesBothStringsOrBothNumbers va1 va2 = do
-  raiseBlock $ Join (TyLbl va1) (TyLbl va2) []
-  r1 <- getVal va1
-  r2 <- getVal va2
+-- Now takes LVarAccess and uses positions for generated instructions.
+assertTypesBothStringsOrBothNumbers :: IR.LVarAccess -> IR.LVarAccess -> TM ()
+assertTypesBothStringsOrBothNumbers lva1 lva2 = do
+  raiseBlock $ Join (TyLbl lva1) (TyLbl lva2) []
+  r1 <- getVal lva1
+  r2 <- getVal lva2
   pos <- currentPos
   tell [Loc pos (RTAssertion (AssertTypesBothStringsOrBothNumbers r1 r2))]
 
 -- | Generate instructions raising the blocking label with the value label of the
 -- given runtime LVal and an assertion based on the value, specified by the given function.
-assertWithValAndRaise :: VarAccess -> (RawVar -> RTAssertion) -> TM ()
-assertWithValAndRaise va f = do
-  raiseBlock $ ValLbl va
-  r <- getVal va
-  pos <- currentPos
-  tell [Loc pos (RTAssertion (f r))]
+-- Now takes LVarAccess and uses its position for generated instructions.
+assertWithValAndRaise :: IR.LVarAccess -> (RawVar -> RTAssertion) -> TM ()
+assertWithValAndRaise lva@(Loc vaPos _) f = do
+  raiseBlock $ ValLbl lva
+  r <- getVal lva
+  -- Use the variable's position for the assertion
+  tell [Loc vaPos (RTAssertion (f r))]
 
 -- | See 'InvalidateSparseBit'.
 invalidateSparseBit :: TM ()
@@ -356,14 +366,14 @@ compSimple = \case
 -- instruction is used instead of the 'AssignRaw' instruction, as a labelled value is computed.
 compComplex :: ValueComp -> TM VarAccess
 compComplex = \case
-  RVar va -> return va
+  RVar (Loc _ va) -> return va  -- Extract VarAccess from LVarAccess
   RExpr e -> assignLVal' e
-  RUn va f -> do
-    r <- getVal va
+  RUn lva f -> do
+    r <- getVal lva
     assignLVal' $ f r
-  RBin va1 va2 f -> do
-    r1 <- getVal va1
-    r2 <- getVal va2
+  RBin lva1 lva2 f -> do
+    r1 <- getVal lva1
+    r2 <- getVal lva2
     assignLVal' $ f r1 r2
 
 -- | Generate instructions for a 'LabelComp'.
@@ -387,15 +397,22 @@ compLabel = \case
 
 -- | Generate instructions joining the current PC label into the given
 -- variable's value and type labels.
-pcTaint :: VarAccess -> TM VarAccess
-pcTaint va = do
-  rVal <- getVal va
-  rValLbl <- compLabel $ Join PC (ValLbl va) []
-  rTyLbl <- compLabel $ Join PC (TyLbl va) []
-  constructLVal' $ LVal{..}
+-- Now takes LVarAccess to preserve source positions.
+-- Returns LVarAccess (NoPos since this is a compiler-generated intermediate value).
+pcTaint :: IR.LVarAccess -> TM IR.LVarAccess
+pcTaint lva = do
+  rVal <- getVal lva
+  rValLbl <- compLabel $ Join PC (ValLbl lva) []
+  rTyLbl <- compLabel $ Join PC (TyLbl lva) []
+  va <- constructLVal' $ LVal{..}
+  return $ noLocVA va
 
 
 -- ===== Translation functions for the different components of a program =====
+
+-- | Wrap a VarAccess with NoPos to create an LVarAccess for compiler-generated variables
+noLocVA :: VarAccess -> IR.LVarAccess
+noLocVA va = Loc NoPos va
 
 expr2raw :: IR.IRExpr -> TM LVal
 expr2raw e = expr2rawComp e >>= \case
@@ -406,9 +423,11 @@ expr2raw e = expr2rawComp e >>= \case
       return LVal{..}
     ComplexRawComp{..} -> do
       v <- compComplex ccVal
-      rVal <- getVal v
-      rResValLbl <- getValLbl v
-      rResTyLbl <- getTyLbl v
+      -- Wrap with NoPos since v is a compiler-generated intermediate variable
+      let lv = noLocVA v
+      rVal <- getVal lv
+      rResValLbl <- getValLbl lv
+      rResTyLbl <- getTyLbl lv
       rValLbl <- compLabel (ccValLbl $ Lbl rResValLbl)
       rTyLbl <- compLabel (ccTyLbl $ Lbl rResTyLbl)
       return LVal{..}
@@ -423,12 +442,12 @@ expr2rawComp = \case
     }
 
   -- TODO Special cases should probably have their own type/instruction.
-  IR.Base "$$authorityarg" -> return $
-    let v = IR.VarLocal (VN "$$authorityarg") in
-    SimpleRawComp
-    { cVal = RVar v
-    , cValLbl = ValLbl v
-    , cTyLbl = TyLbl v
+  IR.Base "$$authorityarg" ->
+    let lva = noLocVA $ IR.VarLocal (VN "$$authorityarg") in
+    return SimpleRawComp
+    { cVal = RVar lva
+    , cValLbl = ValLbl lva
+    , cTyLbl = TyLbl lva
     }
 
   -- Revision 2023-08: Changed the runtime to create unlabelled values for
@@ -443,21 +462,24 @@ expr2rawComp = \case
 
   -- The following constructor operations take labelled values as arguments,
   -- but these labels do not affect the labels of the resulting compound value.
-  IR.Tuple vs ->
+  -- Extract VarAccess from LVarAccess for Raw.Tuple
+  IR.Tuple lvs ->
     return SimpleRawComp
-      { cVal = RExpr $ Tuple vs
+      { cVal = RExpr $ Tuple (map unLoc lvs)
       , cValLbl = PC
       , cTyLbl = PC
       }
-  IR.List vs ->
+  -- Extract VarAccess from LVarAccess for Raw.List
+  IR.List lvs ->
     return SimpleRawComp
-      { cVal = RExpr $ List vs
+      { cVal = RExpr $ List (map unLoc lvs)
       , cValLbl = PC
       , cTyLbl = PC
       }
-  IR.Record fs ->
+  -- Extract VarAccess from LVarAccess for Raw.Record
+  IR.Record lfs ->
     return SimpleRawComp
-      { cVal = RExpr $ Record fs
+      { cVal = RExpr $ Record (map (\(f, Loc _ va) -> (f, va)) lfs)
       , cValLbl = PC
       , cTyLbl = PC
       }
@@ -466,18 +488,20 @@ expr2rawComp = \case
   -- with new values. The given labelled values are just added to the collection
   -- and not touched, therefore their labels are not joined into the datastructure's
   -- label.
-  IR.ListCons v l -> do
-    assertTypeAndRaise l RawList
+  -- Extract VarAccess for ListCons head, keep LVarAccess for list operand
+  IR.ListCons lv ll -> do
+    assertTypeAndRaise ll RawList
     return SimpleRawComp
-      { cVal = RUn l $ ListCons v
-      , cValLbl = Join PC (ValLbl l) []
+      { cVal = RUn ll $ ListCons (unLoc lv)
+      , cValLbl = Join PC (ValLbl ll) []
       , cTyLbl = PC
       }
-  IR.WithRecord v fs -> do
-    assertTypeAndRaise v RawRecord
+  -- Extract VarAccess for WithRecord fields, keep LVarAccess for record operand
+  IR.WithRecord lv lfs -> do
+    assertTypeAndRaise lv RawRecord
     return SimpleRawComp
-      { cVal = RUn v $ \r -> WithRecord r fs
-      , cValLbl = Join PC (ValLbl v) []
+      { cVal = RUn lv $ \r -> WithRecord r (map (\(f, Loc _ va) -> (f, va)) lfs)
+      , cValLbl = Join PC (ValLbl lv) []
       , cTyLbl = PC
       }
 
@@ -489,24 +513,26 @@ expr2rawComp = \case
   -- to distinguish from the new 'ProjIdx' for tuples. The returned labelled value is
   -- the same. New is the 'AssertRecordHasField' assertion which was missing (together
   -- with raising the blocking label accordingly).
-  IR.ProjField v field -> do
-    assertTypeAndRaise v RawRecord
-    assertWithValAndRaise v $ \r -> AssertRecordHasField r field
+  -- Now uses LVarAccess for position tracking
+  IR.ProjField lv field -> do
+    assertTypeAndRaise lv RawRecord
+    assertWithValAndRaise lv $ \r -> AssertRecordHasField r field
     return ComplexRawComp
-      { ccVal = RUn v $ \r -> ProjField r field
-      , ccValLbl = \resValLbl -> Join PC (ValLbl v) [resValLbl]
+      { ccVal = RUn lv $ \r -> ProjField r field
+      , ccValLbl = \resValLbl -> Join PC (ValLbl lv) [resValLbl]
       , ccTyLbl = \resTyLbl -> Join PC resTyLbl []
       }
   -- Revision 2023-08: 'ProjIdx' is the new indexing operation for tuples replacing
   -- the previous 'Index'. The difference is that the index is a constant to the operation
   -- instead of a variable. Previously, the type label of the tuple was incorrectly joined
   -- into the result type label.
-  IR.ProjIdx v idx -> do
-    assertTypeAndRaise v RawTuple
-    assertWithValAndRaise v $ \r -> AssertTupleLengthGreaterThan r idx
+  -- Now uses LVarAccess for position tracking
+  IR.ProjIdx lv idx -> do
+    assertTypeAndRaise lv RawTuple
+    assertWithValAndRaise lv $ \r -> AssertTupleLengthGreaterThan r idx
     return ComplexRawComp
-      { ccVal = RUn v $ \r -> ProjIdx r idx
-      , ccValLbl = \resValLbl -> Join PC (ValLbl v) [resValLbl]
+      { ccVal = RUn lv $ \r -> ProjIdx r idx
+      , ccValLbl = \resValLbl -> Join PC (ValLbl lv) [resValLbl]
       , ccTyLbl = \resTyLbl -> Join PC resTyLbl []
       }
 
@@ -524,26 +550,27 @@ expr2rawComp = \case
   -- This results in higher granularity for the blocking label: when the first assertion fails,
   -- the blocking label is only raised with the type label of the first argument, not with that of
   -- the second.
-  IR.Bin op v1 v2 ->
+  -- Now uses LVarAccess (lv1, lv2) for position tracking
+  IR.Bin op lv1 lv2 ->
     -- Basic binary op computation, where the value label is the join of those of the input and the type label is PC
     -- (for operations where the result type is fixed).
     let basicBinOpComp =
          return SimpleRawComp
-          { cVal = RBin v1 v2 $ Bin op (UseNativeBinop True)
-          , cValLbl = Join PC (ValLbl v1) [ValLbl v2]
+          { cVal = RBin lv1 lv2 $ Bin op (UseNativeBinop True)
+          , cValLbl = Join PC (ValLbl lv1) [ValLbl lv2]
           , cTyLbl = PC
           }
         numBinOpComp = do
-          assertTypeAndRaise v1 RawNumber
-          assertTypeAndRaise v2 RawNumber
+          assertTypeAndRaise lv1 RawNumber
+          assertTypeAndRaise lv2 RawNumber
           basicBinOpComp
         stringBinOpComp = do
-          assertTypeAndRaise v1 RawString
-          assertTypeAndRaise v2 RawString
+          assertTypeAndRaise lv1 RawString
+          assertTypeAndRaise lv2 RawString
           basicBinOpComp
         -- Note: The result type is boolean in any case.
         numOrStringBinOpComp = do
-          assertTypesBothStringsOrBothNumbers v1 v2
+          assertTypesBothStringsOrBothNumbers lv1 lv2
           basicBinOpComp
 
     in case op of
@@ -554,19 +581,19 @@ expr2rawComp = \case
       -- Revision 2023-08: Removed incorrect raising of PC by value label
       -- of second operand (the operation always succeeds).
       Basics.Div -> do
-        assertTypeAndRaise v1 RawNumber
-        assertTypeAndRaise v2 RawNumber
-        assertWithValAndRaise v2 $ \r -> AssertNotZero r
+        assertTypeAndRaise lv1 RawNumber
+        assertTypeAndRaise lv2 RawNumber
+        assertWithValAndRaise lv2 $ \r -> AssertNotZero r
         basicBinOpComp
       Basics.Mod -> do
-        assertTypeAndRaise v1 RawNumber
-        assertTypeAndRaise v2 RawNumber
-        assertWithValAndRaise v2 $ \r -> AssertNotZero r
+        assertTypeAndRaise lv1 RawNumber
+        assertTypeAndRaise lv2 RawNumber
+        assertWithValAndRaise lv2 $ \r -> AssertNotZero r
         basicBinOpComp
       Basics.IntDiv -> do
-        assertTypeAndRaise v1 RawNumber
-        assertTypeAndRaise v2 RawNumber
-        assertWithValAndRaise v2 $ \r -> AssertNotZero r
+        assertTypeAndRaise lv1 RawNumber
+        assertTypeAndRaise lv2 RawNumber
+        assertWithValAndRaise lv2 $ \r -> AssertNotZero r
         basicBinOpComp
       Basics.Gt -> numOrStringBinOpComp
       Basics.Lt -> numOrStringBinOpComp
@@ -587,32 +614,32 @@ expr2rawComp = \case
       -- Note: Even though the result depends on the types of the parameters, it is sufficient to join their
       -- value labels into the result's value label, due to the invariant tyLbl ⊑ valLbl.
       Basics.Eq -> return ComplexRawComp
-        { ccVal = RBin v1 v2 $ Bin op (UseNativeBinop False)
-        , ccValLbl = \resValLbl -> Join PC (ValLbl v1) [ValLbl v2, resValLbl]
+        { ccVal = RBin lv1 lv2 $ Bin op (UseNativeBinop False)
+        , ccValLbl = \resValLbl -> Join PC (ValLbl lv1) [ValLbl lv2, resValLbl]
         , ccTyLbl = const PC -- The result type is always boolean
         }
       Basics.Neq -> return ComplexRawComp
-        { ccVal = RBin v1 v2 $ Bin op (UseNativeBinop False)
-        , ccValLbl = \resValLbl -> Join PC (ValLbl v1) [ValLbl v2, resValLbl]
+        { ccVal = RBin lv1 lv2 $ Bin op (UseNativeBinop False)
+        , ccValLbl = \resValLbl -> Join PC (ValLbl lv1) [ValLbl lv2, resValLbl]
         , ccTyLbl = const PC -- The result type is always boolean
         }
       -- Revision 2023-08: Introduced new instruction InvalidateSparseBit
       -- (before this was called by a runtime raisedTo operation, which is now not necessary anymore).
       -- Otherwise equivalent except for order of instructions.
       Basics.RaisedTo -> do
-        assertTypeAndRaise v2 RawLevel
-        rRaiseTo <- getVal v2
+        assertTypeAndRaise lv2 RawLevel
+        rRaiseTo <- getVal lv2
         invalidateSparseBit
         return SimpleRawComp
-          { cVal = RVar v1
-          , cValLbl = Join PC (ValLbl v1) [ValLbl v2, Lbl rRaiseTo]
-          , cTyLbl = Join PC (TyLbl v1) []
+          { cVal = RVar lv1
+          , cValLbl = Join PC (ValLbl lv1) [ValLbl lv2, Lbl rRaiseTo]
+          , cTyLbl = Join PC (TyLbl lv1) []
           }
       Basics.HasField -> do
-        assertTypeAndRaise v1 RawRecord
-        assertTypeAndRaise v2 RawString
+        assertTypeAndRaise lv1 RawRecord
+        assertTypeAndRaise lv2 RawString
         basicBinOpComp
-      
+
       -- Bit operations
       Basics.BinAnd -> numBinOpComp
       Basics.BinOr -> numBinOpComp
@@ -624,13 +651,14 @@ expr2rawComp = \case
       -- TODO Implement remaining operations
       _ -> error $ "Binary operation not yet implemented: " ++ show op
 
-  IR.Un op v ->
+  -- Now uses LVarAccess (lv) for position tracking
+  IR.Un op lv ->
     -- Basic unary op computation, where the value label is that of the input and the type label is PC
     -- (for operations where the result type is fixed).
     let basicUnOpComp =
          return SimpleRawComp
-          { cVal = RUn v $ Un op
-          , cValLbl = Join PC (ValLbl v) []
+          { cVal = RUn lv $ Un op
+          , cValLbl = Join PC (ValLbl lv) []
           , cTyLbl = PC
           }
     in case op of
@@ -641,33 +669,33 @@ expr2rawComp = \case
       -- Revision 2023-08: Separate operations for list and tuple length.
       -- Now also asserting the type (before only block was raised).
       Basics.ListLength -> do
-        assertTypeAndRaise v RawList
+        assertTypeAndRaise lv RawList
         basicUnOpComp
       Basics.TupleLength -> do
-        assertTypeAndRaise v RawTuple
+        assertTypeAndRaise lv RawTuple
         basicUnOpComp
       Basics.RecordSize -> do
-        assertTypeAndRaise v RawRecord
+        assertTypeAndRaise lv RawRecord
         basicUnOpComp
       -- Revision 2023-08: Equivalent.
       Basics.Tail -> do
-        assertTypeAndRaise v RawList
+        assertTypeAndRaise lv RawList
         basicUnOpComp
       -- Revision 2023-08: Now also joining PC into value label (missed due to a typo in the previous version)
       Basics.Head -> do
-        assertTypeAndRaise v RawList
+        assertTypeAndRaise lv RawList
         return ComplexRawComp
-          { ccVal = RUn v $ Un op
-          , ccValLbl = \resValLbl -> Join PC (ValLbl v) [resValLbl]
+          { ccVal = RUn lv $ Un op
+          , ccValLbl = \resValLbl -> Join PC (ValLbl lv) [resValLbl]
           , ccTyLbl = \resTyLbl -> Join PC resTyLbl []
           }
       -- Revision 2023-08: Now setting type label to PC instead of joining original type label (as the type is asserted).
       Basics.UnMinus -> do
-        assertTypeAndRaise v RawNumber
+        assertTypeAndRaise lv RawNumber
         basicUnOpComp
 
       Basics.Not -> do
-        assertTypeAndRaise v RawBoolean
+        assertTypeAndRaise lv RawBoolean
         basicUnOpComp
 
       -- TODO Implement remaining operations
@@ -696,16 +724,20 @@ inst2raw (Loc pos inst) = case inst of
 
 -- | Translate a Located IR terminator to a Located Raw terminator, generating instructions.
 -- Extracts position from Located wrapper and uses it for generated terminators.
+-- Note: Terminators use plain VarAccess (not LVarAccess) for control flow variables.
+-- We wrap them with noLocVA when calling functions that expect LVarAccess.
 tr2raw :: IR.LIRTerminator -> TM LRawTerminator
 tr2raw (Loc pos term) = case term of
   -- Revision 2023-08: Equivalent except for the additional redundant raise.
   IR.TailCall v1 v2 -> do
-    raisePCAndBlock $ ValLbl v1
+    let lv1 = noLocVA v1
+    let lv2 = noLocVA v2
+    raisePCAndBlock $ ValLbl lv1
     -- Note: The raise here is redundant because we have already raised by the value label above.
     -- However, optimizations aware of the relation between type- and value label will remove it.
-    assertTypeAndRaise v1 RawFunction
-    setR0 =<< getLVal v2
-    r <- getVal v1 -- labels of v1 are dismissed at this point
+    assertTypeAndRaise lv1 RawFunction
+    setR0 =<< getLVal lv2
+    r <- getVal lv1 -- labels of v1 are dismissed at this point
     return $ Loc pos (TailCall r)
 
   -- Revision 2023-08: This generates now more instructions than before,
@@ -715,7 +747,7 @@ tr2raw (Loc pos term) = case term of
     -- At this point, we taint value and type label of the to-be-returned value with PC,
     -- as both value and type can depend on it. Note: when implementing more fine-grained type labels,
     -- the type label should not always be tainted here.
-    setR0 =<< getLVal =<< pcTaint v
+    setR0 =<< getLVal =<< pcTaint (noLocVA v)
     return $ Loc pos Ret
 
   IR.LibExport x ->
@@ -723,14 +755,15 @@ tr2raw (Loc pos term) = case term of
 
   -- Revision 2023-08: Equivalent except for the additional redundant raise.
   IR.If v bb1 bb2 -> do
-    raisePCAndBlock $ ValLbl v
+    let lv = noLocVA v
+    raisePCAndBlock $ ValLbl lv
     bb1' <- tree2raw bb1
     bb2' <- tree2raw bb2
     -- Note: The raise here is redundant because we have already raised by the value label above.
     -- However, optimizations aware of the relation between type- and value label will remove it.
-    assertTypeAndRaise v RawBoolean
+    assertTypeAndRaise lv RawBoolean
     tell [ Loc pos SetBranchFlag ]
-    r <- getVal v
+    r <- getVal lv
     return $ Loc pos (If r bb1' bb2')
 
   -- Revision 2023-08: Equivalent, only way of modifying bb2 changed.
@@ -752,19 +785,21 @@ tr2raw (Loc pos term) = case term of
   -- Revision 2023-08: More fine-grained raising of blocking label, see below.
   -- Note: errPos is the error source location (kept embedded), pos is expression position
   IR.AssertElseError v1 irBB verr errPos -> do
+    let lv1 = noLocVA v1
+    let lverr = noLocVA verr
     -- Note: We are first raising the blocking label with the type label,
     -- then assert the type and then raise with the value label.
     -- Raising with the value label directly would be sufficient,
     -- but with the two-step raising we obtain a more fine-grained
     -- blocking label for the assertion. In case more is know about
     -- value and type label, optimizations might eliminated the second raise.
-    assertTypeAndRaise v1 RawBoolean
-    raiseBlock $ ValLbl v1
+    assertTypeAndRaise lv1 RawBoolean
+    raiseBlock $ ValLbl lv1
     bb <- tree2raw irBB
     -- Generate the BB for the error case, using the error source position
-    (tr_err, insts_err) <- intercept $ tr2rawError verr errPos
+    (tr_err, insts_err) <- intercept $ tr2rawError lverr errPos
     let bb_err = BB insts_err tr_err
-    r <- getVal v1
+    r <- getVal lv1
     return $ Loc pos (If r bb bb_err)
 
   -- Revision 2023-08: Now asserting that verr is a string. Also raising both PC
@@ -772,17 +807,18 @@ tr2raw (Loc pos term) = case term of
   -- obsolete with an improvement moving the arguments of the Raw.Error
   -- instruction to R0).
   -- Note: errPos is the error source location (kept embedded), pos is expression position
-  IR.Error verr errPos -> tr2rawError verr errPos
+  IR.Error verr errPos -> tr2rawError (noLocVA verr) errPos
 
 -- | Helper for Error translation with explicit error position
 -- Note: errPos is the error source location (kept embedded in Error constructor)
-tr2rawError :: VarAccess -> PosInf -> TM LRawTerminator
-tr2rawError verr errPos = do
+-- Now takes LVarAccess for the error variable.
+tr2rawError :: IR.LVarAccess -> PosInf -> TM LRawTerminator
+tr2rawError lverr errPos = do
   -- Note: first raising block with type label and then with value label; see AssertElseError for explanation.
-  assertTypeAndRaise verr RawString
+  assertTypeAndRaise lverr RawString
   -- Note: There is no value label anymore at Raw level; instead join the label into PC (which e.g. determines whether are allowed to print the message)
-  raisePCAndBlock $ ValLbl verr
-  r <- getVal verr
+  raisePCAndBlock $ ValLbl lverr
+  r <- getVal lverr
   -- Note: Error still contains errPos as the error source location for runtime error messages
   return $ Loc errPos (Error r)
 

@@ -82,31 +82,42 @@ incLev fname (compileMode, atms, lev, vmap, _) =
     (compileMode, atms, lev + 1, vmap, (Just fname))
 
 
--- this helper function looks up the variable name 
+-- this helper function looks up the variable name
 -- in the enviroment and checks if it should be declared as free
 -- or local
 
 transVar :: VarName -> CC VarAccess
-transVar v@(VN vname) = do 
+transVar v@(VN vname) = do
   (_, C.Atoms atms, lev, vmap, maybe_fname) <- ask
-  case maybe_fname of 
+  case maybe_fname of
     Just fname | fname == v  -> return $ VarFunSelfRef
-    _ -> 
-      case Map.lookup v vmap of 
-        Just (VarNested lev') -> 
-          if lev' < lev 
-          then do 
-            tell $ ([], [(v, lev')], []) -- collecting info about free vars 
-            return $ VarEnv v 
-          else 
-            return $ VarLocal v 
-        Nothing -> 
+    _ ->
+      case Map.lookup v vmap of
+        Just (VarNested lev') ->
+          if lev' < lev
+          then do
+            tell $ ([], [(v, lev')], []) -- collecting info about free vars
+            return $ VarEnv v
+          else
+            return $ VarLocal v
+        Nothing ->
           if vname `elem` atms
-            then return $ VarLocal v 
+            then return $ VarLocal v
             else error $ "undeclared variable: " ++ (show v)
 
+-- | Translate a Located VarName (LVarName) to Located VarAccess (LVarAccess)
+-- Preserves the source position from the input
+transLVar :: CPS.LVarName -> CC CCIR.LVarAccess
+transLVar (Loc pos vn) = do
+  va <- transVar vn
+  return $ Loc pos va
 
-transVars = mapM transVar         
+transVars :: [CPS.VarName] -> CC [CCIR.VarAccess]
+transVars = mapM transVar
+
+-- | Translate a list of Located VarNames to Located VarAccesses
+transLVars :: [CPS.LVarName] -> CC [CCIR.LVarAccess]
+transLVars = mapM transLVar         
 
 isDeclaredEarlierThan lev (_, l)  = l < lev
 
@@ -147,9 +158,11 @@ mkEnvBindings fv = do
 -- Main translation
 ------------------------------------------------------------
 
-transFields fields = do
-          let (ff, vv) = unzip fields
-          lst' <- transVars vv
+-- | Translate CPS LFields (with LVarName) to IR LFields (with LVarAccess)
+transLFields :: CPS.LFields -> CC CCIR.LFields
+transLFields fields = do
+          let (ff, lvv) = unzip fields
+          lst' <- transLVars lvv
           return $ zip ff lst'
 
 -- | cpsToIR translates CPS terms to IR, producing proper Located IR types.
@@ -162,36 +175,37 @@ cpsToIR (Loc pos (CPS.LetSimple vname@(VN ident) (Loc stPos st) lkt)) = do
       case st of
         CPS.Base base -> _assign $ Base base
         CPS.Lib lib base -> _assign (Lib lib base)
-        CPS.Bin binop v1 v2 -> do
-          v1' <- transVar v1
-          v2' <- transVar v2
-          return $ Just $ Loc stPos $ CCIR.Assign vname (Bin binop v1' v2')
-        CPS.Un unop v -> do
-          v' <- transVar v
-          return $ Just $ Loc stPos $ CCIR.Assign vname (Un unop v')
+        -- Now using transLVar to translate LVarName to LVarAccess
+        CPS.Bin binop lv1 lv2 -> do
+          lv1' <- transLVar lv1
+          lv2' <- transLVar lv2
+          return $ Just $ Loc stPos $ CCIR.Assign vname (Bin binop lv1' lv2')
+        CPS.Un unop lv -> do
+          lv' <- transLVar lv
+          return $ Just $ Loc stPos $ CCIR.Assign vname (Un unop lv')
         CPS.Tuple lst -> do
-          lst' <- transVars lst
+          lst' <- transLVars lst
           return $ Just $ Loc stPos $ CCIR.Assign vname (Tuple lst')
         CPS.Record fields -> do
-          fields' <- transFields fields
+          fields' <- transLFields fields
           return $ Just $ Loc stPos $ CCIR.Assign vname (Record fields')
-        CPS.WithRecord x fields -> do
-          x' <- transVar x
-          fields' <- transFields fields
-          return $ Just $ Loc stPos $ CCIR.Assign vname (WithRecord x' fields')
-        CPS.ProjField x f -> do
-          x' <- transVar x
-          return $ Just $ Loc stPos $ CCIR.Assign vname (ProjField x' f)
-        CPS.ProjIdx x idx -> do
-          x' <- transVar x
-          return $ Just $ Loc stPos $ CCIR.Assign vname (ProjIdx x' idx)
+        CPS.WithRecord lv fields -> do
+          lv' <- transLVar lv
+          fields' <- transLFields fields
+          return $ Just $ Loc stPos $ CCIR.Assign vname (WithRecord lv' fields')
+        CPS.ProjField lv f -> do
+          lv' <- transLVar lv
+          return $ Just $ Loc stPos $ CCIR.Assign vname (ProjField lv' f)
+        CPS.ProjIdx lv idx -> do
+          lv' <- transLVar lv
+          return $ Just $ Loc stPos $ CCIR.Assign vname (ProjIdx lv' idx)
         CPS.List lst -> do
-          lst' <- transVars lst
+          lst' <- transLVars lst
           return $ Just $ Loc stPos $ CCIR.Assign vname (List lst')
-        CPS.ListCons v1 v2 -> do
-          v1' <- transVar v1
-          v2' <- transVar v2
-          return $ Just $ Loc stPos $ CCIR.Assign vname (ListCons v1' v2')
+        CPS.ListCons lv1 lv2 -> do
+          lv1' <- transLVar lv1
+          lv2' <- transLVar lv2
+          return $ Just $ Loc stPos $ CCIR.Assign vname (ListCons lv1' lv2')
         CPS.ValSimpleTerm (CPS.Lit lit) -> do lev <- askLev
                                               tell ([],[],[((vname, lit), lev)])
                                               return Nothing

@@ -73,6 +73,8 @@ instance Substitutable RawInst where
         AssertRecordHasField v f -> AssertRecordHasField (apply subst v) f
         AssertNotZero r -> AssertNotZero (apply subst r))
       InvalidateSparseBit -> i
+      -- SourcePosAnnotation: apply substitution to the RawVar to track the actual variable used
+      SourcePosAnnotation r -> SourcePosAnnotation (apply subst r)
       _ -> i
 
 instance Substitutable (Located a) => Substitutable [Located a] where
@@ -99,14 +101,14 @@ instance Substitutable RawBBTree where
 -- end of substitutions 
 
 -- | Stores inferred information from the traversal.
-data PState = 
-    PState { stateMon   :: Map MonComponent RawVar,               -- monitor state 
-             stateLVals :: Map (VarName, LValField) RawVar,       -- lvalues 
+data PState =
+    PState { stateMon   :: Map MonComponent RawVar,               -- monitor state
+             stateLVals :: Map (VarName, LValField) RawVar,       -- lvalues
              stateJoins :: Map (RawVar, RawVar) RawVar,           -- computed joins
              stateSubst :: Subst,
              stateChange:: ChangeFlag,
              stateRawVarTypes :: Map RawVar RawType,              -- for assertions optimizations
-             stateLValTypes :: Map VarName RawType                -- for assertions optimizations             
+             stateLValTypes :: Map VarName RawType                -- for assertions optimizations
            }
 
 
@@ -178,10 +180,22 @@ subst x = do
   return $ apply (stateSubst s) x
 
 -- | Remember that have to replace x with y.
-addSubst x y = do 
-  s <- get 
-  let (Subst m) = stateSubst s 
+addSubst x y = do
+  s <- get
+  let (Subst m) = stateSubst s
   put $ s { stateSubst = Subst (Map.insert x y m)}
+
+-- | Remember substitution x -> y with position information.
+-- If pos is a source position, emit a SourcePosAnnotation instruction to preserve it.
+-- Returns a list of instructions (empty or containing the annotation).
+addSubstWithPos :: RawVar -> RawVar -> PosInf -> Opt [LRawInst]
+addSubstWithPos x y pos = do
+  addSubst x y
+  case pos of
+    SrcPosInf _ _ _ -> do
+      -- Emit a source position annotation to preserve the position for source maps
+      return [Loc pos (SourcePosAnnotation y)]
+    _ -> return []  -- No position to preserve
 
 -- | Remember that pc/block (first argument) can be found in variable r (second argument).
 monInsert p r = do 
@@ -322,7 +336,7 @@ pevalInst li = do
         put $ pstate { stateLVals = m3 }
       AssignRaw r (ProjectLVal (VarLocal v) field) -> do
         case (Map.lookup (v, field) (stateLVals pstate)) of
-          Just r' -> _omit $ addSubst r r'
+          Just r' -> addSubstWithPos r r' pos  -- Returns [] or [SourcePosAnnotation]
           Nothing -> _keep $ do
             markUsed v
             let m0 = stateLVals pstate
@@ -408,6 +422,8 @@ pevalInst li = do
       -- No applicable optimizations.
       SetBranchFlag -> return [li']
       InvalidateSparseBit -> return [li']
+      -- Source position annotations: pass through unchanged
+      SourcePosAnnotation _ -> return [li']
 
 
 isSuitableForNativeEq r = do 

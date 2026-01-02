@@ -542,6 +542,12 @@ ir2jsWithPos _pos SetBranchFlag = return $
 ir2jsWithPos _pos InvalidateSparseBit = return $
   text "rt.raw_invalidateSparseBit()"
 
+-- | Source position annotation: emit only a source map marker, no code
+ir2jsWithPos pos (SourcePosAnnotation _r) = do
+  marker <- emitMarker pos
+  -- Return just the marker - it will be stripped but recorded for source maps
+  return marker
+
 
 
 -- ir2js x = error $ "ir instruction translation not implemented: " ++ (show x)

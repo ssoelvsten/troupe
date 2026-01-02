@@ -42,6 +42,8 @@ type LIRInst = Located IRInst
 type LIRTerminator = Located IRTerminator
 type LFunDef = Located FunDef
 type LIRExpr = Located IRExpr
+-- | Located VarAccess - carries source position for variable references
+type LVarAccess = Located VarAccess
 
 -- | Describes a variable containing a labelled value.
 data VarAccess
@@ -57,20 +59,25 @@ type Ident = String
 
 newtype HFN  = HFN Ident deriving (Eq, Show, Ord, Generic)
 
+-- | Fields without location info (for backward compatibility)
 type Fields =  [(Basics.FieldName, VarAccess)]
+-- | Fields with location info for variable references
+type LFields = [(Basics.FieldName, LVarAccess)]
+
+-- | IRExpr uses LVarAccess for variable references to preserve source positions
 data IRExpr
-  = Bin Basics.BinOp VarAccess VarAccess
-  | Un Basics.UnaryOp VarAccess
-  | Tuple [VarAccess]
-  | Record Fields
-  | WithRecord VarAccess Fields 
-  | ProjField VarAccess Basics.FieldName
+  = Bin Basics.BinOp LVarAccess LVarAccess
+  | Un Basics.UnaryOp LVarAccess
+  | Tuple [LVarAccess]
+  | Record LFields
+  | WithRecord LVarAccess LFields
+  | ProjField LVarAccess Basics.FieldName
   -- | Projection of a tuple field at the given index. The maximum allowed index
   -- is 2^31-1 (2147483647).
-  | ProjIdx VarAccess Word
-  | List [VarAccess]
+  | ProjIdx LVarAccess Word
+  | List [LVarAccess]
   -- | List cons of a value to a list.
-  | ListCons VarAccess VarAccess
+  | ListCons LVarAccess LVarAccess
   -- | Note: This instruction is not generated from source. Constants are stored in function definitions (see 'FunDef').
   | Const C.Lit
   -- | Predefined base function names.
@@ -442,35 +449,41 @@ ppFunDef (FunDef hfn arg _ consts insts)
 
 
 
+-- | Pretty print a Located VarAccess (extracts VarAccess and prints)
+ppLVA :: LVarAccess -> PP.Doc
+ppLVA (Loc _ va) = ppId va
+
 ppIRExpr :: IRExpr -> PP.Doc
-ppIRExpr (Bin binop va1 va2) =
-  ppId va1 <+> text (show binop) <+> ppId va2
-ppIRExpr (Un op v) =
-  text (show op) <> PP.parens (ppId v)
+ppIRExpr (Bin binop lva1 lva2) =
+  ppLVA lva1 <+> text (show binop) <+> ppLVA lva2
+ppIRExpr (Un op lv) =
+  text (show op) <> PP.parens (ppLVA lv)
 ppIRExpr (Tuple vars) =
-  PP.parens $ PP.hsep $ PP.punctuate (text ",") (map ppId vars)
+  PP.parens $ PP.hsep $ PP.punctuate (text ",") (map ppLVA vars)
 ppIRExpr (List vars) =
-  PP.brackets $ PP.hsep $ PP.punctuate (text ",") (map ppId vars)
-ppIRExpr (ListCons v1 v2) =
-  text "cons" <>  ( PP.parens $ ppId v1 <> text "," <> ppId v2)
+  PP.brackets $ PP.hsep $ PP.punctuate (text ",") (map ppLVA vars)
+ppIRExpr (ListCons lv1 lv2) =
+  text "cons" <>  ( PP.parens $ ppLVA lv1 <> text "," <> ppLVA lv2)
 ppIRExpr (Const (C.LUnit)) = text "__unit"
 ppIRExpr (Const lit) = ppLit lit
 ppIRExpr (Base v) = if v == "$$authorityarg" -- special casing; hack; 2018-10-18: AA
-                      then text v 
+                      then text v
                       else text v <> text "$base"
 ppIRExpr (Lib (Basics.LibName l) v) = text l <> text "." <> text v
-ppIRExpr (Record fields) = PP.braces $ qqFields fields
-ppIRExpr (WithRecord x fields) = PP.braces $ PP.hsep[ ppId x, text "with", qqFields fields]
-ppIRExpr (ProjField x f) = 
-  (ppId x) PP.<> PP.text "." PP.<> PP.text f
-ppIRExpr (ProjIdx x idx) = 
-  (ppId x) PP.<> PP.text "." PP.<> PP.text (show idx)
-    
-qqFields fields =
+ppIRExpr (Record fields) = PP.braces $ qqLFields fields
+ppIRExpr (WithRecord lv fields) = PP.braces $ PP.hsep[ ppLVA lv, text "with", qqLFields fields]
+ppIRExpr (ProjField lv f) =
+  (ppLVA lv) PP.<> PP.text "." PP.<> PP.text f
+ppIRExpr (ProjIdx lv idx) =
+  (ppLVA lv) PP.<> PP.text "." PP.<> PP.text (show idx)
+
+-- | Pretty print LFields (fields with Located VarAccess)
+qqLFields :: LFields -> PP.Doc
+qqLFields fields =
   PP.hsep $ PP.punctuate (text ",") (map ppField fields)
-    where 
-      ppField (name, v) = 
-        PP.hcat [PP.text name, PP.text "=", ppId v]
+    where
+      ppField (name, lv) =
+        PP.hcat [PP.text name, PP.text "=", ppLVA lv]
 
 ppLIR :: LIRInst -> PP.Doc
 ppLIR (Loc _ inst) = ppIR inst

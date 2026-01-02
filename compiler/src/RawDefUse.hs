@@ -284,9 +284,10 @@ instance Usable LRawInst b where
        RTAssertion (AssertTupleLengthGreaterThan r _) -> use r
        RTAssertion (AssertNotZero r) -> use r
        MkFunClosures xs _ -> use (snd (unzip xs))
-       -- Instructions without variables
+       -- Instructions without variables or no def-use analysis needed
        InvalidateSparseBit -> return ()
        SetBranchFlag -> return ()
+       SourcePosAnnotation _ -> return ()  -- No def-use for position annotations
 
 
 -- | Mark variables that are defined (for Located RawInst)
@@ -301,6 +302,7 @@ instance Definable LRawInst b where
        SetBranchFlag -> return ()
        InvalidateSparseBit -> return ()
        MkFunClosures _ ys -> mapM_ define (fst (unzip ys))
+       SourcePosAnnotation _ -> return ()  -- No def-use for position annotations
 
 
 instance Trav RawBBTree where

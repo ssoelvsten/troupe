@@ -76,20 +76,24 @@ instance Substitutable SVal where
 instance Substitutable SimpleTerm where
   apply subst@(Subst varmap) simpleTerm =
     case simpleTerm of
-      Bin op v1 v2 -> Bin op (fwd v1) (fwd v2)
-      Un op v -> Un op (fwd v)
-      Tuple vs -> Tuple (map fwd vs)
-      Record fields -> Record (fwdFields fields)
-      WithRecord x fields -> WithRecord (fwd x) (fwdFields fields)
-      ProjField x f -> ProjField (fwd x) f
-      ProjIdx x idx -> ProjIdx (fwd x) idx
-      List vs -> List (map fwd vs)
-      ListCons v v' -> ListCons (fwd v) (fwd v')
+      -- Now using LVarName (Located VarName), need to preserve the Located wrapper
+      Bin op lv1 lv2 -> Bin op (fwdL lv1) (fwdL lv2)
+      Un op lv -> Un op (fwdL lv)
+      Tuple lvs -> Tuple (map fwdL lvs)
+      Record fields -> Record (fwdLFields fields)
+      WithRecord lx fields -> WithRecord (fwdL lx) (fwdLFields fields)
+      ProjField lx f -> ProjField (fwdL lx) f
+      ProjIdx lx idx -> ProjIdx (fwdL lx) idx
+      List lvs -> List (map fwdL lvs)
+      ListCons lv lv' -> ListCons (fwdL lv) (fwdL lv')
       ValSimpleTerm sv -> ValSimpleTerm (apply subst sv)
       Base v -> Base v
       Lib l v -> Lib l v
     where fwd x = Map.findWithDefault x x varmap
-          fwdFields fields = map (\(f, x) -> (f, fwd x)) fields
+          -- Forward a Located VarName, preserving the position
+          fwdL (Loc pos vn) = Loc pos (fwd vn)
+          -- Forward fields with Located VarNames
+          fwdLFields fields = map (\(f, lx) -> (f, fwdL lx)) fields
 
 instance Substitutable LSimpleTerm where
   apply subst (Loc p st) = Loc p (apply subst st)
@@ -145,9 +149,13 @@ incUse :: VarName -> CensusCollector ()
 incUse x = modify $ Map.insertWith (+) x 1 
 
 instance CensusCollectible VarName where
-  updateCensus = incUse 
+  updateCensus = incUse
 
-instance CensusCollectible a => CensusCollectible [a] where 
+-- | Instance for Located VarName (extracts VarName from Located wrapper)
+instance CensusCollectible LVarName where
+  updateCensus (Loc _ vn) = incUse vn
+
+instance CensusCollectible a => CensusCollectible [a] where
   updateCensus = mapM_ updateCensus
 
 instance CensusCollectible SimpleTerm where
@@ -261,12 +269,16 @@ instance Simplifiable KLambda where
   simpl (Unary v vPos lk) = simplLKTerm lk >>= return . Unary v vPos
   simpl (Nullary lk) = simplLKTerm lk >>= return . Nullary
 
-look :: VarName -> Opt Term 
-look x = do 
-  m <- __env_of_state <$> get 
+look :: VarName -> Opt Term
+look x = do
+  m <- __env_of_state <$> get
   return $ Map.findWithDefault Unknown
-              -- (error $ "cannot find binding for name" ++ (show x)) 
+              -- (error $ "cannot find binding for name" ++ (show x))
               x m
+
+-- | Look up a Located VarName (extracts VarName from Located wrapper)
+lookL :: LVarName -> Opt Term
+lookL (Loc _ vn) = look vn
 
 censusInfo :: VarName -> Opt Integer
 censusInfo x = do 
@@ -274,12 +286,14 @@ censusInfo x = do
   return $ Map.findWithDefault 0 x census
 
 
-fields x = do
-    w <- look x
+-- | Get fields from a record, taking LVarName
+fields :: LVarName -> Opt LFields
+fields lx = do
+    w <- lookL lx
     case w of
       St (Record xs) -> return xs
-      St (WithRecord y ys) ->  do
-        xs <- fields y
+      St (WithRecord ly ys) -> do
+        xs <- fields ly
         return $ xs ++ ys
       _ -> return []
 
@@ -288,11 +302,12 @@ isRecordTerm (St (Record _)) = True
 isRecordTerm (St (WithRecord _ _)) = True
 isRecordTerm _ = False
 
-recordEquiv r1 r2 = do 
-  f1 <- fields r1 
-  f2 <- fields r2 
-  let f1' = sort f1 
-      f2' = sort f2 
+recordEquiv :: LVarName -> LVarName -> Opt Bool
+recordEquiv r1 r2 = do
+  f1 <- fields r1
+  f2 <- fields r2
+  let f1' = sort f1
+      f2' = sort f2
   return (f1' == f2')
 
 
@@ -302,11 +317,13 @@ simplifySimpleTerm :: SimpleTerm -> Opt (ResOrSubst SimpleTerm)
 simplifySimpleTerm t =
   let _ret = return. ResultSimplified
       _subst = return . ResultSubst
+      -- Helper to substitute with LVarName (extracts VarName from Located wrapper)
+      _substL (Loc _ vn) = _subst vn
       _nochange = _ret t
   in case t of
   Bin op oper1 oper2 -> do
-    u <- look oper1
-    v <- look oper2
+    u <- lookL oper1
+    v <- lookL oper2
     case op of
       Basics.HasField -> case v of
            St (ValSimpleTerm  (Lit (C.LString s))) -> do
@@ -344,7 +361,7 @@ simplifySimpleTerm t =
 
               _ -> _nochange
   Un op operand -> do
-    v <- look operand
+    v <- lookL operand
     -- TODO should write out all cases
     case (op,v) of
         (Basics.IsTuple, St (Tuple _))          -> _ret __trueLit
@@ -376,7 +393,7 @@ simplifySimpleTerm t =
 
         -- Not: double negation elimination (not (not x) -> x)
         (Basics.Not, St (Un Basics.Not innerVar)) ->
-            _subst innerVar
+            _substL innerVar
 
         -- Not: negated comparisons
         (Basics.Not, St (Bin Basics.Eq v1 v2))  -> _ret $ Bin Basics.Neq v1 v2
@@ -398,13 +415,13 @@ simplifySimpleTerm t =
   ProjField x s ->  do
     fs <- fields x
     case lookupLast s fs of
-      Just y -> _subst y
+      Just y -> _substL y
       Nothing -> _nochange
   ProjIdx x idx -> do
-    t' <- look x
+    t' <- lookL x
     case t' of
       St (Tuple vs) | fromIntegral (length vs) > idx ->
-        _subst (vs !! fromIntegral idx)
+        _substL (vs !! fromIntegral idx)
       _ -> _nochange
 
 
@@ -525,10 +542,10 @@ simplKTerm k = do
           St (ValSimpleTerm (Lit (C.LBool b))) ->
             simplLKTerm (if b then lk1 else lk2) >>= return . unLoc
           -- If-branch swap: if (not y) k1 k2 -> if y k2 k1
-          St (Un Basics.Not innerVar) -> do
+          St (Un Basics.Not (Loc _ innerVarName)) -> do
             lk1' <- withResetRetState $ simplLKTerm lk1
             lk2' <- withResetRetState $ simplLKTerm lk2
-            return $ If innerVar lk2' lk1'  -- swapped branches
+            return $ If innerVarName lk2' lk1'  -- swapped branches
           _ -> do
             lk1' <- withResetRetState $ simplLKTerm lk1
             lk2' <- withResetRetState $ simplLKTerm lk2
