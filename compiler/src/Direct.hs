@@ -12,16 +12,22 @@ module Direct ( Lambda (..)
               , Handler(..)
               , FieldName
               , ppLit
+              -- Located type aliases
+              , LTerm
+              , LDecl
+              , LDeclPattern
+              , LFunDecl
+              , LFields
               )
 where
 
 import           Basics
 import qualified Text.PrettyPrint.HughesPJ as PP
-import DCLabels 
+import DCLabels
 import Text.PrettyPrint.HughesPJ (
     (<+>), ($$), text, hsep, vcat, nest)
 import           ShowIndent
-import           TroupePositionInfo
+import           TroupePositionInfo (Located(..), getLoc, unLoc, noLoc, atLoc, PosInf(..), GetPosInfo(..))
 
 
 data PrimType
@@ -42,45 +48,12 @@ data Ty
 
 
 
-data Lambda = Lambda [DeclPattern] Term --SrcPosInf
-  deriving (Eq)
-
-type Guard = Maybe Term
-data Handler = Handler DeclPattern (Maybe DeclPattern) Guard Term
-  deriving (Eq)
-
-
-data DeclPattern
-    = VarPattern VarName PosInf
-    | ValPattern Lit PosInf
-    | AtPattern DeclPattern String PosInf
-    | Wildcard PosInf
-    | TuplePattern [DeclPattern] PosInf
-    | ConsPattern DeclPattern DeclPattern PosInf
-    | ListPattern [DeclPattern] PosInf
-    | RecordPattern [(FieldName, Maybe DeclPattern)] RecordPatternMode PosInf
-      deriving (Eq)
-
-instance GetPosInfo DeclPattern where
-    posInfo (VarPattern _ p) = p
-    posInfo (ValPattern _ p) = p
-    posInfo (AtPattern _ _ p) = p
-    posInfo (Wildcard p) = p
-    posInfo (TuplePattern _ p) = p
-    posInfo (ConsPattern _ _ p) = p
-    posInfo (ListPattern _ p) = p
-    posInfo (RecordPattern _ _ p) = p
-
-data RecordPatternMode = ExactMatch | WildcardMatch
-  deriving (Eq, Show)
-
-data Decl
-    = ValDecl DeclPattern Term PosInf
-    | FunDecs [FunDecl]
-  deriving (Eq)
-
-data FunDecl = FunDecl VarName [Lambda] PosInf
-  deriving (Eq)
+-- | Located type aliases for the Direct AST
+-- These are defined before the data types to allow mutual recursion
+type LTerm = Located Term
+type LDecl = Located Decl
+type LDeclPattern = Located DeclPattern
+type LFunDecl = Located FunDecl
 
 -- Numeric type represents integer and floating point numeric literals
 data Numeric = NumInt Integer | NumFloat Double
@@ -88,44 +61,74 @@ data Numeric = NumInt Integer | NumFloat Double
 
 data Lit
     = LNumeric Numeric PosInf
-    | LUnit --SrcPosInf
-    | LBool Bool --SrcPosInf
-    | LString String --SrcPosInf
-    | LLabel String --SrcPosInf
+    | LUnit
+    | LBool Bool
+    | LString String
+    | LLabel String
     | LDCLabel DCLabelExp
-    | LAtom AtomName --SrcPosInf
+    | LAtom AtomName
   deriving (Eq, Show)
 
+data RecordPatternMode = ExactMatch | WildcardMatch
+  deriving (Eq, Show)
 
-type Fields = [(FieldName, Maybe Term)]
+data DeclPattern
+    = VarPattern VarName
+    | ValPattern Lit
+    | AtPattern LDeclPattern String
+    | Wildcard
+    | TuplePattern [LDeclPattern]
+    | ConsPattern LDeclPattern LDeclPattern
+    | ListPattern [LDeclPattern]
+    | RecordPattern [(FieldName, Maybe LDeclPattern)] RecordPatternMode
+      deriving (Eq)
+
+-- GetPosInfo for DeclPattern is no longer needed - use posInfo on LDeclPattern instead
+
+data Lambda = Lambda [LDeclPattern] LTerm
+  deriving (Eq)
+
+type Guard = Maybe LTerm
+data Handler = Handler LDeclPattern (Maybe LDeclPattern) Guard LTerm
+  deriving (Eq)
+
+data Decl
+    = ValDecl LDeclPattern LTerm
+    | FunDecs [LFunDecl]
+  deriving (Eq)
+
+data FunDecl = FunDecl VarName [Lambda]
+  deriving (Eq)
+
+type LFields = [(FieldName, Maybe LTerm)]
 
 data Term
     = Lit Lit
-    | Var VarName PosInf
-    | Abs Lambda PosInf
-    | Hnd Handler PosInf
-    | App Term [Term] PosInf
-    | Let [Decl] Term PosInf
-    | Case Term [(DeclPattern, Term)] PosInf
-    | If Term Term Term PosInf
-    | Tuple [Term] PosInf
-    | Record Fields PosInf
-    | WithRecord Term Fields PosInf
-    | ProjField Term FieldName PosInf
-    | ProjIdx Term Word PosInf
-    | List [Term] PosInf
-    | ListCons Term Term PosInf
-    | Bin BinOp Term Term PosInf
-    | Un UnaryOp Term PosInf
-    | Seq [Term] PosInf
-    | Error Term PosInf
+    | Var VarName
+    | Abs Lambda
+    | Hnd Handler
+    | App LTerm [LTerm]
+    | Let [Decl] LTerm
+    | Case LTerm [(LDeclPattern, LTerm)]
+    | If LTerm LTerm LTerm
+    | Tuple [LTerm]
+    | Record LFields
+    | WithRecord LTerm LFields
+    | ProjField LTerm FieldName
+    | ProjIdx LTerm Word
+    | List [LTerm]
+    | ListCons LTerm LTerm
+    | Bin BinOp LTerm LTerm
+    | Un UnaryOp LTerm
+    | Seq [LTerm]
+    | Error LTerm
           deriving (Eq)
 
 data Atoms = Atoms [AtomName]
       deriving (Eq, Show)
 
 
-data Prog = Prog Imports Atoms Term
+data Prog = Prog Imports Atoms LTerm
   deriving (Eq, Show)
 
 
@@ -171,8 +174,11 @@ ppProg (Prog (Imports imports) (Atoms atoms) term) =
             (vcat $ (map ppLibName imports)) $$ PP.text ""
   in vcat [ ppImports
           , ppAtoms
-          , ppTerm 0 term ]
+          , ppLTerm 0 term ]
 
+-- | Pretty print a located term at given precedence
+ppLTerm :: Precedence -> LTerm -> PP.Doc
+ppLTerm prec (Loc _ t) = ppTerm prec t
 
 ppTerm :: Precedence -> Term -> PP.Doc
 ppTerm parentPrec t =
@@ -186,40 +192,40 @@ ppTerm parentPrec t =
 ppTerm' :: Term -> PP.Doc
 ppTerm' (Lit literal) = ppLit literal
 
-ppTerm' (Error t _) = text "error " PP.<> ppTerm' t
+ppTerm' (Error t) = text "error " PP.<> ppLTerm 0 t
 
-ppTerm'  (Tuple ts _) =
+ppTerm'  (Tuple ts) =
   PP.parens $
   PP.hcat $
-  PP.punctuate (text ",") (map (ppTerm 0) ts)
+  PP.punctuate (text ",") (map (ppLTerm 0) ts)
 
-ppTerm' (Record fs _) =
+ppTerm' (Record fs) =
   PP.braces $ qqFields fs
 
-ppTerm' (WithRecord t fs _) =
-  PP.braces $ PP.hsep [ppTerm 0 t, text "with", qqFields fs]
+ppTerm' (WithRecord t fs) =
+  PP.braces $ PP.hsep [ppLTerm 0 t, text "with", qqFields fs]
 
 
-ppTerm' (ProjField t fn _) =
-  ppTerm projPrec t PP.<> text "." PP.<> PP.text fn
+ppTerm' (ProjField t fn) =
+  ppLTerm projPrec t PP.<> text "." PP.<> PP.text fn
 
-ppTerm' (ProjIdx t idx _) =
-  ppTerm projPrec t PP.<> text "." PP.<> PP.text (show idx)
+ppTerm' (ProjIdx t idx) =
+  ppLTerm projPrec t PP.<> text "." PP.<> PP.text (show idx)
 
-ppTerm'  (List ts _) =
+ppTerm'  (List ts) =
   PP.brackets $
   PP.hcat $
-  PP.punctuate (text ",") (map (ppTerm 0) ts)
+  PP.punctuate (text ",") (map (ppLTerm 0) ts)
 
-ppTerm' (ListCons hd tl _) =
-   ppTerm consPrec hd PP.<> text "::" PP.<> ppTerm consPrec tl
+ppTerm' (ListCons hd tl) =
+   ppLTerm consPrec hd PP.<> text "::" PP.<> ppLTerm consPrec tl
 
-ppTerm' (Var x _) = text x
-ppTerm' (Abs lam _) =
+ppTerm' (Var x) = text x
+ppTerm' (Abs lam) =
   let (ppArgs, ppBody) = qqLambda lam
   in text "fn" <+> ppArgs <+> text "=>" <+> ppBody
 
-ppTerm' (Hnd hnd _) =
+ppTerm' (Hnd hnd) =
   let (ppPat, ppSender, ppGuard, ppBody) = qqHandler hnd
   in  text "hn" <+> ppPat <+>
     (case ppSender of
@@ -232,21 +238,21 @@ ppTerm' (Hnd hnd _) =
       <+> text "=>"   <+> ppBody
 
 
-ppTerm' (App t1 t2s _) =
-    ppTerm appPrec t1
-          <+> (hsep (map (ppTerm argPrec) t2s))
+ppTerm' (App t1 t2s) =
+    ppLTerm appPrec t1
+          <+> (hsep (map (ppLTerm argPrec) t2s))
 
-ppTerm' (Let decs body _) =
+ppTerm' (Let decs body) =
   text "let" <+>
   nest 3 (vcat (map ppDecl decs)) $$
   text "in" <+>
-  nest 3 (ppTerm 0 body) $$
+  nest 3 (ppLTerm 0 body) $$
   text "end"
 
 
-ppTerm' (Case e cases _) =
+ppTerm' (Case e cases) =
   text "case" <+>
-  ppTerm 0 e  $$
+  ppLTerm 0 e  $$
   nest 2 (ppCases cases)
   where
     ppCases [] = error "empty cases"
@@ -258,65 +264,66 @@ ppTerm' (Case e cases _) =
       text " |" <+> ppCaseBody second
 
     ppCaseBody (decl, term) =
-      ppDeclPattern decl <+> text "=>" <+> ppTerm 0 term
+      ppLDeclPattern decl <+> text "=>" <+> ppLTerm 0 term
 
 
 
-ppTerm' (If e0 e1 e2 _) =
+ppTerm' (If e0 e1 e2) =
   text "if" <+>
-  ppTerm 0 e0 $$
+  ppLTerm 0 e0 $$
   text "then" <+>
-  ppTerm 0 e1 $$
+  ppLTerm 0 e1 $$
   text "else" <+>
-  ppTerm 0 e2
+  ppLTerm 0 e2
 
-ppTerm' (Bin op t1 t2 _) =
+ppTerm' (Bin op t1 t2) =
   let binOpPrec = opPrec op
   in
-     ppTerm binOpPrec t1 <+>
+     ppLTerm binOpPrec t1 <+>
      text (show op) <+>
-     ppTerm binOpPrec t2
+     ppLTerm binOpPrec t2
 
-ppTerm' (Un op t _) =
-  text (show op) <+> ppTerm' t
+ppTerm' (Un op t) =
+  text (show op) <+> ppLTerm 0 t
 
-ppTerm' (Seq ts _) = PP.hsep $
-  PP.punctuate (text ";") (map ppTerm' ts)
+ppTerm' (Seq ts) = PP.hsep $
+  PP.punctuate (text ";") (map (ppLTerm 0) ts)
 
 qqLambda :: Lambda -> (PP.Doc, PP.Doc)
-qqLambda (Lambda args body ) =
+qqLambda (Lambda args body) =
   let ppArgs' =
         if null args then text "()"
-                     else hsep $ map ppDeclPattern args
-  in ( ppArgs', ppTerm 0 body)
+                     else hsep $ map ppLDeclPattern args
+  in ( ppArgs', ppLTerm 0 body)
 
 
+qqFields :: LFields -> PP.Doc
 qqFields fs = PP.hcat $
     PP.punctuate (text ",") (map ppField fs)
-     where ppField (name, Nothing) = PP.text name 
-           ppField (name, Just t)  = 
-              PP.hcat [PP.text name, PP.text "=", ppTerm 0 t ]
+     where ppField (name, Nothing) = PP.text name
+           ppField (name, Just t)  =
+              PP.hcat [PP.text name, PP.text "=", ppLTerm 0 t ]
 
 
 qqHandler :: Handler -> (PP.Doc, Maybe PP.Doc, Maybe PP.Doc, PP.Doc)
 qqHandler (Handler pat Nothing Nothing e) =
-  (ppDeclPattern pat, Nothing, Nothing, ppTerm 0 e)
+  (ppLDeclPattern pat, Nothing, Nothing, ppLTerm 0 e)
 qqHandler (Handler pat Nothing (Just g) e) =
-  (ppDeclPattern pat, Nothing, (Just (ppTerm 0 g)), ppTerm 0 e)
+  (ppLDeclPattern pat, Nothing, (Just (ppLTerm 0 g)), ppLTerm 0 e)
 qqHandler (Handler pat1 (Just pat2) Nothing e) =
-  (ppDeclPattern pat1, Just (ppDeclPattern pat2), Nothing, ppTerm 0 e)
+  (ppLDeclPattern pat1, Just (ppLDeclPattern pat2), Nothing, ppLTerm 0 e)
 qqHandler (Handler pat1 (Just pat2) (Just g) e) =
-  (ppDeclPattern pat1, Just (ppDeclPattern pat2), (Just (ppTerm 0 g)), ppTerm 0 e)
+  (ppLDeclPattern pat1, Just (ppLDeclPattern pat2), (Just (ppLTerm 0 g)), ppLTerm 0 e)
 
 
 ppDecl :: Decl -> PP.Doc
-ppDecl (ValDecl pattern t _) =
-  text "val" <+> ppDeclPattern pattern <+> text "="
-    <+> ppTerm 0 t
+ppDecl (ValDecl pattern t) =
+  text "val" <+> ppLDeclPattern pattern <+> text "="
+    <+> ppLTerm 0 t
 ppDecl (FunDecs fs) = ppFuns fs
   where
-    ppFunDecl _ (FunDecl _ [] _) = error "empty fun list"
-    ppFunDecl prefix (FunDecl fname (first:rest) _) =
+    ppLFunDecl _ (Loc _ (FunDecl _ [])) = error "empty fun list"
+    ppLFunDecl prefix (Loc _ (FunDecl fname (first:rest))) =
       let ppFirstOption = ppFunOptions (prefix ++ " " ++ fname)
           ppOtherOption = ppFunOptions ("  | " ++ fname)
       in ppFirstOption first $$ vcat (map ppOtherOption rest)
@@ -328,8 +335,8 @@ ppDecl (FunDecs fs) = ppFuns fs
 
 
     ppFuns (doc:docs) =
-      let ppFirstFun = ppFunDecl "fun"
-          ppOtherFun = ppFunDecl "and"
+      let ppFirstFun = ppLFunDecl "fun"
+          ppOtherFun = ppLFunDecl "and"
       in ppFirstFun doc $$ vcat (map ppOtherFun docs)
 
 
@@ -337,29 +344,32 @@ ppDecl (FunDecs fs) = ppFuns fs
 
 
 
+-- | Pretty print a located declaration pattern
+ppLDeclPattern :: LDeclPattern -> PP.Doc
+ppLDeclPattern (Loc _ p) = ppDeclPattern p
 
 ppDeclPattern :: DeclPattern -> PP.Doc
-ppDeclPattern (VarPattern x _) = text x
-ppDeclPattern (Wildcard _) = text "_"
-ppDeclPattern (AtPattern p l _) = ppDeclPattern p PP.<> text ("@ " ++ l)
-ppDeclPattern (ValPattern literal _) = ppLit literal
-ppDeclPattern (TuplePattern patterns _) =
+ppDeclPattern (VarPattern x) = text x
+ppDeclPattern Wildcard = text "_"
+ppDeclPattern (AtPattern p l) = ppLDeclPattern p PP.<> text ("@ " ++ l)
+ppDeclPattern (ValPattern literal) = ppLit literal
+ppDeclPattern (TuplePattern patterns) =
   PP.parens $
   PP.hsep $
-  PP.punctuate (text ",") (map ppDeclPattern patterns)
-ppDeclPattern (ListPattern pats _) =
+  PP.punctuate (text ",") (map ppLDeclPattern patterns)
+ppDeclPattern (ListPattern pats) =
   PP.brackets $
   PP.hsep $
-  PP.punctuate (text ",") (map ppDeclPattern pats)
-ppDeclPattern (ConsPattern headPattern tailPattern _) =
+  PP.punctuate (text ",") (map ppLDeclPattern pats)
+ppDeclPattern (ConsPattern headPattern tailPattern) =
   PP.parens $
-  ppDeclPattern headPattern PP.<> text "::" PP.<> ppDeclPattern tailPattern
-ppDeclPattern (RecordPattern fields mode _) =
+  ppLDeclPattern headPattern PP.<> text "::" PP.<> ppLDeclPattern tailPattern
+ppDeclPattern (RecordPattern fields mode) =
   PP.braces $
     PP.hsep $
       PP.punctuate (text ",") (map ppField fields ++ wildcard)
         where ppField (f, Nothing) = text f
-              ppField (f, Just pat) = PP.hsep[text f, text "=", ppDeclPattern pat]
+              ppField (f, Just pat) = PP.hsep[text f, text "=", ppLDeclPattern pat]
               wildcard = case mode of
                 ExactMatch -> []
                 WildcardMatch -> [text ".."]
@@ -367,23 +377,23 @@ ppDeclPattern (RecordPattern fields mode _) =
 ppLit :: Lit -> PP.Doc
 ppLit (LNumeric (NumInt i) _)  = PP.integer i
 ppLit (LNumeric (NumFloat f) _) = PP.double f
-ppLit (LString s )   = PP.doubleQuotes (text s)
+ppLit (LString s)   = PP.doubleQuotes (text s)
 ppLit (LDCLabel dc) = ppDCLabelExp dc
-ppLit (LUnit )       = text "()"
-ppLit (LBool True  )  = text "true"
+ppLit LUnit       = text "()"
+ppLit (LBool True)  = text "true"
 ppLit (LBool False) = text "false"
-ppLit (LLabel s ) = PP.braces (text s)
-ppLit (LAtom s) = text s 
+ppLit (LLabel s) = PP.braces (text s)
+ppLit (LAtom s) = text s
 
 
 termPrec :: Term -> Precedence
-termPrec (Lit _)           = maxPrec
-termPrec (Tuple _ _)       = maxPrec
-termPrec (List _ _)        = maxPrec
-termPrec (Var _ _)         = maxPrec
-termPrec (App _ _ _)       = appPrec
-termPrec (Bin op _ _ _)    = opPrec op
-termPrec (ProjField _ _ _) = projPrec
-termPrec (ProjIdx _ _ _)   = projPrec
-termPrec (ListCons _ _ _)  = 200
-termPrec _                 = 0
+termPrec (Lit _)         = maxPrec
+termPrec (Tuple _)       = maxPrec
+termPrec (List _)        = maxPrec
+termPrec (Var _)         = maxPrec
+termPrec (App _ _)       = appPrec
+termPrec (Bin op _ _)    = opPrec op
+termPrec (ProjField _ _) = projPrec
+termPrec (ProjIdx _ _)   = projPrec
+termPrec (ListCons _ _)  = 200
+termPrec _               = 0

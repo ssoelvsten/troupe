@@ -2,82 +2,93 @@ module AtomFolding ( visitProg )
 where
 import Basics
 import Direct
+import TroupePositionInfo (Located(..), getLoc)
 import Data.Maybe
 import Control.Monad
 
 visitProg :: Prog -> Prog
 visitProg (Prog imports (Atoms atms) tm) =
-  Prog imports (Atoms atms) (visitTerm atms tm)
+  Prog imports (Atoms atms) (visitLTerm atms tm)
+
+-- | Visit a located term
+visitLTerm :: [AtomName] -> LTerm -> LTerm
+visitLTerm atms (Loc pos term) = Loc pos (visitTerm atms term)
 
 visitTerm :: [AtomName] -> Term -> Term
-visitTerm atms (Lit lit) = Lit lit
-visitTerm atms (Var nm pos) =
-  if (elem nm atms)
+visitTerm _ (Lit lit) = Lit lit
+visitTerm atms (Var nm) =
+  if elem nm atms
   then Lit (LAtom nm)
-  else Var nm pos
-visitTerm atms (Abs lam pos) =
-  Abs (visitLambda atms lam) pos
-visitTerm atms (Hnd (Handler pat maybePat maybeTerm term) pos) =
-  Hnd (Handler (visitPattern atms pat)
-       (liftM (visitPattern atms) maybePat)
-       (liftM (visitTerm atms) maybeTerm)
-       (visitTerm atms term)) pos
-visitTerm atms (App t1 ts pos) =
-  App (visitTerm atms t1) (map (visitTerm atms) ts) pos
-visitTerm atms (Let decls term pos) =
-  Let (map visitDecl decls) (visitTerm atms term) pos
+  else Var nm
+visitTerm atms (Abs lam) =
+  Abs (visitLambda atms lam)
+visitTerm atms (Hnd (Handler lpat maybeLPat maybeLTerm lterm)) =
+  Hnd (Handler (visitLPattern atms lpat)
+       (fmap (visitLPattern atms) maybeLPat)
+       (fmap (visitLTerm atms) maybeLTerm)
+       (visitLTerm atms lterm))
+visitTerm atms (App lt1 lts) =
+  App (visitLTerm atms lt1) (map (visitLTerm atms) lts)
+visitTerm atms (Let decls lterm) =
+  Let (map visitDecl decls) (visitLTerm atms lterm)
   where
-    visitDecl (ValDecl pat t p) = ValDecl (visitPattern atms pat) (visitTerm atms t) p
+    visitDecl (ValDecl lpat lt) = ValDecl (visitLPattern atms lpat) (visitLTerm atms lt)
     visitDecl (FunDecs decs) =
-      FunDecs (map (\(FunDecl nm lams p) -> (FunDecl nm (map (visitLambda atms) lams) p)) decs)
-visitTerm atms (Case t declTermList p) =
-  Case (visitTerm atms t)
-  (map (\(pat, term) -> ((visitPattern atms pat), (visitTerm atms term))) declTermList)
-  p
-visitTerm atms (If t1 t2 t3 pos) =
-  If (visitTerm atms t1) (visitTerm atms t2) (visitTerm atms t3) pos
-visitTerm atms (Tuple terms pos) =
-  Tuple (map (visitTerm atms) terms) pos
-visitTerm atms (Record fields pos) = Record (visitFields atms fields) pos
-visitTerm atms (WithRecord e fields pos) =
-    WithRecord (visitTerm atms e) (visitFields atms fields) pos
-visitTerm atms (ProjField t f pos) =
-    ProjField (visitTerm atms t) f pos
-visitTerm atms (ProjIdx t idx pos) =
-    ProjIdx (visitTerm atms t) idx pos
-visitTerm atms (List terms pos) =
-  List (map (visitTerm atms) terms) pos
-visitTerm atms (ListCons t1 t2 pos) =
-  ListCons (visitTerm atms t1) (visitTerm atms t2) pos
-visitTerm atms (Bin op t1 t2 pos) =
-  Bin op (visitTerm atms t1) (visitTerm atms t2) pos
-visitTerm atms (Un op t pos) =
-  Un op (visitTerm atms t) pos
-visitTerm atms (Seq ts pos) =
-  Seq (map (visitTerm atms) ts) pos
-visitTerm atms (Error t pos) =
-  Error (visitTerm atms t) pos
+      FunDecs (map visitLFunDecl decs)
+    visitLFunDecl (Loc p (FunDecl nm lams)) =
+      Loc p (FunDecl nm (map (visitLambda atms) lams))
+visitTerm atms (Case lt declTermList) =
+  Case (visitLTerm atms lt)
+  (map (\(lpat, lterm) -> (visitLPattern atms lpat, visitLTerm atms lterm)) declTermList)
+visitTerm atms (If lt1 lt2 lt3) =
+  If (visitLTerm atms lt1) (visitLTerm atms lt2) (visitLTerm atms lt3)
+visitTerm atms (Tuple lterms) =
+  Tuple (map (visitLTerm atms) lterms)
+visitTerm atms (Record fields) = Record (visitFields atms fields)
+visitTerm atms (WithRecord le fields) =
+    WithRecord (visitLTerm atms le) (visitFields atms fields)
+visitTerm atms (ProjField lt f) =
+    ProjField (visitLTerm atms lt) f
+visitTerm atms (ProjIdx lt idx) =
+    ProjIdx (visitLTerm atms lt) idx
+visitTerm atms (List lterms) =
+  List (map (visitLTerm atms) lterms)
+visitTerm atms (ListCons lt1 lt2) =
+  ListCons (visitLTerm atms lt1) (visitLTerm atms lt2)
+visitTerm atms (Bin op lt1 lt2) =
+  Bin op (visitLTerm atms lt1) (visitLTerm atms lt2)
+visitTerm atms (Un op lt) =
+  Un op (visitLTerm atms lt)
+visitTerm atms (Seq lts) =
+  Seq (map (visitLTerm atms) lts)
+visitTerm atms (Error lt) =
+  Error (visitLTerm atms lt)
 
 
-visitFields atms fs  =  map visitField fs   
-    where visitField (f, Nothing) = (f, Nothing) 
-          visitField (f, Just t) = (f, Just (visitTerm atms t))
+visitFields :: [AtomName] -> LFields -> LFields
+visitFields atms fs = map visitField fs
+    where visitField (f, Nothing) = (f, Nothing)
+          visitField (f, Just lt) = (f, Just (visitLTerm atms lt))
+
+-- | Visit a located pattern
+visitLPattern :: [AtomName] -> LDeclPattern -> LDeclPattern
+visitLPattern atms (Loc pos pat) = Loc pos (visitPattern atms pat)
 
 visitPattern :: [AtomName] -> DeclPattern -> DeclPattern
-visitPattern atms pat@(VarPattern nm pos) =
-  if (elem nm atms)
-  then ValPattern (LAtom nm) pos
+visitPattern atms pat@(VarPattern nm) =
+  if elem nm atms
+  then ValPattern (LAtom nm)
   else pat
-visitPattern _ pat@(ValPattern _ _) = pat
-visitPattern atms (AtPattern p l pos) = AtPattern (visitPattern atms p) l pos
-visitPattern _ pat@(Wildcard _) = pat
-visitPattern atms (TuplePattern pats pos) = TuplePattern (map (visitPattern atms) pats) pos
-visitPattern atms (ConsPattern p1 p2 pos) = ConsPattern (visitPattern atms p1) (visitPattern atms p2) pos
-visitPattern atms (ListPattern pats pos) = ListPattern (map (visitPattern atms) pats) pos
-visitPattern atms (RecordPattern fields mode pos) = RecordPattern (map visitField fields) mode pos
+visitPattern _ pat@(ValPattern _) = pat
+visitPattern atms (AtPattern lp l) = AtPattern (visitLPattern atms lp) l
+visitPattern _ Wildcard = Wildcard
+visitPattern atms (TuplePattern lpats) = TuplePattern (map (visitLPattern atms) lpats)
+visitPattern atms (ConsPattern lp1 lp2) = ConsPattern (visitLPattern atms lp1) (visitLPattern atms lp2)
+visitPattern atms (ListPattern lpats) = ListPattern (map (visitLPattern atms) lpats)
+visitPattern atms (RecordPattern fields mode) = RecordPattern (map visitField fields) mode
       where visitField pat@(_, Nothing) = pat
-            visitField (f, Just p) = (f, Just (visitPattern atms p))
+            visitField (f, Just lp) = (f, Just (visitLPattern atms lp))
 
 visitLambda :: [AtomName] -> Lambda -> Lambda
-visitLambda atms (Lambda pats term) =
-  (Lambda (map (visitPattern atms) pats) (visitTerm atms term))
+visitLambda atms (Lambda lpats lterm) =
+  Lambda (map (visitLPattern atms) lpats) (visitLTerm atms lterm)

@@ -10,7 +10,7 @@ import Lexer
 import Direct
 import DCLabels
 import Basics
-import TroupePositionInfo
+import TroupePositionInfo (Located(..), PosInf(..), noLoc, getLoc)
 
 import Control.Monad.Except
 import Control.Monad.Reader
@@ -169,51 +169,51 @@ AtomsList : { [] }
 
 
 Expr: Form                        { $1 }
-    | let pini Expr Decs in Expr end  {% Let (piniDecl $3 $4) $6 <\$> pos $1 }
-    | let Decs in Expr end        {% Let $2 $4 <\$> pos $1 }
-    | if Expr then Expr else Expr {% If $2 $4 $6 <\$> pos $1 }
-    | fn Pattern '=>' Expr        {% Abs (Lambda [$2] $4) <\$> pos $1 }
-    | hn Pattern '=>' Expr        {% Hnd (Handler $2 Nothing Nothing $4) <\$> pos $1 }
-    | hn Pattern '|' Pattern '=>' Expr      {% Hnd (Handler $2 (Just $4) Nothing $6) <\$> pos $1 }
-    | hn Pattern when Expr '=>' Expr        {% Hnd (Handler $2 Nothing (Just $4) $6) <\$> pos $1 }
-    | hn Pattern '|' Pattern when Expr '=>' Expr      {% Hnd (Handler $2 (Just $4) (Just $6) $8) <\$> pos $1 }
-    | case Expr of Match          {% Case $2 $4 <\$> pos $1 }
-    | Expr ';' Expr               {% mkSeq $1 $3 <\$> pos $2 }
-    | Expr '-' Expr               {% Bin Minus $1 $3 <\$> pos $2 }
-    | Expr '+' Expr               {% Bin Plus $1 $3 <\$> pos $2 }
-    | Expr '>=' Expr              {% Bin Ge $1 $3 <\$> pos $2 }
-    | Expr '*' Expr               {% Bin Mult $1 $3 <\$> pos $2 }
-    | Expr '/' Expr               {% Bin Div $1 $3 <\$> pos $2 }
-    | Expr div Expr               {% Bin IntDiv $1 $3 <\$> pos $2 }
-    | Expr mod Expr               {% Bin Mod $1 $3 <\$> pos $2 }
-    | Expr '^' Expr               {% Bin Concat $1 $3 <\$> pos $2 }
-    | Expr '=' Expr               {% Bin Eq $1 $3 <\$> pos $2 }
-    | Expr '<=' Expr              {% Bin Le $1 $3 <\$> pos $2 }
-    | Expr '<' Expr               {% Bin Lt $1 $3 <\$> pos $2 }
-    | Expr '>' Expr               {% Bin Gt $1 $3 <\$> pos $2 }
-    | Expr '<>' Expr              {% Bin Neq $1 $3 <\$> pos $2 }
-    | Expr andalso Expr           {% Bin And $1 $3 <\$> pos $2 }
-    | Expr orelse  Expr           {% Bin Or $1 $3 <\$> pos $2 }
-    | Expr andb Expr              {% Bin BinAnd $1 $3 <\$> pos $2 }
-    | Expr orb Expr               {% Bin BinOr $1 $3 <\$> pos $2 }
-    | Expr xorb Expr              {% Bin BinXor $1 $3 <\$> pos $2 }
-    | Expr '<<' Expr              {% Bin BinShiftLeft $1 $3 <\$> pos $2 }
-    | Expr '>>' Expr              {% Bin BinShiftRight $1 $3 <\$> pos $2 }
-    | Expr '~>>' Expr             {% Bin BinZeroShiftRight $1 $3 <\$> pos $2 }
-    | Expr '::' Expr              {% ListCons $1 $3 <\$> pos $2 }
-    | Expr 'raisedTo' Expr        {% Bin RaisedTo $1 $3 <\$> pos $2 }
-    | 'isTuple' Expr              {% Un IsTuple $2 <\$> pos $1 }
-    | 'isList' Expr               {% Un IsList $2 <\$> pos $1 }
-    | 'isRecord' Expr             {% Un IsRecord $2 <\$> pos $1 }
-    | 'not' Expr                  {% Un Not $2 <\$> pos $1 }
+    | let pini Expr Decs in Expr end  {% atPos $1 (Let (piniDecl $3 $4) $6) }
+    | let Decs in Expr end        {% atPos $1 (Let $2 $4) }
+    | if Expr then Expr else Expr {% atPos $1 (If $2 $4 $6) }
+    | fn Pattern '=>' Expr        {% atPos $1 (Abs (Lambda [$2] $4)) }
+    | hn Pattern '=>' Expr        {% atPos $1 (Hnd (Handler $2 Nothing Nothing $4)) }
+    | hn Pattern '|' Pattern '=>' Expr      {% atPos $1 (Hnd (Handler $2 (Just $4) Nothing $6)) }
+    | hn Pattern when Expr '=>' Expr        {% atPos $1 (Hnd (Handler $2 Nothing (Just $4) $6)) }
+    | hn Pattern '|' Pattern when Expr '=>' Expr      {% atPos $1 (Hnd (Handler $2 (Just $4) (Just $6) $8)) }
+    | case Expr of Match          {% atPos $1 (Case $2 $4) }
+    | Expr ';' Expr               {% mkSeq $1 $3 $2 }
+    | Expr '-' Expr               {% atPos $2 (Bin Minus $1 $3) }
+    | Expr '+' Expr               {% atPos $2 (Bin Plus $1 $3) }
+    | Expr '>=' Expr              {% atPos $2 (Bin Ge $1 $3) }
+    | Expr '*' Expr               {% atPos $2 (Bin Mult $1 $3) }
+    | Expr '/' Expr               {% atPos $2 (Bin Div $1 $3) }
+    | Expr div Expr               {% atPos $2 (Bin IntDiv $1 $3) }
+    | Expr mod Expr               {% atPos $2 (Bin Mod $1 $3) }
+    | Expr '^' Expr               {% atPos $2 (Bin Concat $1 $3) }
+    | Expr '=' Expr               {% atPos $2 (Bin Eq $1 $3) }
+    | Expr '<=' Expr              {% atPos $2 (Bin Le $1 $3) }
+    | Expr '<' Expr               {% atPos $2 (Bin Lt $1 $3) }
+    | Expr '>' Expr               {% atPos $2 (Bin Gt $1 $3) }
+    | Expr '<>' Expr              {% atPos $2 (Bin Neq $1 $3) }
+    | Expr andalso Expr           {% atPos $2 (Bin And $1 $3) }
+    | Expr orelse  Expr           {% atPos $2 (Bin Or $1 $3) }
+    | Expr andb Expr              {% atPos $2 (Bin BinAnd $1 $3) }
+    | Expr orb Expr               {% atPos $2 (Bin BinOr $1 $3) }
+    | Expr xorb Expr              {% atPos $2 (Bin BinXor $1 $3) }
+    | Expr '<<' Expr              {% atPos $2 (Bin BinShiftLeft $1 $3) }
+    | Expr '>>' Expr              {% atPos $2 (Bin BinShiftRight $1 $3) }
+    | Expr '~>>' Expr             {% atPos $2 (Bin BinZeroShiftRight $1 $3) }
+    | Expr '::' Expr              {% atPos $2 (ListCons $1 $3) }
+    | Expr 'raisedTo' Expr        {% atPos $2 (Bin RaisedTo $1 $3) }
+    | 'isTuple' Expr              {% atPos $1 (Un IsTuple $2) }
+    | 'isList' Expr               {% atPos $1 (Un IsList $2) }
+    | 'isRecord' Expr             {% atPos $1 (Un IsRecord $2) }
+    | 'not' Expr                  {% atPos $1 (Un Not $2) }
 
 
 Match : Pattern '=>' Expr                      { [($1,$3)] }
       | Pattern '=>' Expr '|' Match            { ($1,$3):$5 }
 
 
-Form :: { Term }
-Form :  '-' Form                    {% Un UnMinus $2 <\$> pos $1 }
+Form :: { LTerm }
+Form :  '-' Form                    {% atPos $1 (Un UnMinus $2) }
      | Fact                        { fromFact $1 }
 
 
@@ -251,20 +251,20 @@ Lit:   NUM                        {% LNumeric (NumInt (numTok $1)) <\$> pos $1 }
 
 
 Atom : '(' Expr ')'                { $2 }
-     | Lit                         { Lit $1 }
-     | VAR                         {% Var (varTok $1) <\$> pos $1 }
-     | '(' ')'                     { Lit LUnit }
-     | '(' CSExpr Expr ')'         {% Tuple (reverse ($3:$2)) <\$> pos $1 }
-     | '{' '}'                     {% Record [] <\$> pos $1 }
+     | Lit                         { noLoc (Lit $1) }
+     | VAR                         {% atPos $1 (Var (varTok $1)) }
+     | '(' ')'                     {% atPos $1 (Lit LUnit) }
+     | '(' CSExpr Expr ')'         {% atPos $1 (Tuple (reverse ($3:$2))) }
+     | '{' '}'                     {% atPos $1 (Record []) }
      | RecordExpr                  { $1 }
      | ListExpr                    { $1 }
-     | Atom '.' VAR                {% ProjField $1 (varTok $3) <\$> pos $2 }
-     | Atom '.' NUM                {% ProjIdx $1 (fromInteger (numTok $3)) <\$> pos $2 }
+     | Atom '.' VAR                {% atPos $2 (ProjField $1 (varTok $3)) }
+     | Atom '.' NUM                {% atPos $2 (ProjIdx $1 (fromInteger (numTok $3))) }
 
 
 RecordExpr
-     : '{' RecordFields  '}'          {% Record $2 <\$> pos $1 }
-     | '{' Atom with RecordFields'}'  {% WithRecord $2 $4 <\$> pos $1 }
+     : '{' RecordFields  '}'          {% atPos $1 (Record $2) }
+     | '{' Atom with RecordFields'}'  {% atPos $1 (WithRecord $2 $4) }
      
 
 RecordFields
@@ -278,55 +278,61 @@ Field
      
 
 
-ListExpr :: {Term}
-ListExpr : '[' ']'                 {% List [] <\$> pos $1 }
-     | '[' Expr ']'                {% List [$2] <\$> pos $1 }
-     | '[' CSExpr Expr ']'         {% List (reverse ($3:$2)) <\$> pos $1 }
+ListExpr :: {LTerm}
+ListExpr : '[' ']'                 {% atPos $1 (List []) }
+     | '[' Expr ']'                {% atPos $1 (List [$2]) }
+     | '[' CSExpr Expr ']'         {% atPos $1 (List (reverse ($3:$2))) }
 
 CSExpr : Expr ','                  { [$1] }
      | CSExpr Expr ','             { ($2:$1) }
 
 
-Pattern : VAR                               {% pos $1 >>= \p -> return (VarPattern (varTok $1) p) }
+Pattern : VAR                               {% atPos $1 (VarPattern (varTok $1)) }
     | '(' Pattern ')'                       { $2 }
-    | Pattern '@' LABEL                     {% pos $2 >>= \p -> return (AtPattern $1 (lblTok $3) p) }
-    | '(' ')'                               {% pos $1 >>= \p -> return (ValPattern LUnit p) }
-    | '_'                                   {% pos $1 >>= \p -> return (Wildcard p) }
-    | Lit                                   { ValPattern $1 NoPos }
-    | '(' CSPattern Pattern ')'             {% pos $1 >>= \p -> return (TuplePattern (reverse ($3:$2)) p) }
+    | Pattern '@' LABEL                     {% atPos $2 (AtPattern $1 (lblTok $3)) }
+    | '(' ')'                               {% atPos $1 (ValPattern LUnit) }
+    | '_'                                   {% atPos $1 Wildcard }
+    | NUM                                   {% do { p <- pos $1; return $ Loc p (ValPattern (LNumeric (NumInt (numTok $1)) p)) } }
+    | FLOAT                                 {% do { p <- pos $1; return $ Loc p (ValPattern (LNumeric (NumFloat (floatTok $1)) p)) } }
+    | STRING                                {% atPos $1 (ValPattern (LString (strTok $1))) }
+    | true                                  {% atPos $1 (ValPattern (LBool True)) }
+    | false                                 {% atPos $1 (ValPattern (LBool False)) }
+    | LABEL                                 {% atPos $1 (ValPattern (LLabel (lblTok $1))) }
+    | '`<' DCLabelExp '>`'                  {% atPos $1 (ValPattern (LDCLabel $2)) }
+    | '(' CSPattern Pattern ')'             {% atPos $1 (TuplePattern (reverse ($3:$2))) }
     | FieldPattern                          { $1 }
     | ListPattern   { $1}
 
 
 FieldPattern :
-      '{' '}'                                        {% pos $1 >>= \p -> return (RecordPattern [] ExactMatch p) }
-    | '{' '..' '}'                                   {% pos $1 >>= \p -> return (RecordPattern [] WildcardMatch p) }
-    | '{' FieldPat '}'                               {% pos $1 >>= \p -> return (RecordPattern [$2] ExactMatch p) }
-    | '{' FieldPat ',' '..' '}'                      {% pos $1 >>= \p -> return (RecordPattern [$2] WildcardMatch p) }
-    | '{' FieldPatterns FieldPat '}'                 {% pos $1 >>= \p -> return (RecordPattern (reverse ($3:$2)) ExactMatch p) }
-    | '{' FieldPatterns FieldPat ',' '..' '}'        {% pos $1 >>= \p -> return (RecordPattern (reverse ($3:$2)) WildcardMatch p) }
+      '{' '}'                                        {% atPos $1 (RecordPattern [] ExactMatch) }
+    | '{' '..' '}'                                   {% atPos $1 (RecordPattern [] WildcardMatch) }
+    | '{' FieldPat '}'                               {% atPos $1 (RecordPattern [$2] ExactMatch) }
+    | '{' FieldPat ',' '..' '}'                      {% atPos $1 (RecordPattern [$2] WildcardMatch) }
+    | '{' FieldPatterns FieldPat '}'                 {% atPos $1 (RecordPattern (reverse ($3:$2)) ExactMatch) }
+    | '{' FieldPatterns FieldPat ',' '..' '}'        {% atPos $1 (RecordPattern (reverse ($3:$2)) WildcardMatch) }
 
 
 FieldPatterns
-    : FieldPat ','                  { [$1]    } 
-    | FieldPatterns FieldPat ','    { ($2:$1 )} 
+    : FieldPat ','                  { [$1]    }
+    | FieldPatterns FieldPat ','    { ($2:$1 )}
 
 
-FieldPat 
+FieldPat
     : VAR              {(varTok $1, Nothing) }
     | VAR '=' Pattern  {(varTok $1, Just $3) }
 
-ListPattern:  '[' ']'                              {% pos $1 >>= \p -> return (ListPattern [] p) }
-    | '[' Pattern ']'                              {% pos $1 >>= \p -> return (ListPattern [$2] p) }
-    | '[' CSPattern Pattern ']'                    {% pos $1 >>= \p -> return (ListPattern (reverse ($3:$2)) p) }
-    |     Pattern '::' Pattern                     {% pos $2 >>= \p -> return (ConsPattern $1 $3 p) }
+ListPattern:  '[' ']'                              {% atPos $1 (ListPattern []) }
+    | '[' Pattern ']'                              {% atPos $1 (ListPattern [$2]) }
+    | '[' CSPattern Pattern ']'                    {% atPos $1 (ListPattern (reverse ($3:$2))) }
+    |     Pattern '::' Pattern                     {% atPos $2 (ConsPattern $1 $3) }
 
 
 CSPattern : Pattern ','         { [$1] }
     | CSPattern  Pattern ','    { ($2:$1) }
 
 
-Dec : val Pattern '=' Expr      {% ValDecl $2 $4 <\$> pos $1 }
+Dec : val Pattern '=' Expr      { ValDecl $2 $4 }
     | FunDecs                      { FunDecs $1 }
 
 Decs : Dec                         { [$1] }
@@ -352,8 +358,8 @@ FirstFunOption : FunArgs '=' Expr   { Lambda $1 $3}
 OtherFunOption : '|' VAR FunArgs '=' Expr { Lambda $3 $5}
 
 
-FunDecl    : fun VAR FunOptions {% pos $2 >>= \p -> return (FunDecl (varTok $2) $3 p) }
-AndFunDecl : and VAR FunOptions {% pos $2 >>= \p -> return (FunDecl (varTok $2) $3 p) }
+FunDecl    : fun VAR FunOptions {% atPos $2 (FunDecl (varTok $2) $3) }
+AndFunDecl : and VAR FunOptions {% atPos $2 (FunDecl (varTok $2) $3) }
 
 FunArgs : Pattern                        { [$1]  }
         | Pattern FunArgs                { $1 : $2}
@@ -361,46 +367,39 @@ FunArgs : Pattern                        { [$1]  }
 {
 
 
+-- Helper to create a located pattern at RTGen position
+rtGenPat :: DeclPattern -> LDeclPattern
+rtGenPat = Loc (RTGen "parser")
+
+-- Helper to create a located term at RTGen position
+rtGenTerm :: Term -> LTerm
+rtGenTerm = Loc (RTGen "parser")
+
+piniDecl :: LTerm -> [Decl] -> [Decl]
 piniDecl auth decs =
-    let pushDecl = ValDecl (VarPattern "$pini" (RTGen "parser")) (App  (Var "pinipush" NoPos) [auth] NoPos) (RTGen "parser")
-        popDecl  = ValDecl (Wildcard (RTGen "parser")) (App (Var "pinipop" NoPos) [Var "$pini" NoPos] NoPos) (RTGen "parser")
+    let pushDecl = ValDecl (rtGenPat (VarPattern "$pini"))
+                           (rtGenTerm (App (rtGenTerm (Var "pinipush")) [auth]))
+        popDecl  = ValDecl (rtGenPat Wildcard)
+                           (rtGenTerm (App (rtGenTerm (Var "pinipop")) [rtGenTerm (Var "$pini")]))
     in
         (pushDecl:decs) ++ [popDecl]
 
-mkSeq :: Term -> Term -> PosInf -> Term
-mkSeq t1 t2 p =
-    let ts = case t2 of (Seq ts _) -> ts
-                        _ -> [t2]
-    in Seq (t1: ts) p
+-- mkSeq now takes the token to get position from
+mkSeq :: LTerm -> LTerm -> L Token -> ReaderT FilePath (Except String) LTerm
+mkSeq t1 t2 tok = do
+    p <- pos tok
+    let ts = case t2 of
+                Loc _ (Seq innerTs) -> innerTs
+                _ -> [t2]
+    return $ Loc p (Seq (t1 : ts))
 
 
+fromFact :: [LTerm] -> LTerm
 fromFact [x] = x
 fromFact xs =
   let (y:ys) = reverse xs
-  in App y ys (termPos y)
-
--- Extract position from a Term (for function application, we use the function's position)
-termPos :: Term -> PosInf
-termPos (Lit (LNumeric _ p)) = p
-termPos (Lit _) = NoPos
-termPos (Var _ p) = p
-termPos (Abs _ p) = p
-termPos (Hnd _ p) = p
-termPos (App _ _ p) = p
-termPos (Let _ _ p) = p
-termPos (Case _ _ p) = p
-termPos (If _ _ _ p) = p
-termPos (Tuple _ p) = p
-termPos (Record _ p) = p
-termPos (WithRecord _ _ p) = p
-termPos (ProjField _ _ p) = p
-termPos (ProjIdx _ _ p) = p
-termPos (List _ p) = p
-termPos (ListCons _ _ p) = p
-termPos (Bin _ _ _ p) = p
-termPos (Un _ _ p) = p
-termPos (Seq _ p) = p
-termPos (Error _ p) = p
+      p = getLoc y  -- Use position from the function term
+  in Loc p (App y ys)
 
 
 parseError :: [L Token] -> ReaderT FilePath (Except String) a
@@ -434,6 +433,12 @@ pos l = do
     filename <- ask
     let (AlexPn _ line col) = getPos l
     return $ SrcPosInf filename line col
+
+-- | Create a Located value at the position of the given token
+atPos :: L Token -> a -> ReaderT FilePath (Except String) (Located a)
+atPos tok x = do
+    p <- pos tok
+    return (Loc p x)
 
 -- Check for duplicate atom names and report all duplicates with positions
 checkDuplicateAtoms :: [(String, PosInf)] -> ReaderT FilePath (Except String) [AtomName]

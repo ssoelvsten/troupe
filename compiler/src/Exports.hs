@@ -10,12 +10,14 @@ module Exports where
 
 import Basics
 import Direct
+import TroupePositionInfo (Located(..), unLoc)
 import Control.Monad.Except
 
 type Exports = [(Basics.VarName, Basics.VarName)]
 
-extractMain :: Term -> Term
-extractMain (Let _ term _) = extractMain term
+-- | Extract the main term from let bindings (now works with LTerm)
+extractMain :: LTerm -> LTerm
+extractMain (Loc _ (Let _ term)) = extractMain term
 extractMain x = x
 
 errorMessage = "parse error: libraries need to use restricted syntax for their main body"
@@ -23,15 +25,15 @@ errorMessage = "parse error: libraries need to use restricted syntax for their m
 
 extractExports :: Prog -> Except String [String]
 extractExports (Prog imports atoms term) = do
-  case extractMain term of
-    List exports _ -> reify exports
+  case unLoc (extractMain term) of
+    List exports -> reify exports
     _ -> throwError errorMessage
 
 
-reify :: [Term] -> Except String [String]
+reify :: [LTerm] -> Except String [String]
 reify = mapM checkOne
 
 
-checkOne :: Term -> Except String String
-checkOne (Tuple [Lit (LString s), Var vn _] _) = return s
+checkOne :: LTerm -> Except String String
+checkOne (Loc _ (Tuple [Loc _ (Lit (LString s)), Loc _ (Var vn)])) = return s
 checkOne _ = throwError errorMessage
