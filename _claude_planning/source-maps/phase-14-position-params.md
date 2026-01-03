@@ -1,6 +1,8 @@
 # Phase 14: Error Message Positions
 
-**Status**: Pending
+> **SUPERSEDED**: This approach has been superseded by [status-3.md](status-3.md) which proposes inline source maps. Rather than modifying assertion functions to accept position parameters, we use Node.js's native `--enable-source-maps` support with inline source maps. This provides instruction-level precision automatically for all errors, not just assertion calls, and works for both static and dynamic code.
+
+**Status**: Superseded
 
 **Goal**: For compiler-emitted calls, pass position directly for immediate display without needing stack trace resolution.
 

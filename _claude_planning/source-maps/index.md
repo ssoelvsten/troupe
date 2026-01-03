@@ -8,25 +8,39 @@ Implement V3 source maps so all Troupe runtime errors show source location (`fil
 
 ---
 
+## Current Status (2026-01-03)
+
+**Active proposal**: [status-4.md](status-4.md) - Complete Source Position Solution
+
+Phases 0-12 are complete. The remaining work has two parts:
+
+1. **Static code**: Use inline source maps with Node.js's `--enable-source-maps` (automatic translation)
+2. **Dynamic code**: Extend compiler JSON output with source maps, merge per-namespace at runtime, translate stack traces manually
+
+See [status-4.md](status-4.md) for the complete proposal and implementation plan.
+
+---
+
 ## Phase Overview
 
-| Phase | Description                                      | Status   | Link                                                             |
-|-------|--------------------------------------------------|----------|------------------------------------------------------------------|
-| 0     | Parser filename tracking                         | DONE     | -                                                                |
-| 1     | Source map infrastructure                        | DONE     | -                                                                |
-| 2     | Stack + PosInf                                   | DONE     | -                                                                |
-| 3     | Raw + PosInf                                     | DONE     | -                                                                |
-| 4     | IR + PosInf                                      | DONE     | -                                                                |
-| 5     | Optimizations preserve positions                 | DONE     | -                                                                |
-| 6     | CPS + PosInf                                     | DONE     | -                                                                |
-| 7     | Core + PosInf                                    | DONE     | [phase-07-core.md](phase-07-core.md)                             |
-| 8     | DirectWOPats + PosInf                            | DONE     | [phase-08-directwopats.md](phase-08-directwopats.md)             |
-| 9     | Direct + PosInf                                  | DONE     | [phase-09-direct.md](phase-09-direct.md)                         |
-| 10    | Capture positions in Parser                      | DONE     | [phase-10-parser-positions.md](phase-10-parser-positions.md)     |
-| 11    | Thread positions through pipeline                | DONE     | [phase-11-threading.md](phase-11-threading.md)                   |
-| 12    | Emit real source maps                            | DONE     | [phase-12-emit-source-maps.md](phase-12-emit-source-maps.md)     |
-| 13    | Runtime source map resolver                      | SKIPPED  | [phase-13-runtime-resolver.md](phase-13-runtime-resolver.md)     |
-| 14    | Error message positions                          | NEXT     | [phase-14-position-params.md](phase-14-position-params.md)       |
+| Phase | Description                                      | Status      | Link                                                             |
+|-------|--------------------------------------------------|-------------|------------------------------------------------------------------|
+| 0     | Parser filename tracking                         | DONE        | -                                                                |
+| 1     | Source map infrastructure                        | DONE        | -                                                                |
+| 2     | Stack + PosInf                                   | DONE        | -                                                                |
+| 3     | Raw + PosInf                                     | DONE        | -                                                                |
+| 4     | IR + PosInf                                      | DONE        | -                                                                |
+| 5     | Optimizations preserve positions                 | DONE        | -                                                                |
+| 6     | CPS + PosInf                                     | DONE        | -                                                                |
+| 7     | Core + PosInf                                    | DONE        | [phase-07-core.md](phase-07-core.md)                             |
+| 8     | DirectWOPats + PosInf                            | DONE        | [phase-08-directwopats.md](phase-08-directwopats.md)             |
+| 9     | Direct + PosInf                                  | DONE        | [phase-09-direct.md](phase-09-direct.md)                         |
+| 10    | Capture positions in Parser                      | DONE        | [phase-10-parser-positions.md](phase-10-parser-positions.md)     |
+| 11    | Thread positions through pipeline                | DONE        | [phase-11-threading.md](phase-11-threading.md)                   |
+| 12    | Emit real source maps                            | DONE        | [phase-12-emit-source-maps.md](phase-12-emit-source-maps.md)     |
+| 13    | Runtime source map resolver                      | SKIPPED     | [phase-13-runtime-resolver.md](phase-13-runtime-resolver.md)     |
+| 14    | Error message positions                          | SUPERSEDED  | [phase-14-position-params.md](phase-14-position-params.md)       |
+| 16    | **Complete source position solution**            | **NEXT**    | [status-4.md](status-4.md)                                       |
 
 ---
 
@@ -135,7 +149,16 @@ bin/golden      # Run golden tests
 
 ## How to Continue
 
-1. Start with Phase 13a: Add helper types to RetCPS.hs
-2. Follow the phase documents in order
-3. Run `make all && ./bin/golden --quick` after each phase
-4. Each phase should pass all tests before proceeding
+Follow [status-4.md](status-4.md) Phase 16 implementation plan:
+
+### Static Code (Quick Win)
+1. **Phase 16a**: Modify `compiler/app/Main.hs` to embed inline source maps (base64-encoded)
+2. **Phase 16b**: Add `--enable-source-maps` to `local.sh` and `network.sh`
+
+### Dynamic Code (More Complex)
+3. **Phase 16c**: Extend `stack2JSON` to include source map in JSON output
+4. **Phase 16d**: Modify `deserialize.mts` to merge source maps per namespace
+5. **Phase 16e**: Add runtime stack trace translation in `TroupeError.mts`
+6. **Phase 16f**: Add `source-map` as runtime dependency
+
+Run `make all && ./bin/golden --quick` after each change.
