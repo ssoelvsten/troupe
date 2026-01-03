@@ -2,7 +2,7 @@
 
 **Date**: 2026-01-03
 **Subject**: Unified source maps for static and dynamic code
-**Status**: Phase 16a-b COMPLETE, Phase 16c-f PENDING
+**Status**: Phase 16a-c COMPLETE, Phase 16d-f PENDING (for dynamic code only)
 
 ---
 
@@ -12,10 +12,12 @@
 |-------|--------------------------------------|--------------|
 | 16a   | Inline source maps in compiler       | ✅ COMPLETE  |
 | 16b   | Enable source maps in scripts        | ✅ COMPLETE  |
-| 16c   | Extend compiler JSON output          | ⏳ PENDING   |
+| 16c   | lastCallSourcePos for runtime errors | ✅ COMPLETE  |
 | 16d   | Runtime source map merging           | ⏳ PENDING   |
 | 16e   | Runtime stack translation            | ⏳ PENDING   |
 | 16f   | Source map library                   | ⏳ PENDING   |
+
+**Note**: Phase 16c was redefined. The original plan was to extend compiler JSON output for dynamic code. Instead, we implemented `lastCallSourcePos` tracking which provides source positions for ALL runtime errors (both static and dynamic code). Phases 16d-f are now only needed for dynamic code stack trace translation.
 
 ---
 
