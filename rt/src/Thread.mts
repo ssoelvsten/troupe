@@ -261,12 +261,23 @@ export class Thread {
 
 
 
-        ---> stack growth direction --->
+        Stack growth direction: downward (increasing indices)
 
-        |---------+-------------------+--------------+-----------------------------+---------------+-------------------------+--------------------|
-        | sp_prev | pc at return site | ret callback | mclear at the time of entry | branching bit | [escaping locals]       | sparse slot        |
-        |---------+-------------------+--------------+-----------------------------+---------------+-------------------------+--------------------|
-        | sp - 5  | sp - 4            | sp - 3       | sp - 2                      | sp - 1        | sp ... (sp + framesize) | sp + framesize + 1 |
+        +-----------------------------+-------------------+
+        | sp - 5                      | sp_prev           |
+        +-----------------------------+-------------------+
+        | sp - 4                      | pc at return site |
+        +-----------------------------+-------------------+
+        | sp - 3                      | ret callback      |
+        +-----------------------------+-------------------+
+        | sp - 2                      | mclear at entry   |
+        +-----------------------------+-------------------+
+        | sp - 1                      | branching bit     |
+        +-----------------------------+-------------------+
+        | sp ... (sp + framesize)     | [escaping locals] |
+        +-----------------------------+-------------------+
+        | sp + framesize + 1          | sparse slot       |
+        +-----------------------------+-------------------+
 
         
         The branching bit indicates whether the execution of this frame invoked any branch 
@@ -276,11 +287,19 @@ export class Thread {
 
         -- AA; 2020-02-12 
 
-        prev_sp | pc_at_ret_point | ret_cb | mclear | branch_bit |     <... locals ... > 
-                                                                ^
-                                                                |
-                                                                |
-                                                                sp
+        +-------------------+
+        | prev_sp           |
+        +-------------------+
+        | pc_at_ret_point   |
+        +-------------------+
+        | ret_cb            |
+        +-------------------+
+        | mclear            |
+        +-------------------+
+        | branch_bit        |
+        +-------------------+
+        | <... locals ...>  |  <-- sp
+        +-------------------+
        
         */ 
        
