@@ -1,7 +1,11 @@
 #!/usr/bin/env npx ts-node
 /**
  * Inspect a Troupe source map file
- * Usage: npx ts-node rt/src/tools/inspect-sourcemap.ts [--one-based] <file.js.map>
+ * Usage: npx ts-node rt/src/tools/inspect-sourcemap.ts [--one-based] <file.js.map|file.js>
+ *
+ * Accepts either:
+ *   - A standalone .map file (JSON)
+ *   - A .js file with an embedded inline source map (base64-encoded)
  *
  * Options:
  *   --one-based  Display line/column numbers as 1-based (matching editor display)
@@ -10,6 +14,8 @@
 
 import { readFileSync } from 'fs';
 import { SourceMapConsumer, RawSourceMap } from 'source-map';
+
+const INLINE_SOURCEMAP_PREFIX = '//# sourceMappingURL=data:application/json;charset=utf-8;base64,';
 
 interface MappingInfo {
   generatedLine: number;
@@ -34,7 +40,11 @@ function parseArgs(): { mapFile: string; oneBased: boolean } {
   }
 
   if (!mapFile) {
-    console.error('Usage: npx ts-node rt/src/tools/inspect-sourcemap.ts [--one-based] <file.js.map>');
+    console.error('Usage: npx ts-node rt/src/tools/inspect-sourcemap.ts [--one-based] <file.js.map|file.js>');
+    console.error('');
+    console.error('Accepts either:');
+    console.error('  - A standalone .map file (JSON)');
+    console.error('  - A .js file with an embedded inline source map');
     console.error('');
     console.error('Options:');
     console.error('  --one-based, -1  Display as 1-based (editor line numbers)');
@@ -45,6 +55,27 @@ function parseArgs(): { mapFile: string; oneBased: boolean } {
   return { mapFile, oneBased };
 }
 
+function extractSourceMap(fileContent: string, filePath: string): RawSourceMap {
+  // Try to parse as JSON first (standalone .map file)
+  const trimmed = fileContent.trim();
+  if (trimmed.startsWith('{')) {
+    return JSON.parse(fileContent);
+  }
+
+  // Look for inline source map
+  const lines = fileContent.split('\n');
+  for (let i = lines.length - 1; i >= 0; i--) {
+    const line = lines[i].trim();
+    if (line.startsWith(INLINE_SOURCEMAP_PREFIX)) {
+      const base64 = line.slice(INLINE_SOURCEMAP_PREFIX.length);
+      const json = Buffer.from(base64, 'base64').toString('utf8');
+      return JSON.parse(json);
+    }
+  }
+
+  throw new Error(`No source map found in ${filePath}. Expected either JSON or inline source map.`);
+}
+
 async function main(): Promise<void> {
   const { mapFile, oneBased } = parseArgs();
   // source-map library returns: lines as 1-based, columns as 0-based
@@ -52,7 +83,8 @@ async function main(): Promise<void> {
   const colOffset = oneBased ? 1 : 0;
   const indexing = oneBased ? '1-based (editor)' : '0-based columns (spec)';
 
-  const map: RawSourceMap = JSON.parse(readFileSync(mapFile, 'utf8'));
+  const fileContent = readFileSync(mapFile, 'utf8');
+  const map: RawSourceMap = extractSourceMap(fileContent, mapFile);
 
   console.log('=== Source Map Info ===');
   console.log('File:', map.file);

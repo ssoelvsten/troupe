@@ -19,7 +19,7 @@ tmp=$(mktemp).js
 # Parse arguments (sets TROUPE_COMPILER_ARGS, TROUPE_RUNTIME_ARGS, TROUPE_PROGRAM_ARGS)
 troupe_parse_args "$@"
 
-"$TROUPE_ROOT/bin/troupec" $TROUPE_COMPILER_ARGS --output="$tmp"
+"$TROUPE_ROOT/bin/troupec" $TROUPE_COMPILER_ARGS -m --output="$tmp"
 
 if [ $? -eq 0 ]; then
     eval "$TROUPE_ROOT/rt/troupe \"$tmp\" $TROUPE_RUNTIME_ARGS $TROUPE_PROGRAM_ARGS"

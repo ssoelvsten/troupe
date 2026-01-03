@@ -21,10 +21,10 @@ import qualified Stack2JS
 import qualified RawOpt
 -- import System.IO (isEOF)
 import qualified Data.ByteString.Char8 as BS
-import Data.ByteString.Base64 (decode)
+import qualified Data.ByteString.Base64 as B64
 import qualified Data.ByteString.Lazy.Char8 as BSLazyChar8
 import qualified Data.ByteString.Lazy as BL
-import Data.Aeson (encode)
+import qualified Data.Aeson as Aeson
 import System.IO
 import TroupeSourceMap (buildSourceMap)
 import System.Exit
@@ -172,7 +172,11 @@ process flags fname input = do
       ----- SOURCE MAP -------------------------------------
       when sourceMapEnabled $ do
         let mapJson = buildSourceMap outPath mappings
-        BL.writeFile (outPath ++ ".map") (encode mapJson)
+            mapBytes = BL.toStrict (Aeson.encode mapJson)
+            mapBase64 = B64.encode mapBytes
+            inlineComment = "\n//# sourceMappingURL=data:application/json;charset=utf-8;base64,"
+                            ++ BS.unpack mapBase64 ++ "\n"
+        appendFile outPath inlineComment
 
       -- case compileMode of Library -> ...
       case exports of Nothing -> return ()
@@ -227,7 +231,7 @@ fromStdinIR putStrLn format = do
     then let response = BS.drop (BS.length echo) input
           in do BS.putStrLn response
     else
-      case decode input of
+      case B64.decode input of
         Right bs ->
            case CCIR.deserialize bs
               of Right x -> do (putStrLn . format . ir2Stack) x
