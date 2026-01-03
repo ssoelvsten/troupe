@@ -8,33 +8,27 @@ Implement V3 source maps so all Troupe runtime errors show source location (`fil
 
 ---
 
-## Current Status (2026-01-03)
+## Current Status (2026-01-04)
 
-**Active proposal**: [status-4.md](status-4.md) - Complete Source Position Solution
+**Active proposal**: [status-6.md](status-6.md) - Unified Source Position Solution (Phase 17)
 
-### Static Code: IMPLEMENTED (Phase 16a-b)
+Phase 16a-c provided initial source map support, but Phase 16d-f has been **dropped** in favor of Phase 17's unified approach.
 
-Inline source maps for static code are now working:
-- Compiler embeds base64-encoded source maps in generated JS files (`-m` flag)
-- `local.sh` and `network.sh` enable source maps by default
-- Node.js `--enable-source-maps` automatically translates stack traces
-- Runtime extracts and displays Troupe source locations in error messages
+### Phase 17: Unified Approach
 
-**Example output:**
-```
-Runtime error in thread abc123@{}%{}
->> value "hi" is not a number
->> at tests/_unautomated/simple-1.trp:1:15
-```
+[status-6.md](status-6.md) proposes a **single mechanism** for both static and dynamic code:
 
-### Remaining Work: Dynamic Code (Phase 16c-f)
+1. **Track `currentSourceMap` on Thread** - Runtime knows which source map to use
+2. **Function/continuation preambles** - Set source map on entry (`$t.currentSourceMap = this.__sourceMap`)
+3. **Source maps attached to namespaces** - GC-friendly, no memory leaks
+4. **Runtime stack translation** - Self-contained, no dependency on Node.js `--enable-source-maps`
 
-For deserialized closures (code sent over network), we still need:
-1. Extend compiler JSON output with source maps
-2. Merge source maps per namespace at runtime
-3. Translate stack traces for dynamically constructed functions
+This approach works identically for static and dynamic code, replacing the split design of Phase 16.
 
-See [status-4.md](status-4.md) for the complete proposal.
+### Previous Proposals (Superseded)
+
+- [status-5.md](status-5.md) - GC-friendly design (superseded by status-6)
+- [status-4.md](status-4.md) - Original Phase 16 proposal (superseded by status-5)
 
 ---
 
@@ -57,9 +51,11 @@ See [status-4.md](status-4.md) for the complete proposal.
 | 12    | Emit real source maps                            | DONE        | [phase-12-emit-source-maps.md](phase-12-emit-source-maps.md)     |
 | 13    | Runtime source map resolver                      | SKIPPED     | [phase-13-runtime-resolver.md](phase-13-runtime-resolver.md)     |
 | 14    | Error message positions                          | SUPERSEDED  | [phase-14-position-params.md](phase-14-position-params.md)       |
-| 16a   | Inline source maps for static code               | **DONE**    | [status-4.md](status-4.md)                                       |
-| 16b   | Enable source maps in scripts                    | **DONE**    | [status-4.md](status-4.md)                                       |
-| 16c-f | Dynamic code source maps                         | PENDING     | [status-4.md](status-4.md)                                       |
+| 16a   | Inline source maps for static code               | DONE        | [status-4.md](status-4.md)                                       |
+| 16b   | Enable source maps in scripts                    | DONE        | [status-4.md](status-4.md)                                       |
+| 16c   | lastCallSourcePos for runtime errors             | DONE        | [status-4.md](status-4.md)                                       |
+| 16d-f | Dynamic code source maps (Node.js approach)      | DROPPED     | Superseded by Phase 17                                           |
+| 17a-f | Unified source map tracking                      | **PENDING** | [status-6.md](status-6.md)                                       |
 
 ---
 
@@ -188,25 +184,30 @@ bin/golden      # Run golden tests
 
 ## How to Continue
 
-### Completed (Phase 16a-b)
+### Next: Phase 17 - Unified Source Map Tracking
 
-Static code source maps are working:
-- ✅ **Phase 16a**: `compiler/app/Main.hs` embeds inline source maps (base64-encoded)
-- ✅ **Phase 16b**: `local.sh`, `network.sh`, `rt/troupe` use `--enable-source-maps`
-- ✅ **Runtime**: `TroupeError.mts` extracts and displays source locations
+Follow [status-6.md](status-6.md) for the unified approach:
 
-### Remaining (Phase 16c-f - Dynamic Code)
+1. **Phase 17a**: Add `currentSourceMap` field to Thread, add `SourceMapResolver.mts`
+2. **Phase 17b**: Integrate source map translation into error handling
+3. **Phase 17c**: Compiler generates preambles + attaches source map to Top
+4. **Phase 17d**: Extend `JSOutput` with `sourceMap` for `--json-ir` mode
+5. **Phase 17e**: Runtime merges source maps for dynamic code
+6. **Phase 17f**: Polish and comprehensive testing
 
-For deserialized closures, follow [status-4.md](status-4.md):
+### Completed (Phase 16a-c)
 
-1. **Phase 16c**: Extend `stack2JSON` to include source map in JSON output
-2. **Phase 16d**: Modify `deserialize.mts` to merge source maps per namespace
-3. **Phase 16e**: Translate stack traces for dynamic code
-4. **Phase 16f**: Add `source-map` as runtime dependency
+- ✅ **Phase 16a**: Compiler embeds inline source maps (base64-encoded)
+- ✅ **Phase 16b**: Scripts use `--enable-source-maps`
+- ✅ **Phase 16c**: `lastCallSourcePos` tracking for call-site positions
+
+### Dropped (Phase 16d-f)
+
+The Node.js-based approach for dynamic code has been replaced by Phase 17's unified runtime-based approach.
 
 ### Known Issues
 
-- Golden tests with runtime errors need updating (new `>> at file:line:col` line)
+- Golden tests with runtime errors may need updating for new error format
 - Path cleaning in `TroupeError.mts` only handles `tests/` and `lib/` prefixes
 
 Run `make all && ./bin/golden --quick` after each change.

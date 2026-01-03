@@ -2,7 +2,14 @@
 
 **Date**: 2026-01-03
 **Subject**: Unified source maps for static and dynamic code
-**Status**: Phase 16a-c COMPLETE, Phase 16d-f PENDING (for dynamic code only)
+**Status**: SUPERSEDED BY status-5.md
+
+> **Note**: This document is superseded by `status-5.md` which fixes a memory leak issue
+> in the dynamic code source map storage design. The key change: instead of using a global
+> `Map<number, SourceMap>` registry, source maps are attached directly to namespace objects
+> via `Object.defineProperty`, allowing proper garbage collection.
+
+**Original Status**: Phase 16a-c COMPLETE, Phase 16d-f PENDING (for dynamic code only)
 
 ---
 
