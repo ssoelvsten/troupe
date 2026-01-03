@@ -8,6 +8,58 @@ import { getCliArgs, TroupeCliArg } from './TroupeCliArgs.mjs';
 // Ensure colors are configured when this module is loaded
 configureColors();
 
+/**
+ * Extract the first Troupe source location from a stack trace string.
+ * With --enable-source-maps, Node.js translates JS positions to .trp positions.
+ * Returns a cleaned path like "tests/foo.trp:10:5" or null if not found.
+ */
+function extractTroupeSourceLocation(stack: string | undefined): string | null {
+    if (!stack) return null;
+    for (const line of stack.split('\n')) {
+        // Match patterns like:
+        //   "at Top.f23 (/path/to/file.trp:1:15)"
+        //   "at /path/to/file.trp:1:15"
+        const match = line.match(/\(([^)]*\.trp:\d+:\d+)\)/) ||
+                      line.match(/at\s+(\S*\.trp:\d+:\d+)/);
+        if (match) {
+            return cleanSourcePath(match[1]);
+        }
+    }
+    return null;
+}
+
+/**
+ * Clean up a source path to show a relative path.
+ * Node.js resolves source map paths relative to the JS file location (often /tmp),
+ * resulting in paths like "/tmp/tests/foo.trp:1:15". We extract just the
+ * meaningful relative path.
+ */
+function cleanSourcePath(fullPath: string): string {
+    // Split into path and position (line:col)
+    const match = fullPath.match(/^(.+\.trp):(\d+:\d+)$/);
+    if (!match) return fullPath;
+
+    const [, filePath, position] = match;
+
+    // Look for known path prefixes that indicate project-relative paths
+    // e.g., "/tmp/tests/foo.trp" -> "tests/foo.trp"
+    //       "/tmp/lib/Foo.trp" -> "lib/Foo.trp"
+    const patterns = [
+        /.*\/(tests\/.+)$/,      // tests/...
+        /.*\/(lib\/.+)$/,        // lib/...
+        /.*\/([^/]+\.trp)$/      // fallback: just filename
+    ];
+
+    for (const pattern of patterns) {
+        const pathMatch = filePath.match(pattern);
+        if (pathMatch) {
+            return `${pathMatch[1]}:${position}`;
+        }
+    }
+
+    return fullPath;
+}
+
 export abstract class TroupeError extends Error {
     abstract handleError (sched: SchedulerInterface) : void 
 }
@@ -27,6 +79,10 @@ export abstract class StopThreadError extends ThreadError {
         let console = this.thread.rtObj.xconsole
         console.log (chalk.red ( "Runtime error in thread " + this.thread.tidErrorStringRep()))
         console.log (chalk.red ( ">> " + this.errorMessage));
+        const sourceLocation = extractTroupeSourceLocation(this.stack);
+        if (sourceLocation) {
+            console.log (chalk.red ( ">> at " + sourceLocation));
+        }
         if (getCliArgs()[TroupeCliArg.Explain] && this.explainstr) {
             console.log (chalk.yellow ( this.explainstr));
         }
