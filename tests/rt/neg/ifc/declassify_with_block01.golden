@@ -1,5 +1,6 @@
-2025-05-29T15:07:06.799Z [RTM] [32minfo[39m: Skipping network creation. Observe that all external IO operations will yield a runtime error.
-Runtime error in thread ab666934-d086-4976-9afb-ad74294223af@{}%{}
+2026-01-03T21:09:49.371Z [RTM] [32minfo[39m: Skipping network creation. Observe that all external IO operations will yield a runtime error.
+Runtime error in thread 5de66bbb-e115-4b49-8489-533197fc436f@{}%{}
 >> Current blocking level does not flow to the target level of the declassification
  | current blocking level: {alice}
  | target blocking level: {}
+>> at tests/rt/neg/ifc/declassify_with_block01.trp:3:13

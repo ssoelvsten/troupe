@@ -1,7 +1,8 @@
-2025-12-28T12:28:29.028Z [RTM] [32minfo[39m: Skipping network creation. Observe that all external IO operations will yield a runtime error.
-Runtime error in thread 83c82e34-a3e8-43d3-b25d-fca3341dabdd@{}%{}
+2026-01-03T21:09:50.067Z [RTM] [32minfo[39m: Skipping network creation. Observe that all external IO operations will yield a runtime error.
+Runtime error in thread 16e3a621-0c47-4b13-83cc-6a4326b50c50@{}%{}
 >> NMIFC robustness violation for declassification
  | The integrity of the data and PC do not permit this declassification.
  | level of the data: {alice,bob} (corrupt: true)
  | target level: <#null-confidentiality;alice|bob>
  | PC level: {} (corrupt: false)
+>> at tests/rt/neg/ifc/nmifc/robust-corrupt-label.trp:30:13

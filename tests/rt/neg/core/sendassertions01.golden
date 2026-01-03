@@ -1,3 +1,4 @@
-2023-03-17T21:23:23.036Z [RTM] [32minfo[39m: Skipping network creation. Observe that all external IO operations will yield a runtime error.
-Runtime error in thread 0d5e0a87-b54b-4836-bbac-6f32a46e2ba8@{}%{}
+2026-01-03T21:09:48.634Z [RTM] [32minfo[39m: Skipping network creation. Observe that all external IO operations will yield a runtime error.
+Runtime error in thread 7de82fc9-86f2-48f2-a59e-bda868daad75@{}%{}
 >> value "whatever"@{}%{} is not a process id
+>> at tests/rt/neg/core/sendassertions01.trp:1:1

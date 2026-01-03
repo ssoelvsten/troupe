@@ -1,8 +1,9 @@
-2023-03-17T21:23:24.044Z [RTM] [32minfo[39m: Skipping network creation. Observe that all external IO operations will yield a runtime error.
-PID:faeac673-3c23-4935-9307-1456ddb6ffae@{}%{}     PC:{}                BL:{}                HNNORMAL             _sp:15               
-PID:faeac673-3c23-4935-9307-1456ddb6ffae@{}%{}     PC:{}                BL:{alice}           HNNORMAL             _sp:15               
-Runtime error in thread faeac673-3c23-4935-9307-1456ddb6ffae@{}%{}
+2026-01-03T21:09:51.213Z [RTM] [32minfo[39m: Skipping network creation. Observe that all external IO operations will yield a runtime error.
+PID:6402db1c-a08b-4533-8f7b-c8d841d749e0@{}%{}     PC:{}                BL:{}                HNNORMAL             _sp:15               
+PID:6402db1c-a08b-4533-8f7b-c8d841d749e0@{}%{}     PC:{}                BL:{alice}           HNNORMAL             _sp:15               
+Runtime error in thread 6402db1c-a08b-4533-8f7b-c8d841d749e0@{}%{}
 >> Illegal flow in adv function:
  |    pc: {}
  | block: {alice}
  | value: 2@{alice}%{alice}
+>> at tests/rt/neg/ifc/lclear-taint1.trp:9:4

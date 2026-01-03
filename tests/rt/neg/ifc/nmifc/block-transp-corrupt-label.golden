@@ -1,7 +1,8 @@
-2025-12-28T12:56:21.662Z [RTM] [32minfo[39m: Skipping network creation. Observe that all external IO operations will yield a runtime error.
-Runtime error in thread 44a1258c-8cb1-4d99-9d70-a0e2617f7b66@{}%{}
+2026-01-03T21:09:49.544Z [RTM] [32minfo[39m: Skipping network creation. Observe that all external IO operations will yield a runtime error.
+Runtime error in thread 32eacc40-6c65-40a6-b092-ec7b8a1ac586@{}%{}
 >> NMIFC transparency violation for blocking level integrity
  | The confidentiality of the data and PC do not permit this endorsement.
  | current blocking level: {alice,bob} (corrupt: true)
  | target level: <alice&bob;#root-integrity>
  | PC level: {} (corrupt: false)
+>> at tests/rt/neg/ifc/nmifc/block-transp-corrupt-label.trp:30:13

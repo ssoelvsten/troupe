@@ -1,3 +1,4 @@
-2024-02-14T11:33:47.442Z [RTM] [32minfo[39m: Skipping network creation. Observe that all external IO operations will yield a runtime error.
-Runtime error in thread cedf4195-9633-4fc3-a612-27c2364848c2@{}%{}
+2026-01-03T21:09:30.658Z [RTM] [32minfo[39m: Skipping network creation. Observe that all external IO operations will yield a runtime error.
+Runtime error in thread 62cd181a-eb68-4cac-ab87-85e313c53824@{}%{}
 >> value 0 is not a tuple
+>> at tests/rt/pos/core/tuples_idx04c.trp:1:18

@@ -1,7 +1,8 @@
-2023-03-17T21:23:23.433Z [RTM] [32minfo[39m: Skipping network creation. Observe that all external IO operations will yield a runtime error.
-PID:950cc793-0c3c-4dee-9459-2bf3fe0d892d@{}%{}     PC:{}                BL:{#TOP}            HNNORMAL             _sp:16               
-Runtime error in thread 950cc793-0c3c-4dee-9459-2bf3fe0d892d@{}%{}
+2026-01-03T21:09:51.899Z [RTM] [32minfo[39m: Skipping network creation. Observe that all external IO operations will yield a runtime error.
+PID:cdcce8d8-6753-434d-871a-3a88c2f1eb89@{}%{}     PC:{}                BL:{#TOP}            HNNORMAL             _sp:16               
+Runtime error in thread cdcce8d8-6753-434d-871a-3a88c2f1eb89@{}%{}
 >> Illegal flow in adv function:
  |    pc: {}
  | block: {#TOP}
  | value: 1@{#TOP}%{#TOP}
+>> at tests/rt/neg/ifc/implicitclosure01.trp:6:13

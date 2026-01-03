@@ -1,3 +1,4 @@
-2023-03-17T21:23:22.520Z [RTM] [32minfo[39m: Skipping network creation. Observe that all external IO operations will yield a runtime error.
-Runtime error in thread c5a428e0-e32d-4d93-b63f-6a2c31250ac8@{}%{}
+2026-01-03T21:09:48.083Z [RTM] [32minfo[39m: Skipping network creation. Observe that all external IO operations will yield a runtime error.
+Runtime error in thread 185cc6ad-0c59-485a-96e9-1843a260b817@{}%{}
 >> value <basefun:self>@{}%{} is not a process id
+>> at tests/rt/neg/core/node_from_procid.trp:1:1

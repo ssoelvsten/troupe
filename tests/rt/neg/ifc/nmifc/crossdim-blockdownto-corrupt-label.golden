@@ -1,7 +1,8 @@
-2025-12-28T14:30:29.055Z [RTM] [32minfo[39m: Skipping network creation. Observe that all external IO operations will yield a runtime error.
-Runtime error in thread 30dbd390-8d1c-4d20-b28d-205d267a463e@{}%{}
+2026-01-03T21:09:50.076Z [RTM] [32minfo[39m: Skipping network creation. Observe that all external IO operations will yield a runtime error.
+Runtime error in thread 52b51459-14c3-4ec5-a5a9-96e8901687e6@{}%{}
 >> NMIFC robustness violation for blocking level downgrade
  | The integrity of the data and PC do not permit this declassification.
  | current blocking level: {alice,bob} (corrupt: true)
  | target level: {}
  | PC level: {} (corrupt: false)
+>> at tests/rt/neg/ifc/nmifc/crossdim-blockdownto-corrupt-label.trp:36:13

@@ -1,7 +1,8 @@
-2025-06-07T12:20:27.401Z [RTM] [32minfo[39m: Skipping network creation. Observe that all external IO operations will yield a runtime error.
-PID:b6c1ebc3-c196-4b5a-b43c-435122ae2498@{}%{}     PC:{}                BL:<alice&bob;#root-integrity> HNNORMAL             _sp:16               
-Runtime error in thread b6c1ebc3-c196-4b5a-b43c-435122ae2498@{}%{}
+2026-01-03T21:09:49.438Z [RTM] [32minfo[39m: Skipping network creation. Observe that all external IO operations will yield a runtime error.
+PID:277cd562-8f8f-42c3-b390-2ebbc99cc08a@{}%{}     PC:{}                BL:<alice&bob;#root-integrity> HNNORMAL             _sp:16               
+Runtime error in thread 277cd562-8f8f-42c3-b390-2ebbc99cc08a@{}%{}
 >> Not enough authority for pini downgrading
  | from level of the blocking level: <alice&bob;#root-integrity>
  | level of the authority: <alice;#root-integrity>
  | to level of the blocking level: <alice;#root-integrity>
+>> at tests/rt/neg/ifc/pini_full_insuff_auth.trp:5:13

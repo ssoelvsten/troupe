@@ -1,6 +1,7 @@
-2025-06-17T21:13:56.930Z [RTM] [32minfo[39m: Skipping network creation. Observe that all external IO operations will yield a runtime error.
-Runtime error in thread 4cfc1488-5523-4bc3-8f64-e25e9db7d1b5@{}%{}
+2026-01-03T21:09:50.313Z [RTM] [32minfo[39m: Skipping network creation. Observe that all external IO operations will yield a runtime error.
+Runtime error in thread de5d20a7-c725-430f-af16-7804d58957bd@{}%{}
 >> Illegal flow in cert function:
  |    pc: {}
  | block: {}
  | value: 10@{alice}%{}
+>> at tests/rt/neg/ifc/cert-neg-01.trp:4:4

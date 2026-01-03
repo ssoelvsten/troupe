@@ -1,7 +1,8 @@
-2023-03-17T21:23:23.789Z [RTM] [32minfo[39m: Skipping network creation. Observe that all external IO operations will yield a runtime error.
->>> Main thread finished with value: c89a969d-7152-472f-9a21-1365ce7b2143@{secret}%{secret}
-Runtime error in thread c89a969d-7152-472f-9a21-1365ce7b2143@{secret}%{secret}
+2026-01-03T21:09:50.180Z [RTM] [32minfo[39m: Skipping network creation. Observe that all external IO operations will yield a runtime error.
+>>> Main thread finished with value: 03997b11-84cb-491c-a38d-0dd080f7d054@{secret}%{secret}
+Runtime error in thread 03997b11-84cb-491c-a38d-0dd080f7d054@{secret}%{secret}
 >> Illegal flow in adv function:
  |    pc: {secret}
  | block: {secret}
  | value: 1@{secret}%{secret}
+>> at tests/rt/neg/ifc/flow1.trp:3:15

@@ -1,12 +1,14 @@
-2023-03-17T21:23:23.478Z [RTM] [32minfo[39m: Skipping network creation. Observe that all external IO operations will yield a runtime error.
-Runtime error in thread 4da68d11-eb6a-47a2-9673-0865d9966728@{}%{}
+2026-01-03T21:09:51.176Z [RTM] [32minfo[39m: Skipping network creation. Observe that all external IO operations will yield a runtime error.
+Runtime error in thread 9802d930-6053-448e-b992-6bc43549a7c5@{}%{}
 >> Illegal flow in adv function:
  |    pc: {}
  | block: {#TOP}
  | value: 5@{}%{}
+>> at tests/rt/neg/ifc/manyprocs.trp:15:21
 (6@{}%{}, "x"@{}%{})@{}%{}
-Runtime error in thread 80320c26-4851-4a0c-98f6-a2fdee1056dc@{}%{}
+Runtime error in thread 59369299-219b-4cd2-9824-f04fec8cf75d@{}%{}
 >> Illegal flow in adv function:
  |    pc: {}
  | block: {#TOP}
  | value: 6@{}%{}
+>> at tests/rt/neg/ifc/manyprocs.trp:13:18

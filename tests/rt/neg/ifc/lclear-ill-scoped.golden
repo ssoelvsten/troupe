@@ -1,5 +1,6 @@
-2023-03-17T21:23:23.735Z [RTM] [32minfo[39m: Skipping network creation. Observe that all external IO operations will yield a runtime error.
-Runtime error in thread ccc08124-ee11-4eaa-a85a-00677ef16d20@{}%{}
+2026-01-03T21:09:51.097Z [RTM] [32minfo[39m: Skipping network creation. Observe that all external IO operations will yield a runtime error.
+Runtime error in thread ae73c45d-2b60-44f7-b188-0cc1eb3e09ee@{}%{}
 >> Ill-scoped raise/lower of mailbox clearance:
-expected cap: 48ec5c7a-84d3-45c5-89f0-ae214966a94c
-provided cap: ed62b711-fe5e-41da-95ef-c1c47ab71025
+expected cap: f7e73f79-de56-477c-829a-a7d96d1942a1
+provided cap: 4d8bb95d-1ed9-471c-90e2-9c7264eba794
+>> at tests/rt/neg/ifc/lclear-ill-scoped.trp:4:13

@@ -1,4 +1,5 @@
-2025-12-27T13:40:40.736Z [RTM] [32minfo[39m: Skipping network creation. Observe that all external IO operations will yield a runtime error.
-Runtime error in thread 1fe878e8-863b-4d83-9bcd-024c3b67e6e6@{}%{}
+2026-01-03T21:09:48.819Z [RTM] [32minfo[39m: Skipping network creation. Observe that all external IO operations will yield a runtime error.
+Runtime error in thread 0b834d15-bf61-410c-bf56-385f131d5089@{}%{}
 >> Provided authority is not ROOT
  | level of the provided authority: {bob}
+>> at tests/rt/neg/ifc/cliargs02.trp:3:4

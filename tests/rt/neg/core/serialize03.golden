@@ -1,3 +1,4 @@
-2023-03-17T21:23:22.808Z [RTM] [32minfo[39m: Skipping network creation. Observe that all external IO operations will yield a runtime error.
-Runtime error in thread 959cbba8-96e8-49d9-a80c-4ca0897a632c@{}%{}
+2026-01-03T21:09:48.180Z [RTM] [32minfo[39m: Skipping network creation. Observe that all external IO operations will yield a runtime error.
+Runtime error in thread 36aa4938-20e1-419e-90a8-95c1bd8307c5@{}%{}
 >> Unserializable object: <basefun:exit>@{}%{}
+>> at tests/rt/neg/core/serialize03.trp:1:1

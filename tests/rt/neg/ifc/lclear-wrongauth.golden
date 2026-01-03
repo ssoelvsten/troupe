@@ -1,6 +1,7 @@
-2025-06-07T12:20:27.382Z [RTM] [32minfo[39m: Skipping network creation. Observe that all external IO operations will yield a runtime error.
-Runtime error in thread 3c897ec4-46da-41ed-bc85-6147820f5923@{}%{}
+2026-01-03T21:09:49.389Z [RTM] [32minfo[39m: Skipping network creation. Observe that all external IO operations will yield a runtime error.
+Runtime error in thread 73a33f5c-5d50-4c37-bc43-3dfb69d4e008@{}%{}
 >> Insufficient authority for lowering the mailbox clearance
 | authority provided: <bob;#root-integrity>
 | current level of the mailbox: <alice;#root-integrity>
 | target level of the mailbox: {}
+>> at tests/rt/neg/ifc/lclear-wrongauth.trp:3:14
