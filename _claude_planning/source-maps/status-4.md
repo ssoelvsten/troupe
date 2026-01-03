@@ -2,7 +2,20 @@
 
 **Date**: 2026-01-03
 **Subject**: Unified source maps for static and dynamic code
-**Status**: Proposal ready for implementation
+**Status**: Phase 16a-b COMPLETE, Phase 16c-f PENDING
+
+---
+
+## Implementation Status
+
+| Phase | Description                          | Status       |
+|-------|--------------------------------------|--------------|
+| 16a   | Inline source maps in compiler       | ✅ COMPLETE  |
+| 16b   | Enable source maps in scripts        | ✅ COMPLETE  |
+| 16c   | Extend compiler JSON output          | ⏳ PENDING   |
+| 16d   | Runtime source map merging           | ⏳ PENDING   |
+| 16e   | Runtime stack translation            | ⏳ PENDING   |
+| 16f   | Source map library                   | ⏳ PENDING   |
 
 ---
 

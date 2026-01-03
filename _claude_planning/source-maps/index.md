@@ -12,12 +12,29 @@ Implement V3 source maps so all Troupe runtime errors show source location (`fil
 
 **Active proposal**: [status-4.md](status-4.md) - Complete Source Position Solution
 
-Phases 0-12 are complete. The remaining work has two parts:
+### Static Code: IMPLEMENTED (Phase 16a-b)
 
-1. **Static code**: Use inline source maps with Node.js's `--enable-source-maps` (automatic translation)
-2. **Dynamic code**: Extend compiler JSON output with source maps, merge per-namespace at runtime, translate stack traces manually
+Inline source maps for static code are now working:
+- Compiler embeds base64-encoded source maps in generated JS files (`-m` flag)
+- `local.sh` and `network.sh` enable source maps by default
+- Node.js `--enable-source-maps` automatically translates stack traces
+- Runtime extracts and displays Troupe source locations in error messages
 
-See [status-4.md](status-4.md) for the complete proposal and implementation plan.
+**Example output:**
+```
+Runtime error in thread abc123@{}%{}
+>> value "hi" is not a number
+>> at tests/_unautomated/simple-1.trp:1:15
+```
+
+### Remaining Work: Dynamic Code (Phase 16c-f)
+
+For deserialized closures (code sent over network), we still need:
+1. Extend compiler JSON output with source maps
+2. Merge source maps per namespace at runtime
+3. Translate stack traces for dynamically constructed functions
+
+See [status-4.md](status-4.md) for the complete proposal.
 
 ---
 
@@ -40,7 +57,9 @@ See [status-4.md](status-4.md) for the complete proposal and implementation plan
 | 12    | Emit real source maps                            | DONE        | [phase-12-emit-source-maps.md](phase-12-emit-source-maps.md)     |
 | 13    | Runtime source map resolver                      | SKIPPED     | [phase-13-runtime-resolver.md](phase-13-runtime-resolver.md)     |
 | 14    | Error message positions                          | SUPERSEDED  | [phase-14-position-params.md](phase-14-position-params.md)       |
-| 16    | **Complete source position solution**            | **NEXT**    | [status-4.md](status-4.md)                                       |
+| 16a   | Inline source maps for static code               | **DONE**    | [status-4.md](status-4.md)                                       |
+| 16b   | Enable source maps in scripts                    | **DONE**    | [status-4.md](status-4.md)                                       |
+| 16c-f | Dynamic code source maps                         | PENDING     | [status-4.md](status-4.md)                                       |
 
 ---
 
@@ -82,6 +101,26 @@ Each phase:
 ---
 
 ## Implementation Progress
+
+### Phase 16a-b: Static Code Source Maps - COMPLETE (2026-01-03)
+
+**All tests pass (397/397)** - Note: Some golden files need updating for new error format.
+
+**Files modified**:
+- `compiler/app/Main.hs` - Embed inline base64 source maps instead of separate `.map` files
+- `local.sh` - Add `-m` to compiler, `--enable-source-maps` to node
+- `network.sh` - Add `-m` to compiler
+- `rt/troupe` - Add `--enable-source-maps` to node
+- `rt/src/TroupeError.mts` - Extract source location from stack trace and display
+- `rt/src/tools/inspect-sourcemap.ts` - Support embedded inline source maps
+
+**Key implementation details**:
+- Source maps are base64-encoded and appended as `//# sourceMappingURL=data:...` comment
+- Node.js `--enable-source-maps` translates the string stack trace (but NOT CallSite API)
+- Path cleaning extracts relative paths (e.g., `/tmp/tests/foo.trp` → `tests/foo.trp`)
+- Error format: existing lines unchanged, source location added as `>> at file:line:col`
+
+---
 
 ### Phase 13: Runtime Source Map Resolver - SKIPPED (2026-01-02)
 
@@ -149,16 +188,25 @@ bin/golden      # Run golden tests
 
 ## How to Continue
 
-Follow [status-4.md](status-4.md) Phase 16 implementation plan:
+### Completed (Phase 16a-b)
 
-### Static Code (Quick Win)
-1. **Phase 16a**: Modify `compiler/app/Main.hs` to embed inline source maps (base64-encoded)
-2. **Phase 16b**: Add `--enable-source-maps` to `local.sh` and `network.sh`
+Static code source maps are working:
+- ✅ **Phase 16a**: `compiler/app/Main.hs` embeds inline source maps (base64-encoded)
+- ✅ **Phase 16b**: `local.sh`, `network.sh`, `rt/troupe` use `--enable-source-maps`
+- ✅ **Runtime**: `TroupeError.mts` extracts and displays source locations
 
-### Dynamic Code (More Complex)
-3. **Phase 16c**: Extend `stack2JSON` to include source map in JSON output
-4. **Phase 16d**: Modify `deserialize.mts` to merge source maps per namespace
-5. **Phase 16e**: Add runtime stack trace translation in `TroupeError.mts`
-6. **Phase 16f**: Add `source-map` as runtime dependency
+### Remaining (Phase 16c-f - Dynamic Code)
+
+For deserialized closures, follow [status-4.md](status-4.md):
+
+1. **Phase 16c**: Extend `stack2JSON` to include source map in JSON output
+2. **Phase 16d**: Modify `deserialize.mts` to merge source maps per namespace
+3. **Phase 16e**: Translate stack traces for dynamic code
+4. **Phase 16f**: Add `source-map` as runtime dependency
+
+### Known Issues
+
+- Golden tests with runtime errors need updating (new `>> at file:line:col` line)
+- Path cleaning in `TroupeError.mts` only handles `tests/` and `lib/` prefixes
 
 Run `make all && ./bin/golden --quick` after each change.
