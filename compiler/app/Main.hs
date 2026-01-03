@@ -166,6 +166,7 @@ process flags fname input = do
       ----- JAVASCRIPT -------------------------------------
       let (stackjs, mappings) = Stack2JS.stack2JSWithMappings compileMode
                                                               debugJS
+                                                              sourceMapEnabled
                                                               (Stack.ProgramStackUnit stack)
       writeFile outPath stackjs
 

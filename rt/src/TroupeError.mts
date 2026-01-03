@@ -79,7 +79,12 @@ export abstract class StopThreadError extends ThreadError {
         let console = this.thread.rtObj.xconsole
         console.log (chalk.red ( "Runtime error in thread " + this.thread.tidErrorStringRep()))
         console.log (chalk.red ( ">> " + this.errorMessage));
-        const sourceLocation = extractTroupeSourceLocation(this.stack);
+        // Try to get source location from JS stack trace (works when error occurs in user code)
+        let sourceLocation = extractTroupeSourceLocation(this.stack);
+        // Fall back to lastCallSourcePos (works when error occurs in runtime built-ins)
+        if (!sourceLocation && this.thread.lastCallSourcePos) {
+            sourceLocation = this.thread.lastCallSourcePos;
+        }
         if (sourceLocation) {
             console.log (chalk.red ( ">> at " + sourceLocation));
         }

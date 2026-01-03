@@ -99,8 +99,14 @@ type RetKontText = PP.Doc
 -- | Marker data: (marker ID, source position info)
 type MarkerData = (Int, PosInf)
 
+-- | Code generation options passed via RWS reader
+data CodeGenOpts = CodeGenOpts
+  { cgoDebugMode      :: Bool  -- ^ Emit debug statements
+  , cgoSourceMapEnabled :: Bool  -- ^ Emit source position tracking for error messages
+  } deriving (Show, Eq)
+
 type WData = ([LibAccess], [Basics.AtomName], [RetKontText], [MarkerData])
-type W = RWS Bool WData TheState
+type W = RWS CodeGenOpts WData TheState
 
 
 initState = TheState { freshCounter = 0
@@ -169,10 +175,10 @@ instance Identifier Raw.Assignable where
 class ToJS a where
    toJS :: a -> W PP.Doc
 
-stack2PPDoc :: CompileMode -> Bool -> StackUnit -> (PP.Doc, WData)
+stack2PPDoc :: CompileMode -> CodeGenOpts -> StackUnit -> (PP.Doc, WData)
 
-stack2PPDoc compileMode debugMode (ProgramStackUnit sp) =
-  let (fns, _, w@(libs, atoms, konts, markers)) = runRWS (toJS sp) debugMode initState
+stack2PPDoc compileMode opts (ProgramStackUnit sp) =
+  let (fns, _, w@(libs, atoms, konts, markers)) = runRWS (toJS sp) opts initState
       inner = vcat $
         [ jsLoadLibs
         , addLibs libs
@@ -189,15 +195,16 @@ stack2PPDoc compileMode debugMode (ProgramStackUnit sp) =
                                   _                      -> outer
   in (ppDoc, w)
 
-stack2PPDoc _           debugMode su =
-  let (inner, _, w@(libs, _, konts, markers)) = runRWS (toJS su) debugMode initState
+stack2PPDoc _           opts su =
+  let (inner, _, w@(libs, _, konts, markers)) = runRWS (toJS su) opts initState
       ppDoc = vcat $ [ addLibs libs ] ++ (inner:konts)
   in (ppDoc, w)
 
 
 stack2JSString :: CompileMode -> Bool -> StackUnit -> String
 stack2JSString compileMode debugMode su =
-  let (ppDoc, _) = stack2PPDoc compileMode debugMode su
+  let opts = CodeGenOpts { cgoDebugMode = debugMode, cgoSourceMapEnabled = False }
+      (ppDoc, _) = stack2PPDoc compileMode opts su
       rendered = PP.render ppDoc
       -- Remove lines that contain only whitespace
       cleanedLines = filter (not . isWhitespaceOnly) (lines rendered)
@@ -205,9 +212,10 @@ stack2JSString compileMode debugMode su =
 
 -- | Generate JS string and source map mappings
 -- Returns (JS code with markers stripped, list of source map mappings)
-stack2JSWithMappings :: CompileMode -> Bool -> StackUnit -> (String, [Mapping])
-stack2JSWithMappings compileMode debugMode su =
-  let (ppDoc, (_, _, _, markerData)) = stack2PPDoc compileMode debugMode su
+stack2JSWithMappings :: CompileMode -> Bool -> Bool -> StackUnit -> (String, [Mapping])
+stack2JSWithMappings compileMode debugMode sourceMapEnabled su =
+  let opts = CodeGenOpts { cgoDebugMode = debugMode, cgoSourceMapEnabled = sourceMapEnabled }
+      (ppDoc, (_, _, _, markerData)) = stack2PPDoc compileMode opts su
       rendered = PP.render ppDoc
       -- processMarkers handles marker stripping and merging whitespace-only lines
       (cleanCode, mappings) = processMarkers rendered markerData
@@ -285,7 +293,8 @@ parseMarker s
 
 stack2JSON :: CompileMode -> Bool -> StackUnit -> ByteString
 stack2JSON compileMode debugMode su =
-  let (ppDoc, (libs, atoms, konts, _markers)) = stack2PPDoc compileMode debugMode su
+  let opts = CodeGenOpts { cgoDebugMode = debugMode, cgoSourceMapEnabled = False }
+      (ppDoc, (libs, atoms, konts, _markers)) = stack2PPDoc compileMode opts su
       fname = case su of FunStackUnit (Loc _ (FunDef (HFN n) _ _ _ _)) -> Just n
                          AtomStackUnit _                       -> Nothing
                          ProgramStackUnit _                    -> error "Internal error: stack2JSON called with ProgramStackUnit"
@@ -371,7 +380,8 @@ toJSFunDefWithPos pos (FunDef hfn stacksize consts bb irfdef) = do
        modify (\s -> s { frameSize = _frameSize, sparseSlot = stacksize, stHFN = hfn, consts = consts } ) -- + 1 for the sparse flag; 2021-03-17; AA
        lits <- constsToJS consts
        jj <- toJS bb
-       debug <- ask
+       opts <- ask
+       let debug = cgoDebugMode opts
        let (irdeps, libdeps, _atomdeps) = IR.ppDepsAsJSON irfdef
        sparseSlotIdxPP <- ppSparseSlotIdx
        -- Emit source map marker for function definition
@@ -651,7 +661,13 @@ tr2jsWithPos pos (Error va) = do
 
 tr2jsWithPos pos (TailCall va1) = do
   marker <- emitMarker pos
-  return $ marker PP.<> ("return" <+> ppId va1)
+  opts <- ask
+  -- Store the source position before tail call so runtime can report it on error
+  -- Only emit when source maps are enabled to avoid performance overhead
+  let setPosLine = if cgoSourceMapEnabled opts
+                   then semi $ text "_T.lastCallSourcePos" <+> text "=" <+> ppPosInfo pos
+                   else PP.empty
+  return $ marker PP.<> setPosLine $$ ("return" <+> ppId va1)
 
 tr2jsWithPos _pos (LibExport va) = do
   d <- toJS va

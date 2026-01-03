@@ -225,8 +225,12 @@ export class Thread {
     callStack : any []
     _sp : number;
     sparseSlot : number; // slot on the stack holding the sparse bit (whether data is bounded by PC)
-    
+
     processDebuggingName: string;
+
+    // Source position of the last tail call, used for error reporting when
+    // errors occur inside runtime built-ins (where user code isn't on the JS stack)
+    lastCallSourcePos: string | null = null;
 
     failureRate: number  = 0
     failureStartTime : number = 0
