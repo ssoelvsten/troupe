@@ -109,11 +109,11 @@ export class UserRuntimeZero {
 
     // SpecialRT
     rawErrorPos(x: TroupeRawValue, pos: string) {
+        // Set the source position so StrThreadError can use it consistently
         if (pos != '') {
-            this.runtime.$t.threadError(x + " at " + pos);
-        } else {
-            this.runtime.$t.threadError("" + x);
+            this.runtime.$t.lastCallSourcePos = pos;
         }
+        this.runtime.$t.threadError("" + x);
     }
 
     // ComplexRT

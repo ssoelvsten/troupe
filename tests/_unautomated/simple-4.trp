@@ -1,0 +1,8 @@
+let fun f_ext () =
+     let fun f x = x+1
+	in f "hi"
+	end 
+    val _ = save (authority, "f_ext", f_ext)
+    val f_restored = restore ("f_ext")
+in f_restored () 
+end

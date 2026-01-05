@@ -1,4 +1,4 @@
-2026-01-03T21:09:46.523Z [RTM] [32minfo[39m: Skipping network creation. Observe that all external IO operations will yield a runtime error.
-Runtime error in thread 4e8ad5fc-c23c-4213-b33e-06e860559462@{}%{}
->> pattern match failure in let declaration at tests/rt/neg/core/pattern02.trp:1:9
+2026-01-05T22:06:43.093Z [RTM] [32minfo[39m: Skipping network creation. Observe that all external IO operations will yield a runtime error.
+Runtime error in thread 6d69ddfa-7c60-4b21-be1e-0fc6d6d6529e@{}%{}
+>> pattern match failure in let declaration
 >> at tests/rt/neg/core/pattern02.trp:1:9

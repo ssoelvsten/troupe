@@ -1,4 +1,4 @@
-2026-01-03T21:09:46.537Z [RTM] [32minfo[39m: Skipping network creation. Observe that all external IO operations will yield a runtime error.
-Runtime error in thread ff10c8f4-8413-47de-8b94-e4890c3b5f42@{}%{}
+2026-01-05T22:04:42.903Z [RTM] [32minfo[39m: Skipping network creation. Observe that all external IO operations will yield a runtime error.
+Runtime error in thread ea89503f-bc1f-49c6-b1bc-a4c55a3b3488@{}%{}
 >> value () is not a number
->> at tests/rt/neg/core/arithprob.trp:1:1
+>> at tests/rt/neg/core/arithprob.trp:1:5

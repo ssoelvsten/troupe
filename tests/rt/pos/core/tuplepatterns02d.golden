@@ -1,4 +1,4 @@
-2026-01-03T21:09:33.650Z [RTM] [32minfo[39m: Skipping network creation. Observe that all external IO operations will yield a runtime error.
-Runtime error in thread a7af6ab6-d958-497b-82ea-91046010010a@{}%{}
->> pattern match failure in case expression at tests/rt/pos/core/tuplepatterns02d.trp:2:3
+2026-01-05T21:57:34.765Z [RTM] [32minfo[39m: Skipping network creation. Observe that all external IO operations will yield a runtime error.
+Runtime error in thread 7fcfdff6-d052-4e79-96f7-c51a942639e8@{}%{}
+>> pattern match failure in case expression
 >> at tests/rt/pos/core/tuplepatterns02d.trp:2:3

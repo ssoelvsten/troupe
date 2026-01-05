@@ -686,8 +686,12 @@ tr2jsWithPos pos (TailCall va1) = do
   marker <- emitMarker pos
   opts <- ask
   -- Store the source position before tail call so runtime can report it on error
-  -- Only emit when source maps are enabled to avoid performance overhead
-  let setPosLine = if cgoSourceMapEnabled opts
+  -- Only emit when source maps are enabled AND position is meaningful (not NoPos).
+  -- This prevents prelude/library calls from overwriting user call positions.
+  let hasPos = case pos of
+        NoPos -> False
+        _     -> True
+  let setPosLine = if cgoSourceMapEnabled opts && hasPos
                    then semi $ text "_T.lastCallSourcePos" <+> text "=" <+> ppPosInfo pos
                    else PP.empty
   return $ marker PP.<> setPosLine $$ ("return" <+> ppId va1)

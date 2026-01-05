@@ -59,6 +59,7 @@ const RUNTIME_FILE_SUFFIXES = [
     '/rt/built/Scheduler.mjs',
     '/rt/built/runtimeMonitored.mjs',
     '/rt/built/builtins/runtimeassert.mjs',
+    '/rt/built/builtins/UserRuntimeZero.mjs',
 ];
 
 /**
@@ -176,6 +177,12 @@ export abstract class StopThreadError extends ThreadError {
         } else {
             // Error occurred in user code; translate using structured call sites
             sourceLocation = translateWithCallSites(this.callSites, this.thread.currentSourceMap);
+            // Fall back to lastCallSourcePos if stack trace translation fails.
+            // This handles cases like prelude/library code where assertions fail
+            // but the stack trace doesn't contain user code with source positions.
+            if (!sourceLocation && this.thread.lastCallSourcePos) {
+                sourceLocation = this.thread.lastCallSourcePos;
+            }
         }
 
         if (sourceLocation) {
