@@ -19,7 +19,7 @@ import Text.PrettyPrint.HughesPJ (
 import ShowIndent
 import DCLabels
 import TroupePositionInfo (Located(..), getLoc, unLoc, noLoc, PosInf(..), GetPosInfo(..))
-import PrettyPrint (PP, runPPDefault, ppLocated)
+import PrettyPrint (PP, PPConfig, runPP, runPPDefault, ppLocated, ShowDebug(..))
 
 -- | Located type aliases - all terms are wrapped in Located
 type LTerm = Located Term
@@ -95,6 +95,9 @@ instance Show Term
 
 instance ShowIndent Prog where
   showIndent k t = PP.render (nest k (runPPDefault (ppProg t)))
+
+instance ShowDebug Prog where
+  showDebugWith cfg = PP.render . runPP cfg . ppProg
 --------------------------------------------------
 -- obs: these functions are not exported
 --

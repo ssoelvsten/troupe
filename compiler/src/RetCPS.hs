@@ -37,7 +37,7 @@ import Text.PrettyPrint.HughesPJ (
 import           ShowIndent
 
 import TroupePositionInfo (Located(..), getLoc, unLoc, noLoc, atLoc, PosInf(..), GetPosInfo(..))
-import PrettyPrint (PP, runPPDefault, ppLocated)
+import PrettyPrint (PP, PPConfig, runPP, runPPDefault, ppLocated, ShowDebug(..))
 
 newtype VarName = VN Basics.VarName
     deriving (Eq, Ord, Generic)
@@ -131,6 +131,9 @@ instance Show ContDef
   where show (Cont x t) = PP.render (runPPDefault (ppKTerm 0 t))
 instance ShowIndent Prog where
   showIndent k p = PP.render (nest k (runPPDefault (ppProg p)))
+
+instance ShowDebug Prog where
+  showDebugWith cfg = PP.render . runPP cfg . ppProg
 --------------------------------------------------
 -- obs: these functions are not exported
 --

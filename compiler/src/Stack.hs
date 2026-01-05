@@ -33,7 +33,7 @@ import qualified Data.ByteString           as BS
 import           Text.PrettyPrint.HughesPJ (hsep, nest, text, vcat, ($$), (<+>))
 import qualified Text.PrettyPrint.HughesPJ as PP
 import           TroupePositionInfo (Located(..), getLoc, unLoc, noLoc, PosInf(..), GetPosInfo(..))
-import           PrettyPrint (PP, runPPDefault, ppLocated, (<+>>), ($$>), vcatMapPP)
+import           PrettyPrint (PP, PPConfig, runPP, runPPDefault, ppLocated, (<+>>), ($$>), vcatMapPP, ShowDebug(..))
 
 -- Located type aliases
 type LStackInst = Located StackInst
@@ -109,6 +109,9 @@ ppProg (StackProgram atoms funs) =
 
 instance Show StackProgram where
   show = PP.render . runPPDefault . ppProg
+
+instance ShowDebug StackProgram where
+  showDebugWith cfg = PP.render . runPP cfg . ppProg
 
 ppFunDef :: FunDef -> PP PP.Doc
 ppFunDef ( FunDef hfn _ consts insts _ )

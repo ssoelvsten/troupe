@@ -31,12 +31,17 @@ module PrettyPrint
   , PosFormat(..)
   , defaultPPConfig
   , debugPPConfig
+  , parsePosFormat
+  , mkPPConfig
 
     -- * The PP monad
   , PP
   , runPP
   , runPPDefault
   , runPPDebug
+
+    -- * ShowDebug type class
+  , ShowDebug(..)
 
     -- * Config accessors
   , askShowPositions
@@ -266,3 +271,50 @@ punctuatePP :: Doc -> [PP Doc] -> PP [Doc]
 punctuatePP p docs = do
   ds <- sequence docs
   return $ PP.punctuate p ds
+
+
+-- | Parse a position format string from command line
+--
+-- Valid formats: "inline", "comment", "bracket", "none"
+-- Defaults to PosInline for unrecognized strings.
+parsePosFormat :: String -> PosFormat
+parsePosFormat "inline"  = PosInline
+parsePosFormat "comment" = PosComment
+parsePosFormat "bracket" = PosBracket
+parsePosFormat "none"    = PosNone
+parsePosFormat _         = PosInline  -- default
+
+-- | Create a PPConfig from debug flag and position format
+mkPPConfig :: Bool -> PosFormat -> PPConfig
+mkPPConfig debugPP posFormat = PPConfig
+  { ppShowPositions = debugPP
+  , ppIndentWidth   = 2
+  , ppLineWidth     = 80
+  , ppVerbose       = False
+  , ppPosFormat     = posFormat
+  }
+
+
+-- | Type class for values that can be shown with debug position information.
+--
+-- This provides a unified interface for debug output across all IR types.
+-- The default 'showDebug' uses 'debugPPConfig' (positions shown).
+--
+-- Example usage:
+--
+-- @
+-- import PrettyPrint (ShowDebug(..))
+--
+-- -- Show IR with positions (for debugging)
+-- putStrLn $ showDebug myIRProgram
+--
+-- -- Show with custom config
+-- putStrLn $ showDebugWith myConfig myIRProgram
+-- @
+class ShowDebug a where
+  -- | Pretty print with debug configuration (positions shown).
+  showDebug :: a -> String
+  showDebug = showDebugWith debugPPConfig
+
+  -- | Pretty print with a custom configuration.
+  showDebugWith :: PPConfig -> a -> String

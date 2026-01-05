@@ -1,6 +1,6 @@
 # Pretty Printing Refactoring Plan
 
-## Implementation Status: PHASE 1-3 COMPLETE
+## Implementation Status: ALL PHASES COMPLETE ✓
 
 **Completed 2026-01-05:**
 
@@ -12,6 +12,9 @@
    - `ppLocated` combinator for handling Located values
    - Monadic combinators (`<+>>`, `$$>`, `vcatMapPP`, etc.)
    - `runPPDefault` and `runPPDebug` runners
+   - `parsePosFormat` for command-line argument parsing
+   - `mkPPConfig` for creating configs from flags
+   - `ShowDebug` type class for debug output
 
 2. **Updated all IR modules to use PP monad:**
    - `Stack.hs` - Updated all `ppL*` functions to use `ppLocated`
@@ -25,6 +28,16 @@
    - Removed duplicate `appPrec`/`maxPrec` from `RetCPS.hs`
    - Now imported from `Basics.hs` (single source of truth)
 
+4. **Added compiler flags (Phase 4):**
+   - `--debug-pp` flag to enable position annotations in IR dumps
+   - `--pp-pos-format=FMT` flag to select format (inline|comment|bracket|none)
+   - Updated verbose output to use custom PPConfig
+
+5. **Added ShowDebug type class (Phase 6):**
+   - `ShowDebug` class in `PrettyPrint.hs` with `showDebug` and `showDebugWith`
+   - Instances for all IR types: `IRProgram`, `RawProgram`, `StackProgram`
+   - Instances for frontend types: `DirectWOPats.Prog`, `Core.Prog`, `RetCPS.Prog`
+
 ### Key Pattern Applied
 
 All `ppL*` functions now use:
@@ -37,10 +50,30 @@ Instead of the old:
 ppLTerm prec (Loc _ t) = ppTerm prec t  -- Position discarded!
 ```
 
-### Remaining Work (Future Phases)
+### Usage
 
-- Phase 4: Add compiler flags (`--debug-pp`, `--pp-pos-format`)
-- Phase 6: Add `ShowDebug` type class
+```bash
+# Compile with position-annotated IR dumps
+troupec -v --debug-pp myprogram.trp
+
+# Use comment format for positions
+troupec -v --debug-pp --pp-pos-format=comment myprogram.trp
+
+# Use bracket format
+troupec -v --debug-pp --pp-pos-format=bracket myprogram.trp
+```
+
+### Programmatic Usage
+
+```haskell
+import PrettyPrint (ShowDebug(..), debugPPConfig)
+
+-- Show IR with positions (for debugging)
+putStrLn $ showDebug myIRProgram
+
+-- Show with custom config
+putStrLn $ showDebugWith myConfig myIRProgram
+```
 
 ---
 

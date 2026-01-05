@@ -44,7 +44,7 @@ import           Text.PrettyPrint.HughesPJ (
 import           ShowIndent
 
 import           TroupePositionInfo (Located(..), getLoc, unLoc, noLoc, atLoc, PosInf(..), GetPosInfo(..))
-import           PrettyPrint (PP, runPPDefault, ppLocated)
+import           PrettyPrint (PP, PPConfig, runPP, runPPDefault, ppLocated, ShowDebug(..))
 import           DCLabels (DCLabelExp, ppDCLabelExpLit, dcLabelEq, v1LabelEq, v1LabelToDCLabelExp)
 
 --------------------------------------------------
@@ -542,6 +542,9 @@ instance Show Term
 
 instance ShowIndent Prog where
   showIndent k t = PP.render (nest k (runPPDefault (ppProg t)))
+
+instance ShowDebug Prog where
+  showDebugWith cfg = PP.render . runPP cfg . ppProg
 --------------------------------------------------
 
 

@@ -33,7 +33,7 @@ import qualified Data.ByteString           as BS
 import           Text.PrettyPrint.HughesPJ (hsep, nest, text, vcat, ($$), (<+>))
 import qualified Text.PrettyPrint.HughesPJ as PP
 import           TroupePositionInfo (Located(..), getLoc, unLoc, noLoc, atLoc, PosInf(..), GetPosInfo(..))
-import           PrettyPrint (PP, runPPDefault, ppLocated, vcatMapPP)
+import           PrettyPrint (PP, PPConfig, runPP, runPPDefault, ppLocated, vcatMapPP, ShowDebug(..))
 
 
 -- | Variable names used for plain (unlabelled) values.
@@ -280,6 +280,9 @@ ppProg (RawProgram atoms funs) =
 
 instance Show RawProgram where
   show = PP.render . runPPDefault . ppProg
+
+instance ShowDebug RawProgram where
+  showDebugWith cfg = PP.render . runPP cfg . ppProg
 
 ppFunDef :: FunDef -> PP PP.Doc
 ppFunDef ( FunDef hfn consts insts _ ) = do

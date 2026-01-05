@@ -32,7 +32,7 @@ import           GHC.Generics              (Generic)
 import           Text.PrettyPrint.HughesPJ (hsep, nest, text, vcat, ($$), (<+>))
 import qualified Text.PrettyPrint.HughesPJ as PP
 import           TroupePositionInfo (Located(..), getLoc, unLoc, noLoc, atLoc, PosInf(..), GetPosInfo(..))
-import           PrettyPrint (PP, runPPDefault, ppLocated, vcatMapPP)
+import           PrettyPrint (PP, PPConfig, runPP, runPPDefault, ppLocated, vcatMapPP, ShowDebug(..))
 import           DCLabels
 
 ------------------------------------------------------------
@@ -434,6 +434,9 @@ ppProg (IRProgram atoms funs) =
 
 instance Show IRProgram where
   show = PP.render . runPPDefault . ppProg
+
+instance ShowDebug IRProgram where
+  showDebugWith cfg = PP.render . runPP cfg . ppProg
 
 ppConsts :: [(VarName, C.Lit)] -> PP.Doc
 ppConsts consts =

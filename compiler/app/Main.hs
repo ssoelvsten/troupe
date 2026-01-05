@@ -15,10 +15,13 @@ import qualified IROpt
 -- import qualified RetRewrite as Rewrite
 import qualified CPSOpt as CPSOpt
 import qualified IR2Raw
+import qualified Raw
 import qualified Raw2Stack
 import qualified Stack
 import qualified Stack2JS
 import qualified RawOpt
+import qualified PrettyPrint as PPrint
+import qualified Text.PrettyPrint.HughesPJ as PP
 -- import System.IO (isEOF)
 import qualified Data.ByteString.Char8 as BS
 import qualified Data.ByteString.Base64 as B64
@@ -54,6 +57,8 @@ data Flag
   | Help
   | Debug
   | SourceMap
+  | DebugPP
+  | PPPosFormat String
   deriving (Show, Eq)
 
 options :: [OptDescr Flag]
@@ -67,6 +72,8 @@ options =
   , Option ['h'] ["help"]      (NoArg Help)               "print usage"
   , Option ['o'] ["output"]    (ReqArg OutputFile "FILE") "output FILE"
   , Option ['m'] ["source-map"] (NoArg SourceMap)         "generate source map"
+  , Option []    ["debug-pp"]  (NoArg DebugPP)            "show positions in IR dumps"
+  , Option []    ["pp-pos-format"] (ReqArg PPPosFormat "FMT") "position format: inline|comment|bracket|none"
   ]
 
 --------------------------------------------------------------------------------
@@ -82,6 +89,13 @@ process flags fname input = do
       noRawOpt = NoRawOpt `elem` flags
       debugJS = Debug `elem` flags
       sourceMapEnabled = SourceMap `elem` flags
+      debugPP = DebugPP `elem` flags
+      isPPPosFormatFlag (PPPosFormat _) = True
+      isPPPosFormatFlag _ = False
+      ppPosFormatStr = case List.find isPPPosFormatFlag flags of
+                         Just (PPPosFormat s) -> s
+                         _ -> "inline"
+      ppConfig = PPrint.mkPPConfig debugPP (PPrint.parsePosFormat ppPosFormatStr)
 
   case ast of
     Left err -> do
@@ -139,15 +153,15 @@ process flags fname input = do
           Right ir -> return ir 
           Left  s -> die $ "troupec: " ++ s
 
-      when verbose $ writeFileD "out/out.ir" (show ir)
+      when verbose $ writeFileD "out/out.ir" (PP.render $ PPrint.runPP ppConfig $ CCIR.ppProg ir)
 
-      let iropt = IROpt.iropt ir 
-      when verbose $ writeFileD "out/out.iropt" (show iropt)
+      let iropt = IROpt.iropt ir
+      when verbose $ writeFileD "out/out.iropt" (PP.render $ PPrint.runPP ppConfig $ CCIR.ppProg iropt)
 
       ------ RAW -------------------------------------------
       let raw = IR2Raw.prog2raw iropt
       when verbose $ printSep  "GENERATING RAW"
-      when verbose $ writeFileD "out/out.rawout" (show raw)
+      when verbose $ writeFileD "out/out.rawout" (PP.render $ PPrint.runPP ppConfig $ Raw.ppProg raw)
 
       ----- RAW OPT ----------------------------------------
       rawopt <- do
@@ -156,13 +170,13 @@ process flags fname input = do
         else do
           let opt = RawOpt.rawopt raw
           when verbose $ printSep  "OPTIMIZING RAW OPT"
-          when verbose $ writeFileD "out/out.rawopt" (show opt)
+          when verbose $ writeFileD "out/out.rawopt" (PP.render $ PPrint.runPP ppConfig $ Raw.ppProg opt)
           return opt
 
       ----- STACK ------------------------------------------
       let stack = Raw2Stack.rawProg2Stack rawopt
       when verbose $ printSep "GENERATING STACK"
-      when verbose $ writeFileD "out/out.stack" (show stack)
+      when verbose $ writeFileD "out/out.stack" (PP.render $ PPrint.runPP ppConfig $ Stack.ppProg stack)
 
       ----- JAVASCRIPT -------------------------------------
       let (stackjs, mappings) = Stack2JS.stack2JSWithMappings compileMode
