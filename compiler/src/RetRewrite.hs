@@ -28,7 +28,7 @@ import Control.Monad.Identity
 import Data.Set (Set)
 import qualified Data.Set as Set
 import RetFreeVars as FreeVars
-import TroupePositionInfo (Located(..), getLoc, unLoc, noLoc, atLoc, PosInf(..), ErrorPosInf(..))
+import TroupePositionInfo (Located(..), getLoc, unLoc, noLoc, atLoc, PosInf(..))
 
 
 -- substitution is a collection of both variable substitutions and
@@ -129,9 +129,9 @@ instance Substitutable KTerm where
 
       If v lk1 lk2 -> If (vfwd v) (apply subst lk1) (apply subst lk2)
 
-      AssertElseError v lk1 z errPos -> AssertElseError (vfwd v) (apply subst lk1) (vfwd z) errPos
+      AssertElseError v lk1 z -> AssertElseError (vfwd v) (apply subst lk1) (vfwd z)
 
-      Error x errPos -> Error (vfwd x) errPos
+      Error x -> Error (vfwd x)
 
    where vfwd x = Map.findWithDefault x x varmap
          -- kfwd x = Map.findWithDefault x x kontmap
@@ -145,7 +145,7 @@ data Context -- note this is not an exhaustive set of possible contexts; 2018-01
   | CtxtLetSimple VarName LSimpleTerm Context
   | CtxtLetCont ContDef Context
   | CtxtLetFunK [Located FunDef] Context
-  | CtxtAssert VarName VarName ErrorPosInf Context
+  | CtxtAssert VarName VarName PosInf Context  -- Changed from ErrorPosInf to PosInf
 --  | CtxtLetRet KontName Context
   deriving (Eq)
 
@@ -189,9 +189,9 @@ matchterm (Loc _ (LetRet kdef lkt)) searchTerm = do
   (ctxt, found) <- matchterm lkt searchTerm
   return $ (CtxtLetCont kdef ctxt, found)
 
-matchterm (Loc _pos (AssertElseError vn lkt vn' errPos)) searchTerm = do
+matchterm (Loc pos (AssertElseError vn lkt vn')) searchTerm = do
   (ctxt, found) <- matchterm lkt searchTerm
-  return $ (CtxtAssert vn vn' errPos ctxt, found)
+  return $ (CtxtAssert vn vn' pos ctxt, found)  -- Use position from Located wrapper
 
 
 matchterm _ _ = Nothing
@@ -210,8 +210,8 @@ reconstructTerm (CtxtLetCont kdef ctxt) lkt =
   noLoc $ LetRet kdef (reconstructTerm ctxt lkt)
 reconstructTerm (CtxtLetFunK lfdefs ctxt) lkt =
   noLoc $ LetFun lfdefs (reconstructTerm ctxt lkt)
-reconstructTerm (CtxtAssert vn vn' errPos@(ErrorPos pos) ctxt) lkt =
-  Loc pos $ AssertElseError vn (reconstructTerm ctxt lkt) vn' errPos
+reconstructTerm (CtxtAssert vn vn' pos ctxt) lkt =
+  Loc pos $ AssertElseError vn (reconstructTerm ctxt lkt) vn'
 
 
 class KWalkable a b where
@@ -227,13 +227,13 @@ instance (KWalkable LKTerm LKTerm) where
          LetRet cdef lkt'   -> lkt `withLocOf'` LetRet  (walk pred f cdef) (w' lkt')
          LetFun lfdefs lkt'   -> lkt `withLocOf'` LetFun (map (walk pred f) lfdefs) (w' lkt')
          If v lk1 lk2         -> lkt `withLocOf'` If v (w' lk1) (w' lk2)
-         AssertElseError v lk1 z errPos -> lkt `withLocOf'` AssertElseError v (w' lk1) z errPos
+         AssertElseError v lk1 z -> lkt `withLocOf'` AssertElseError v (w' lk1) z
          -- LetRet kn kt'       -> LetRet kn (w' kt')
          -- these do not modify anything
          KontReturn v  -> lkt
          Halt v -> lkt
          ApplyFun v a1 -> lkt
-         Error x _errPos -> lkt
+         Error x -> lkt
     where
       withLocOf' (Loc p _) kt = Loc p kt
 
@@ -280,7 +280,7 @@ instance FreeNames Context where
   freeVars (CtxtLetFunK lfdefs ctxt) =
       (unionMany (map freeVars lfdefs)) `unionFreeVars` (restrictFree ctxt  (map fname lfdefs))
         where fname (Loc _ (Fun n _)) = n
-  freeVars (CtxtAssert vn1 vn2 _errPos ctxt) = unionMany [freeVars ctxt, FreeVars $ Set.fromList [vn1, vn2]]
+  freeVars (CtxtAssert vn1 vn2 _pos ctxt) = unionMany [freeVars ctxt, FreeVars $ Set.fromList [vn1, vn2]]
 
 -- todo: eliminate redundancy in code ; 2018-01-25 ; aa
 

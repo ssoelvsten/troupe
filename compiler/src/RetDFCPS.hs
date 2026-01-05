@@ -6,7 +6,7 @@ import           Control.Monad.State.Lazy as State
 import           qualified RetCPS as CPS
 import           RetCPS
 import qualified Core
-import           TroupePositionInfo (Located(..), PosInf(..), ErrorPosInf(..), GetPosInfo(..), getLoc, noLoc, atLoc)
+import           TroupePositionInfo (Located(..), PosInf(..), GetPosInfo(..), getLoc, noLoc, atLoc)
 
 type S = State Integer
 
@@ -78,14 +78,15 @@ transExplicit (Loc pos (Core.Var (Core.LibVar lib v))) = do
   x <- freshV
   return $ Loc pos $ LetSimple x (Loc pos (Lib lib v)) (Loc pos (KontReturn x))
 
-transExplicit (Loc _ (Core.Lit lit)) = do
+transExplicit (Loc pos (Core.Lit lit)) = do
   x <- freshV
-  let pos = posInfo lit
+  -- Use position from Located wrapper, not from literal (which may be NoPos for non-numeric literals)
   return $ Loc pos $ LetSimple x (Loc pos (ValSimpleTerm (CPS.Lit lit))) (Loc pos (KontReturn x))
 
 transExplicit (Loc pos (Core.Error lterm)) = do
   -- trans now passes LVarName; extract VarName for Error
-  trans lterm (\(Loc _ v) -> return $ Loc pos (Error v (ErrorPos pos)))
+  -- Position is now in the Located wrapper, not ErrorPosInf
+  trans lterm (\(Loc _ v) -> return $ Loc pos (Error v))
 
 transExplicit (Loc pos (Core.App le1 le2)) = do
   -- trans now passes LVarName; extract VarName for ApplyFun
@@ -137,9 +138,10 @@ transExplicit (Loc pos (Core.If le0 le1 le2))  = do
 transExplicit (Loc pos (Core.AssertElseError le0 le1 le2)) = do
   e1' <- transExplicit le1
   -- trans now passes LVarName; extract VarName for AssertElseError
+  -- Position is now in the Located wrapper, not ErrorPosInf
   trans le0 (\(Loc _ v0) ->
     trans le2 (\(Loc _ v2) ->
-      return $ Loc pos $ AssertElseError v0 e1' v2 (ErrorPos pos)))
+      return $ Loc pos $ AssertElseError v0 e1' v2))
 
 
 transExplicit (Loc pos (Core.Tuple lts))  =
@@ -216,9 +218,9 @@ trans (Loc pos (Core.Var (Core.LibVar lib v))) context = do
   return $ Loc pos $ LetSimple x (Loc pos (Lib lib v)) kterm'
 
 
-trans (Loc _ (Core.Lit lit)) context =
+trans (Loc pos (Core.Lit lit)) context =
   do x <- freshV
-     let pos = posInfo lit
+     -- Use position from Located wrapper, not from literal (which may be NoPos for non-numeric literals)
      kterm' <- context (Loc pos x)
      return $ Loc pos $ LetSimple x (Loc pos (ValSimpleTerm (CPS.Lit lit))) kterm'
 
@@ -226,7 +228,8 @@ trans (Loc pos (Core.Error le)) context = do
   x  <- freshV
   kterm <- context (Loc pos x)
   -- Extract VarName from LVarName for Error
-  trans le (\(Loc _ z) -> return $ Loc pos $ LetRet (Cont x kterm) (Loc pos (Error z (ErrorPos pos))))
+  -- Position is now in the Located wrapper, not ErrorPosInf
+  trans le (\(Loc _ z) -> return $ Loc pos $ LetRet (Cont x kterm) (Loc pos (Error z)))
 
 trans (Loc pos (Core.App le1 le2)) context = do
   x  <- freshV
@@ -286,9 +289,10 @@ trans (Loc pos (Core.AssertElseError le0 le1 le2)) context = do
   kterm <- context (Loc pos x)
   e1' <- transExplicit le1
   -- Extract VarName from LVarName for AssertElseError
+  -- Position is now in the Located wrapper, not ErrorPosInf
   trans le0 (\(Loc _ z) ->
     trans le2 (\(Loc _ z2) ->
-      return $ Loc pos $ LetRet (Cont x kterm) (Loc pos (AssertElseError z e1' z2 (ErrorPos pos)))))
+      return $ Loc pos $ LetRet (Cont x kterm) (Loc pos (AssertElseError z e1' z2))))
 
 
 

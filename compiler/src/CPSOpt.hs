@@ -36,7 +36,7 @@ import qualified Data.Maybe
 
 import qualified Data.Set as Set
 import RetFreeVars as FreeVars
-import TroupePositionInfo (Located(..), getLoc, unLoc, noLoc, atLoc, PosInf(..), ErrorPosInf(..), GetPosInfo(..))
+import TroupePositionInfo (Located(..), getLoc, unLoc, noLoc, atLoc, PosInf(..), GetPosInfo(..))
 
 -- 2025-06-23: AA+cc
 -- Helper function to get the last occurrence of a key in an association list.
@@ -130,8 +130,8 @@ instance Substitutable KTerm where
       KontReturn v -> KontReturn (vfwd v)
       ApplyFun fn argn -> ApplyFun (vfwd fn) (vfwd argn)
       If v lk1 lk2 -> If (vfwd v) (apply subst lk1) (apply subst lk2)
-      AssertElseError v lk1 z errPos -> AssertElseError (vfwd v) (apply subst lk1) (vfwd z) errPos
-      Error x errPos -> Error (vfwd x) errPos
+      AssertElseError v lk1 z -> AssertElseError (vfwd v) (apply subst lk1) (vfwd z)
+      Error x -> Error (vfwd x)
    where vfwd x = Map.findWithDefault x x varmap
 
 instance Substitutable LKTerm where
@@ -203,8 +203,8 @@ instance CensusCollectible KTerm where
     KontReturn x -> updateCensus x
     ApplyFun v u -> updateCensus [v,u]
     If v lk1 lk2 -> updateCensus v >> updateCensus [lk1,lk2]
-    AssertElseError v lk u _errPos -> updateCensus [v,u] >> updateCensus lk
-    Error v _errPos -> updateCensus v
+    AssertElseError v lk u -> updateCensus [v,u] >> updateCensus lk
+    Error v -> updateCensus v
     Halt v -> updateCensus v
 
 instance CensusCollectible LKTerm where
@@ -550,15 +550,15 @@ simplKTerm k = do
             lk1' <- withResetRetState $ simplLKTerm lk1
             lk2' <- withResetRetState $ simplLKTerm lk2
             return $ If x lk1' lk2'
-      AssertElseError x lkt y errPos -> do
+      AssertElseError x lkt y -> do
         v <- look x
         case v of
           St (ValSimpleTerm (Lit (C.LBool b)))->
-            simplLKTerm (if b then lkt else noLoc (Error y errPos)) >>= return . unLoc
+            simplLKTerm (if b then lkt else noLoc (Error y)) >>= return . unLoc
           _ -> do
               lk' <- simplLKTerm lkt
-              return $ AssertElseError x lk' y errPos
-      Error _ _errPos -> return k
+              return $ AssertElseError x lk' y
+      Error _ -> return k
       Halt _ -> return k
 
 instance Simplifiable KTerm where
@@ -577,9 +577,9 @@ hasUniqueReturn (Loc _ k) =
     LetFun _ lk'             -> hasUniqueReturn lk'
     ApplyFun _ _            -> False
     If _ _ _                -> False
-    AssertElseError _ lk' _ _  -> hasUniqueReturn lk'
+    AssertElseError _ lk' _  -> hasUniqueReturn lk'
     Halt _                  -> True
-    Error _ _                 -> True
+    Error _                 -> True
     LetRet (Cont _ lk') _    -> hasUniqueReturn lk'
 
 isApplied :: VarName -> LKTerm -> Bool
@@ -592,9 +592,9 @@ isApplied f (Loc _ k) =
             [ isApplied f lk'' | Loc _ (Fun _ kl) <- lfdefs, let lk'' = lkTermOfLambda kl]
     ApplyFun g _ -> g == f
     If _ lk1 lk2 -> isApplied f lk1 || isApplied f lk2
-    AssertElseError  _ lk' _ _ -> isApplied f lk'
+    AssertElseError  _ lk' _ -> isApplied f lk'
     Halt _ -> False
-    Error _ _ -> False
+    Error _ -> False
     LetRet (Cont _ lk') lk'' -> isApplied f lk' || isApplied f lk''
    where lkTermOfLambda (Unary _ _ lk') = lk'
          lkTermOfLambda (Nullary lk') = lk'
