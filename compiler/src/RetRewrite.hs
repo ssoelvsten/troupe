@@ -48,9 +48,9 @@ idSubst = Subst (Map.empty)
 instance Substitutable KLambda where
   apply subst@(Subst (varmap)) kl =
     case kl of
-      Unary vn vnPos lkt ->
+      Unary lv@(Loc vnPos vn) lkt ->
         let subst' = Subst (Map.delete vn varmap)
-        in  Unary vn vnPos (apply subst' lkt)
+        in  Unary lv (apply subst' lkt)
       Nullary lkt ->
         let subst' = Subst (varmap)
         in Nullary (apply subst' lkt)
@@ -239,8 +239,8 @@ instance (KWalkable LKTerm LKTerm) where
 
 
 instance (KWalkable KLambda LKTerm) where
-  walk pred f (Unary vn vnPos lkt) =
-    Unary vn vnPos (walk pred f lkt)
+  walk pred f (Unary lv lkt) =
+    Unary lv (walk pred f lkt)
   walk pred f (Nullary lkt) =
     Nullary (walk pred f lkt)
 
@@ -327,12 +327,12 @@ deadContPred _ = False
 -- β-Fun (-Lin)
 --------------------------------------------------
 
-betaFunPred (Loc _ (LetFun [Loc _ (Fun fn (Unary vn _ lkt'))] lkt)) = True
-betaFunPred (Loc _ (LetSimple fn (Loc _ (ValSimpleTerm (KAbs (Unary vn _ lkt')))) lkt)) = True
+betaFunPred (Loc _ (LetFun [Loc _ (Fun fn (Unary _ lkt'))] lkt)) = True
+betaFunPred (Loc _ (LetSimple fn (Loc _ (ValSimpleTerm (KAbs (Unary _ lkt')))) lkt)) = True
 betaFunPred _ = False
 
 betaFun :: LKTerm -> LKTerm
-betaFun lkt@(Loc p (LetFun [lfd@(Loc funPos (Fun fn klam@(Unary xn xnPos lktBody)))] lkt')) =
+betaFun lkt@(Loc p (LetFun [lfd@(Loc funPos (Fun fn klam@(Unary (Loc _ xn) lktBody)))] lkt')) =
   let klam' = walk betaFunPred betaFun klam
       noChange = Loc p $ LetFun [Loc funPos (Fun fn klam')] (walk betaFunPred betaFun lkt')
   in
@@ -349,7 +349,7 @@ betaFun lkt@(Loc p (LetFun [lfd@(Loc funPos (Fun fn klam@(Unary xn xnPos lktBody
        _ -> noChange
 
 
-betaFun lkt@(Loc p2 (LetSimple fn (Loc p1 (ValSimpleTerm (KAbs klam@(Unary xn xnPos lktBody)))) lkt')) =
+betaFun lkt@(Loc p2 (LetSimple fn (Loc p1 (ValSimpleTerm (KAbs klam@(Unary (Loc _ xn) lktBody)))) lkt')) =
   let klam' = walk betaFunPred betaFun klam
       noChange = Loc p2 $ LetSimple fn (Loc p1 (ValSimpleTerm (KAbs klam'))) (walk betaFunPred betaFun lkt')
   in

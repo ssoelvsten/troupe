@@ -60,9 +60,9 @@ idSubst = Subst (Map.empty)
 instance Substitutable KLambda where
   apply subst@(Subst varmap) kl =
     case kl of
-      Unary vn vnPos lkt ->
+      Unary lv@(Loc _ vn) lkt ->
         let subst' = Subst (Map.delete vn varmap)
-        in  Unary vn vnPos (apply subst' lkt)
+        in  Unary lv (apply subst' lkt)
       Nullary lkt ->
         let subst' = Subst (varmap)
         in Nullary (apply subst' lkt)
@@ -178,7 +178,7 @@ instance CensusCollectible LSimpleTerm where
 
 instance CensusCollectible KLambda where
   updateCensus kl = case kl of
-      Unary _ _ lkt -> updateCensus lkt
+      Unary _ lkt -> updateCensus lkt
       Nullary lkt -> updateCensus lkt
 
 instance CensusCollectible SVal where 
@@ -266,7 +266,7 @@ instance Simplifiable ContDef where
   simpl (Cont v lkt) = simplLKTerm lkt >>= return . Cont v
 
 instance Simplifiable KLambda where
-  simpl (Unary v vPos lk) = simplLKTerm lk >>= return . Unary v vPos
+  simpl (Unary lv lk) = simplLKTerm lk >>= return . Unary lv
   simpl (Nullary lk) = simplLKTerm lk >>= return . Nullary
 
 look :: VarName -> Opt Term
@@ -493,7 +493,7 @@ simplKTerm k = do
             x_uses <- censusInfo x
             case (x_uses, st) of
               (0, _) | failFree st  -> simplLKTerm lkt >>= return . unLoc
-              (1, ValSimpleTerm (KAbs klambda@(Unary _ _ _ )))
+              (1, ValSimpleTerm (KAbs klambda@(Unary _ _)))
                 | isApplied x lkt ->  do
                       bindenv x (St st)
                       simplLKTerm lkt >>= return . unLoc  -- remove the let-declaration
@@ -532,7 +532,7 @@ simplKTerm k = do
         case x_uses of
           1 -> do v <- look x
                   case v of
-                    (St (ValSimpleTerm (KAbs (Unary arg _ lbody)))) -> do
+                    (St (ValSimpleTerm (KAbs (Unary (Loc _ arg) lbody)))) -> do
                       simplLKTerm (apply (Subst (Map.singleton arg y)) lbody) >>= return . unLoc
                     _ -> return k
           _ -> return k
@@ -596,7 +596,7 @@ isApplied f (Loc _ k) =
     Halt _ -> False
     Error _ -> False
     LetRet (Cont _ lk') lk'' -> isApplied f lk' || isApplied f lk''
-   where lkTermOfLambda (Unary _ _ lk') = lk'
+   where lkTermOfLambda (Unary _ lk') = lk'
          lkTermOfLambda (Nullary lk') = lk'
     
 

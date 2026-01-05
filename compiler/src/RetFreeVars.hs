@@ -37,8 +37,8 @@ restrictFree x vs =
 
 
 instance FreeNames KLambda where
-  freeVars (Unary vn _ lkt) = restrictFree lkt [vn]
-  freeVars (Nullary  lkt) = restrictFree lkt []
+  freeVars (Unary (Loc _ vn) lkt) = restrictFree lkt [vn]
+  freeVars (Nullary lkt) = restrictFree lkt []
 
 instance FreeNames LKTerm where
   freeVars (Loc _ kt) = freeVars kt

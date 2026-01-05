@@ -57,8 +57,8 @@ unLPat (Loc p pat) = (pat, p)
 transLambda_aux :: S.Lambda -> ReaderT T.LTerm Trans Lambda
 transLambda_aux (S.Lambda pats body) = do
   let args = map (("$arg" ++) . show) [1..(length pats)]
-      -- Pair arg names with positions from the original patterns (extracted from Located)
-      argsWithPos = zipWith (\a lp -> (a, getLoc lp)) args pats
+      -- Create Located variable names using positions from the original patterns
+      argsWithPos = zipWith (\a lp -> Loc (getLoc lp) a) args pats
       argPat = zip (map (\a -> Loc NoPos (Var a)) args) pats
   body' <- lift (transLTerm body)
   result <- foldM compilePattern body' (reverse argPat)
@@ -252,9 +252,9 @@ transDecl (S.FunDecs fundecs) succ = do
       let lams' = map (transLambda_aux . (\(S.Lambda args e) -> S.Lambda [Loc _srcRT (S.TuplePattern args)] e)) lams
           names = map (((f ++ "_pat") ++) . show) [1..(length lams)]
           args =  map (((f ++ "_arg") ++) . show) [1..(argLength lams)]
-          -- Pair arg names with positions from original patterns
+          -- Create Located variable names with positions from original patterns
           extractedPositions = argPositions lams
-          argsWithPos = zipWith (\a p -> (a, p)) args (extractedPositions ++ repeat _srcRT)
+          argsWithPos = zipWith (\a p -> Loc p a) args (extractedPositions ++ repeat _srcRT)
           args' =  Loc pos (Tuple (map (\a -> Loc pos (Var a)) args))
           errorMsg = Loc pos (Error (Loc pos (Lit (LString $ "pattern match failure in function " ++ f))))
       (fst, decls) <- foldr (\(n, l) acc -> do

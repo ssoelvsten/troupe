@@ -45,6 +45,8 @@ type LFunDef = Located FunDef
 type LIRExpr = Located IRExpr
 -- | Located VarAccess - carries source position for variable references
 type LVarAccess = Located VarAccess
+-- | Located VarName - carries source position for variable bindings
+type LVarName = Located VarName
 
 -- | Describes a variable containing a labelled value.
 data VarAccess
@@ -124,7 +126,7 @@ data IRInst
   -- | A closure instruction consists of
   -- - A list of variables that need to be in the environment
   -- - A list of closures with their name and the corresponding compiler-generated name of the function
-  | MkFunClosures [(VarName, VarAccess)] [(VarName, HFN)]
+  | MkFunClosures [(VarName, LVarAccess)] [(VarName, HFN)]
  deriving (Eq, Show, Generic)
 
 
@@ -134,11 +136,10 @@ type Consts = [(VarName, C.Lit)]
 
 -- | Function definition
 -- The function definition position is on the Located wrapper (LFunDef).
--- Argument position is kept inline.
+-- Argument position is now on the LVarName wrapper.
 data FunDef = FunDef
                     HFN         -- name of the function
-                    VarName     -- name of the argument
-                    PosInf      -- source position of the argument
+                    LVarName    -- argument (name + position)
                     Consts      -- constants used in the function
                     IRBBTree    -- body
                 deriving (Eq,Generic)
@@ -183,7 +184,7 @@ instance ComputesDependencies IRTerminator where
     dependencies _              = return ()
 
 instance ComputesDependencies FunDef where
-  dependencies (FunDef _ _ _ _ bb) = dependencies bb
+  dependencies (FunDef _ _ _ bb) = dependencies bb
 
 
 ppDepsAsJSON :: ComputesDependencies a => a -> (PP.Doc , PP.Doc, PP.Doc)
@@ -405,7 +406,7 @@ wfLFun :: LFunDef -> Except String ()
 wfLFun (Loc _ fdef) = wfFun fdef
 
 wfFun :: FunDef -> Except String ()
-wfFun (FunDef (HFN fn) (VN arg) _ consts bb) =
+wfFun (FunDef (HFN fn) (Loc _ (VN arg)) consts bb) =
     let initVars =[ fn,arg] ++ [i  | VN i <-  fst (unzip consts)]
         act = do
             mapM checkId initVars
@@ -414,7 +415,7 @@ wfFun (FunDef (HFN fn) (VN arg) _ consts bb) =
 
     case evalState (runExceptT act) [] of
       Right _ -> return ()
-      Left s -> throwError s 
+      Left s -> throwError s
 
 
 {--
@@ -447,7 +448,7 @@ ppLFunDef :: LFunDef -> PP PP.Doc
 ppLFunDef = ppLocated ppFunDef
 
 ppFunDef :: FunDef -> PP PP.Doc
-ppFunDef (FunDef hfn arg _ consts insts) = do
+ppFunDef (FunDef hfn (Loc _ arg) consts insts) = do
   bbDoc <- ppBB insts
   pure $ vcat [ text "func" <+> ppFunCall (ppId hfn) [ppId arg] <+> text "{"
               , nest 2 (ppConsts consts)

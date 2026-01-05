@@ -1,6 +1,7 @@
 module DirectWOPats ( Lambda (..)
               , Term (..)
               , LTerm
+              , LVarName
               , Decl (..)
               , FunDecl (..)
               , Numeric(..)
@@ -24,6 +25,8 @@ import PrettyPrint (PP, PPConfig, runPP, runPPDefault, ppLocated, ShowDebug(..))
 -- | Located type aliases - all terms are wrapped in Located
 type LTerm = Located Term
 type LFields = [(FieldName, LTerm)]
+-- | Located variable name - carries source position for variable bindings
+type LVarName = Located VarName
 
 data Decl
     = ValDecl VarName LTerm
@@ -50,8 +53,8 @@ data Lit
     | LAtom AtomName
   deriving (Eq, Show)
 
--- | Lambda - uses Located wrapper for body, keeps arg positions inline
-data Lambda = Lambda [(VarName, PosInf)] LTerm
+-- | Lambda - uses Located wrapper for body and for argument names
+data Lambda = Lambda [LVarName] LTerm
   deriving (Eq)
 
 -- | Term - no embedded positions, all position info is in Located wrapper
@@ -238,7 +241,7 @@ qqLambda (Lambda args lbody) = do
   bodyDoc <- ppLTerm 0 lbody
   let ppArgs' =
         if null args then text "()"
-                     else hsep $ map (text . fst) args
+                     else hsep $ map (text . unLoc) args
   pure (ppArgs', bodyDoc)
 
 ppDecl :: Decl -> PP PP.Doc
@@ -249,7 +252,7 @@ ppDecl (FunDecs fs) = ppFuns =<< mapM ppFunDecl fs
   where
     ppFunDecl (FunDecl fname (Lambda args lbody) _) = do
       bodyDoc <- ppLTerm 0 lbody
-      let ppArgs = if args == [] then text "()" else hsep (map (text . fst) args)
+      let ppArgs = if null args then text "()" else hsep (map (text . unLoc) args)
       pure (text fname <+> ppArgs <+> text "=", bodyDoc)
     ppFuns (doc:docs) =
       let pp' prefix (docHead, docBody) = text prefix <+> docHead $$ nest 2 docBody

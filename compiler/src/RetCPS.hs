@@ -65,7 +65,7 @@ type LKTerm = Located KTerm
 type LSimpleTerm = Located SimpleTerm
 type LVarName = Located VarName
 
-data KLambda = Unary VarName PosInf LKTerm   -- Keep argument position, body is Located
+data KLambda = Unary LVarName LKTerm
              | Nullary LKTerm
   deriving (Eq, Ord, Show)
 
@@ -227,7 +227,7 @@ qqLFields fields = do
 
 
 ppKLambda :: KLambda -> PP PP.Doc
-ppKLambda (Unary pat _ kt) = do
+ppKLambda (Unary (Loc _ pat) kt) = do
   ktDoc <- ppKTerm 0 kt
   pure $ text "fn" <+> textv pat <+> text "=>" <+> ktDoc
 ppKLambda (Nullary kt) = do
@@ -283,7 +283,7 @@ ppKTerm' (LetFun lfdefs kt) = do
     nest 3 ktDoc $$
     text "end"
   where
-    ppFunDecl (Loc _ (Fun fname (Unary pat _ body))) = do
+    ppFunDecl (Loc _ (Fun fname (Unary (Loc _ pat) body))) = do
        bodyDoc <- ppKTerm 0 body
        pure (textv fname <+> textv pat <+> text "=", bodyDoc)
     ppFunDecl (Loc _ (Fun fname (Nullary body))) = do

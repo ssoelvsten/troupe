@@ -54,8 +54,10 @@ import           DCLabels (DCLabelExp, ppDCLabelExpLit, dcLabelEq, v1LabelEq, v1
 type LTerm = Located Term
 type LDecl = Located Decl
 type LFields = [(FieldName, LTerm)]
+-- | Located variable name - carries source position for variable bindings
+type LVarName = Located VarName
 
-data Lambda = Unary VarName PosInf LTerm  -- Keep PosInf for argument position
+data Lambda = Unary LVarName LTerm
             | Nullary LTerm
   deriving (Eq)
 
@@ -230,8 +232,8 @@ transAtoms (D.Atoms atms) = Atoms atms
 lowerLam :: D.Lambda -> Lambda
 lowerLam (D.Lambda vs lt) =
   case vs of
-    [] -> Unary "$unit" NoPos (lower lt)
-    (x, xpos):xs -> Unary x xpos (foldr (\(x', xpos') b -> Loc (getLoc lt) (Abs (Unary x' xpos' b))) (lower lt) xs)
+    [] -> Unary (Loc NoPos "$unit") (lower lt)
+    lx:xs -> Unary lx (foldr (\lx' b -> Loc (getLoc lt) (Abs (Unary lx' b))) (lower lt) xs)
 
 -- | Lower a literal. Position info is now on the Located wrapper, not in the literal.
 -- For LNumeric in Core, we keep NoPos since the position is on the wrapper.
@@ -503,10 +505,10 @@ renameTerm _ (Un op e) m = do
   return $ Un op e'
 
 renameLambda :: Core.Lambda -> Env -> S Core.Lambda
-renameLambda (Unary v vpos t) m = do
+renameLambda (Unary lv@(Loc vpos v) t) m = do
   v' <- unique v
   t' <- rename t $ extend v v' m
-  return $ Unary v' vpos t'
+  return $ Unary (Loc vpos v') t'
 renameLambda (Nullary t) m = do
   t' <- rename t m
   return $ Nullary t'
@@ -682,7 +684,7 @@ qqLFields fs = do
               pure $ PP.hcat [PP.text name, PP.text "=", d]
 
 qqLambda :: Lambda -> PP (PP.Doc, PP.Doc)
-qqLambda (Unary arg _ lbody) = do
+qqLambda (Unary (Loc _ arg) lbody) = do
   bodyDoc <- ppLTerm 0 lbody
   pure (text arg, bodyDoc)
 qqLambda (Nullary lbody) = do

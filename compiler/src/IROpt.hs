@@ -443,19 +443,19 @@ insPeval linst@(Loc pos i) =
                 RMov y ->
                     return $ RSubst $ Subst (Map.singleton x y)
         MkFunClosures envs hfns -> do
-            mapM (\(_, x) -> markUsed' x) envs
+            mapM_ (\(_, lx) -> markUsedL' lx) envs
             return $ RIns linst
 
 
 {--
-instance PEval IRInst where 
-    peval (Assign x e) = do 
-        RExpr (v', e') <- irExprPeval e 
-        envInsert x v' 
-        return (Assign x e')        
+instance PEval IRInst where
+    peval (Assign x e) = do
+        RExpr (v', e') <- irExprPeval e
+        envInsert x v'
+        return (Assign x e')
 
-    peval i@(MkFunClosures envs hfns) = do 
-        mapM (\(_, x) -> markUsed' x) envs 
+    peval i@(MkFunClosures envs hfns) = do
+        mapM_ (\(_, lx) -> markUsedL' lx) envs
         return i
 --}
 
@@ -557,11 +557,11 @@ instance PEval IRBBTree where
 
 -- | Optimize a Located FunDef
 funopt :: LFunDef -> LFunDef
-funopt (Loc funDefPos (FunDef hfn argname argPos consts bb)) =
+funopt (Loc funDefPos (FunDef hfn largname@(Loc _ argname) consts bb)) =
     let initEnv = (Map.singleton argname Unknown, False)
         (bb', (_, _hasChanges), _) = runRWS (peval bb) () initEnv
 
-        new = Loc funDefPos (FunDef hfn argname argPos consts bb')
+        new = Loc funDefPos (FunDef hfn largname consts bb')
     in if (bb /= bb')  then funopt new
                        else new
 

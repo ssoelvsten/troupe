@@ -23,10 +23,10 @@ transFunDecs decls = do
   mapM transFunDecl decls
 
 transFunDecl :: Core.FunDecl -> S (Located CPS.FunDef)
-transFunDecl (Core.FunDecl fname (Core.Unary pat patPos le) pos) = do
+transFunDecl (Core.FunDecl fname (Core.Unary (Loc patPos pat) le) pos) = do
 --  k <- freshK
   e' <- transExplicit le
-  return $ Loc pos $ CPS.Fun (VN fname) (CPS.Unary (VN pat) patPos e')
+  return $ Loc pos $ CPS.Fun (VN fname) (CPS.Unary (Loc patPos (VN pat)) e')
 transFunDecl (Core.FunDecl fname (Core.Nullary le) pos) = do
 --  k <- freshK
   e' <- transExplicit le
@@ -107,10 +107,10 @@ transExplicit (Loc pos (Core.Un op le)) = do
   trans le (\lv ->
       return $ Loc pos $ LetSimple x (Loc pos (CPS.Un op lv)) (Loc pos (KontReturn x)))
 
-transExplicit (Loc pos (Core.Abs (Core.Unary x xPos le))) = do
+transExplicit (Loc pos (Core.Abs (Core.Unary (Loc xPos x) le))) = do
   f <- freshV
   e' <- transExplicit le
-  return $ Loc pos $ LetSimple f (Loc pos (ValSimpleTerm (KAbs (Unary (VN x) xPos e')))) (Loc pos (KontReturn f))
+  return $ Loc pos $ LetSimple f (Loc pos (ValSimpleTerm (KAbs (Unary (Loc xPos (VN x)) e')))) (Loc pos (KontReturn f))
 
 transExplicit (Loc pos (Core.Abs (Core.Nullary le))) = do
   f <- freshV
@@ -191,9 +191,9 @@ transExplicit (Loc pos (Core.ListCons lh lt)) = do
   trans lh (\lvh -> trans lt (\lvt -> return $ Loc pos $ LetSimple v (Loc pos (ListCons lvh lvt)) (Loc pos (KontReturn v))))
 
 transFunDef :: Core.Lambda -> S CPS.KLambda
-transFunDef (Core.Unary x xPos le) = do
+transFunDef (Core.Unary (Loc xPos x) le) = do
   e' <- transExplicit le
-  return (CPS.Unary (VN x) xPos e')
+  return (CPS.Unary (Loc xPos (VN x)) e')
 transFunDef (Core.Nullary le) = do
   e' <- transExplicit le
   return (CPS.Nullary e')
@@ -253,11 +253,11 @@ trans (Loc pos (Core.Un op le)) context = do
   -- Use LVarName directly in Un
   trans le (\lv -> return $ Loc pos $ LetSimple x (Loc pos (CPS.Un op lv)) kterm)
 
-trans (Loc pos (Core.Abs (Core.Unary x xPos le))) context = do
+trans (Loc pos (Core.Abs (Core.Unary (Loc xPos x) le))) context = do
   f <- freshV
   kterm <- context (Loc pos f)
   e' <- transExplicit le
-  return $ Loc pos $ LetSimple f (Loc pos (ValSimpleTerm (KAbs (Unary (VN x) xPos e')))) kterm
+  return $ Loc pos $ LetSimple f (Loc pos (ValSimpleTerm (KAbs (Unary (Loc xPos (VN x)) e')))) kterm
 
 trans (Loc pos (Core.Abs (Core.Nullary le))) context = do
   f <- freshV

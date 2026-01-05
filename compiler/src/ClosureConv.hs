@@ -123,7 +123,7 @@ isDeclaredEarlierThan lev (_, l)  = l < lev
 
 -- Translate function declaration to LFunDef (Located FunDef)
 -- The function definition position goes on the Located wrapper
-transFunDec f@(VN fname) (CPS.Unary var varPos lkt) pos = do
+transFunDec f@(VN fname) (CPS.Unary (Loc varPos var) lkt) pos = do
   lev <- askLev
   let filt = isDeclaredEarlierThan lev
   (bb, (_, frees, consts_wo_levs)) <-
@@ -133,7 +133,7 @@ transFunDec f@(VN fname) (CPS.Unary var varPos lkt) pos = do
            $ cpsToIR lkt
   let consts = (fst.unzip) consts_wo_levs
   -- Wrap FunDef with Located, using pos for function definition position
-  tell ([Loc pos (FunDef (HFN fname) var varPos consts bb)], [], [])
+  tell ([Loc pos (FunDef (HFN fname) (Loc varPos var) consts bb)], [], [])
   return (nub frees)
 
 transFunDec (VN _) (CPS.Nullary _) _ = error "not implemented"
@@ -147,11 +147,12 @@ incState = do
   return x
 
 
-mkEnvBindings fv = do
+mkEnvBindings :: PosInf -> Frees -> CC [(VarName, LVarAccess)]
+mkEnvBindings pos fv = do
   lev <- askLev
   let (freeVars', boundVars) = Data.List.partition (\(_, l) -> l <= lev - 1 ) fv
-  let envVars = (map (\(v,_) -> (v, VarLocal v)) boundVars)
-                      ++ (map (\(v,_) -> (v, VarEnv v)) freeVars')
+  let envVars = (map (\(v,_) -> (v, Loc pos (VarLocal v))) boundVars)
+                      ++ (map (\(v,_) -> (v, Loc pos (VarEnv v))) freeVars')
   return envVars
 
 ------------------------------------------------------------
@@ -211,7 +212,7 @@ cpsToIR (Loc pos (CPS.LetSimple vname@(VN ident) (Loc stPos st) lkt)) = do
                                               return Nothing
         CPS.ValSimpleTerm (CPS.KAbs klam) -> do
           freeVars <- transFunDec vname klam stPos
-          envBindings <- mkEnvBindings freeVars
+          envBindings <- mkEnvBindings stPos freeVars
           return $ Just $ Loc stPos $ CCIR.MkFunClosures envBindings [(vname, HFN ident)]
 
     t <- local (insVar vname) (cpsToIR lkt)
@@ -236,12 +237,12 @@ cpsToIR (Loc _pos (CPS.LetFun lfdefs lkt)) = do
     let freeVars = (nub.concat) frees
     lev <- askLev
     let vnames_orig' = map (\x -> (x, lev)) vnames_orig
-    envBindings <- mkEnvBindings (freeVars \\ vnames_orig')
-    let fnBindings = map (\x@(VN i) -> (x, HFN i)) vnames_orig
     -- Use the position of the first function definition for the closure instruction
     let funDeclPos = case lfdefs of
           (Loc p _ : _) -> p
           [] -> NoPos
+    envBindings <- mkEnvBindings funDeclPos (freeVars \\ vnames_orig')
+    let fnBindings = map (\x@(VN i) -> (x, HFN i)) vnames_orig
     return $ (Loc funDeclPos $ CCIR.MkFunClosures envBindings fnBindings) `consBB` t
 
 -- Special Halt continuation, for exiting program
@@ -327,7 +328,7 @@ closureConvert compileMode (CPS.Prog (C.Atoms atms) lkt) =
       consts = (fst.unzip) consts_wo_levs
       -- The main entry point is compiler-generated, so it has no source position
       -- Wrap FunDef with Located (NoPos since it's compiler-generated)
-      main = Loc NoPos $ FunDef (HFN toplevel) (VN argumentName) NoPos consts bb
+      main = Loc NoPos $ FunDef (HFN toplevel) (Loc NoPos (VN argumentName)) consts bb
 
       irProg = CCIR.IRProgram (C.Atoms atms) $ fdefs++[main]
     in do CCIR.wfIRProg irProg

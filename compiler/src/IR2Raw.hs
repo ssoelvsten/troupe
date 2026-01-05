@@ -721,9 +721,7 @@ inst2raw (Loc pos inst) = case inst of
   IR.MkFunClosures vs env -> do
     -- The generation of closures and the related monitoring is first implemented in stack generation,
     -- to be able to use cyclic pointers for constructing the environments.
-    -- Wrap VarAccess with position (using instruction position) to create LVarAccess for Raw
-    let vs' = map (\(vn, va) -> (vn, Loc pos va)) vs
-    tell [Loc pos (MkFunClosures vs' env)]
+    tell [Loc pos (MkFunClosures vs env)]
 
 
 -- | Translate a Located IR terminator to a Located Raw terminator, generating instructions.
@@ -840,7 +838,7 @@ tree2raw (IR.BB irInsts irTr) = do
 -- Revision 2023-08: new code, but equivalent
 -- Now produces LFunDef (Located FunDef) with position on wrapper.
 fun2raw :: IR.LFunDef -> LFunDef
-fun2raw lirfdef@(Loc funDefPos irfdef@(IR.FunDef hfn vname argPos consts (IR.BB irInsts irTr))) =
+fun2raw lirfdef@(Loc funDefPos irfdef@(IR.FunDef hfn (Loc argPos vname) consts (IR.BB irInsts irTr))) =
    Loc funDefPos (FunDef hfn rawConsts (BB insts tr) irfdef)
       where ((tr, rawConsts), insts) = evalRWS comp NoPos 0
             comp = do
