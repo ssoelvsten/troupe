@@ -1,5 +1,20 @@
 # Position Information Refactoring Plan
 
+## Status: IN PROGRESS (~60% complete)
+
+**Last updated:** 2026-01-05
+
+| Phase | Description | Status |
+|-------|-------------|--------|
+| Phase 1a-c | DirectWOPats with `LTerm`, remove embedded positions | ✅ COMPLETED |
+| Phase 2 | Remove `ErrorPosInf` from RetCPS, RetDFCPS, CPSOpt, RetRewrite | ✅ COMPLETED |
+| Phase 3 | Remove `ErrorPosInf` from IR, ClosureConv, IROpt, IR2Raw | ❌ NOT STARTED |
+| Phase 4 | Remove `ErrorPosInf` from TroupePositionInfo.hs | ❌ NOT STARTED |
+
+**Remaining work:** Complete Phases 3 and 4 to fully remove `ErrorPosInf` from the codebase.
+
+---
+
 This document consolidates the analysis of position tracking through the Troupe compiler pipeline and provides a plan for refactoring to fix position information inconsistencies.
 
 ## Problem Statement
@@ -274,7 +289,7 @@ IR.Error verr -> tr2rawError (noLocVA verr) pos  -- pos from Loc pos (...)
 ## Testing Strategy
 
 1. **Compilation test** - All existing tests should compile
-2. **Golden tests** - All existing golden tests should pass
+2. **Golden tests** - Many existing golden tests should pass. Some tests will fail because source map tracking is in development, but do not change any golden files as part of this refactoring.
 3. **Position tracking test** - Verify literal positions work:
    ```troupe
    let x = 1 + ()  -- Should report position for ()
