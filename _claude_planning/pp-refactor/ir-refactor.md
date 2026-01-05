@@ -292,3 +292,6 @@ This is a type-level refactoring. Changes are:
 - Testable through existing golden test suite
 
 The existing `SourcePosAnnotation` workaround demonstrates that the infrastructure supports position tracking; this refactoring makes it more principled and consistent.
+
+## Testing with golden
+You may run into issues with golden files mismatch at this point. This is expected for some tests. Do not modify golden files as part of this refactoring.
