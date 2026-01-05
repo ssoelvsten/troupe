@@ -11,7 +11,7 @@ import qualified Direct as S
 import Direct (RecordPatternMode(..))
 import DirectWOPats as T
 import CompileMode
-import TroupePositionInfo (Located(..), getLoc, PosInf(..), ErrorPosInf(..), GetPosInfo(..))
+import TroupePositionInfo (Located(..), getLoc, unLoc, PosInf(..), GetPosInfo(..))
 
 import Control.Monad.Reader
 import Control.Monad.Except
@@ -38,7 +38,7 @@ transAtoms :: S.Atoms -> Trans T.Atoms
 transAtoms (S.Atoms atms) = return (T.Atoms atms)
 
 transLit :: S.Lit -> T.Lit
-transLit (S.LNumeric n pi) = T.LNumeric (transNumeric n) pi
+transLit (S.LNumeric n _pi) = T.LNumeric (transNumeric n)
   where
     transNumeric (S.NumInt i) = NumInt i
     transNumeric (S.NumFloat f) = NumFloat f
@@ -54,23 +54,23 @@ transLit (S.LAtom a)   = T.LAtom a
 unLPat :: S.LDeclPattern -> (S.DeclPattern, PosInf)
 unLPat (Loc p pat) = (pat, p)
 
-transLambda_aux :: S.Lambda -> ReaderT T.Term Trans Lambda
+transLambda_aux :: S.Lambda -> ReaderT T.LTerm Trans Lambda
 transLambda_aux (S.Lambda pats body) = do
   let args = map (("$arg" ++) . show) [1..(length pats)]
       -- Pair arg names with positions from the original patterns (extracted from Located)
       argsWithPos = zipWith (\a lp -> (a, getLoc lp)) args pats
-      argPat = zip (map (\a -> Var a NoPos) args) pats
+      argPat = zip (map (\a -> Loc NoPos (Var a)) args) pats
   body' <- lift (transLTerm body)
   result <- foldM compilePattern body' (reverse argPat)
   return (Lambda argsWithPos result)
 
-transLambdaWithError :: S.Lambda -> T.Term -> Trans Lambda
+transLambdaWithError :: S.Lambda -> T.LTerm -> Trans Lambda
 transLambdaWithError lam errorTerm =
   runReaderT (transLambda_aux lam) errorTerm
 
 transLambda :: S.Lambda -> Trans Lambda
 transLambda lam =
-  transLambdaWithError lam (Error (Lit (LString "pattern match failed")) (ErrorPos NoPos))
+  transLambdaWithError lam (Loc NoPos (Error (Loc NoPos (Lit (LString "pattern match failed")))))
 
 
 {-- 2019-01-31 desugaring handlers; AA
@@ -81,8 +81,8 @@ transLambda lam =
 
 Given `hn pat1 | pat2 when e1 => e2`, we desugar it to
 
-fn (input) => 
-  case input of 
+fn (input) =>
+  case input of
       (pat1, pat2) => if e1 then (0, fn _ => e2)
                             else (1, ())
       _ => HNPATFAIL (1, ())
@@ -90,9 +90,9 @@ fn (input) =>
 .
 Here, HNPATSUCC and HNPATFAIL are two runtime functions. The semantics
 is that before the handler is called, the runtime sets the thread
-flag to the "HANDLER MODE" that will prevent side effects (including 
+flag to the "HANDLER MODE" that will prevent side effects (including
 picking messages from the mailbox and sending messages to other threads).
-Calling PATSUCC will bring the thread back to normal mode. 
+Calling PATSUCC will bring the thread back to normal mode.
 
 
 --}
@@ -120,70 +120,79 @@ transHandler (S.Handler pat1 mbpat2 guard body) = do
                             (lp S.Wildcard, callFailure)])
       lambda = S.Lambda lambdaPats lamBody
   transLambda lambda
-  
+
 
 -- 2018-09-28: AA: a bit of a hack: making sure that the last pattern is
 -- compiled into an assertion instead of an ifthenelse
-ifpat pos t1 t2 t3 =
-  case t3 of
-    Error t3' errPos -> AssertElseError t1 t2 t3' errPos  -- errPos is already ErrorPosInf
-    _ -> If t1 t2 t3 pos
-  
-  
+-- Now uses Located wrapper position for error position
+ifpat :: PosInf -> T.LTerm -> T.LTerm -> T.LTerm -> T.LTerm
+ifpat pos lt1 lt2 lt3 =
+  case unLoc lt3 of
+    Error lt3' -> Loc pos (AssertElseError lt1 lt2 lt3')
+    _ -> Loc pos (If lt1 lt2 lt3)
+
+
 -- 2023-06-21: FW: an alternative would be to add a pseudo pattern at the end of each pattern list,
 -- which includes the error message and always compiles to an error term.
 -- | Compile pattern matching to conditionals and assertions.
 -- succ: term corresponding to a successful match
--- v: the term to be assigned to the pattern
+-- lv: the Located term to be assigned to the pattern
 -- lpat: the Located pattern (we unwrap to get both pattern and position)
--- The Reader monad stores the error term.
-compilePattern :: T.Term -> (T.Term, S.LDeclPattern) -> ReaderT T.Term Trans T.Term
-compilePattern succ (v, Loc _ (S.AtPattern lp l))  = do
+-- The Reader monad stores the error term (now also Located).
+compilePattern :: T.LTerm -> (T.LTerm, S.LDeclPattern) -> ReaderT T.LTerm Trans T.LTerm
+compilePattern succ (lv, Loc _ (S.AtPattern lp l))  = do
   fail <- ask
-  let pos = posInfo v
-  succ' <- compilePattern succ (v, lp)
-  return $ ifpat pos (Bin Eq (Un LevelOf v pos) (Lit (LLabel l)) pos) succ' fail
-compilePattern succ (v, Loc _ (S.VarPattern var)) = return $ Let [T.ValDecl var v] succ (posInfo v)
-compilePattern succ (v, Loc _ (S.ValPattern lit)) = do
+  let pos = getLoc lv
+  succ' <- compilePattern succ (lv, lp)
+  return $ ifpat pos (Loc pos (Bin Eq (Loc pos (Un LevelOf lv)) (Loc pos (Lit (LLabel l))))) succ' fail
+compilePattern succ (lv, Loc _ (S.VarPattern var)) =
+  let pos = getLoc lv
+  in return $ Loc pos (Let [T.ValDecl var lv] succ)
+compilePattern succ (lv, Loc _ (S.ValPattern lit)) = do
   fail <- ask
-  let pos = posInfo v
-  return $ ifpat pos (Bin Eq v (Lit (transLit lit)) pos) succ fail
-compilePattern succ (v, Loc _ S.Wildcard) = return $ Let [T.ValDecl "$wildcard" v] succ (posInfo v)
-compilePattern succ (v, Loc _ (S.TuplePattern pats)) = do
+  let pos = getLoc lv
+      litPos = case lit of
+        S.LNumeric _ p -> p
+        _ -> _srcRT
+  return $ ifpat pos (Loc pos (Bin Eq lv (Loc litPos (Lit (transLit lit))))) succ fail
+compilePattern succ (lv, Loc _ S.Wildcard) =
+  let pos = getLoc lv
+  in return $ Loc pos (Let [T.ValDecl "$wildcard" lv] succ)
+compilePattern succ (lv, Loc _ (S.TuplePattern pats)) = do
   fail <- ask
-  let pos = posInfo v
+  let pos = getLoc lv
   -- Accessors for the value to be assigned to the patterns.
-  let accessors = map (\idx -> ProjIdx v idx pos) [0..(fromIntegral (length pats) - 1)]
+  let accessors = map (\idx -> Loc pos (ProjIdx lv idx)) [0..(fromIntegral (length pats) - 1)]
   -- Compile the nested patterns, combining the resulting terms for the respective patterns so that the left-most is evaluated first.
   succ' <- foldM compilePattern succ (reverse (zip accessors pats))
   -- The expression for the tuple pattern checks whether the to-be-assigned value is a tuple with the correct length,
   -- and then executes the expression succ' which checks the nested patterns.
-  return $ ifpat pos (Bin And (Un IsTuple v pos) (Bin Eq (Un TupleLength v pos) (Lit (LNumeric (NumInt (toInteger (length pats))) _srcRT)) pos) pos) succ' fail
+  return $ ifpat pos (Loc pos (Bin And (Loc pos (Un IsTuple lv)) (Loc pos (Bin Eq (Loc pos (Un TupleLength lv)) (Loc _srcRT (Lit (LNumeric (NumInt (toInteger (length pats)))))))))) succ' fail
 -- TODO Generate more efficient code:
 -- Decompose the list v according to the pattern with a DFS pass.
 -- This would benefit from an "is empty" operation (to not having to use the RT-dispatched equals).
 -- A potentially expensive length calculation is then unnecessary.
 -- However, this is more complicated, as would need unique name generation, also for potentially nested list patterns.
-compilePattern succ (v, Loc _ (S.ListPattern pats)) = do
+compilePattern succ (lv, Loc _ (S.ListPattern pats)) = do
   fail <- ask
-  let pos = posInfo v
+  let pos = getLoc lv
   -- Accessors for the value to be assigned to the patterns.
-  let accessors = map (\t -> Un Head t pos) $ iterate (\t -> Un Tail t pos) v
+  let accessors = map (\lt -> Loc pos (Un Head lt)) $ iterate (\lt -> Loc pos (Un Tail lt)) lv
   -- Compile the nested patterns, combining the resulting terms for the respective patterns so that the left-most is evaluated first.
   succ' <- foldM compilePattern succ (reverse (zip accessors pats)) -- pairs of pattern (the nested ones in the list) and term accessing the value at the corresponding index in the list term
   -- The expression for the list pattern checks whether the to-be-assigned value is a list with the correct length,
   -- and then executes the expression succ' which checks the nested patterns.
-  return $ ifpat pos (Bin And (Un IsList v pos) (Bin Eq (Un ListLength v pos) (Lit (LNumeric (NumInt (toInteger (length pats))) _srcRT)) pos) pos) succ' fail
-compilePattern succ (v, Loc _ (S.ConsPattern lp1 lp2)) = do
+  return $ ifpat pos (Loc pos (Bin And (Loc pos (Un IsList lv)) (Loc pos (Bin Eq (Loc pos (Un ListLength lv)) (Loc _srcRT (Lit (LNumeric (NumInt (toInteger (length pats)))))))))) succ' fail
+compilePattern succ (lv, Loc _ (S.ConsPattern lp1 lp2)) = do
   fail <- ask
-  let pos = posInfo v
-  succ' <- compilePattern succ (Un Head v pos, lp1)
-  succ'' <- compilePattern succ' (Un Tail v pos, lp2)
+  let pos = getLoc lv
+  succ' <- compilePattern succ (Loc pos (Un Head lv), lp1)
+  succ'' <- compilePattern succ' (Loc pos (Un Tail lv), lp2)
   -- TODO Avoid list length (potentially expensive). Implement similarly to the improved list pattern (see above).
-  return $ ifpat pos (Bin And (Un IsList v pos) (Bin Gt (Un ListLength v pos) (Lit (LNumeric (NumInt 0) _srcRT)) pos) pos) succ'' fail
-compilePattern succ (v, Loc _ (S.RecordPattern fieldPatterns mode)) = do
+  return $ ifpat pos (Loc pos (Bin And (Loc pos (Un IsList lv)) (Loc pos (Bin Gt (Loc pos (Un ListLength lv)) (Loc _srcRT (Lit (LNumeric (NumInt 0)))))))) succ'' fail
+compilePattern succ (lv, Loc _ (S.RecordPattern fieldPatterns mode)) = do
   fail <- ask
-  let pos = posInfo v
+  let pos = getLoc lv
   -- Check for duplicate field names
   let fieldNames = map fst fieldPatterns
   let duplicates = fieldNames \\ nub fieldNames
@@ -194,44 +203,44 @@ compilePattern succ (v, Loc _ (S.RecordPattern fieldPatterns mode)) = do
       case mode of
         WildcardMatch ->
           -- Current behavior - just check it's a record and has the specified fields
-          return $ ifpat pos (Un IsRecord v pos) succ' fail
+          return $ ifpat pos (Loc pos (Un IsRecord lv)) succ' fail
         ExactMatch ->
           -- Check that the record has exactly the specified number of fields
           let expectedSize = length fieldPatterns
-              sizeCheck = Bin Eq (Un RecordSize v pos) (Lit (LNumeric (NumInt (fromIntegral expectedSize)) _srcRT)) pos
-              recordCheck = Bin And (Un IsRecord v pos) sizeCheck pos
+              sizeCheck = Loc pos (Bin Eq (Loc pos (Un RecordSize lv)) (Loc _srcRT (Lit (LNumeric (NumInt (fromIntegral expectedSize))))))
+              recordCheck = Loc pos (Bin And (Loc pos (Un IsRecord lv)) sizeCheck)
           in return $ ifpat pos recordCheck succ' fail
     where ifHasField f k = do
               succ' <- k
               fail <- ask
-              let f' = Lit (LString f)
-                  pos = posInfo v
-              return $ ifpat pos (Bin HasField v f' pos) succ' fail
+              let f' = Loc _srcRT (Lit (LString f))
+                  pos = getLoc lv
+              return $ ifpat pos (Loc pos (Bin HasField lv f')) succ' fail
 
           compileField succ (f, Just lp) = do
-              let pos = posInfo v
-              ifHasField f $ compilePattern succ (T.ProjField v f pos, lp)
+              let pos = getLoc lv
+              ifHasField f $ compilePattern succ (Loc pos (T.ProjField lv f), lp)
 
           compileField succ (f, Nothing) = do
-              let pos = posInfo v
-              ifHasField f $ compilePattern succ (T.ProjField v f pos, Loc _srcRT (S.VarPattern f))
-  
+              let pos = getLoc lv
+              ifHasField f $ compilePattern succ (Loc pos (T.ProjField lv f), Loc _srcRT (S.VarPattern f))
+
 
 
 -- | Tranform a declaration, compiling patterns into terms.
 -- When there are multiple patterns like in functions or a case expression,
 -- they are folded into a nested term, with an error expression innermost (after the last check).
 -- The error expression is therefore passed as state of a Reader monad.
-transDecl :: S.Decl -> Term -> Trans Term
+transDecl :: S.Decl -> LTerm -> Trans LTerm
 transDecl (S.ValDecl lpat lt) succ = do
   let temp = "$decltemp$"
       patPos = getLoc lpat
   t' <- transLTerm lt
-  result <- runReaderT (compilePattern succ ((Var temp patPos), lpat)) (Error (Lit (LString "pattern match failure in let declaration")) (ErrorPos patPos))
-  return $ Let [ValDecl temp t'] result patPos
+  result <- runReaderT (compilePattern succ ((Loc patPos (Var temp)), lpat)) (Loc patPos (Error (Loc patPos (Lit (LString "pattern match failure in let declaration")))))
+  return $ Loc patPos (Let [ValDecl temp t'] result)
 transDecl (S.FunDecs fundecs) succ = do
   fundecs' <- mapM transLFunDecl fundecs
-  return (Let [FunDecs fundecs'] succ _srcRT)
+  return (Loc _srcRT (Let [FunDecs fundecs'] succ))
   where
     argLength ((S.Lambda args _):_) = length args
     argLength [] = 0
@@ -246,34 +255,39 @@ transDecl (S.FunDecs fundecs) succ = do
           -- Pair arg names with positions from original patterns
           extractedPositions = argPositions lams
           argsWithPos = zipWith (\a p -> (a, p)) args (extractedPositions ++ repeat _srcRT)
-          args' =  Tuple (map (\a -> Var a pos) args) pos
-          errorMsg = Error (Lit (LString $ "pattern match failure in function " ++ f)) (ErrorPos pos)
+          args' =  Loc pos (Tuple (map (\a -> Loc pos (Var a)) args))
+          errorMsg = Loc pos (Error (Loc pos (Lit (LString $ "pattern match failure in function " ++ f))))
       (fst, decls) <- foldr (\(n, l) acc -> do
             (fail, decls) <- acc
             lam <- runReaderT l fail
-            return ( (App (Var n pos) [args'] pos)
-                   , (ValDecl n (Abs lam pos)) : decls)
+            return ( (Loc pos (App (Loc pos (Var n)) [args']))
+                   , (ValDecl n (Loc pos (Abs lam))) : decls)
           ) (return (errorMsg, [])) (zip names lams')
-      return (FunDecl f (Lambda argsWithPos (Let (reverse decls) fst pos)) pos)
+      return (FunDecl f (Lambda argsWithPos (Loc pos (Let (reverse decls) fst))) pos)
 
--- | Transform a Located Term by extracting position and embedding it in old-style Term
-transLTerm :: S.LTerm -> Trans Term
+-- | Transform a Located Term by extracting position and embedding it in Located wrapper
+transLTerm :: S.LTerm -> Trans T.LTerm
 transLTerm (Loc pos term) = transTerm pos term
 
 -- | Transform a Term given its position (from the Located wrapper)
-transTerm :: PosInf -> S.Term -> Trans Term
-transTerm _ (S.Lit lit) = return (T.Lit (transLit lit))
-transTerm pos (S.Var v) = return (T.Var v pos)
+-- Now produces Located terms
+transTerm :: PosInf -> S.Term -> Trans T.LTerm
+transTerm pos (S.Lit lit) =
+  let litPos = case lit of
+        S.LNumeric _ p -> p
+        _ -> pos
+  in return $ Loc litPos (T.Lit (transLit lit))
+transTerm pos (S.Var v) = return $ Loc pos (T.Var v)
 transTerm pos (S.Abs l) = do
   l' <- transLambda l
-  return (T.Abs l' pos)
+  return $ Loc pos (T.Abs l')
 transTerm pos (S.Hnd h) = do
   h' <- transHandler h
-  return (T.Abs h' pos)
+  return $ Loc pos (T.Abs h')
 transTerm pos (S.App lt1 largs) = do
   t1' <- transLTerm lt1
   args' <- mapM transLTerm largs
-  return (T.App t1' args' pos)
+  return $ Loc pos (T.App t1' args')
 transTerm _ (S.Let decls lt) = do
   t' <- transLTerm lt
   foldr (\decl acc -> do
@@ -287,46 +301,46 @@ transTerm pos (S.Case lt cases) = do
                     return (lpat, succ')
                   ) cases
   let e = foldr (\(lpat, succ') fail ->
-            case runExcept (runReaderT (compilePattern succ' (Var "casevar" pos, lpat)) fail) of
+            case runExcept (runReaderT (compilePattern succ' (Loc pos (Var "casevar"), lpat)) fail) of
               Right result -> result
               Left err -> error err
-          ) (Error (Lit (LString "pattern match failure in case expression")) (ErrorPos pos)) cases'
-  return (Let [ValDecl "casevar" t'] e pos)
+          ) (Loc pos (Error (Loc pos (Lit (LString "pattern match failure in case expression"))))) cases'
+  return $ Loc pos (Let [ValDecl "casevar" t'] e)
 transTerm pos (S.If lt1 lt2 lt3) = do
   t1' <- transLTerm lt1
   t2' <- transLTerm lt2
   t3' <- transLTerm lt3
-  return (If t1' t2' t3' pos)
+  return $ Loc pos (If t1' t2' t3')
 transTerm pos (S.Tuple ltms) = do
   tms' <- mapM transLTerm ltms
-  return (T.Tuple tms' pos)
+  return $ Loc pos (T.Tuple tms')
 transTerm pos (S.Record fields) = do
   fields' <- transFields pos fields
-  return (T.Record fields' pos)
+  return $ Loc pos (T.Record fields')
 transTerm pos (S.WithRecord le fields) = do
   e' <- transLTerm le
   fields' <- transFields pos fields
-  return (T.WithRecord e' fields' pos)
+  return $ Loc pos (T.WithRecord e' fields')
 transTerm pos (S.ProjField lt f) = do
   t' <- transLTerm lt
-  return (T.ProjField t' f pos)
+  return $ Loc pos (T.ProjField t' f)
 transTerm pos (S.ProjIdx lt idx) = do
   t' <- transLTerm lt
-  return (T.ProjIdx t' idx pos)
+  return $ Loc pos (T.ProjIdx t' idx)
 transTerm pos (S.List ltms) = do
   tms' <- mapM transLTerm ltms
-  return (T.List tms' pos)
+  return $ Loc pos (T.List tms')
 transTerm pos (S.ListCons lt1 lt2) = do
   t1' <- transLTerm lt1
   t2' <- transLTerm lt2
-  return (T.ListCons t1' t2' pos)
+  return $ Loc pos (T.ListCons t1' t2')
 transTerm pos (S.Bin op lt1 lt2) = do
   t1' <- transLTerm lt1
   t2' <- transLTerm lt2
-  return (Bin op t1' t2' pos)
+  return $ Loc pos (Bin op t1' t2')
 transTerm pos (S.Un op lt) = do
   t' <- transLTerm lt
-  return (Un op t' pos)
+  return $ Loc pos (Un op t')
 transTerm _ (S.Seq lts) =
     case reverse lts of
         [lt] -> transLTerm lt
@@ -337,9 +351,9 @@ transTerm _ (S.Seq lts) =
 
 transTerm _ (S.Error _) = throwError "impossible case: error"
 
-transFields :: PosInf -> S.LFields -> Trans [(String, T.Term)]
+transFields :: PosInf -> S.LFields -> Trans T.LFields
 transFields pos = mapM $ \case
-  (f, Nothing) -> return (f, T.Var f pos)
+  (f, Nothing) -> return (f, Loc pos (T.Var f))
   (f, Just lt) -> do
     t' <- transLTerm lt
     return (f, t')

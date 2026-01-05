@@ -1,9 +1,11 @@
 module DirectWOPats ( Lambda (..)
               , Term (..)
+              , LTerm
               , Decl (..)
               , FunDecl (..)
               , Numeric(..)
               , Lit(..)
+              , LFields
               , AtomName
               , Atoms(..)
               , Prog(..)
@@ -16,13 +18,18 @@ import Text.PrettyPrint.HughesPJ (
     (<+>), ($$), text, hsep, vcat, nest)
 import ShowIndent
 import DCLabels
-import TroupePositionInfo (PosInf(..), ErrorPosInf(..), GetPosInfo(..))
+import TroupePositionInfo (Located(..), getLoc, unLoc, noLoc, PosInf(..), GetPosInfo(..))
+
+-- | Located type aliases - all terms are wrapped in Located
+type LTerm = Located Term
+type LFields = [(FieldName, LTerm)]
 
 data Decl
-    = ValDecl VarName Term
+    = ValDecl VarName LTerm
     | FunDecs [FunDecl]
   deriving (Eq)
 
+-- | Function declaration with name, lambda, and definition position
 data FunDecl = FunDecl VarName Lambda PosInf
   deriving (Eq)
 
@@ -30,8 +37,10 @@ data FunDecl = FunDecl VarName Lambda PosInf
 data Numeric = NumInt Integer | NumFloat Double
   deriving (Eq, Ord, Show)
 
+-- | Literals - note: position is NOT embedded in literals anymore,
+-- it comes from the Located wrapper
 data Lit
-    = LNumeric Numeric PosInf
+    = LNumeric Numeric
     | LString String
     | LLabel String
     | LDCLabel DCLabelExp
@@ -40,58 +49,39 @@ data Lit
     | LAtom AtomName
   deriving (Eq, Show)
 
-
-
-data Lambda = Lambda [(VarName, PosInf)] Term
+-- | Lambda - uses Located wrapper for body, keeps arg positions inline
+data Lambda = Lambda [(VarName, PosInf)] LTerm
   deriving (Eq)
 
-type Fields = [(FieldName, Term)]
-
+-- | Term - no embedded positions, all position info is in Located wrapper
 data Term
     = Lit Lit
-    | Var VarName PosInf
-    | Abs Lambda PosInf
-    | App Term [Term] PosInf
-    | Let [Decl] Term PosInf
-    | If Term Term Term PosInf
-    | AssertElseError Term Term Term ErrorPosInf
-    | Tuple [Term] PosInf
-    | Record Fields PosInf
-    | WithRecord Term Fields PosInf
-    | ProjField Term FieldName PosInf
-    | ProjIdx Term Word PosInf
-    | List [Term] PosInf
-    | ListCons Term Term PosInf
-    | Bin BinOp Term Term PosInf
-    | Un UnaryOp Term PosInf
-    | Error Term ErrorPosInf
+    | Var VarName
+    | Abs Lambda
+    | App LTerm [LTerm]
+    | Let [Decl] LTerm
+    | If LTerm LTerm LTerm
+    | AssertElseError LTerm LTerm LTerm    -- position from Located wrapper
+    | Tuple [LTerm]
+    | Record LFields
+    | WithRecord LTerm LFields
+    | ProjField LTerm FieldName
+    | ProjIdx LTerm Word
+    | List [LTerm]
+    | ListCons LTerm LTerm
+    | Bin BinOp LTerm LTerm
+    | Un UnaryOp LTerm
+    | Error LTerm                           -- position from Located wrapper
     deriving (Eq)
 
 data Atoms = Atoms [AtomName]
       deriving (Eq, Show)
 
-data Prog = Prog Imports Atoms Term
+data Prog = Prog Imports Atoms LTerm
   deriving (Eq, Show)
 
-instance GetPosInfo Term where
-  posInfo (Lit _) = NoPos
-  posInfo (Var _ p) = p
-  posInfo (Abs _ p) = p
-  posInfo (App _ _ p) = p
-  posInfo (Let _ _ p) = p
-  posInfo (If _ _ _ p) = p
-  posInfo (AssertElseError _ _ _ (ErrorPos p)) = p
-  posInfo (Tuple _ p) = p
-  posInfo (Record _ p) = p
-  posInfo (WithRecord _ _ p) = p
-  posInfo (ProjField _ _ p) = p
-  posInfo (ProjIdx _ _ p) = p
-  posInfo (List _ p) = p
-  posInfo (ListCons _ _ p) = p
-  posInfo (Bin _ _ _ p) = p
-  posInfo (Un _ _ p) = p
-  posInfo (Error _ (ErrorPos p)) = p
-
+-- Note: GetPosInfo for LTerm is provided by TroupePositionInfo's
+-- instance GetPosInfo (Located a) which extracts position from Loc wrapper
 
 
 
@@ -110,17 +100,19 @@ instance ShowIndent Prog where
 
 
 
-
 ppProg :: Prog -> PP.Doc
-ppProg (Prog (Imports imports) (Atoms atoms) term) =
+ppProg (Prog (Imports imports) (Atoms atoms) lterm) =
   let ppAtoms =
         if null atoms
           then PP.empty
           else (text "datatype Atoms = ") <+>
                (hsep $ PP.punctuate (text " |") (map text atoms))
       ppImports = if null imports then PP.empty else text "<<imports>>\n"
-  in ppImports $$ ppAtoms $$ ppTerm 0 term
+  in ppImports $$ ppAtoms $$ ppLTerm 0 lterm
 
+-- | Pretty print a Located Term
+ppLTerm :: Precedence -> LTerm -> PP.Doc
+ppLTerm parentPrec (Loc _ t) = ppTerm parentPrec t
 
 ppTerm :: Precedence -> Term -> PP.Doc
 ppTerm parentPrec t =
@@ -134,104 +126,105 @@ ppTerm parentPrec t =
 ppTerm' :: Term -> PP.Doc
 ppTerm' (Lit literal) = ppLit literal
 
-ppTerm' (Error t (ErrorPos _)) = text "error " PP.<> ppTerm' t
+ppTerm' (Error lt) = text "error " PP.<> ppLTerm 0 lt
 
-ppTerm'  (Tuple ts _) =
+ppTerm'  (Tuple lts) =
   PP.parens $
   PP.hcat $
-  PP.punctuate (text ",") (map (ppTerm 0) ts)
+  PP.punctuate (text ",") (map (ppLTerm 0) lts)
 
-ppTerm' (Record fs _) =
-    PP.braces $  qqFields fs
+ppTerm' (Record fs) =
+    PP.braces $ qqLFields fs
 
-ppTerm' (WithRecord e fs _) =
-    PP.braces $ PP.hsep [ ppTerm 0 e, text "with", qqFields fs ]
+ppTerm' (WithRecord le fs) =
+    PP.braces $ PP.hsep [ ppLTerm 0 le, text "with", qqLFields fs ]
 
-ppTerm' (ProjField t fn _) =
-  ppTerm projPrec t PP.<> text "." PP.<> PP.text fn
+ppTerm' (ProjField lt fn) =
+  ppLTerm projPrec lt PP.<> text "." PP.<> PP.text fn
 
-ppTerm' (ProjIdx t idx _) =
-  ppTerm projPrec t PP.<> text "." PP.<> PP.text (show idx)
+ppTerm' (ProjIdx lt idx) =
+  ppLTerm projPrec lt PP.<> text "." PP.<> PP.text (show idx)
 
 
-ppTerm'  (List ts _) =
+ppTerm'  (List lts) =
   PP.brackets $
   PP.hcat $
-  PP.punctuate (text ",") (map (ppTerm 0) ts)
+  PP.punctuate (text ",") (map (ppLTerm 0) lts)
 
 
 
-ppTerm' (ListCons hd tl _) =
-   ppTerm consPrec hd PP.<> text "::" PP.<> ppTerm consPrec tl
+ppTerm' (ListCons lhd ltl) =
+   ppLTerm consPrec lhd PP.<> text "::" PP.<> ppLTerm consPrec ltl
 
-ppTerm' (Var x _) = text x
-ppTerm' (Abs lam _) =
+ppTerm' (Var x) = text x
+ppTerm' (Abs lam) =
   let (ppArgs, ppBody) = qqLambda lam
   in text "fn" <+> ppArgs <+> text "=>" <+> ppBody
 
-ppTerm' (App t1 t2s _) =
-    ppTerm appPrec t1
-          <+> (hsep (map (ppTerm argPrec) t2s))
+ppTerm' (App lt1 lt2s) =
+    ppLTerm appPrec lt1
+          <+> (hsep (map (ppLTerm argPrec) lt2s))
 
-ppTerm' (Let decs body _) =
+ppTerm' (Let decs lbody) =
   text "let" <+>
   nest 3 (vcat (map ppDecl decs)) $$
   text "in" <+>
-  nest 3 (ppTerm 0 body) $$
+  nest 3 (ppLTerm 0 lbody) $$
   text "end"
 
 
-ppTerm' (If e0 e1 e2 _) =
+ppTerm' (If le0 le1 le2) =
   text "if" <+>
-  ppTerm 0 e0 $$
+  ppLTerm 0 le0 $$
   text "then" <+>
-  ppTerm 0 e1 $$
+  ppLTerm 0 le1 $$
   text "else" <+>
-  ppTerm 0 e2
+  ppLTerm 0 le2
 
-ppTerm' (AssertElseError e0 e1 e2 (ErrorPos _)) =
+ppTerm' (AssertElseError le0 le1 le2) =
   text "assert" <+>
-  ppTerm 0 e0 $$
+  ppLTerm 0 le0 $$
   text "then" <+>
-  ppTerm 0 e1 $$
+  ppLTerm 0 le1 $$
   text "elseError" <+>
-  ppTerm 0 e2
+  ppLTerm 0 le2
 
 
-ppTerm' (Bin op t1 t2 _) =
+ppTerm' (Bin op lt1 lt2) =
   let binOpPrec = opPrec op
   in
-     ppTerm binOpPrec t1 <+>
+     ppLTerm binOpPrec lt1 <+>
      text (show op) <+>
-     ppTerm binOpPrec t2
+     ppLTerm binOpPrec lt2
 
-ppTerm' (Un op t _) =
+ppTerm' (Un op lt) =
   let unOpPrec = op1Prec op
   in
      text (show op) <+>
-     ppTerm unOpPrec t
+     ppLTerm unOpPrec lt
 
 
-
-qqFields fs = PP.hcat $
+-- | Pretty print LFields
+qqLFields :: LFields -> PP.Doc
+qqLFields fs = PP.hcat $
     PP.punctuate (text ",") (map ppField fs)
-     where ppField (name, t)  = 
-              PP.hcat [PP.text name, PP.text "=", ppTerm 0 t ]
+     where ppField (name, lt)  =
+              PP.hcat [PP.text name, PP.text "=", ppLTerm 0 lt ]
 
 
 qqLambda :: Lambda -> (PP.Doc, PP.Doc)
-qqLambda (Lambda args body) =
+qqLambda (Lambda args lbody) =
   let ppArgs' =
         if null args then text "()"
                      else hsep $ map (text . fst) args
-  in ( ppArgs', ppTerm 0 body)
+  in ( ppArgs', ppLTerm 0 lbody)
 
-ppDecl (ValDecl x t) = text "val" <+> text x <+> text "=" <+> ppTerm 0 t
+ppDecl (ValDecl x lt) = text "val" <+> text x <+> text "=" <+> ppLTerm 0 lt
 ppDecl (FunDecs fs) = ppFuns (map ppFunDecl fs)
   where
-    ppFunDecl ( FunDecl fname (Lambda args body) _) =
+    ppFunDecl ( FunDecl fname (Lambda args lbody) _) =
       let ppArgs = if args == [] then text "()" else hsep ( map (text . fst) args)
-      in (text fname <+> ppArgs <+> text "=" , ppTerm 0 body)
+      in (text fname <+> ppArgs <+> text "=" , ppLTerm 0 lbody)
     ppFuns (doc:docs) =
       let pp' prefix (docHead,docBody) = text prefix  <+> docHead  $$ nest 2 docBody
           ppFirstFun = pp' "fun"
@@ -240,8 +233,8 @@ ppDecl (FunDecs fs) = ppFuns (map ppFunDecl fs)
     ppFuns _ = PP.empty
 
 ppLit :: Lit -> PP.Doc
-ppLit (LNumeric (NumInt i) _)  = PP.integer i
-ppLit (LNumeric (NumFloat f) _) = PP.double f
+ppLit (LNumeric (NumInt i))  = PP.integer i
+ppLit (LNumeric (NumFloat f)) = PP.double f
 ppLit (LString s)   = PP.doubleQuotes (text s)
 ppLit (LLabel s)    = PP.braces (text s)
 ppLit (LDCLabel dc) = ppDCLabelExpLit dc
@@ -255,10 +248,10 @@ ppLit (LAtom a) = text a
 
 termPrec :: Term -> Precedence
 termPrec (Lit _)           = maxPrec
-termPrec (Tuple _ _)       = maxPrec
-termPrec (List _ _)        = maxPrec
-termPrec (Var _ _)         = maxPrec
-termPrec (App _ _ _)       = appPrec
-termPrec (Bin op _ _ _)    = opPrec op
-termPrec (ListCons _ _ _)  = 200
+termPrec (Tuple _)         = maxPrec
+termPrec (List _)          = maxPrec
+termPrec (Var _)           = maxPrec
+termPrec (App _ _)         = appPrec
+termPrec (Bin op _ _)      = opPrec op
+termPrec (ListCons _ _)    = 200
 termPrec _                 = 0

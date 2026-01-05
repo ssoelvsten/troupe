@@ -43,7 +43,7 @@ import           Text.PrettyPrint.HughesPJ (
    (<+>), ($$), text, hsep, vcat, nest, nest)
 import           ShowIndent
 
-import           TroupePositionInfo (Located(..), getLoc, unLoc, noLoc, atLoc, PosInf(..), ErrorPosInf(..), GetPosInfo(..))
+import           TroupePositionInfo (Located(..), getLoc, unLoc, noLoc, atLoc, PosInf(..), GetPosInfo(..))
 import           DCLabels (DCLabelExp, ppDCLabelExpLit, dcLabelEq, v1LabelEq, v1LabelToDCLabelExp)
 
 --------------------------------------------------
@@ -216,7 +216,7 @@ The module also contains pretty printing for the Core representation.
 -- 1. Lowering
 --------------------------------------------------
 
-lowerProg (D.Prog imports atms term) = Prog imports (transAtoms atms) (lower term)
+lowerProg (D.Prog imports atms lterm) = Prog imports (transAtoms atms) (lower lterm)
 
 
 
@@ -227,13 +227,15 @@ transAtoms (D.Atoms atms) = Atoms atms
 
 -- | Lower a lambda, producing Located terms for nested abstractions
 lowerLam :: D.Lambda -> Lambda
-lowerLam (D.Lambda vs t) =
+lowerLam (D.Lambda vs lt) =
   case vs of
-    [] -> Unary "$unit" NoPos (lower t)
-    (x, xpos):xs -> Unary x xpos (foldr (\(x', xpos') b -> Loc (posInfo t) (Abs (Unary x' xpos' b))) (lower t) xs)
+    [] -> Unary "$unit" NoPos (lower lt)
+    (x, xpos):xs -> Unary x xpos (foldr (\(x', xpos') b -> Loc (getLoc lt) (Abs (Unary x' xpos' b))) (lower lt) xs)
 
+-- | Lower a literal. Position info is now on the Located wrapper, not in the literal.
+-- For LNumeric in Core, we keep NoPos since the position is on the wrapper.
 lowerLit :: D.Lit -> Lit
-lowerLit (D.LNumeric n pi) = LNumeric (lowerNumeric n) pi
+lowerLit (D.LNumeric n) = LNumeric (lowerNumeric n) NoPos
   where
     lowerNumeric (D.NumInt i) = NumInt i
     lowerNumeric (D.NumFloat f) = NumFloat f
@@ -244,15 +246,12 @@ lowerLit D.LUnit = LUnit
 lowerLit (D.LBool b) = LBool b
 lowerLit (D.LAtom n) = LAtom n
 
--- | Lower DirectWOPats.Term to Located Core.Term
-lower :: D.Term -> LTerm
-lower (D.Lit l) = Loc (litPos l) (Lit (lowerLit l))
-  where
-    -- Extract position from DirectWOPats literal (only LNumeric has position)
-    litPos (D.LNumeric _ pi) = pi
-    litPos _ = NoPos
-lower (D.Error t (ErrorPos p)) = Loc p (Error (lower t))
-lower (D.Var v pi) = Loc pi (Var (RegVar v))
+-- | Lower DirectWOPats.LTerm (Located Term) to Core.LTerm
+-- Position is now extracted from the Located wrapper
+lower :: D.LTerm -> LTerm
+lower (Loc pos (D.Lit l)) = Loc pos (Lit (lowerLit l))
+lower (Loc pos (D.Error lt)) = Loc pos (Error (lower lt))
+lower (Loc pos (D.Var v)) = Loc pos (Var (RegVar v))
   -- 2018-07-01: AA: note that we are mapping all vars to RegVar at
   -- this stage. This is a bit of a hack. A cleaner apporach is to
   -- have a separate intermediate representation. For now we save on
@@ -261,31 +260,31 @@ lower (D.Var v pi) = Loc pi (Var (RegVar v))
   -- names, which are lib names, and which are actually just regular
   -- variables.
 
-lower (D.Abs lam pi) = Loc pi (Abs (lowerLam lam))
+lower (Loc pos (D.Abs lam)) = Loc pos (Abs (lowerLam lam))
 
-lower (D.App e [] pi) = Loc pi (Core.App (lower e) (Loc NoPos (Lit LUnit))) -- does this form even exist?
-lower (D.App e es pi) = foldl (\acc t -> Loc pi (Core.App acc (lower t))) (lower e) es
-lower (D.Let decls e pi) =
-  foldr (\decl t -> Loc pi (Let (lowerDecl decl) t)) (lower e) decls
-  where lowerDecl (D.ValDecl vname e') = ValDecl vname (lower e')
+lower (Loc pos (D.App le [])) = Loc pos (Core.App (lower le) (Loc NoPos (Lit LUnit))) -- does this form even exist?
+lower (Loc pos (D.App le les)) = foldl (\acc lt -> Loc pos (Core.App acc (lower lt))) (lower le) les
+lower (Loc pos (D.Let decls le)) =
+  foldr (\decl t -> Loc pos (Let (lowerDecl decl) t)) (lower le) decls
+  where lowerDecl (D.ValDecl vname le') = ValDecl vname (lower le')
         lowerDecl (D.FunDecs decs) = FunDecs (map lowerFun decs)
-        lowerFun  (D.FunDecl v lam pos) = FunDecl v (lowerLam lam) pos
+        lowerFun  (D.FunDecl v lam funPos) = FunDecl v (lowerLam lam) funPos
 -- lower (D.Case t patTermLst) = Case (lower t) (map (\(p,t) -> (lowerDeclPat p, lower t)) patTermLst)
-lower (D.If e1 e2 e3 pi) = Loc pi (If (lower e1) (lower e2) (lower e3))
-lower (D.AssertElseError e1 e2 e3 (ErrorPos p)) = Loc p (AssertElseError (lower e1) (lower e2) (lower e3))
-lower (D.Tuple terms pi) = Loc pi (Tuple (map lower terms))
-lower (D.Record fields pi) = Loc pi (Record (map (\(f, t) -> (f, lower t)) fields))
-lower (D.WithRecord e fields pi) = Loc pi (WithRecord (lower e) (map (\(f, t) -> (f, lower t)) fields))
-lower (D.ProjField t f pi) = Loc pi (ProjField (lower t) f)
-lower (D.ProjIdx t idx pi) = Loc pi (ProjIdx (lower t) idx)
-lower (D.List terms pi) = Loc pi (List (map lower terms))
-lower (D.ListCons t1 t2 pi) = Loc pi (ListCons (lower t1) (lower t2))
+lower (Loc pos (D.If le1 le2 le3)) = Loc pos (If (lower le1) (lower le2) (lower le3))
+lower (Loc pos (D.AssertElseError le1 le2 le3)) = Loc pos (AssertElseError (lower le1) (lower le2) (lower le3))
+lower (Loc pos (D.Tuple lterms)) = Loc pos (Tuple (map lower lterms))
+lower (Loc pos (D.Record lfields)) = Loc pos (Record (map (\(f, lt) -> (f, lower lt)) lfields))
+lower (Loc pos (D.WithRecord le lfields)) = Loc pos (WithRecord (lower le) (map (\(f, lt) -> (f, lower lt)) lfields))
+lower (Loc pos (D.ProjField lt f)) = Loc pos (ProjField (lower lt) f)
+lower (Loc pos (D.ProjIdx lt idx)) = Loc pos (ProjIdx (lower lt) idx)
+lower (Loc pos (D.List lterms)) = Loc pos (List (map lower lterms))
+lower (Loc pos (D.ListCons lt1 lt2)) = Loc pos (ListCons (lower lt1) (lower lt2))
 
 -- special casing shortcutting semantics; 2018-03-06;
-lower (D.Bin And e1 e2 pi) = lower (D.If e1 e2 (D.Lit (D.LBool False)) pi)
-lower (D.Bin Or e1 e2 pi) = lower (D.If e1 (D.Lit (D.LBool True)) e2 pi)
-lower (D.Bin op e1 e2 pi) = Loc pi (Bin op (lower e1) (lower e2))
-lower (D.Un op e pi) = Loc pi (Un op (lower e))
+lower (Loc pos (D.Bin And le1 le2)) = lower (Loc pos (D.If le1 le2 (Loc NoPos (D.Lit (D.LBool False)))))
+lower (Loc pos (D.Bin Or le1 le2)) = lower (Loc pos (D.If le1 (Loc NoPos (D.Lit (D.LBool True))) le2))
+lower (Loc pos (D.Bin op le1 le2)) = Loc pos (Bin op (lower le1) (lower le2))
+lower (Loc pos (D.Un op le)) = Loc pos (Un op (lower le))
 
 
 --------------------------------------------------

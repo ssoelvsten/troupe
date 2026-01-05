@@ -95,10 +95,8 @@ function translateWithCallSites(callSites: CallSite[], sourceMap: EncodedSourceM
         // This is a frame from user code (generated JS) - translate it
         const line = site.getLineNumber();
         const col = site.getColumnNumber();
-        console.log("DEBUG found user frame:", fileName, "line:", line, "col:", col);
         if (line !== null && col !== null) {
             const pos = lookupPosition(sourceMap, line, col);
-            console.log("DEBUG lookupPosition result:", pos);
             if (pos) {
                 // Source maps use 0-based columns; convert to 1-based for display
                 return cleanSourcePath(`${pos.source}:${pos.line}:${pos.column + 1}`);
@@ -179,9 +177,6 @@ export abstract class StopThreadError extends ThreadError {
             // Error occurred in user code; translate using structured call sites
             sourceLocation = translateWithCallSites(this.callSites, this.thread.currentSourceMap);
         }
-        // DEBUG
-        console.log("DEBUG callSites:", this.callSites.slice(0,10).map(s => `${s.getFileName()}:${s.getLineNumber()}:${s.getColumnNumber()}`));
-        console.log("DEBUG sourceMap file:", (this.thread.currentSourceMap as any)?.file);
 
         if (sourceLocation) {
             console.log (chalk.red ( ">> at " + sourceLocation));
