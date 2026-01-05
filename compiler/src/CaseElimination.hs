@@ -11,7 +11,7 @@ import qualified Direct as S
 import Direct (RecordPatternMode(..))
 import DirectWOPats as T
 import CompileMode
-import TroupePositionInfo (Located(..), getLoc, PosInf(..), GetPosInfo(..))
+import TroupePositionInfo (Located(..), getLoc, PosInf(..), ErrorPosInf(..), GetPosInfo(..))
 
 import Control.Monad.Reader
 import Control.Monad.Except
@@ -70,7 +70,7 @@ transLambdaWithError lam errorTerm =
 
 transLambda :: S.Lambda -> Trans Lambda
 transLambda lam =
-  transLambdaWithError lam (Error (Lit (LString "pattern match failed")) NoPos)
+  transLambdaWithError lam (Error (Lit (LString "pattern match failed")) (ErrorPos NoPos))
 
 
 {-- 2019-01-31 desugaring handlers; AA
@@ -126,7 +126,7 @@ transHandler (S.Handler pat1 mbpat2 guard body) = do
 -- compiled into an assertion instead of an ifthenelse
 ifpat pos t1 t2 t3 =
   case t3 of
-    Error t3' errPos -> AssertElseError t1 t2 t3' errPos
+    Error t3' errPos -> AssertElseError t1 t2 t3' errPos  -- errPos is already ErrorPosInf
     _ -> If t1 t2 t3 pos
   
   
@@ -227,7 +227,7 @@ transDecl (S.ValDecl lpat lt) succ = do
   let temp = "$decltemp$"
       patPos = getLoc lpat
   t' <- transLTerm lt
-  result <- runReaderT (compilePattern succ ((Var temp patPos), lpat)) (Error (Lit (LString "pattern match failure in let declaration")) patPos)
+  result <- runReaderT (compilePattern succ ((Var temp patPos), lpat)) (Error (Lit (LString "pattern match failure in let declaration")) (ErrorPos patPos))
   return $ Let [ValDecl temp t'] result patPos
 transDecl (S.FunDecs fundecs) succ = do
   fundecs' <- mapM transLFunDecl fundecs
@@ -247,7 +247,7 @@ transDecl (S.FunDecs fundecs) succ = do
           extractedPositions = argPositions lams
           argsWithPos = zipWith (\a p -> (a, p)) args (extractedPositions ++ repeat _srcRT)
           args' =  Tuple (map (\a -> Var a pos) args) pos
-          errorMsg = Error (Lit (LString $ "pattern match failure in function " ++ f)) pos
+          errorMsg = Error (Lit (LString $ "pattern match failure in function " ++ f)) (ErrorPos pos)
       (fst, decls) <- foldr (\(n, l) acc -> do
             (fail, decls) <- acc
             lam <- runReaderT l fail
@@ -290,7 +290,7 @@ transTerm pos (S.Case lt cases) = do
             case runExcept (runReaderT (compilePattern succ' (Var "casevar" pos, lpat)) fail) of
               Right result -> result
               Left err -> error err
-          ) (Error (Lit (LString "pattern match failure in case expression")) pos) cases'
+          ) (Error (Lit (LString "pattern match failure in case expression")) (ErrorPos pos)) cases'
   return (Let [ValDecl "casevar" t'] e pos)
 transTerm pos (S.If lt1 lt2 lt3) = do
   t1' <- transLTerm lt1

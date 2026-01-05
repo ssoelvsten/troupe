@@ -36,7 +36,7 @@ import qualified Data.Maybe
 
 import qualified Data.Set as Set
 import RetFreeVars as FreeVars
-import TroupePositionInfo (Located(..), getLoc, unLoc, noLoc, atLoc, PosInf(..), GetPosInfo(..))
+import TroupePositionInfo (Located(..), getLoc, unLoc, noLoc, atLoc, PosInf(..), ErrorPosInf(..), GetPosInfo(..))
 
 -- 2025-06-23: AA+cc
 -- Helper function to get the last occurrence of a key in an association list.
@@ -130,8 +130,8 @@ instance Substitutable KTerm where
       KontReturn v -> KontReturn (vfwd v)
       ApplyFun fn argn -> ApplyFun (vfwd fn) (vfwd argn)
       If v lk1 lk2 -> If (vfwd v) (apply subst lk1) (apply subst lk2)
-      AssertElseError v lk1 z p -> AssertElseError (vfwd v) (apply subst lk1) (vfwd z) p
-      Error x p -> Error (vfwd x) p
+      AssertElseError v lk1 z errPos -> AssertElseError (vfwd v) (apply subst lk1) (vfwd z) errPos
+      Error x errPos -> Error (vfwd x) errPos
    where vfwd x = Map.findWithDefault x x varmap
 
 instance Substitutable LKTerm where
@@ -203,8 +203,8 @@ instance CensusCollectible KTerm where
     KontReturn x -> updateCensus x
     ApplyFun v u -> updateCensus [v,u]
     If v lk1 lk2 -> updateCensus v >> updateCensus [lk1,lk2]
-    AssertElseError v lk u _ -> updateCensus [v,u] >> updateCensus lk
-    Error v _ -> updateCensus v
+    AssertElseError v lk u _errPos -> updateCensus [v,u] >> updateCensus lk
+    Error v _errPos -> updateCensus v
     Halt v -> updateCensus v
 
 instance CensusCollectible LKTerm where
@@ -550,15 +550,15 @@ simplKTerm k = do
             lk1' <- withResetRetState $ simplLKTerm lk1
             lk2' <- withResetRetState $ simplLKTerm lk2
             return $ If x lk1' lk2'
-      AssertElseError x lkt y p -> do
+      AssertElseError x lkt y errPos -> do
         v <- look x
         case v of
           St (ValSimpleTerm (Lit (C.LBool b)))->
-            simplLKTerm (if b then lkt else noLoc (Error y p)) >>= return . unLoc
+            simplLKTerm (if b then lkt else noLoc (Error y errPos)) >>= return . unLoc
           _ -> do
               lk' <- simplLKTerm lkt
-              return $ AssertElseError x lk' y p
-      Error _ _ -> return k
+              return $ AssertElseError x lk' y errPos
+      Error _ _errPos -> return k
       Halt _ -> return k
 
 instance Simplifiable KTerm where

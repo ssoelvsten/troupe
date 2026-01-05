@@ -24,7 +24,7 @@ import           Control.Monad.Except
 import IR as CCIR
 
 import Control.Monad.Identity
-import TroupePositionInfo (Located(..), getLoc, unLoc, PosInf(..), GetPosInfo(..))
+import TroupePositionInfo (Located(..), getLoc, unLoc, PosInf(..), ErrorPosInf(..), GetPosInfo(..))
 
 data VarLevel = VarNested Integer
                 deriving (Eq, Ord, Show)
@@ -272,17 +272,17 @@ cpsToIR (Loc pos (CPS.If v lkt1 lkt2)) = do
   bb2 <- cpsToIR lkt2
   return $ CCIR.BB [] $ Loc pos $ CCIR.If v' bb1 bb2
 
--- AssertElseError and Error keep embedded PosInf for error source location
+-- AssertElseError and Error keep embedded ErrorPosInf for error source location
 cpsToIR (Loc pos (CPS.AssertElseError v lkt1 z errPos)) = do
   v' <- transVar v
   z' <- transVar z
   bb <- cpsToIR lkt1
-  -- Note: pos is the expression position (on wrapper), errPos is error source location (embedded)
+  -- Note: pos is the expression position (on wrapper), errPos (ErrorPosInf) is error source location (embedded)
   return $ CCIR.BB [] $ Loc pos $ CCIR.AssertElseError v' bb z' errPos
 
 cpsToIR (Loc pos (CPS.Error v errPos)) = do
   v' <- transVar v
-  -- Note: pos is the expression position (on wrapper), errPos is error source location (embedded)
+  -- Note: pos is the expression position (on wrapper), errPos (ErrorPosInf) is error source location (embedded)
   return $ CCIR.BB [] $ Loc pos $ CCIR.Error v' errPos
   
 

@@ -88,7 +88,7 @@ freeOfLet d vs lkt =
    (freeVars d) `unionFreeVars` (restrictFree lkt vs)
 
 instance FreeNames KTerm where
-  freeVars (Error v _) = FreeVars (Set.singleton v)
+  freeVars (Error v _errPos) = FreeVars (Set.singleton v)
 
   freeVars (LetSimple vn lst lkt) = freeOfLet lst [vn] lkt
 
@@ -107,7 +107,7 @@ instance FreeNames KTerm where
   freeVars (If vn lk1 lk2) =
      unionMany [freeVars lk1, freeVars lk2, FreeVars (Set.singleton vn)]
 
-  freeVars (AssertElseError vn lk ve _) =
+  freeVars (AssertElseError vn lk ve _errPos) =
      unionMany [freeVars lk, FreeVars $ Set.fromList [vn, ve] ]
 
   freeVars (Halt x) = FreeVars (Set.singleton x)

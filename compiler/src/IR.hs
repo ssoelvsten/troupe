@@ -31,7 +31,7 @@ import           GHC.Generics              (Generic)
 
 import           Text.PrettyPrint.HughesPJ (hsep, nest, text, vcat, ($$), (<+>))
 import qualified Text.PrettyPrint.HughesPJ as PP
-import           TroupePositionInfo (Located(..), getLoc, unLoc, noLoc, atLoc, PosInf(..), GetPosInfo(..))
+import           TroupePositionInfo (Located(..), getLoc, unLoc, noLoc, atLoc, PosInf(..), ErrorPosInf(..), GetPosInfo(..))
 import           DCLabels
 
 ------------------------------------------------------------
@@ -93,7 +93,7 @@ data IRBBTree = BB [LIRInst] LIRTerminator deriving (Eq, Show, Generic)
 
 -- | IRTerminator represents control flow endings of a basic block.
 -- Positions are tracked via Located wrapper (LIRTerminator).
--- Exception: Error and AssertElseError keep embedded PosInf for error source location.
+-- Exception: Error and AssertElseError keep embedded ErrorPosInf for error source location.
 data IRTerminator
   -- | Call the function referred to by the first variable with the argument in the second variable.
   = TailCall VarAccess VarAccess
@@ -101,14 +101,14 @@ data IRTerminator
   | Ret VarAccess
   | If VarAccess IRBBTree IRBBTree
   -- | Check whether the value of the first variable is true. If yes, continue with the given tree.
-  -- If not, terminate the current thread with a runtime error, printing the message stored in the second variable (which is asserted to be a string) with the given PosInf.
-  -- The PosInf is the error source location (kept embedded).
-  | AssertElseError VarAccess IRBBTree VarAccess PosInf
+  -- If not, terminate the current thread with a runtime error, printing the message stored in the second variable (which is asserted to be a string) with the given ErrorPosInf.
+  -- The ErrorPosInf is the error source location (kept embedded).
+  | AssertElseError VarAccess IRBBTree VarAccess ErrorPosInf
   -- | Make the library available under the given variable.
   | LibExport VarAccess
-  -- | Terminate the current thread with a runtime error, printing the message stored in the variable (which is asserted to be a string) with the given PosInf.
-  -- The PosInf is the error source location (kept embedded).
-  | Error VarAccess PosInf
+  -- | Terminate the current thread with a runtime error, printing the message stored in the variable (which is asserted to be a string) with the given ErrorPosInf.
+  -- The ErrorPosInf is the error source location (kept embedded).
+  | Error VarAccess ErrorPosInf
   -- | Execute the first BB, store the returned result in the given variable
   -- and then execute the second BB, which can refer to this variable and
   -- where PC is reset to the level before entering the first BB.
@@ -177,7 +177,7 @@ instance ComputesDependencies IRBBTree where
 
 instance ComputesDependencies IRTerminator where
     dependencies (If _ bb1 bb2) = mapM_ dependencies [bb1, bb2]
-    dependencies (AssertElseError _ bb1 _ _) = dependencies bb1
+    dependencies (AssertElseError _ bb1 _ (ErrorPos _)) = dependencies bb1
     dependencies (StackExpand _ t1 t2) = dependencies t1  >> dependencies t2
 
     dependencies _              = return ()
@@ -274,7 +274,7 @@ instance WellFormedIRCheck IRTerminator where
   wfir (If _ bb1 bb2) = do
     wfir bb1
     wfir bb2
-  wfir (AssertElseError _ bb _ _) = wfir bb
+  wfir (AssertElseError _ bb _ (ErrorPos _)) = wfir bb
   wfir (StackExpand (VN x) bb1 bb2) = do
     checkId x
     wfir bb1
@@ -506,7 +506,7 @@ ppLTr (Loc _ tr) = ppTr tr
 ppTr (StackExpand vn bb1 bb2) = (ppId vn <+> text "= call" $$ nest 2 (ppBB bb1)) $$ (ppBB bb2)
 
 
-ppTr (AssertElseError va ir va2 _)
+ppTr (AssertElseError va ir va2 (ErrorPos _))
   = text "assert" <+> PP.parens (ppId va) <+>
     text "{" $$
     nest 2 (ppBB ir) $$
@@ -525,7 +525,7 @@ ppTr (If va ir1 ir2)
 ppTr (TailCall va1 va2) = ppFunCall (text "tail") [ppId va1, ppId va2]
 ppTr (Ret va)  = ppFunCall (text "ret") [ppId va]
 ppTr (LibExport va) = ppFunCall (text "export") [ppId va]
-ppTr (Error va _)  = (text "error") <> (ppId va)
+ppTr (Error va (ErrorPos _))  = (text "error") <> (ppId va)
 
 
 ppBB (BB insts tr) = vcat $ (map ppLIR insts) ++ [ppLTr tr]

@@ -16,7 +16,7 @@ import Text.PrettyPrint.HughesPJ (
     (<+>), ($$), text, hsep, vcat, nest)
 import ShowIndent
 import DCLabels
-import TroupePositionInfo
+import TroupePositionInfo (PosInf(..), ErrorPosInf(..), GetPosInfo(..))
 
 data Decl
     = ValDecl VarName Term
@@ -54,7 +54,7 @@ data Term
     | App Term [Term] PosInf
     | Let [Decl] Term PosInf
     | If Term Term Term PosInf
-    | AssertElseError Term Term Term PosInf
+    | AssertElseError Term Term Term ErrorPosInf
     | Tuple [Term] PosInf
     | Record Fields PosInf
     | WithRecord Term Fields PosInf
@@ -64,7 +64,7 @@ data Term
     | ListCons Term Term PosInf
     | Bin BinOp Term Term PosInf
     | Un UnaryOp Term PosInf
-    | Error Term PosInf
+    | Error Term ErrorPosInf
     deriving (Eq)
 
 data Atoms = Atoms [AtomName]
@@ -80,7 +80,7 @@ instance GetPosInfo Term where
   posInfo (App _ _ p) = p
   posInfo (Let _ _ p) = p
   posInfo (If _ _ _ p) = p
-  posInfo (AssertElseError _ _ _ p) = p
+  posInfo (AssertElseError _ _ _ (ErrorPos p)) = p
   posInfo (Tuple _ p) = p
   posInfo (Record _ p) = p
   posInfo (WithRecord _ _ p) = p
@@ -90,7 +90,7 @@ instance GetPosInfo Term where
   posInfo (ListCons _ _ p) = p
   posInfo (Bin _ _ _ p) = p
   posInfo (Un _ _ p) = p
-  posInfo (Error _ p) = p
+  posInfo (Error _ (ErrorPos p)) = p
 
 
 
@@ -134,7 +134,7 @@ ppTerm parentPrec t =
 ppTerm' :: Term -> PP.Doc
 ppTerm' (Lit literal) = ppLit literal
 
-ppTerm' (Error t _) = text "error " PP.<> ppTerm' t
+ppTerm' (Error t (ErrorPos _)) = text "error " PP.<> ppTerm' t
 
 ppTerm'  (Tuple ts _) =
   PP.parens $
@@ -189,7 +189,7 @@ ppTerm' (If e0 e1 e2 _) =
   text "else" <+>
   ppTerm 0 e2
 
-ppTerm' (AssertElseError e0 e1 e2 _) =
+ppTerm' (AssertElseError e0 e1 e2 (ErrorPos _)) =
   text "assert" <+>
   ppTerm 0 e0 $$
   text "then" <+>

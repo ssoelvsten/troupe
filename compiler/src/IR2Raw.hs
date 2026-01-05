@@ -44,7 +44,7 @@ import Raw
 import RetCPS(VarName(..))
 import Control.Monad
 import Control.Monad.Trans.RWS(RWS, evalRWS, ask, get, put, tell, censor, listen, local)
-import TroupePositionInfo (Located(..), getLoc, unLoc, noLoc, PosInf(..))
+import TroupePositionInfo (Located(..), getLoc, unLoc, noLoc, PosInf(..), ErrorPosInf(..))
 
 -- ===== Monad definition =====
 
@@ -783,8 +783,8 @@ tr2raw (Loc pos term) = case term of
 
   -- Note: This is translated into branching and Error for throwing RT exception
   -- Revision 2023-08: More fine-grained raising of blocking label, see below.
-  -- Note: errPos is the error source location (kept embedded), pos is expression position
-  IR.AssertElseError v1 irBB verr errPos -> do
+  -- Note: errPos (ErrorPosInf) is the error source location (kept embedded), pos is expression position
+  IR.AssertElseError v1 irBB verr (ErrorPos errPos) -> do
     let lv1 = noLocVA v1
     let lverr = noLocVA verr
     -- Note: We are first raising the blocking label with the type label,
@@ -806,11 +806,11 @@ tr2raw (Loc pos term) = case term of
   -- and blocking label to the error message's value label (which will become
   -- obsolete with an improvement moving the arguments of the Raw.Error
   -- instruction to R0).
-  -- Note: errPos is the error source location (kept embedded), pos is expression position
-  IR.Error verr errPos -> tr2rawError (noLocVA verr) errPos
+  -- Note: errPos (ErrorPosInf) is the error source location (kept embedded), pos is expression position
+  IR.Error verr (ErrorPos errPos) -> tr2rawError (noLocVA verr) errPos
 
 -- | Helper for Error translation with explicit error position
--- Note: errPos is the error source location (kept embedded in Error constructor)
+-- Note: errPos is the unwrapped PosInf from ErrorPosInf (error source location)
 -- Now takes LVarAccess for the error variable.
 tr2rawError :: IR.LVarAccess -> PosInf -> TM LRawTerminator
 tr2rawError lverr errPos = do

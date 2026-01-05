@@ -36,7 +36,7 @@ import Text.PrettyPrint.HughesPJ (
     (<+>), ($$), text, hsep, vcat, nest)
 import           ShowIndent
 
-import TroupePositionInfo (Located(..), getLoc, unLoc, noLoc, atLoc, PosInf(..), GetPosInfo(..))
+import TroupePositionInfo (Located(..), getLoc, unLoc, noLoc, atLoc, PosInf(..), ErrorPosInf(..), GetPosInfo(..))
 
 newtype VarName = VN Basics.VarName
     deriving (Eq, Ord, Generic)
@@ -105,8 +105,8 @@ data KTerm
     | KontReturn VarName
     | ApplyFun VarName VarName
     | If VarName LKTerm LKTerm
-    | AssertElseError VarName LKTerm VarName PosInf
-    | Error VarName PosInf
+    | AssertElseError VarName LKTerm VarName ErrorPosInf
+    | Error VarName ErrorPosInf
     | Halt VarName
     -- ; aa; 2018-07-02; bringing Halt back because
     -- of exports
@@ -208,7 +208,7 @@ ppKLambda (Nullary kt) =
   text "fn" <+> text "()" <+> text "=>" <+> ppKTerm 0 kt
 
 ppKTerm' :: KTerm -> PP.Doc
-ppKTerm'  (Error v _) = text "error" PP.<> textv v
+ppKTerm'  (Error v (ErrorPos _)) = text "error" PP.<> textv v
 -- ppKTerm'  (Abs lam) = ppLambda lam
 
 --ppKTerm' (ApplyKont kname varname) =
@@ -269,7 +269,7 @@ ppKTerm' (If vname kt1 kt2) =
   text "else" <+>
   ppKTerm 0 kt2
 
-ppKTerm' (AssertElseError vname kt1 verr _) =
+ppKTerm' (AssertElseError vname kt1 verr (ErrorPos _)) =
   text "assert" <+>
   textv vname $$
   text "then" <+>
@@ -299,5 +299,5 @@ termPrec (LetSimple _ _ _) = 0
 termPrec (LetFun    _ _)   = 0
 --termPrec (Case _ _)        = 0
 termPrec (LetRet _ _) = 0
-termPrec (AssertElseError _ _ _ _) = 0
-termPrec (Error _ _) = 0
+termPrec (AssertElseError _ _ _ (ErrorPos _)) = 0
+termPrec (Error _ (ErrorPos _)) = 0

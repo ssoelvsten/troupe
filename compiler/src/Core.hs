@@ -43,7 +43,7 @@ import           Text.PrettyPrint.HughesPJ (
    (<+>), ($$), text, hsep, vcat, nest, nest)
 import           ShowIndent
 
-import           TroupePositionInfo (Located(..), getLoc, unLoc, noLoc, atLoc, PosInf(..), GetPosInfo(..))
+import           TroupePositionInfo (Located(..), getLoc, unLoc, noLoc, atLoc, PosInf(..), ErrorPosInf(..), GetPosInfo(..))
 import           DCLabels (DCLabelExp, ppDCLabelExpLit, dcLabelEq, v1LabelEq, v1LabelToDCLabelExp)
 
 --------------------------------------------------
@@ -251,7 +251,7 @@ lower (D.Lit l) = Loc (litPos l) (Lit (lowerLit l))
     -- Extract position from DirectWOPats literal (only LNumeric has position)
     litPos (D.LNumeric _ pi) = pi
     litPos _ = NoPos
-lower (D.Error t p) = Loc p (Error (lower t))
+lower (D.Error t (ErrorPos p)) = Loc p (Error (lower t))
 lower (D.Var v pi) = Loc pi (Var (RegVar v))
   -- 2018-07-01: AA: note that we are mapping all vars to RegVar at
   -- this stage. This is a bit of a hack. A cleaner apporach is to
@@ -272,7 +272,7 @@ lower (D.Let decls e pi) =
         lowerFun  (D.FunDecl v lam pos) = FunDecl v (lowerLam lam) pos
 -- lower (D.Case t patTermLst) = Case (lower t) (map (\(p,t) -> (lowerDeclPat p, lower t)) patTermLst)
 lower (D.If e1 e2 e3 pi) = Loc pi (If (lower e1) (lower e2) (lower e3))
-lower (D.AssertElseError e1 e2 e3 p) = Loc p (AssertElseError (lower e1) (lower e2) (lower e3))
+lower (D.AssertElseError e1 e2 e3 (ErrorPos p)) = Loc p (AssertElseError (lower e1) (lower e2) (lower e3))
 lower (D.Tuple terms pi) = Loc pi (Tuple (map lower terms))
 lower (D.Record fields pi) = Loc pi (Record (map (\(f, t) -> (f, lower t)) fields))
 lower (D.WithRecord e fields pi) = Loc pi (WithRecord (lower e) (map (\(f, t) -> (f, lower t)) fields))
