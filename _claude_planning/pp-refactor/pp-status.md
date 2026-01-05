@@ -1,6 +1,50 @@
 # Pretty Printing Refactoring Plan
 
-## Current Status Overview
+## Implementation Status: PHASE 1-3 COMPLETE
+
+**Completed 2026-01-05:**
+
+### Completed Tasks
+
+1. **Created `PrettyPrint.hs` module** with:
+   - `PPConfig` configuration type with position format options
+   - `PP` monad (Reader PPConfig)
+   - `ppLocated` combinator for handling Located values
+   - Monadic combinators (`<+>>`, `$$>`, `vcatMapPP`, etc.)
+   - `runPPDefault` and `runPPDebug` runners
+
+2. **Updated all IR modules to use PP monad:**
+   - `Stack.hs` - Updated all `ppL*` functions to use `ppLocated`
+   - `Raw.hs` - Updated all pretty printing to use PP monad
+   - `IR.hs` - Updated including `ppLVA` for Located VarAccess
+   - `RetCPS.hs` - Updated with `ppKTermInner` pattern
+   - `Core.hs` - Updated with `qqLambda` returning `PP (Doc, Doc)`
+   - `DirectWOPats.hs` - Updated all pretty printing functions
+
+3. **Consolidated precedence definitions:**
+   - Removed duplicate `appPrec`/`maxPrec` from `RetCPS.hs`
+   - Now imported from `Basics.hs` (single source of truth)
+
+### Key Pattern Applied
+
+All `ppL*` functions now use:
+```haskell
+ppLTerm prec = ppLocated (ppTerm prec)  -- Position tracked!
+```
+
+Instead of the old:
+```haskell
+ppLTerm prec (Loc _ t) = ppTerm prec t  -- Position discarded!
+```
+
+### Remaining Work (Future Phases)
+
+- Phase 4: Add compiler flags (`--debug-pp`, `--pp-pos-format`)
+- Phase 6: Add `ShowDebug` type class
+
+---
+
+## Original Status Overview
 
 The Troupe compiler uses `Text.PrettyPrint.HughesPJ` for pretty printing across 8 intermediate representations (IRs). Position information is tracked via the `Located` wrapper type, but is **not currently included in pretty printer output** except for source map markers in the final JS generation stage.
 

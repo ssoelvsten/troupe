@@ -33,6 +33,7 @@ import qualified Data.ByteString           as BS
 import           Text.PrettyPrint.HughesPJ (hsep, nest, text, vcat, ($$), (<+>))
 import qualified Text.PrettyPrint.HughesPJ as PP
 import           TroupePositionInfo (Located(..), getLoc, unLoc, noLoc, atLoc, PosInf(..), GetPosInfo(..))
+import           PrettyPrint (PP, runPPDefault, ppLocated, vcatMapPP)
 
 
 -- | Variable names used for plain (unlabelled) values.
@@ -273,20 +274,23 @@ instructionType i = case i of
 -- PRETTY PRINTING
 -----------------------------------------------------------
 
+ppProg :: RawProgram -> PP PP.Doc
 ppProg (RawProgram atoms funs) =
-  vcat $ (map ppLFunDef funs)
+  vcatMapPP ppLFunDef funs
 
 instance Show RawProgram where
-  show = PP.render.ppProg
+  show = PP.render . runPPDefault . ppProg
 
-ppFunDef ( FunDef hfn consts insts _ )
-  = vcat [ text "func" <+> ppFunCall (ppId hfn) [] <+> text "{"
-         , nest 2 (ppConsts consts )
-         , nest 2 (ppBB insts)
-         , text "}"]
+ppFunDef :: FunDef -> PP PP.Doc
+ppFunDef ( FunDef hfn consts insts _ ) = do
+  bbDoc <- ppBB insts
+  pure $ vcat [ text "func" <+> ppFunCall (ppId hfn) [] <+> text "{"
+              , nest 2 (ppConsts consts )
+              , nest 2 bbDoc
+              , text "}"]
 
-ppLFunDef :: LFunDef -> PP.Doc
-ppLFunDef (Loc _ fdef) = ppFunDef fdef
+ppLFunDef :: LFunDef -> PP PP.Doc
+ppLFunDef = ppLocated ppFunDef
 
 
 
@@ -330,37 +334,40 @@ qqFields fields =
       ppField (name, v) = 
         PP.hcat [PP.text name, PP.text "=", ppId v]
 
-ppIR :: RawInst -> PP.Doc
-ppIR SetBranchFlag = text "<setbranchflag>"
-ppIR (AssignRaw vn st) = ppId vn <+> text "=(raw)" <+> ppRawExpr st
+ppIR :: RawInst -> PP PP.Doc
+ppIR SetBranchFlag = pure $ text "<setbranchflag>"
+ppIR (AssignRaw vn st) = pure $ ppId vn <+> text "=(raw)" <+> ppRawExpr st
 ppIR (AssignLVal vn expr) =
-  ppId vn <+> text "=(lval)" <+> ppRawExpr expr
+  pure $ ppId vn <+> text "=(lval)" <+> ppRawExpr expr
 -- ppIR (ConstructLVal x v lv lt) =
 --   ppId x <+> text
-ppIR (RTAssertion a) = ppRTAssertion a
+ppIR (RTAssertion a) = pure $ ppRTAssertion a
 ppIR (SetState comp v) =
-  ppId comp <+> text "<-" <+> ppId v
-ppIR InvalidateSparseBit = text "<invalidate sparse bit>"
-ppIR (SourcePosAnnotation r) = text "<source-pos>" <+> ppId r
+  pure $ ppId comp <+> text "<-" <+> ppId v
+ppIR InvalidateSparseBit = pure $ text "<invalidate sparse bit>"
+ppIR (SourcePosAnnotation r) = pure $ text "<source-pos>" <+> ppId r
 
 ppIR (MkFunClosures varmap fdefs) =
     let vs = hsepc $ ppEnvIds varmap
         ppFdefs = map (\((VN x), HFN y) ->  text x <+> text "= mkClos" <+> text y ) fdefs
-     in text "with env:=" <+> PP.brackets vs $$ nest 2 (vcat ppFdefs)
+     in pure $ text "with env:=" <+> PP.brackets vs $$ nest 2 (vcat ppFdefs)
     where ppEnvIds ls =
             map (\(a,b) -> (ppId a) PP.<+> text "->" <+> ppId b ) ls
           hsepc ls = PP.hsep (PP.punctuate (text ",") ls)
 
 -- | Pretty print a Located RawInst
-ppLRawInst :: LRawInst -> PP.Doc
-ppLRawInst (Loc _ i) = ppIR i
+ppLRawInst :: LRawInst -> PP PP.Doc
+ppLRawInst = ppLocated ppIR
 
-    
--- ppIR (LevelOperations _ insts) = 
+
+-- ppIR (LevelOperations _ insts) =
 --  text "level operation" $$ nest 2 (vcat (map ppIR insts))
 
-ppTr :: RawTerminator -> PP.Doc
-ppTr (StackExpand bb1 bb2) = (text "call" $$ nest 4 (ppBB bb1)) $$ (ppBB bb2)
+ppTr :: RawTerminator -> PP PP.Doc
+ppTr (StackExpand bb1 bb2) = do
+  bb1Doc <- ppBB bb1
+  bb2Doc <- ppBB bb2
+  pure $ (text "call" $$ nest 4 bb1Doc) $$ bb2Doc
 
 
 -- ppTr (AssertElseError va ir va2 _)
@@ -371,24 +378,30 @@ ppTr (StackExpand bb1 bb2) = (text "call" $$ nest 4 (ppBB bb1)) $$ (ppBB bb2)
 --     text "elseError" <+> (ppId va2)
 
 
-ppTr (If va ir1 ir2)
-  = text "if" <+> PP.parens (ppId va) <+>
+ppTr (If va ir1 ir2) = do
+  ir1Doc <- ppBB ir1
+  ir2Doc <- ppBB ir2
+  pure $ text "if" <+> PP.parens (ppId va) <+>
     text "{" $$
-    nest 4 (ppBB ir1) $$
+    nest 4 ir1Doc $$
     text "}" $$
     text "else {" $$
-    nest 4 (ppBB ir2) $$
+    nest 4 ir2Doc $$
     text "}"
-ppTr (TailCall va1) = ppFunCall (text "tail") [ppId va1]
-ppTr Ret  = text "ret"
-ppTr (LibExport va) = ppFunCall (text "export") [ppId va]
-ppTr (Error va)  = (text "error ") <> (ppId va)
+ppTr (TailCall va1) = pure $ ppFunCall (text "tail") [ppId va1]
+ppTr Ret  = pure $ text "ret"
+ppTr (LibExport va) = pure $ ppFunCall (text "export") [ppId va]
+ppTr (Error va)  = pure $ (text "error ") PP.<> (ppId va)
 
 -- | Pretty print a Located RawTerminator
-ppLRawTr :: LRawTerminator -> PP.Doc
-ppLRawTr (Loc _ tr) = ppTr tr
+ppLRawTr :: LRawTerminator -> PP PP.Doc
+ppLRawTr = ppLocated ppTr
 
-ppBB (BB insts tr) = vcat $ (map ppLRawInst insts) ++ [ppLRawTr tr]
+ppBB :: RawBBTree -> PP PP.Doc
+ppBB (BB insts tr) = do
+  instDocs <- mapM ppLRawInst insts
+  trDoc <- ppLRawTr tr
+  pure $ vcat $ instDocs ++ [trDoc]
 
 ppConsts consts = 
   vcat $ map ppConst consts 

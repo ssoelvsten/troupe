@@ -44,6 +44,7 @@ import           Text.PrettyPrint.HughesPJ (
 import           ShowIndent
 
 import           TroupePositionInfo (Located(..), getLoc, unLoc, noLoc, atLoc, PosInf(..), GetPosInfo(..))
+import           PrettyPrint (PP, runPPDefault, ppLocated)
 import           DCLabels (DCLabelExp, ppDCLabelExpLit, dcLabelEq, v1LabelEq, v1LabelToDCLabelExp)
 
 --------------------------------------------------
@@ -537,17 +538,18 @@ renameDecl (FunDecs decs) m = do
 
 -- show is defined via pretty printing
 instance Show Term
-  where show t = PP.render (ppTermInner 0 t)
+  where show t = PP.render (runPPDefault (ppTermInner 0 t))
 
 instance ShowIndent Prog where
-  showIndent k t = PP.render (nest k (ppProg t))
+  showIndent k t = PP.render (nest k (runPPDefault (ppProg t)))
 --------------------------------------------------
 
 
 
 
-ppProg :: Prog -> PP.Doc
-ppProg (Prog (Imports imports) (Atoms atoms) term) =
+ppProg :: Prog -> PP PP.Doc
+ppProg (Prog (Imports imports) (Atoms atoms) term) = do
+  termDoc <- ppLTerm 0 term
   let ppAtoms =
         if null atoms
           then PP.empty
@@ -555,137 +557,158 @@ ppProg (Prog (Imports imports) (Atoms atoms) term) =
                (hsep $ PP.punctuate (text " |") (map text atoms))
 
       ppImports = if null imports then PP.empty else text "<<imports>>\n"
-  in ppImports $$ ppAtoms $$ ppLTerm 0 term
+  pure $ ppImports $$ ppAtoms $$ termDoc
 
 -- | Pretty print a Located Term
-ppLTerm :: Precedence -> LTerm -> PP.Doc
-ppLTerm parentPrec (Loc _ t) = ppTermInner parentPrec t
+ppLTerm :: Precedence -> LTerm -> PP PP.Doc
+ppLTerm parentPrec = ppLocated (ppTermInner parentPrec)
 
 -- | Pretty print a Term (inner, without location)
-ppTermInner :: Precedence -> Term -> PP.Doc
-ppTermInner parentPrec t =
+ppTermInner :: Precedence -> Term -> PP PP.Doc
+ppTermInner parentPrec t = do
    let thisTermPrec = termPrec t
-   in PP.maybeParens (thisTermPrec < parentPrec )
-      $ ppTerm' t
+   doc <- ppTerm' t
+   pure $ PP.maybeParens (thisTermPrec < parentPrec) doc
 
    -- uncomment to pretty print explicitly; 2017-10-14: AA
    -- in PP.maybeParens (thisTermPrec < 10000)  $ ppTerm' t
 
-ppTerm' :: Term -> PP.Doc
-ppTerm' (Lit literal) = ppLit literal
+ppTerm' :: Term -> PP PP.Doc
+ppTerm' (Lit literal) = pure $ ppLit literal
 
-ppTerm' (Error lt) = text "error " PP.<> ppLTerm 0 lt
+ppTerm' (Error lt) = do
+  d <- ppLTerm 0 lt
+  pure $ text "error " PP.<> d
 
-ppTerm'  (Tuple lts) =
-  PP.parens $
-  PP.hcat $
-  PP.punctuate (text ",") (map (ppLTerm 0) lts)
+ppTerm' (Tuple lts) = do
+  ds <- mapM (ppLTerm 0) lts
+  pure $ PP.parens $ PP.hcat $ PP.punctuate (text ",") ds
 
-ppTerm'  (List lts) =
-  PP.brackets $
-  PP.hcat $
-  PP.punctuate (text ",") (map (ppLTerm 0) lts)
+ppTerm' (List lts) = do
+  ds <- mapM (ppLTerm 0) lts
+  pure $ PP.brackets $ PP.hcat $ PP.punctuate (text ",") ds
 
-ppTerm' (Record fs) = PP.braces $ qqLFields fs
+ppTerm' (Record fs) = do
+  fDoc <- qqLFields fs
+  pure $ PP.braces fDoc
 
-ppTerm' (WithRecord le fs) =
-    PP.braces $ PP.hsep [ ppLTerm 0 le, text "with", qqLFields fs]
+ppTerm' (WithRecord le fs) = do
+  leDoc <- ppLTerm 0 le
+  fsDoc <- qqLFields fs
+  pure $ PP.braces $ PP.hsep [leDoc, text "with", fsDoc]
 
-ppTerm' (ProjField lt fn) =
-  ppLTerm projPrec lt PP.<> text "." PP.<> PP.text fn
+ppTerm' (ProjField lt fn) = do
+  d <- ppLTerm projPrec lt
+  pure $ d PP.<> text "." PP.<> PP.text fn
 
-ppTerm' (ProjIdx lt idx) =
-  ppLTerm projPrec lt PP.<> text "." PP.<> PP.text (show idx)
-
-
-ppTerm' (ListCons lhd ltl) =
-   ppLTerm consPrec lhd PP.<> text "::" PP.<> ppLTerm consPrec ltl
-
-ppTerm' (Var (RegVar x)) = text x
-ppTerm' (Var (LibVar (LibName lib) var)) = text lib <+> text "." <+> text var
-ppTerm' (Var (BaseName v)) = text v
-ppTerm' (Abs lam) =
-  let (ppArgs, ppBody) = qqLambda lam
-  in text "fn" <+> ppArgs <+> text "=>" <+> ppBody
-
-ppTerm' (App lt1 lt2) =
-    ppLTerm appPrec lt1
-          <+> (ppLTerm argPrec lt2)
-
-ppTerm' (Let dec lbody) =
-  text "let" <+>
-  nest 3 (ppDecl dec) $$
-  text "in" <+>
-  nest 3 (ppLTerm 0 lbody) $$
-  text "end"
+ppTerm' (ProjIdx lt idx) = do
+  d <- ppLTerm projPrec lt
+  pure $ d PP.<> text "." PP.<> PP.text (show idx)
 
 
-ppTerm' (If le0 le1 le2) =
-  text "if" <+>
-  ppLTerm 0 le0 $$
-  text "then" <+>
-  ppLTerm 0 le1 $$
-  text "else" <+>
-  ppLTerm 0 le2
+ppTerm' (ListCons lhd ltl) = do
+  hdDoc <- ppLTerm consPrec lhd
+  tlDoc <- ppLTerm consPrec ltl
+  pure $ hdDoc PP.<> text "::" PP.<> tlDoc
 
-ppTerm' (AssertElseError le0 le1 le2) =
-  text "assert" <+>
-  ppLTerm 0 le0 $$
-  text "then" <+>
-  ppLTerm 0 le1 $$
-  text "elseError" <+>
-  ppLTerm 0 le2
+ppTerm' (Var (RegVar x)) = pure $ text x
+ppTerm' (Var (LibVar (LibName lib) var)) = pure $ text lib <+> text "." <+> text var
+ppTerm' (Var (BaseName v)) = pure $ text v
+ppTerm' (Abs lam) = do
+  (ppArgs, ppBody) <- qqLambda lam
+  pure $ text "fn" <+> ppArgs <+> text "=>" <+> ppBody
+
+ppTerm' (App lt1 lt2) = do
+  d1 <- ppLTerm appPrec lt1
+  d2 <- ppLTerm argPrec lt2
+  pure $ d1 <+> d2
+
+ppTerm' (Let dec lbody) = do
+  decDoc <- ppDecl dec
+  bodyDoc <- ppLTerm 0 lbody
+  pure $ text "let" <+>
+    nest 3 decDoc $$
+    text "in" <+>
+    nest 3 bodyDoc $$
+    text "end"
+
+
+ppTerm' (If le0 le1 le2) = do
+  d0 <- ppLTerm 0 le0
+  d1 <- ppLTerm 0 le1
+  d2 <- ppLTerm 0 le2
+  pure $ text "if" <+>
+    d0 $$
+    text "then" <+>
+    d1 $$
+    text "else" <+>
+    d2
+
+ppTerm' (AssertElseError le0 le1 le2) = do
+  d0 <- ppLTerm 0 le0
+  d1 <- ppLTerm 0 le1
+  d2 <- ppLTerm 0 le2
+  pure $ text "assert" <+>
+    d0 $$
+    text "then" <+>
+    d1 $$
+    text "elseError" <+>
+    d2
 
 
 
-ppTerm' (Bin op lt1 lt2) =
+ppTerm' (Bin op lt1 lt2) = do
   let binOpPrec = opPrec op
-  in
-     ppLTerm binOpPrec lt1 <+>
-     text (show op) <+>
-     ppLTerm binOpPrec lt2
+  d1 <- ppLTerm binOpPrec lt1
+  d2 <- ppLTerm binOpPrec lt2
+  pure $ d1 <+> text (show op) <+> d2
 
-ppTerm' (Un op lt) =
+ppTerm' (Un op lt) = do
   let unOpPrec = op1Prec op
-  in
-     text (show op) <+>
-     ppLTerm unOpPrec lt
+  d <- ppLTerm unOpPrec lt
+  pure $ text (show op) <+> d
 
 
 -- | Pretty print LFields (fields with Located terms)
-qqLFields :: LFields -> PP.Doc
-qqLFields fs = PP.hcat $
-    PP.punctuate (text ",") (map ppField fs)
-     where ppField (name, lt)  =
-              PP.hcat [PP.text name, PP.text "=", ppLTerm 0 lt ]
+qqLFields :: LFields -> PP PP.Doc
+qqLFields fs = do
+  fieldDocs <- mapM ppField fs
+  pure $ PP.hcat $ PP.punctuate (text ",") fieldDocs
+     where ppField (name, lt) = do
+              d <- ppLTerm 0 lt
+              pure $ PP.hcat [PP.text name, PP.text "=", d]
 
-qqLambda :: Lambda -> (PP.Doc, PP.Doc)
-qqLambda (Unary arg _ lbody) =
-  ( text arg, ppLTerm 0 lbody )
-qqLambda (Nullary lbody) =
-  ( text "()", ppLTerm 0 lbody)
+qqLambda :: Lambda -> PP (PP.Doc, PP.Doc)
+qqLambda (Unary arg _ lbody) = do
+  bodyDoc <- ppLTerm 0 lbody
+  pure (text arg, bodyDoc)
+qqLambda (Nullary lbody) = do
+  bodyDoc <- ppLTerm 0 lbody
+  pure (text "()", bodyDoc)
 
-ppDecl :: Decl -> PP.Doc
-ppDecl (ValDecl arg lt) =
-  text "val" <+> text arg <+> text "="
-    <+> ppLTerm 0 lt
+ppDecl :: Decl -> PP PP.Doc
+ppDecl (ValDecl arg lt) = do
+  d <- ppLTerm 0 lt
+  pure $ text "val" <+> text arg <+> text "=" <+> d
 ppDecl (FunDecs fs) = ppFuns fs
   where
     ppFunDecl prefix (FunDecl fname lam _) =
       ppFunOptions (prefix ++ " " ++ fname) lam
 
-    ppFunOptions prefix lam =
-        let (ppArgs, ppBody) = qqLambda lam in
-        text prefix <+> ppArgs <+> text "=" <+> nest 2 ppBody
+    ppFunOptions prefix lam = do
+        (ppArgs, ppBody) <- qqLambda lam
+        pure $ text prefix <+> ppArgs <+> text "=" <+> nest 2 ppBody
 
 
-    ppFuns (doc:docs) =
+    ppFuns (doc:docs) = do
       let ppFirstFun = ppFunDecl "fun"
           ppOtherFun = ppFunDecl "and"
-      in ppFirstFun doc $$ vcat (map ppOtherFun docs)
+      firstDoc <- ppFirstFun doc
+      otherDocs <- mapM ppOtherFun docs
+      pure $ firstDoc $$ vcat otherDocs
 
 
-    ppFuns _ = PP.empty
+    ppFuns _ = pure PP.empty
 
 
 ppLit :: Lit -> PP.Doc

@@ -32,6 +32,7 @@ import           GHC.Generics              (Generic)
 import           Text.PrettyPrint.HughesPJ (hsep, nest, text, vcat, ($$), (<+>))
 import qualified Text.PrettyPrint.HughesPJ as PP
 import           TroupePositionInfo (Located(..), getLoc, unLoc, noLoc, atLoc, PosInf(..), GetPosInfo(..))
+import           PrettyPrint (PP, runPPDefault, ppLocated, vcatMapPP)
 import           DCLabels
 
 ------------------------------------------------------------
@@ -427,107 +428,140 @@ checkFromBB initState bb =
 -- PRETTY PRINTING
 -----------------------------------------------------------
 
+ppProg :: IRProgram -> PP PP.Doc
 ppProg (IRProgram atoms funs) =
-  vcat $ (map ppLFunDef funs)
+  vcatMapPP ppLFunDef funs
 
 instance Show IRProgram where
-  show = PP.render.ppProg
+  show = PP.render . runPPDefault . ppProg
 
+ppConsts :: [(VarName, C.Lit)] -> PP.Doc
 ppConsts consts =
   vcat $ map ppConst consts
     where ppConst (x, lit) = hsep [ ppId x , text "=", ppLit lit ]
 
-ppLFunDef :: LFunDef -> PP.Doc
-ppLFunDef (Loc _ fdef) = ppFunDef fdef
+ppLFunDef :: LFunDef -> PP PP.Doc
+ppLFunDef = ppLocated ppFunDef
 
-ppFunDef (FunDef hfn arg _ consts insts)
-  = vcat [ text "func" <+> ppFunCall (ppId hfn) [ppId arg] <+> text "{"
-         , nest 2 (ppConsts consts)
-         , nest 2 (ppBB insts)
-         , text "}"]
+ppFunDef :: FunDef -> PP PP.Doc
+ppFunDef (FunDef hfn arg _ consts insts) = do
+  bbDoc <- ppBB insts
+  pure $ vcat [ text "func" <+> ppFunCall (ppId hfn) [ppId arg] <+> text "{"
+              , nest 2 (ppConsts consts)
+              , nest 2 bbDoc
+              , text "}"]
 
 
 
 -- | Pretty print a Located VarAccess (extracts VarAccess and prints)
-ppLVA :: LVarAccess -> PP.Doc
-ppLVA (Loc _ va) = ppId va
+ppLVA :: LVarAccess -> PP PP.Doc
+ppLVA = ppLocated (pure . ppId)
 
-ppIRExpr :: IRExpr -> PP.Doc
-ppIRExpr (Bin binop lva1 lva2) =
-  ppLVA lva1 <+> text (show binop) <+> ppLVA lva2
-ppIRExpr (Un op lv) =
-  text (show op) <> PP.parens (ppLVA lv)
-ppIRExpr (Tuple vars) =
-  PP.parens $ PP.hsep $ PP.punctuate (text ",") (map ppLVA vars)
-ppIRExpr (List vars) =
-  PP.brackets $ PP.hsep $ PP.punctuate (text ",") (map ppLVA vars)
-ppIRExpr (ListCons lv1 lv2) =
-  text "cons" <>  ( PP.parens $ ppLVA lv1 <> text "," <> ppLVA lv2)
-ppIRExpr (Const (C.LUnit)) = text "__unit"
-ppIRExpr (Const lit) = ppLit lit
-ppIRExpr (Base v) = if v == "$$authorityarg" -- special casing; hack; 2018-10-18: AA
+ppIRExpr :: IRExpr -> PP PP.Doc
+ppIRExpr (Bin binop lva1 lva2) = do
+  d1 <- ppLVA lva1
+  d2 <- ppLVA lva2
+  pure $ d1 <+> text (show binop) <+> d2
+ppIRExpr (Un op lv) = do
+  d <- ppLVA lv
+  pure $ text (show op) PP.<> PP.parens d
+ppIRExpr (Tuple vars) = do
+  ds <- mapM ppLVA vars
+  pure $ PP.parens $ PP.hsep $ PP.punctuate (text ",") ds
+ppIRExpr (List vars) = do
+  ds <- mapM ppLVA vars
+  pure $ PP.brackets $ PP.hsep $ PP.punctuate (text ",") ds
+ppIRExpr (ListCons lv1 lv2) = do
+  d1 <- ppLVA lv1
+  d2 <- ppLVA lv2
+  pure $ text "cons" PP.<> (PP.parens $ d1 PP.<> text "," PP.<> d2)
+ppIRExpr (Const (C.LUnit)) = pure $ text "__unit"
+ppIRExpr (Const lit) = pure $ ppLit lit
+ppIRExpr (Base v) = pure $ if v == "$$authorityarg" -- special casing; hack; 2018-10-18: AA
                       then text v
-                      else text v <> text "$base"
-ppIRExpr (Lib (Basics.LibName l) v) = text l <> text "." <> text v
-ppIRExpr (Record fields) = PP.braces $ qqLFields fields
-ppIRExpr (WithRecord lv fields) = PP.braces $ PP.hsep[ ppLVA lv, text "with", qqLFields fields]
-ppIRExpr (ProjField lv f) =
-  (ppLVA lv) PP.<> PP.text "." PP.<> PP.text f
-ppIRExpr (ProjIdx lv idx) =
-  (ppLVA lv) PP.<> PP.text "." PP.<> PP.text (show idx)
+                      else text v PP.<> text "$base"
+ppIRExpr (Lib (Basics.LibName l) v) = pure $ text l PP.<> text "." PP.<> text v
+ppIRExpr (Record fields) = do
+  fDoc <- qqLFields fields
+  pure $ PP.braces fDoc
+ppIRExpr (WithRecord lv fields) = do
+  lvDoc <- ppLVA lv
+  fDoc <- qqLFields fields
+  pure $ PP.braces $ PP.hsep [lvDoc, text "with", fDoc]
+ppIRExpr (ProjField lv f) = do
+  d <- ppLVA lv
+  pure $ d PP.<> PP.text "." PP.<> PP.text f
+ppIRExpr (ProjIdx lv idx) = do
+  d <- ppLVA lv
+  pure $ d PP.<> PP.text "." PP.<> PP.text (show idx)
 
 -- | Pretty print LFields (fields with Located VarAccess)
-qqLFields :: LFields -> PP.Doc
-qqLFields fields =
-  PP.hsep $ PP.punctuate (text ",") (map ppField fields)
+qqLFields :: LFields -> PP PP.Doc
+qqLFields fields = do
+  fieldDocs <- mapM ppField fields
+  pure $ PP.hsep $ PP.punctuate (text ",") fieldDocs
     where
-      ppField (name, lv) =
-        PP.hcat [PP.text name, PP.text "=", ppLVA lv]
+      ppField (name, lv) = do
+        lvDoc <- ppLVA lv
+        pure $ PP.hcat [PP.text name, PP.text "=", lvDoc]
 
-ppLIR :: LIRInst -> PP.Doc
-ppLIR (Loc _ inst) = ppIR inst
+ppLIR :: LIRInst -> PP PP.Doc
+ppLIR = ppLocated ppIR
 
-ppIR :: IRInst -> PP.Doc
-ppIR (Assign vn st) = ppId vn <+> text "=" <+> ppIRExpr st
+ppIR :: IRInst -> PP PP.Doc
+ppIR (Assign vn st) = do
+  exprDoc <- ppIRExpr st
+  pure $ ppId vn <+> text "=" <+> exprDoc
 
 ppIR (MkFunClosures varmap fdefs) =
     let vs = hsepc $ ppEnvIds varmap
         ppFdefs = map (\((VN x), HFN y) ->  text x <+> text "= mkClos" <+> text y ) fdefs
-     in text "with env:=" <+> PP.brackets vs $$ nest 2 (vcat ppFdefs)
+     in pure $ text "with env:=" <+> PP.brackets vs $$ nest 2 (vcat ppFdefs)
     where ppEnvIds ls =
             map (\(a,b) -> (ppId a) PP.<+> text "->" <+> ppId b ) ls
           hsepc ls = PP.hsep (PP.punctuate (text ",") ls)
 
 
-ppLTr :: LIRTerminator -> PP.Doc
-ppLTr (Loc _ tr) = ppTr tr
+ppLTr :: LIRTerminator -> PP PP.Doc
+ppLTr = ppLocated ppTr
 
-ppTr (StackExpand vn bb1 bb2) = (ppId vn <+> text "= call" $$ nest 2 (ppBB bb1)) $$ (ppBB bb2)
+ppTr :: IRTerminator -> PP PP.Doc
+ppTr (StackExpand vn bb1 bb2) = do
+  bb1Doc <- ppBB bb1
+  bb2Doc <- ppBB bb2
+  pure $ (ppId vn <+> text "= call" $$ nest 2 bb1Doc) $$ bb2Doc
 
 
-ppTr (AssertElseError va ir va2)
-  = text "assert" <+> PP.parens (ppId va) <+>
+ppTr (AssertElseError va ir va2) = do
+  irDoc <- ppBB ir
+  pure $ text "assert" <+> PP.parens (ppId va) <+>
     text "{" $$
-    nest 2 (ppBB ir) $$
+    nest 2 irDoc $$
     text "}" $$
     text "elseError" <+> (ppId va2)
 
 
-ppTr (If va ir1 ir2)
-  = text "if" <+> PP.parens (ppId va) <+>
+ppTr (If va ir1 ir2) = do
+  ir1Doc <- ppBB ir1
+  ir2Doc <- ppBB ir2
+  pure $ text "if" <+> PP.parens (ppId va) <+>
     text "{" $$
-    nest 2 (ppBB ir1) $$
+    nest 2 ir1Doc $$
     text "}" $$
     text "else {" $$
-    nest 2 (ppBB ir2) $$
+    nest 2 ir2Doc $$
     text "}"
-ppTr (TailCall va1 va2) = ppFunCall (text "tail") [ppId va1, ppId va2]
-ppTr (Ret va)  = ppFunCall (text "ret") [ppId va]
-ppTr (LibExport va) = ppFunCall (text "export") [ppId va]
-ppTr (Error va)  = (text "error") <> (ppId va)
+ppTr (TailCall va1 va2) = pure $ ppFunCall (text "tail") [ppId va1, ppId va2]
+ppTr (Ret va)  = pure $ ppFunCall (text "ret") [ppId va]
+ppTr (LibExport va) = pure $ ppFunCall (text "export") [ppId va]
+ppTr (Error va)  = pure $ (text "error") PP.<> (ppId va)
 
 
-ppBB (BB insts tr) = vcat $ (map ppLIR insts) ++ [ppLTr tr]
+ppBB :: IRBBTree -> PP PP.Doc
+ppBB (BB insts tr) = do
+  instDocs <- mapM ppLIR insts
+  trDoc <- ppLTr tr
+  pure $ vcat $ instDocs ++ [trDoc]
 
 
 
