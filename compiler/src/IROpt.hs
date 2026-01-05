@@ -460,10 +460,11 @@ instance PEval IRInst where
 --}
 
 -- | Partial evaluation of a Located IR terminator
+-- Note: IRTerminator now uses LVarAccess, so we use varPEvalL and markUsedL'
 trPeval :: LIRTerminator -> Opt IRBBTree
 
-trPeval (Loc pos (If x bb1 bb2)) = do
-        v <- varPEval x
+trPeval (Loc pos (If lx bb1 bb2)) = do
+        v <- varPEvalL lx
         let _doThen = do setChangeFlag
                          peval bb1
 
@@ -477,18 +478,18 @@ trPeval (Loc pos (If x bb1 bb2)) = do
 
             _ -> do bb1' <- peval bb1
                     bb2' <- peval bb2
-                    return $ BB [] (Loc pos (If x bb1' bb2'))
+                    return $ BB [] (Loc pos (If lx bb1' bb2'))
 
 
-trPeval (Loc pos (AssertElseError x bb y_err)) = do
-    v <- varPEval x
-    markUsed' y_err
+trPeval (Loc pos (AssertElseError lx bb ly_err)) = do
+    v <- varPEvalL lx
+    markUsedL' ly_err
     case v of
         BoolConst True -> do
             setChangeFlag
             peval bb
         _ -> do bb' <- peval bb
-                return $ BB [] (Loc pos (AssertElseError x bb' y_err))
+                return $ BB [] (Loc pos (AssertElseError lx bb' ly_err))
 
 
 trPeval (Loc pos (StackExpand x bb1 bb2)) = do
@@ -496,7 +497,9 @@ trPeval (Loc pos (StackExpand x bb1 bb2)) = do
     bb2' <- peval bb2
 
     case bb1' of
-        BB insts1 (Loc _retPos (Ret rv1)) -> do
+        BB insts1 (Loc _retPos (Ret lrv1)) -> do
+            -- Extract VarAccess from LVarAccess for the substitution map key
+            let rv1 = unLoc lrv1
             let subst = Subst (Map.singleton x rv1)
             let (BB insts2 tr2) = apply subst bb2'
             setChangeFlag
@@ -504,21 +507,21 @@ trPeval (Loc pos (StackExpand x bb1 bb2)) = do
         _ ->
             return $ BB [] (Loc pos (StackExpand x bb1' bb2'))
 
-trPeval ltr@(Loc _pos (Ret x)) = do
-    markUsed' x
+trPeval ltr@(Loc _pos (Ret lx)) = do
+    markUsedL' lx
     return $ BB [] ltr
 
-trPeval ltr@(Loc _pos (LibExport x)) = do
-    markUsed' x
+trPeval ltr@(Loc _pos (LibExport lx)) = do
+    markUsedL' lx
     return $ BB [] ltr
 
-trPeval ltr@(Loc _pos (Error x)) = do
-    markUsed' x
+trPeval ltr@(Loc _pos (Error lx)) = do
+    markUsedL' lx
     return $ BB [] ltr
 
-trPeval ltr@(Loc _pos (TailCall x y)) = do
-    markUsed' x
-    markUsed' y
+trPeval ltr@(Loc _pos (TailCall lx ly)) = do
+    markUsedL' lx
+    markUsedL' ly
     return $ BB [] ltr
 
 

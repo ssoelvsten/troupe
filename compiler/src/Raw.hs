@@ -9,7 +9,8 @@ module Raw where
 import qualified Basics
 import           RetCPS (VarName (..))
 import           IR ( Identifier(..)
-                    , VarAccess(..), HFN (..), Fields (..), Ident
+                    , VarAccess(..), HFN (..), Ident
+                    , LVarAccess
                     , ppId,ppFunCall,ppArgs
                     )
 import qualified IR (FunDef (..))
@@ -45,6 +46,8 @@ type LRawInst = Located RawInst
 type LRawTerminator = Located RawTerminator
 type LFunDef = Located FunDef
 
+-- | Fields with Located VarAccess - preserves source positions for field values
+type LFields = [(Basics.FieldName, LVarAccess)]
 
 type ConstMap = Map RawVar C.Lit 
 
@@ -103,19 +106,22 @@ data RTAssertion
 -- it is there where instructions to handle the result are generated (AssignRaw and AssignLVal).
 -- What would be possible is to introduce a pre-processing which translates IR expressions into
 -- categorized expressions, which could then slightly simplify handling at IR2Raw.
+--
+-- NOTE: RawExpr now uses LVarAccess (Located VarAccess) to preserve source positions
+-- for variable references that come from labelled values.
 data RawExpr
   = Bin Basics.BinOp UseNativeBinop RawVar RawVar
   | Un Basics.UnaryOp RawVar
-  | ProjectLVal VarAccess LValField
+  | ProjectLVal LVarAccess LValField
   | ProjectState MonComponent
-  | Tuple [VarAccess]
-  | Record Fields
-  | WithRecord RawVar Fields 
+  | Tuple [LVarAccess]
+  | Record LFields
+  | WithRecord RawVar LFields
   | ProjField RawVar Basics.FieldName
   | ProjIdx RawVar Word
-  | List [VarAccess]
+  | List [LVarAccess]
   -- | Cons operation with the new head (labelled value) and the list (simple value).
-  | ListCons VarAccess RawVar
+  | ListCons LVarAccess RawVar
   | Const C.Lit
   -- | Reference to a definition in a library
   | Lib Basics.LibName Basics.VarName
@@ -148,7 +154,8 @@ data RawInst
   -- If this condition is invalidated by introducing new labels (like with the raisedTo instruction),
   -- this instruction must be added to ensure that the required join operations happen.
   | InvalidateSparseBit
-  | MkFunClosures [(VarName, VarAccess)] [(VarName, HFN)]
+  -- | Create function closures. Uses LVarAccess to preserve source positions for environment bindings.
+  | MkFunClosures [(VarName, LVarAccess)] [(VarName, HFN)]
   | RTAssertion RTAssertion
   -- | Source position annotation for source map generation.
   -- This instruction generates no code but carries position info that was preserved
@@ -165,7 +172,8 @@ data RawTerminator
   = TailCall RawVar
   | Ret
   | If RawVar RawBBTree RawBBTree
-  | LibExport VarAccess
+  -- | Uses LVarAccess to preserve source position for the exported value
+  | LibExport LVarAccess
   | Error RawVar
   -- | Execute the first BB and then execute the second BB where
   -- PC is reset to the level before entering the first BB.
@@ -331,11 +339,13 @@ ppRawExpr (ConstructLVal v lv lt) =
                                 ppId lv <+> text "," <+>
                                 ppId lt)
     
+-- | Pretty print LFields (fields with Located VarAccess)
+qqFields :: LFields -> PP.Doc
 qqFields fields =
   PP.hsep $ PP.punctuate (text ",") (map ppField fields)
-    where 
-      ppField (name, v) = 
-        PP.hcat [PP.text name, PP.text "=", ppId v]
+    where
+      ppField (name, lv) =
+        PP.hcat [PP.text name, PP.text "=", ppId lv]
 
 ppIR :: RawInst -> PP PP.Doc
 ppIR SetBranchFlag = pure $ text "<setbranchflag>"

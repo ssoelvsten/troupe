@@ -336,13 +336,16 @@ instance ToJS LStackInst where
 instance ToJS LStackTerminator where
   toJS (Loc pos tr) = tr2jsWithPos pos tr
 
-instance ToJS IR.VarAccess where 
-  toJS (IR.VarLocal vn) = return $ IR.ppVarName vn 
+instance ToJS IR.VarAccess where
+  toJS (IR.VarLocal vn) = return $ IR.ppVarName vn
   toJS (IR.VarEnv vn) = return $ text "$env." PP.<> (IR.ppVarName vn)
-  toJS (IR.VarFunSelfRef) = do 
-    HFN (fname) <- gets stHFN 
-    return $ text fname 
+  toJS (IR.VarFunSelfRef) = do
+    HFN (fname) <- gets stHFN
+    return $ text fname
 
+-- | Instance for LVarAccess (Located VarAccess) - extracts VarAccess and delegates
+instance ToJS IR.LVarAccess where
+  toJS (Loc _ va) = toJS va
 
 instance ToJS StackProgram where
   toJS (StackProgram atoms funs) = do
@@ -538,16 +541,17 @@ ir2jsWithPos pos (MkFunClosures envBindings funBindings) = do
     let ppFF = map (\(v, f) -> jsClosure v env f) funBindings
     return $ vcat (ppEnv : ppFF)
 
-       where ppEnvIds :: VarName ->  [(VarName, IR.VarAccess)] -> W PP.Doc
+       -- Now takes [(VarName, LVarAccess)] since MkFunClosures uses LVarAccess
+       where ppEnvIds :: VarName ->  [(VarName, IR.LVarAccess)] -> W PP.Doc
              ppEnvIds env ls = do
                let penv = ppId env
-               d1 <- mapM (\(a,b) -> do
-                                  d_b <- toJS b
+               d1 <- mapM (\(a, lva) -> do
+                                  d_b <- toJS (unLoc lva)  -- Extract VarAccess for JS codegen
                                   return $ semi $ penv PP.<> text "." PP.<> (ppId a) <+> text "=" <+> d_b
                           )
                           ls
-               d3 <- mapM (\(_, b) -> do
-                              d_b <- toJS b
+               d3 <- mapM (\(_, lva) -> do
+                              d_b <- toJS (unLoc lva)  -- Extract VarAccess for JS codegen
                               return $ d_b <> text ".dataLevel") ls
                let d2 = penv PP.<> text ".__dataLevel = "
                         <+> jsFunCall (text $ binOpToJS Basics.LatticeJoin (Raw.UseNativeBinop False)) d3
@@ -717,27 +721,43 @@ ppSparseSlot = do
 
 
 fieldToJS :: ToJS a => (String, a) -> W PP.Doc
-fieldToJS (f, v) = do 
-    d <- toJS v 
+fieldToJS (f, v) = do
+    d <- toJS v
     return $ PP.brackets $ PP.doubleQuotes (text f) <> text "," <> d
 
 fieldsToJS :: ToJS a => [(String, a)] -> W [PP.Doc]
-fieldsToJS fs = do 
-    dd <- mapM fieldToJS fs 
+fieldsToJS fs = do
+    dd <- mapM fieldToJS fs
+    return $ PP.punctuate (text ",") dd
+
+-- | Convert LFields (with LVarAccess) to JS array notation
+-- LFields = [(FieldName, LVarAccess)]
+lfieldToJS :: (String, IR.LVarAccess) -> W PP.Doc
+lfieldToJS (f, lva) = do
+    d <- toJS (unLoc lva)  -- Extract VarAccess for JS codegen
+    return $ PP.brackets $ PP.doubleQuotes (text f) <> text "," <> d
+
+lfieldsToJS :: Raw.LFields -> W [PP.Doc]
+lfieldsToJS lfs = do
+    dd <- mapM lfieldToJS lfs
     return $ PP.punctuate (text ",") dd
 
 instance ToJS RawExpr where
-  toJS x = do 
+  toJS x = do
     HFN (fname) <- gets stHFN
-    let ppFunSelfRef = text "$env." PP.<> ppId fname 
+    let ppFunSelfRef = text "$env." PP.<> ppId fname
+    -- Helper to print VarAccess, with special case for self-reference
     let ppVarName IR.VarFunSelfRef = ppFunSelfRef
-        ppVarName x = IR.ppVarAccess x
-        
-    case x of 
+        ppVarName va = IR.ppVarAccess va
+    -- Helper for LVarAccess (extract VarAccess and print)
+    let ppLVarAccess (Loc _ va) = ppVarName va
+
+    case x of
       ProjectState c -> return $ monStateToJs c
-      ProjectLVal IR.VarFunSelfRef lf -> return (
-        case lf of 
-           Raw.FieldValue ->  ppFunSelfRef PP.<> 
+      -- Pattern match on LVarAccess (Located VarAccess)
+      ProjectLVal (Loc _ IR.VarFunSelfRef) lf -> return (
+        case lf of
+           Raw.FieldValue ->  ppFunSelfRef PP.<>
                                 text "." PP.<> PP.text (show Raw.FieldValue)
            Raw.FieldValLev -> monStateToJs MonPC
            Raw.FieldTypLev -> monStateToJs MonPC)
@@ -748,14 +768,17 @@ instance ToJS RawExpr where
           then hsep [ ppId va1, text', ppId va2 ]
           else jsFunCall text' [ppId va1, ppId va2]
       Un op v -> return $ text (unaryOpToJS op) <> PP.parens (ppId v)
-      Tuple vars -> return $
-        text "rt.mkTuple" <> PP.parens (PP.brackets $ PP.hsep $ PP.punctuate (text ",") (map ppVarName vars))
-      Record fields -> do
-        jsFields <- fieldsToJS fields 
+      -- Tuple now takes [LVarAccess]
+      Tuple lvars -> return $
+        text "rt.mkTuple" <> PP.parens (PP.brackets $ PP.hsep $ PP.punctuate (text ",") (map ppLVarAccess lvars))
+      -- Record now takes LFields ([(FieldName, LVarAccess)])
+      Record lfields -> do
+        jsFields <- lfieldsToJS lfields
         return $
           PP.parens $ text "rt.mkRecord" <> PP.parens (PP.brackets $ PP.hsep $ jsFields )
-      WithRecord r fields -> do 
-        jsFields <- fieldsToJS fields 
+      -- WithRecord now takes LFields
+      WithRecord r lfields -> do
+        jsFields <- lfieldsToJS lfields
         return $
           text "rt.withRecord" <> PP.parens (
             PP.hsep [ppId r, text ",", PP.brackets $ PP.hsep $ jsFields ])
@@ -763,10 +786,12 @@ instance ToJS RawExpr where
         text "rt.getField" <> PP.parens (ppId x <> text "," <>  PP.doubleQuotes (text f ) )
       ProjIdx x idx -> return $
         text "rt.raw_indexTuple" <> PP.parens (ppId x <> text "," <>  text (show idx) )
-      List vars -> return $
-        PP.parens $   text "rt.mkList" <> PP.parens (PP.brackets $ PP.hsep $ PP.punctuate (text ",") (map ppVarName vars))
-      ListCons v1 v2 -> return $
-        text "rt.cons" <>  PP.parens (ppVarName v1 <> text "," <> ppId v2)
+      -- List now takes [LVarAccess]
+      List lvars -> return $
+        PP.parens $   text "rt.mkList" <> PP.parens (PP.brackets $ PP.hsep $ PP.punctuate (text ",") (map ppLVarAccess lvars))
+      -- ListCons now takes LVarAccess for head
+      ListCons lv1 v2 -> return $
+        text "rt.cons" <>  PP.parens (ppLVarAccess lv1 <> text "," <> ppId v2)
       Const C.LUnit -> return $ text "rt.__unitbase"
       Const (C.LLabel s) -> return $
         text "rt.mkV1Label" <> (PP.parens . PP.doubleQuotes) (text s)

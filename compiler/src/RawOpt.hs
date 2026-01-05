@@ -19,9 +19,11 @@ import Core (Numeric(..))
 import           RetCPS (VarName (..))
 import qualified Data.Map.Lazy as Map
 import           IR ( Identifier(..)
-                    , VarAccess(..), HFN (..), Fields (..), Ident
+                    , VarAccess(..), HFN (..), Ident
+                    , LVarAccess
                     , ppId,ppFunCall,ppArgs
                     )
+import qualified IR
 import qualified Data.List
 import qualified Data.Ord
 import TroupePositionInfo (Located(..), getLoc, unLoc, noLoc, PosInf(..))
@@ -145,11 +147,15 @@ instance MarkUsed RawVar where
   markUsed rv = tell (Set.empty, Set.singleton rv)
 
 
-instance MarkUsed VarAccess where 
-  markUsed (VarLocal vn) = markUsed vn 
+instance MarkUsed VarAccess where
+  markUsed (VarLocal vn) = markUsed vn
   markUsed _ = return ()
 
-instance MarkUsed a => MarkUsed [a] where 
+-- | Instance for LVarAccess (Located VarAccess) - extracts VarAccess and marks it
+instance MarkUsed IR.LVarAccess where
+  markUsed (Loc _ va) = markUsed va
+
+instance MarkUsed a => MarkUsed [a] where
   markUsed ls = mapM_ markUsed ls
 
 instance MarkUsed RawExpr where 
@@ -274,7 +280,8 @@ guessType = \case
   -- Revision 2023-08: Added missing cases
   ProjField _ _ -> Nothing
   ProjIdx _ _ -> Nothing
-  ProjectLVal VarFunSelfRef FieldValue -> Just RawFunction
+  -- Pattern match on LVarAccess (Located VarAccess)
+  ProjectLVal (Loc _ VarFunSelfRef) FieldValue -> Just RawFunction
   ProjectLVal _ FieldValLev -> Just RawLevel
   ProjectLVal _ FieldTypLev -> Just RawLevel
   ProjectLVal _ FieldValue -> Nothing
@@ -334,7 +341,8 @@ pevalInst li = do
         let m2 = Map.insert (v, FieldValLev) r2 m1
         let m3 = Map.insert (v, FieldTypLev) r3 m2
         put $ pstate { stateLVals = m3 }
-      AssignRaw r (ProjectLVal (VarLocal v) field) -> do
+      -- Pattern match on LVarAccess (Located VarAccess)
+      AssignRaw r (ProjectLVal (Loc _ (VarLocal v)) field) -> do
         case (Map.lookup (v, field) (stateLVals pstate)) of
           Just r' -> addSubstWithPos r r' pos  -- Returns [] or [SourcePosAnnotation]
           Nothing -> _keep $ do

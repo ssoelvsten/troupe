@@ -11,7 +11,8 @@ where
 import qualified Basics
 import           RetCPS (VarName (..))
 import           IR ( Identifier(..)
-                    , VarAccess(..), HFN (..), Fields (..), Ident
+                    , VarAccess(..), HFN (..), Ident
+                    , LVarAccess
                     , ppId,ppFunCall,ppArgs
                     )
 import qualified IR (FunDef (..))
@@ -49,7 +50,8 @@ data StackTerminator
   = TailCall RawVar
   | Ret
   | If RawVar StackBBTree StackBBTree
-  | LibExport VarAccess
+  -- | Uses LVarAccess to preserve source position for the exported value
+  | LibExport LVarAccess
   | Error RawVar
   | StackExpand StackBBTree StackBBTree
   deriving (Eq, Show)
@@ -74,7 +76,8 @@ data StackInst
   | SetState MonComponent RawVar
   | SetBranchFlag
   | InvalidateSparseBit
-  | MkFunClosures [(VarName, VarAccess)] [(VarName, HFN)]
+  -- | Create function closures. Uses LVarAccess to preserve source positions for environment bindings.
+  | MkFunClosures [(VarName, LVarAccess)] [(VarName, HFN)]
   | RTAssertion RTAssertion
   -- | Source position annotation for source map generation.
   -- Generates no code but emits a source map marker at the current position.

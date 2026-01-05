@@ -175,7 +175,7 @@ constructLVal' LVal{..} = assignLVal' $ ConstructLVal rVal rValLbl rTyLbl
 -- to individual variables.
 -- Now takes LVarAccess and uses its position for generated instructions.
 getLVal :: IR.LVarAccess -> TM LVal
-getLVal (Loc vaPos va) = do
+getLVal lva@(Loc vaPos _) = do
   rVal <- freshRawVarWith "_val_"
   rValLbl <- freshRawVarWith "_vlbl_"
   rTyLbl <- freshRawVarWith "_tlbl_"
@@ -183,7 +183,7 @@ getLVal (Loc vaPos va) = do
   let pos = vaPos
 
   mapM_
-    (\(r, f) -> tell [Loc pos (AssignRaw r (ProjectLVal va f))])
+    (\(r, f) -> tell [Loc pos (AssignRaw r (ProjectLVal lva f))])
     [ (rVal, FieldValue),
       (rValLbl, FieldValLev),
       (rTyLbl, FieldTypLev)
@@ -219,35 +219,37 @@ getR0 = do
 -- to a new Raw variable.
 -- Now takes LVarAccess and uses its position for generated instructions.
 getVal :: IR.LVarAccess -> TM RawVar
-getVal (Loc vaPos va) = do
+getVal lva@(Loc vaPos _) = do
     rVal <- freshRawVarWith "_val_"
     -- Use the variable's position for the generated instruction
-    tell [Loc vaPos (AssignRaw rVal (ProjectLVal va FieldValue))]
+    tell [Loc vaPos (AssignRaw rVal (ProjectLVal lva FieldValue))]
     return rVal
 
--- | Special case projection for self-references
-projectLVal VarFunSelfRef FieldTypLev = ProjectState MonPC
-projectLVal VarFunSelfRef FieldValLev = ProjectState MonPC
-projectLVal va field = ProjectLVal va field
+-- | Special case projection for self-references, now working with LVarAccess
+-- Returns a RawExpr appropriate for the field projection
+projectLVal :: IR.LVarAccess -> LValField -> RawExpr
+projectLVal (Loc _ VarFunSelfRef) FieldTypLev = ProjectState MonPC
+projectLVal (Loc _ VarFunSelfRef) FieldValLev = ProjectState MonPC
+projectLVal lva field = ProjectLVal lva field
 
 -- | Generate instructions assigning the value label of the given runtime LVal
 -- to a new Raw variable.
 -- Now takes LVarAccess and uses its position for generated instructions.
 getValLbl :: IR.LVarAccess -> TM RawVar
-getValLbl (Loc vaPos va) = do
+getValLbl lva@(Loc vaPos _) = do
     rValLbl <- freshRawVarWith "_vlbl_"
     -- Use the variable's position for the generated instruction
-    tell [Loc vaPos (AssignRaw rValLbl (projectLVal va FieldValLev))]
+    tell [Loc vaPos (AssignRaw rValLbl (projectLVal lva FieldValLev))]
     return rValLbl
 
 -- | Generate instructions assigning the type label of the given runtime LVal
 -- to a new Raw variable.
 -- Now takes LVarAccess and uses its position for generated instructions.
 getTyLbl :: IR.LVarAccess -> TM RawVar
-getTyLbl (Loc vaPos va) = do
+getTyLbl lva@(Loc vaPos _) = do
     rTyLbl <- freshRawVarWith "_tlbl_"
     -- Use the variable's position for the generated instruction
-    tell [Loc vaPos (AssignRaw rTyLbl (projectLVal va FieldTypLev))]
+    tell [Loc vaPos (AssignRaw rTyLbl (projectLVal lva FieldTypLev))]
     return rTyLbl
 
 -- | Generate instructions assigning the current PC label to a new Raw variable.
@@ -462,24 +464,24 @@ expr2rawComp = \case
 
   -- The following constructor operations take labelled values as arguments,
   -- but these labels do not affect the labels of the resulting compound value.
-  -- Extract VarAccess from LVarAccess for Raw.Tuple
+  -- Now passes LVarAccess directly to Raw.Tuple (preserves source positions)
   IR.Tuple lvs ->
     return SimpleRawComp
-      { cVal = RExpr $ Tuple (map unLoc lvs)
+      { cVal = RExpr $ Tuple lvs
       , cValLbl = PC
       , cTyLbl = PC
       }
-  -- Extract VarAccess from LVarAccess for Raw.List
+  -- Now passes LVarAccess directly to Raw.List (preserves source positions)
   IR.List lvs ->
     return SimpleRawComp
-      { cVal = RExpr $ List (map unLoc lvs)
+      { cVal = RExpr $ List lvs
       , cValLbl = PC
       , cTyLbl = PC
       }
-  -- Extract VarAccess from LVarAccess for Raw.Record
+  -- Now passes LFields (with LVarAccess) directly to Raw.Record (preserves source positions)
   IR.Record lfs ->
     return SimpleRawComp
-      { cVal = RExpr $ Record (map (\(f, Loc _ va) -> (f, va)) lfs)
+      { cVal = RExpr $ Record lfs
       , cValLbl = PC
       , cTyLbl = PC
       }
@@ -488,19 +490,19 @@ expr2rawComp = \case
   -- with new values. The given labelled values are just added to the collection
   -- and not touched, therefore their labels are not joined into the datastructure's
   -- label.
-  -- Extract VarAccess for ListCons head, keep LVarAccess for list operand
+  -- Now passes LVarAccess directly to Raw.ListCons head (preserves source positions)
   IR.ListCons lv ll -> do
     assertTypeAndRaise ll RawList
     return SimpleRawComp
-      { cVal = RUn ll $ ListCons (unLoc lv)
+      { cVal = RUn ll $ ListCons lv
       , cValLbl = Join PC (ValLbl ll) []
       , cTyLbl = PC
       }
-  -- Extract VarAccess for WithRecord fields, keep LVarAccess for record operand
+  -- Now passes LFields (with LVarAccess) directly to Raw.WithRecord (preserves source positions)
   IR.WithRecord lv lfs -> do
     assertTypeAndRaise lv RawRecord
     return SimpleRawComp
-      { cVal = RUn lv $ \r -> WithRecord r (map (\(f, Loc _ va) -> (f, va)) lfs)
+      { cVal = RUn lv $ \r -> WithRecord r lfs
       , cValLbl = Join PC (ValLbl lv) []
       , cTyLbl = PC
       }
@@ -719,43 +721,46 @@ inst2raw (Loc pos inst) = case inst of
   IR.MkFunClosures vs env -> do
     -- The generation of closures and the related monitoring is first implemented in stack generation,
     -- to be able to use cyclic pointers for constructing the environments.
-    tell [Loc pos (MkFunClosures vs env)]
+    -- Wrap VarAccess with position (using instruction position) to create LVarAccess for Raw
+    let vs' = map (\(vn, va) -> (vn, Loc pos va)) vs
+    tell [Loc pos (MkFunClosures vs' env)]
 
 
 -- | Translate a Located IR terminator to a Located Raw terminator, generating instructions.
 -- Extracts position from Located wrapper and uses it for generated terminators.
--- Note: Terminators use plain VarAccess (not LVarAccess) for control flow variables.
--- We wrap them with noLocVA when calling functions that expect LVarAccess.
+-- IRTerminator now uses LVarAccess directly for variable references.
 tr2raw :: IR.LIRTerminator -> TM LRawTerminator
 tr2raw (Loc pos term) = case term of
   -- Revision 2023-08: Equivalent except for the additional redundant raise.
-  IR.TailCall v1 v2 -> do
-    let lv1 = noLocVA v1
-    let lv2 = noLocVA v2
+  -- lv1 and lv2 are now LVarAccess (from IRTerminator)
+  IR.TailCall lv1 lv2 -> do
     raisePCAndBlock $ ValLbl lv1
     -- Note: The raise here is redundant because we have already raised by the value label above.
     -- However, optimizations aware of the relation between type- and value label will remove it.
     assertTypeAndRaise lv1 RawFunction
     setR0 =<< getLVal lv2
-    r <- getVal lv1 -- labels of v1 are dismissed at this point
+    r <- getVal lv1 -- labels of lv1 are dismissed at this point
     return $ Loc pos (TailCall r)
 
   -- Revision 2023-08: This generates now more instructions than before,
   -- as we also construct LVals instead of just working on single RawVars,
   -- but after optimization with RawOpt the result is the same.
-  IR.Ret v -> do
+  -- lv is now LVarAccess (from IRTerminator)
+  IR.Ret lv -> do
     -- At this point, we taint value and type label of the to-be-returned value with PC,
     -- as both value and type can depend on it. Note: when implementing more fine-grained type labels,
     -- the type label should not always be tainted here.
-    setR0 =<< getLVal =<< pcTaint (noLocVA v)
+    setR0 =<< getLVal =<< pcTaint lv
     return $ Loc pos Ret
 
-  IR.LibExport x ->
-    return $ Loc pos (LibExport x)
+  -- lv is now LVarAccess (from IRTerminator)
+  -- Raw.LibExport now takes LVarAccess directly
+  IR.LibExport lv ->
+    return $ Loc pos (LibExport lv)
 
   -- Revision 2023-08: Equivalent except for the additional redundant raise.
-  IR.If v bb1 bb2 -> do
-    let lv = noLocVA v
+  -- lv is now LVarAccess (from IRTerminator)
+  IR.If lv bb1 bb2 -> do
     raisePCAndBlock $ ValLbl lv
     bb1' <- tree2raw bb1
     bb2' <- tree2raw bb2
@@ -784,9 +789,8 @@ tr2raw (Loc pos term) = case term of
   -- Note: This is translated into branching and Error for throwing RT exception
   -- Revision 2023-08: More fine-grained raising of blocking label, see below.
   -- Note: pos is the error source location from the Located wrapper
-  IR.AssertElseError v1 irBB verr -> do
-    let lv1 = noLocVA v1
-    let lverr = noLocVA verr
+  -- lv1 and lverr are now LVarAccess (from IRTerminator)
+  IR.AssertElseError lv1 irBB lverr -> do
     -- Note: We are first raising the blocking label with the type label,
     -- then assert the type and then raise with the value label.
     -- Raising with the value label directly would be sufficient,
@@ -807,7 +811,8 @@ tr2raw (Loc pos term) = case term of
   -- obsolete with an improvement moving the arguments of the Raw.Error
   -- instruction to R0).
   -- Note: pos is the error source location from the Located wrapper
-  IR.Error verr -> tr2rawError (noLocVA verr) pos
+  -- lverr is now LVarAccess (from IRTerminator)
+  IR.Error lverr -> tr2rawError lverr pos
 
 -- | Helper for Error translation with explicit error position
 -- Note: errPos is the error source location (PosInf from Located wrapper)

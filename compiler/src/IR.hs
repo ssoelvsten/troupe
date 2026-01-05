@@ -93,22 +93,22 @@ data IRExpr
 data IRBBTree = BB [LIRInst] LIRTerminator deriving (Eq, Show, Generic)
 
 -- | IRTerminator represents control flow endings of a basic block.
--- Positions are tracked via Located wrapper (LIRTerminator).
+-- Uses LVarAccess (Located VarAccess) to preserve source positions for variable references.
 data IRTerminator
   -- | Call the function referred to by the first variable with the argument in the second variable.
-  = TailCall VarAccess VarAccess
+  = TailCall LVarAccess LVarAccess
   -- | Return from the current Call with the given variable as return value.
-  | Ret VarAccess
-  | If VarAccess IRBBTree IRBBTree
+  | Ret LVarAccess
+  | If LVarAccess IRBBTree IRBBTree
   -- | Check whether the value of the first variable is true. If yes, continue with the given tree.
   -- If not, terminate the current thread with a runtime error, printing the message stored in the second variable (which is asserted to be a string).
   -- The error source location comes from the Located wrapper (LIRTerminator).
-  | AssertElseError VarAccess IRBBTree VarAccess
+  | AssertElseError LVarAccess IRBBTree LVarAccess
   -- | Make the library available under the given variable.
-  | LibExport VarAccess
+  | LibExport LVarAccess
   -- | Terminate the current thread with a runtime error, printing the message stored in the variable (which is asserted to be a string).
   -- The error source location comes from the Located wrapper (LIRTerminator).
-  | Error VarAccess
+  | Error LVarAccess
   -- | Execute the first BB, store the returned result in the given variable
   -- and then execute the second BB, which can refer to this variable and
   -- where PC is reset to the level before entering the first BB.
@@ -535,29 +535,41 @@ ppTr (StackExpand vn bb1 bb2) = do
   pure $ (ppId vn <+> text "= call" $$ nest 2 bb1Doc) $$ bb2Doc
 
 
-ppTr (AssertElseError va ir va2) = do
+ppTr (AssertElseError lva ir lva2) = do
   irDoc <- ppBB ir
-  pure $ text "assert" <+> PP.parens (ppId va) <+>
+  lvaDoc <- ppLVA lva
+  lva2Doc <- ppLVA lva2
+  pure $ text "assert" <+> PP.parens lvaDoc <+>
     text "{" $$
     nest 2 irDoc $$
     text "}" $$
-    text "elseError" <+> (ppId va2)
+    text "elseError" <+> lva2Doc
 
 
-ppTr (If va ir1 ir2) = do
+ppTr (If lva ir1 ir2) = do
   ir1Doc <- ppBB ir1
   ir2Doc <- ppBB ir2
-  pure $ text "if" <+> PP.parens (ppId va) <+>
+  lvaDoc <- ppLVA lva
+  pure $ text "if" <+> PP.parens lvaDoc <+>
     text "{" $$
     nest 2 ir1Doc $$
     text "}" $$
     text "else {" $$
     nest 2 ir2Doc $$
     text "}"
-ppTr (TailCall va1 va2) = pure $ ppFunCall (text "tail") [ppId va1, ppId va2]
-ppTr (Ret va)  = pure $ ppFunCall (text "ret") [ppId va]
-ppTr (LibExport va) = pure $ ppFunCall (text "export") [ppId va]
-ppTr (Error va)  = pure $ (text "error") PP.<> (ppId va)
+ppTr (TailCall lva1 lva2) = do
+  d1 <- ppLVA lva1
+  d2 <- ppLVA lva2
+  pure $ ppFunCall (text "tail") [d1, d2]
+ppTr (Ret lva) = do
+  d <- ppLVA lva
+  pure $ ppFunCall (text "ret") [d]
+ppTr (LibExport lva) = do
+  d <- ppLVA lva
+  pure $ ppFunCall (text "export") [d]
+ppTr (Error lva) = do
+  d <- ppLVA lva
+  pure $ (text "error") PP.<> d
 
 
 ppBB :: IRBBTree -> PP PP.Doc
@@ -588,6 +600,10 @@ instance Identifier VarName where
 
 instance Identifier VarAccess where
   ppId = ppVarAccess
+
+-- | Instance for Located wrapper - extracts content and prints it
+instance Identifier a => Identifier (Located a) where
+  ppId (Loc _ a) = ppId a
 
 instance Identifier HFN where
   ppId (HFN n) = text n

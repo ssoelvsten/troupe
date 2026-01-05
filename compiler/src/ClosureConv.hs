@@ -245,43 +245,57 @@ cpsToIR (Loc _pos (CPS.LetFun lfdefs lkt)) = do
     return $ (Loc funDeclPos $ CCIR.MkFunClosures envBindings fnBindings) `consBB` t
 
 -- Special Halt continuation, for exiting program
+-- Note: Halt takes a plain VarName, so we use pos for the LVarAccess wrapper
 cpsToIR (Loc pos (CPS.Halt v)) = do
     v' <- transVar v
+    let lv' = Loc pos v'  -- Wrap VarAccess with position to create LVarAccess
     (compileMode,_ , _ , _, _ ) <- ask
     let terminator =
           case compileMode of
               -- Compiling library, then generate export instruction
-              CompileMode.Library -> Loc pos $ CCIR.LibExport v'
+              CompileMode.Library -> Loc pos $ CCIR.LibExport lv'
               -- Otherwise, keep it as a simple return
-              _                   -> Loc pos $ CCIR.Ret v'
+              _                   -> Loc pos $ CCIR.Ret lv'
 
     return $ CCIR.BB [] terminator
 
+-- Note: KontReturn takes a plain VarName, so we use pos for the LVarAccess wrapper
 cpsToIR (Loc pos (CPS.KontReturn v)) = do
   v' <- transVar v
-  return $ CCIR.BB [] $ Loc pos $ CCIR.Ret v'
+  let lv' = Loc pos v'  -- Wrap VarAccess with position to create LVarAccess
+  return $ CCIR.BB [] $ Loc pos $ CCIR.Ret lv'
 
+-- Note: ApplyFun takes plain VarNames, so we use pos for the LVarAccess wrappers
 cpsToIR (Loc pos (CPS.ApplyFun fname v)) = do
   fname' <- transVar fname
   v'     <- transVar v
-  return $ CCIR.BB [] $ Loc pos $ CCIR.TailCall fname' v'
+  let lfname' = Loc pos fname'  -- Wrap VarAccess with position
+  let lv' = Loc pos v'          -- Wrap VarAccess with position
+  return $ CCIR.BB [] $ Loc pos $ CCIR.TailCall lfname' lv'
 
+-- Note: If takes a plain VarName, so we use pos for the LVarAccess wrapper
 cpsToIR (Loc pos (CPS.If v lkt1 lkt2)) = do
   v' <- transVar v
+  let lv' = Loc pos v'  -- Wrap VarAccess with position
   bb1 <- cpsToIR lkt1
   bb2 <- cpsToIR lkt2
-  return $ CCIR.BB [] $ Loc pos $ CCIR.If v' bb1 bb2
+  return $ CCIR.BB [] $ Loc pos $ CCIR.If lv' bb1 bb2
 
 -- AssertElseError and Error: position comes from Located wrapper
+-- Note: AssertElseError takes plain VarNames, so we use pos for the LVarAccess wrappers
 cpsToIR (Loc pos (CPS.AssertElseError v lkt1 z)) = do
   v' <- transVar v
   z' <- transVar z
+  let lv' = Loc pos v'  -- Wrap VarAccess with position
+  let lz' = Loc pos z'  -- Wrap VarAccess with position
   bb <- cpsToIR lkt1
-  return $ CCIR.BB [] $ Loc pos $ CCIR.AssertElseError v' bb z'
+  return $ CCIR.BB [] $ Loc pos $ CCIR.AssertElseError lv' bb lz'
 
+-- Note: Error takes a plain VarName, so we use pos for the LVarAccess wrapper
 cpsToIR (Loc pos (CPS.Error v)) = do
   v' <- transVar v
-  return $ CCIR.BB [] $ Loc pos $ CCIR.Error v'
+  let lv' = Loc pos v'  -- Wrap VarAccess with position
+  return $ CCIR.BB [] $ Loc pos $ CCIR.Error lv'
   
 
 

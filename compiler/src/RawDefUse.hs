@@ -183,6 +183,10 @@ instance Usable VarAccess b where
   use (VarLocal x) = use x
   use _ = use Env
 
+-- | Instance for Located VarAccess (LVarAccess) - extracts VarAccess and uses it
+instance Usable IR.LVarAccess b where
+  use (Loc _ va) = use va
+
 
 instance Trav a => Trav [a]
   where trav = mapM_ trav
