@@ -24,9 +24,7 @@ import           Control.Monad.Except
 import IR as CCIR
 
 import Control.Monad.Identity
-import TroupePositionInfo (Located(..), getLoc, unLoc, PosInf(..), ErrorPosInf(..), GetPosInfo(..))
--- Note: ErrorPosInf is still imported here because IR.hs uses it.
--- This will be removed in Phase 3 when IR stages are updated.
+import TroupePositionInfo (Located(..), getLoc, unLoc, PosInf(..), GetPosInfo(..))
 
 data VarLevel = VarNested Integer
                 deriving (Eq, Ord, Show)
@@ -275,18 +273,15 @@ cpsToIR (Loc pos (CPS.If v lkt1 lkt2)) = do
   return $ CCIR.BB [] $ Loc pos $ CCIR.If v' bb1 bb2
 
 -- AssertElseError and Error: position comes from Located wrapper
--- ErrorPosInf is recreated here for IR stage (until Phase 3 removes it from IR)
 cpsToIR (Loc pos (CPS.AssertElseError v lkt1 z)) = do
   v' <- transVar v
   z' <- transVar z
   bb <- cpsToIR lkt1
-  -- Recreate ErrorPosInf from the Located wrapper position for IR stage
-  return $ CCIR.BB [] $ Loc pos $ CCIR.AssertElseError v' bb z' (ErrorPos pos)
+  return $ CCIR.BB [] $ Loc pos $ CCIR.AssertElseError v' bb z'
 
 cpsToIR (Loc pos (CPS.Error v)) = do
   v' <- transVar v
-  -- Recreate ErrorPosInf from the Located wrapper position for IR stage
-  return $ CCIR.BB [] $ Loc pos $ CCIR.Error v' (ErrorPos pos)
+  return $ CCIR.BB [] $ Loc pos $ CCIR.Error v'
   
 
 

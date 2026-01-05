@@ -6,7 +6,6 @@
 
 module TroupePositionInfo
   ( PosInf(..)
-  , ErrorPosInf(..)
   , GetPosInfo(..)
   , Located(..)
   , getLoc
@@ -30,15 +29,6 @@ data PosInf = SrcPosInf String Int Int
 
 
 instance Serialize PosInf
-
--- | A wrapper around PosInf specifically for error source locations.
--- This distinguishes error positions (used in Error and AssertElseError)
--- from other position uses in the AST, making the type system help us
--- track error source locations through the compiler pipeline.
-newtype ErrorPosInf = ErrorPos PosInf
-  deriving (Eq, Ord, Show, Generic)
-
-instance Serialize ErrorPosInf
 
 instance Show PosInf
   where show (SrcPosInf filename row col) = filename ++ ":" ++ (show row) ++ ":" ++ (show col)

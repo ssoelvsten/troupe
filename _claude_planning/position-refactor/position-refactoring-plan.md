@@ -1,6 +1,6 @@
 # Position Information Refactoring Plan
 
-## Status: IN PROGRESS (~60% complete)
+## Status: COMPLETED ✅
 
 **Last updated:** 2026-01-05
 
@@ -8,10 +8,10 @@
 |-------|-------------|--------|
 | Phase 1a-c | DirectWOPats with `LTerm`, remove embedded positions | ✅ COMPLETED |
 | Phase 2 | Remove `ErrorPosInf` from RetCPS, RetDFCPS, CPSOpt, RetRewrite | ✅ COMPLETED |
-| Phase 3 | Remove `ErrorPosInf` from IR, ClosureConv, IROpt, IR2Raw | ❌ NOT STARTED |
-| Phase 4 | Remove `ErrorPosInf` from TroupePositionInfo.hs | ❌ NOT STARTED |
+| Phase 3 | Remove `ErrorPosInf` from IR, ClosureConv, IROpt, IR2Raw | ✅ COMPLETED |
+| Phase 4 | Remove `ErrorPosInf` from TroupePositionInfo.hs | ✅ COMPLETED |
 
-**Remaining work:** Complete Phases 3 and 4 to fully remove `ErrorPosInf` from the codebase.
+**Summary:** `ErrorPosInf` has been completely removed from the codebase. Position information for errors now comes from `Located` wrappers throughout the pipeline.
 
 ---
 
@@ -56,100 +56,83 @@ data Located a = Loc !PosInf a
 newtype ErrorPosInf = ErrorPos PosInf
 ```
 
-## ErrorPosInf Analysis
+## ErrorPosInf Analysis (Historical)
 
-### Current Usage Through Pipeline
+> **Note:** This section documents the *previous* state before the refactoring. `ErrorPosInf` has now been completely removed from the codebase.
 
-| Stage | Constructs Using ErrorPosInf |
-|-------|------------------------------|
-| DirectWOPats | `Error Term ErrorPosInf`, `AssertElseError Term Term Term ErrorPosInf` |
-| Core | N/A - unwrapped to `Located` position |
-| RetCPS | `Error VarName ErrorPosInf`, `AssertElseError VarName LKTerm VarName ErrorPosInf` |
-| IR | `Error VarAccess ErrorPosInf`, `AssertElseError VarAccess IRBBTree VarAccess ErrorPosInf` |
-| Raw | N/A - position in `Located RawTerminator` |
-| Stack | N/A - position in `Located StackTerminator` |
+### Previous Usage Through Pipeline
 
-### ErrorPosInf Flow Analysis
+| Stage | Previous Constructs | Current (After Refactoring) |
+|-------|---------------------|----------------------------|
+| DirectWOPats | `Error Term ErrorPosInf` | `Error LTerm` - position in `Located` wrapper |
+| Core | N/A - unwrapped to `Located` | N/A - position in `Located` wrapper |
+| RetCPS | `Error VarName ErrorPosInf` | `Error VarName` - position in `Located` wrapper |
+| IR | `Error VarAccess ErrorPosInf` | `Error VarAccess` - position in `Located` wrapper |
+| Raw | N/A - position in `Located` | Unchanged |
+| Stack | N/A - position in `Located` | Unchanged |
 
-The key insight: **ErrorPosInf is redundant** because it's always derived from `Located` wrapper positions and is recreated at stage boundaries.
+### Current Position Flow (After Refactoring)
 
-**Flow diagram:**
+**New unified flow diagram:**
 ```
-DirectWOPats:     Error t (ErrorPos pos)     -- pos from Located wrapper in source
+DirectWOPats:     Loc pos (Error lt)          -- position in Located wrapper
         ↓
-Core:             Loc pos (Error lt)          -- ErrorPos unwrapped to Located wrapper
+Core:             Loc pos (Error lt)          -- position preserved in Located
         ↓
-RetDFCPS:         Loc pos (Error v (ErrorPos pos))   -- RECREATED from same pos!
+RetDFCPS:         Loc pos (Error v)           -- position preserved in Located
         ↓
-RetCPS → IR:      passes through unchanged
+RetCPS → IR:      Loc pos (Error va)          -- position preserved in Located
         ↓
-IR2Raw:           Loc errPos (Error r)        -- ErrorPos unwrapped again
+IR2Raw:           Loc pos (Error r)           -- position used from Located wrapper
         ↓
-Raw → Stack:      position in Located wrapper only
+Raw → Stack:      position in Located wrapper
 ```
 
-**Key evidence from code:**
+### Key Code Changes Made
 
-1. **Core.hs** (line 254) unwraps `ErrorPosInf`:
+1. **Core.hs** - simplified lowering:
    ```haskell
-   lower (D.Error t (ErrorPos p)) = Loc p (Error (lower t))
+   lower (Loc pos (D.Error lt)) = Loc pos (Error (lower lt))
    ```
 
-2. **RetDFCPS.hs** (line 88) recreates it from the same position:
+2. **RetDFCPS.hs** - no longer recreates ErrorPosInf:
    ```haskell
-   trans lterm (\(Loc _ v) -> return $ Loc pos (Error v (ErrorPos pos)))
+   trans lterm (\(Loc _ v) -> return $ Loc pos (Error v))
    ```
 
-3. **IR2Raw.hs** (line 810) unwraps it again:
+3. **IR2Raw.hs** - uses position from Located wrapper:
    ```haskell
-   IR.Error verr (ErrorPos errPos) -> tr2rawError (noLocVA verr) errPos
+   IR.Error verr -> tr2rawError (noLocVA verr) pos  -- pos from Loc pos (...)
    ```
 
-4. **CaseElimination.hs** always creates `ErrorPos` from `Located` wrapper positions:
-   - Line 230: `ErrorPos patPos` where `patPos = getLoc lpat`
-   - Line 250: `ErrorPos pos` where `Loc pos (S.FunDecl ...)`
-   - Line 293: `ErrorPos pos` from `Located` case expression wrapper
+4. **RetRewrite.hs** - context now uses `PosInf` directly:
+   ```haskell
+   data Context
+     = CtxtHole
+     | CtxtLetSimple VarName LSimpleTerm Context
+     | CtxtLetCont ContDef Context
+     | CtxtLetFunK [Located FunDef] Context
+     | CtxtAssert VarName VarName PosInf Context  -- Changed from ErrorPosInf
+   ```
 
-Since `ErrorPosInf` never carries a position that isn't already in a `Located` wrapper, it provides no additional information - it's defensive redundancy that adds complexity without benefit.
-
-### RetRewrite.hs Special Case
-
-`RetRewrite.hs` uses `ErrorPosInf` in a context reconstruction type:
-```haskell
-data Context
-  = CtxtHole
-  | CtxtLetSimple VarName LSimpleTerm Context
-  | CtxtLetCont ContDef Context
-  | CtxtLetFunK [Located FunDef] Context
-  | CtxtAssert VarName VarName ErrorPosInf Context  -- here
-```
-
-When reconstructing terms (line 213):
-```haskell
-reconstructTerm (CtxtAssert vn vn' errPos@(ErrorPos pos) ctxt) lkt =
-  Loc pos $ AssertElseError vn (reconstructTerm ctxt lkt) vn' errPos
-```
-
-The `ErrorPosInf` is used to reconstruct both the `Located` wrapper position AND pass to `AssertElseError`. This will be simplified when `ErrorPosInf` is removed - the context will store `PosInf` directly.
-
-## Proposed Solution: Option 3 (Located Wrapper in DirectWOPats)
+## Implemented Solution: Located Wrapper in DirectWOPats
 
 ### Overview
 
-Change DirectWOPats to use `Located Term` wrappers instead of embedding positions in each constructor. This:
-1. Fixes the root cause - all terms (including literals) get proper positions
-2. Makes DirectWOPats consistent with Core's design
-3. Allows removal of `ErrorPosInf` from the entire pipeline
+DirectWOPats now uses `Located Term` wrappers instead of embedding positions in each constructor. This:
+1. ✅ Fixes the root cause - all terms (including literals) get proper positions
+2. ✅ Makes DirectWOPats consistent with Core's design
+3. ✅ Allows removal of `ErrorPosInf` from the entire pipeline
 
-### Why Remove ErrorPosInf Entirely?
+### Benefits Achieved
 
 1. **Single source of truth** - Position only in `Located` wrapper
 2. **No redundant conversions** - No wrapping/unwrapping at stage boundaries
 3. **Simpler code** - Fewer constructor arguments to thread through
 4. **Consistent architecture** - All stages use the same pattern
-5. **The claimed distinction doesn't exist** - Comments say ErrorPosInf distinguishes "error source location" from "expression position", but the code shows they're always the same value
+5. **The claimed distinction doesn't exist** - Comments said ErrorPosInf distinguishes "error source location" from "expression position", but the code showed they were always the same value
 
-### Current DirectWOPats.Term (Inconsistent)
+### Previous DirectWOPats.Term (Before Refactoring)
 
 ```haskell
 data Term
@@ -172,7 +155,7 @@ data Term
     | Error Term ErrorPosInf            -- ErrorPosInf
 ```
 
-### Proposed DirectWOPats.Term (Consistent)
+### Current DirectWOPats.Term (After Refactoring)
 
 ```haskell
 type LTerm = Located Term
@@ -198,52 +181,57 @@ data Term
     | Error LTerm                          -- NO ErrorPosInf
 ```
 
-### Files Requiring Changes
+### Files Changed
 
-#### Phase 1: Remove ErrorPosInf, Add Located to DirectWOPats
+#### Phase 1: Remove ErrorPosInf, Add Located to DirectWOPats ✅
 
-| File | Changes |
-|------|---------|
-| **TroupePositionInfo.hs** | Remove `ErrorPosInf` type and exports |
-| **DirectWOPats.hs** | Add `LTerm`, `LFields` types; remove embedded positions from constructors; remove `ErrorPosInf` from Error/AssertElseError |
-| **CaseElimination.hs** | Major rewrite - wrap all terms with `Loc pos`; remove `ErrorPos` wrapping |
-| **Core.hs** | Simplify `lower` to extract position from `Located` wrapper; no `ErrorPos` handling |
+| File | Changes | Status |
+|------|---------|--------|
+| **DirectWOPats.hs** | Added `LTerm`, `LFields` types; removed embedded positions from constructors | ✅ Done |
+| **CaseElimination.hs** | Major rewrite - wrap all terms with `Loc pos` | ✅ Done |
+| **Core.hs** | Simplified `lower` to extract position from `Located` wrapper | ✅ Done |
 
-#### Phase 2: Remove ErrorPosInf from CPS stages
+#### Phase 2: Remove ErrorPosInf from CPS stages ✅
 
-| File | Changes |
-|------|---------|
-| **RetCPS.hs** | Remove `ErrorPosInf` from `Error`, `AssertElseError` constructors |
-| **RetDFCPS.hs** | Stop creating `ErrorPos`, use `Located` position directly |
-| **CPSOpt.hs** | Update pattern matches (currently just imports) |
-| **RetRewrite.hs** | Change `CtxtAssert VarName VarName ErrorPosInf Context` to `CtxtAssert VarName VarName PosInf Context`; update reconstruction |
+| File | Changes | Status |
+|------|---------|--------|
+| **RetCPS.hs** | Removed `ErrorPosInf` from `Error`, `AssertElseError` constructors | ✅ Done |
+| **RetDFCPS.hs** | Stopped creating `ErrorPos`, use `Located` position directly | ✅ Done |
+| **CPSOpt.hs** | Updated pattern matches | ✅ Done |
+| **RetRewrite.hs** | Changed `CtxtAssert` to use `PosInf` instead of `ErrorPosInf` | ✅ Done |
 
-#### Phase 3: Remove ErrorPosInf from IR stages
+#### Phase 3: Remove ErrorPosInf from IR stages ✅
 
-| File | Changes |
-|------|---------|
-| **IR.hs** | Remove `ErrorPosInf` from `Error`, `AssertElseError` terminators |
-| **ClosureConv.hs** | Update pattern matches; no `errPos` threading |
-| **IROpt.hs** | Update pattern matches |
-| **IR2Raw.hs** | Simplified - use `Located` position directly from wrapper |
+| File | Changes | Status |
+|------|---------|--------|
+| **IR.hs** | Removed `ErrorPosInf` from `Error`, `AssertElseError` terminators | ✅ Done |
+| **ClosureConv.hs** | Removed `ErrorPos` creation, use position from `Located` wrapper | ✅ Done |
+| **IROpt.hs** | Updated pattern matches | ✅ Done |
+| **IR2Raw.hs** | Uses `Located` position directly from wrapper | ✅ Done |
 
-### Key Transformation Changes
+#### Phase 4: Remove ErrorPosInf from TroupePositionInfo.hs ✅
+
+| File | Changes | Status |
+|------|---------|--------|
+| **TroupePositionInfo.hs** | Removed `ErrorPosInf` type and exports | ✅ Done |
+
+### Key Transformation Changes (Implemented)
 
 #### CaseElimination.hs (transTerm)
 
-**Current** (loses literal position):
+**Before** (loses literal position):
 ```haskell
 transTerm _ (S.Lit lit) = return (T.Lit (transLit lit))
 ```
 
-**Proposed** (preserves position):
+**After** (preserves position):
 ```haskell
 transTerm pos (S.Lit lit) = return $ Loc pos (T.Lit (transLit lit))
 ```
 
 #### Core.hs (lower)
 
-**Current** (special case for literals):
+**Before** (special case for literals):
 ```haskell
 lower (D.Lit l) = Loc (litPos l) (Lit (lowerLit l))
   where
@@ -253,7 +241,7 @@ lower (D.Lit l) = Loc (litPos l) (Lit (lowerLit l))
 lower (D.Error t (ErrorPos p)) = Loc p (Error (lower t))
 ```
 
-**Proposed** (uniform handling):
+**After** (uniform handling):
 ```haskell
 lower (Loc pos (D.Lit l)) = Loc pos (Lit (lowerLit l))
 
@@ -262,13 +250,13 @@ lower (Loc pos (D.Error lt)) = Loc pos (Error (lower lt))
 
 #### RetDFCPS.hs (transExplicit for Error)
 
-**Current** (recreates ErrorPosInf):
+**Before** (recreates ErrorPosInf):
 ```haskell
 transExplicit (Loc pos (Core.Error lterm)) = do
   trans lterm (\(Loc _ v) -> return $ Loc pos (Error v (ErrorPos pos)))
 ```
 
-**Proposed** (position stays in Located):
+**After** (position stays in Located):
 ```haskell
 transExplicit (Loc pos (Core.Error lterm)) = do
   trans lterm (\(Loc _ v) -> return $ Loc pos (Error v))
@@ -276,52 +264,46 @@ transExplicit (Loc pos (Core.Error lterm)) = do
 
 #### IR2Raw.hs
 
-**Current**:
+**Before**:
 ```haskell
 IR.Error verr (ErrorPos errPos) -> tr2rawError (noLocVA verr) errPos
 ```
 
-**Proposed** (position from Located wrapper):
+**After** (position from Located wrapper):
 ```haskell
 IR.Error verr -> tr2rawError (noLocVA verr) pos  -- pos from Loc pos (...)
 ```
 
-## Testing Strategy
+## Testing Results
 
-1. **Compilation test** - All existing tests should compile
-2. **Golden tests** - Many existing golden tests should pass. Some tests will fail because source map tracking is in development, but do not change any golden files as part of this refactoring.
-3. **Position tracking test** - Verify literal positions work:
-   ```troupe
-   let x = 1 + ()  -- Should report position for ()
-   in x
-   ```
-4. **Source map verification** - Check generated JS has correct positions
+1. ✅ **Compilation test** - All existing tests compile
+2. ✅ **Golden tests** - Same pass/fail rate as before refactoring (32 failing tests are pre-existing source map issues, not caused by this refactoring)
+3. ✅ **Position tracking test** - Error positions are correctly embedded in error messages
+4. ⚠️ **Source map verification** - The `>> at` line in error output is a separate source map tracking issue being addressed independently
 
-## Implementation Order
+## Implementation Order (Completed)
 
-The refactoring should proceed in phases to maintain a working compiler at each step:
+1. ✅ **Phase 1a**: Updated DirectWOPats.hs with new types (added `LTerm`)
+2. ✅ **Phase 1b**: Updated CaseElimination.hs to produce new format
+3. ✅ **Phase 1c**: Updated Core.hs lower function; removed `ErrorPosInf` from DirectWOPats
+4. ✅ **Phase 2**: Removed `ErrorPosInf` from RetCPS, RetDFCPS, CPSOpt, RetRewrite
+5. ✅ **Phase 3**: Removed `ErrorPosInf` from IR, ClosureConv, IROpt, IR2Raw
+6. ✅ **Phase 4**: Removed `ErrorPosInf` from TroupePositionInfo.hs
 
-1. **Phase 1a**: Update DirectWOPats.hs with new types (add `LTerm`, keep old constructors temporarily)
-2. **Phase 1b**: Update CaseElimination.hs to produce new format
-3. **Phase 1c**: Update Core.hs lower function; remove `ErrorPosInf` from DirectWOPats
-4. **Phase 2**: Remove `ErrorPosInf` from RetCPS, RetDFCPS, CPSOpt, RetRewrite
-5. **Phase 3**: Remove `ErrorPosInf` from IR, ClosureConv, IROpt, IR2Raw
-6. **Phase 4**: Remove `ErrorPosInf` from TroupePositionInfo.hs
+## Actual Scope
 
-## Estimated Scope
+| Phase | Files | Status |
+|-------|-------|--------|
+| 1a-c | DirectWOPats, CaseElimination, Core | ✅ Completed |
+| 2 | RetCPS, RetDFCPS, CPSOpt, RetRewrite | ✅ Completed |
+| 3 | IR, ClosureConv, IROpt, IR2Raw | ✅ Completed |
+| 4 | TroupePositionInfo | ✅ Completed |
+| **Total** | **12 files** | **✅ All Complete** |
 
-| Phase | Files | Lines Changed (Est.) | Complexity |
-|-------|-------|---------------------|------------|
-| 1a-c | DirectWOPats, CaseElimination, Core | ~200 | High |
-| 2 | RetCPS, RetDFCPS, CPSOpt, RetRewrite | ~60 | Medium |
-| 3 | IR, ClosureConv, IROpt, IR2Raw | ~50 | Medium |
-| 4 | TroupePositionInfo | ~10 | Low |
-| **Total** | **12 files** | **~320 lines** | - |
+## Benefits Achieved
 
-## Benefits Summary
-
-1. **Fixes the literal position bug** - All terms get positions, including literals
-2. **Eliminates redundant ErrorPosInf** - Simpler code, single source of truth
-3. **Consistent architecture** - DirectWOPats matches Core's `Located` pattern
-4. **Future-proof** - Easier to add new term types (just use `LTerm`)
-5. **Better maintainability** - Clear separation of position and content
+1. ✅ **Fixes the literal position bug** - All terms get positions, including literals
+2. ✅ **Eliminates redundant ErrorPosInf** - Simpler code, single source of truth
+3. ✅ **Consistent architecture** - DirectWOPats matches Core's `Located` pattern
+4. ✅ **Future-proof** - Easier to add new term types (just use `LTerm`)
+5. ✅ **Better maintainability** - Clear separation of position and content

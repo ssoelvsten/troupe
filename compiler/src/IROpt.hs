@@ -9,7 +9,7 @@ import qualified Data.Set as Set
 import qualified Basics
 import qualified Core                      as C
 import Core (Numeric(..))
-import           TroupePositionInfo (Located(..), getLoc, unLoc, noLoc, atLoc, PosInf(..), ErrorPosInf(..), GetPosInfo(..))
+import           TroupePositionInfo (Located(..), getLoc, unLoc, noLoc, atLoc, PosInf(..), GetPosInfo(..))
 
 import qualified Data.Map.Lazy as Map 
 import           RetCPS                    (VarName (..))
@@ -64,10 +64,10 @@ instance Substitutable IRTerminator where
             TailCall x y -> TailCall (apply subst x) (apply subst y)
             Ret x -> Ret (apply subst x)
             If x bb1 bb2 -> If (apply subst x) (apply subst bb1) (apply subst bb2)
-            AssertElseError x bb y errPos@(ErrorPos _) ->
-                AssertElseError (apply subst x) (apply subst bb) (apply subst y) errPos
+            AssertElseError x bb y ->
+                AssertElseError (apply subst x) (apply subst bb) (apply subst y)
             LibExport x -> LibExport (apply subst x)
-            Error x errPos@(ErrorPos _) -> Error (apply subst x) errPos
+            Error x -> Error (apply subst x)
             StackExpand decVar bb1 bb2 -> StackExpand decVar (apply subst bb1) (apply subst bb2)
 
 -- Instance for Located wrapper - apply substitution to content, preserve position
@@ -480,7 +480,7 @@ trPeval (Loc pos (If x bb1 bb2)) = do
                     return $ BB [] (Loc pos (If x bb1' bb2'))
 
 
-trPeval (Loc pos (AssertElseError x bb y_err errPos)) = do
+trPeval (Loc pos (AssertElseError x bb y_err)) = do
     v <- varPEval x
     markUsed' y_err
     case v of
@@ -488,7 +488,7 @@ trPeval (Loc pos (AssertElseError x bb y_err errPos)) = do
             setChangeFlag
             peval bb
         _ -> do bb' <- peval bb
-                return $ BB [] (Loc pos (AssertElseError x bb' y_err errPos))
+                return $ BB [] (Loc pos (AssertElseError x bb' y_err))
 
 
 trPeval (Loc pos (StackExpand x bb1 bb2)) = do
@@ -512,7 +512,7 @@ trPeval ltr@(Loc _pos (LibExport x)) = do
     markUsed' x
     return $ BB [] ltr
 
-trPeval ltr@(Loc _pos (Error x _errPos)) = do
+trPeval ltr@(Loc _pos (Error x)) = do
     markUsed' x
     return $ BB [] ltr
 
