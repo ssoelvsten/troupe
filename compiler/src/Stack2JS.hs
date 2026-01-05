@@ -175,12 +175,26 @@ instance Identifier Raw.Assignable where
 class ToJS a where
    toJS :: a -> W PP.Doc
 
+-- | Placeholder marker for source map injection.
+-- Main.hs will replace this with the actual source map JSON.
+sourceMapPlaceholderStr :: String
+sourceMapPlaceholderStr = "/*__SOURCE_MAP_PLACEHOLDER__*/"
+
+sourceMapPlaceholder :: PP.Doc
+sourceMapPlaceholder = PP.text sourceMapPlaceholderStr
+
 stack2PPDoc :: CompileMode -> CodeGenOpts -> StackUnit -> (PP.Doc, WData)
 
 stack2PPDoc compileMode opts (ProgramStackUnit sp) =
   let (fns, _, w@(libs, atoms, konts, markers)) = runRWS (toJS sp) opts initState
+      sourceMapEnabled = cgoSourceMapEnabled opts
+      -- Source map attachment: defineProperty ensures it's non-enumerable
+      sourceMapAttachment = if sourceMapEnabled
+                            then PP.text "Object.defineProperty(this, '__sourceMap', { value:" <+> sourceMapPlaceholder <+> PP.text ", enumerable: false })"
+                            else PP.empty
       inner = vcat $
-        [ jsLoadLibs
+        [ sourceMapAttachment
+        , jsLoadLibs
         , addLibs libs
         ]
         ++ (fns:konts) ++
@@ -393,6 +407,7 @@ toJSFunDefWithPos pos (FunDef hfn stacksize consts bb irfdef) = do
                           else PP.empty
                , nest 2 $ vcat $ [
                   "let _T = rt.runtime.$t",
+                  "_T.currentSourceMap = this.__sourceMap",  -- Source map tracking for error translation
                   "let _STACK = _T.callStack",
                   "let _SP = _T._sp",
                   "let _SP_OLD",
@@ -543,7 +558,10 @@ ir2jsWithPos pos (MkFunClosures envBindings funBindings) = do
 
 ir2jsWithPos _pos (SetState c x) = return $ semi $ monStateToJs c <+> "=" <+> ppId x
 
-ir2jsWithPos _pos (RTAssertion a) = return $ ppRTAssertionCode jsFunCall a
+ir2jsWithPos pos (RTAssertion a) = do
+  marker <- emitMarker pos
+  let debugComment = text $ "/* RTAssertion pos=" ++ show pos ++ " */"
+  return $ debugComment PP.<> marker PP.<> ppRTAssertionCode jsFunCall a
 
 -- Note: LabelGroup now contains [LStackInst] (Located instructions)
 ir2jsWithPos _pos (LabelGroup lii) = do
@@ -601,6 +619,7 @@ tr2jsWithPos _pos (StackExpand bb bb2) = do
                   nest 2 $
                         vcat [
                           "let _T = rt.runtime.$t",
+                          "_T.currentSourceMap = this.__sourceMap",  -- Restore source map on continuation entry (cross-namespace calls)
                           "let _STACK = _T.callStack",
                           "let _SP = _T._sp",
                           -- TODO Do we need this? It seems to be only used zero or one time in the generated places.

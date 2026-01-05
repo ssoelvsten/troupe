@@ -39,6 +39,7 @@ import System.Console.GetOpt
 import Data.List as List
 import Data.Maybe (fromJust)
 import System.FilePath
+import qualified Data.Text as T
 
 --------------------------------------------------------------------------------
 ----- COMPILER FLAGS -----------------------------------------------------------
@@ -168,16 +169,26 @@ process flags fname input = do
                                                               debugJS
                                                               sourceMapEnabled
                                                               (Stack.ProgramStackUnit stack)
-      writeFile outPath stackjs
 
-      ----- SOURCE MAP -------------------------------------
-      when sourceMapEnabled $ do
-        let mapJson = buildSourceMap outPath mappings
-            mapBytes = BL.toStrict (Aeson.encode mapJson)
-            mapBase64 = B64.encode mapBytes
-            inlineComment = "\n//# sourceMappingURL=data:application/json;charset=utf-8;base64,"
-                            ++ BS.unpack mapBase64 ++ "\n"
-        appendFile outPath inlineComment
+      ----- SOURCE MAP EMBEDDING ---------------------------
+      -- When source maps are enabled, replace the placeholder with actual source map JSON.
+      -- Also append the inline source map comment for Node.js --enable-source-maps compatibility.
+      let finalJs = if sourceMapEnabled
+                    then let mapJson = buildSourceMap outPath mappings
+                             mapJsonStr = BSLazyChar8.unpack (Aeson.encode mapJson)
+                             -- Replace placeholder with actual source map JSON using Data.Text.replace
+                             jsWithMap = T.unpack $ T.replace
+                                           (T.pack Stack2JS.sourceMapPlaceholderStr)
+                                           (T.pack mapJsonStr)
+                                           (T.pack stackjs)
+                             -- Also add inline comment for backwards compatibility
+                             mapBytes = BL.toStrict (Aeson.encode mapJson)
+                             mapBase64 = B64.encode mapBytes
+                             inlineComment = "\n//# sourceMappingURL=data:application/json;charset=utf-8;base64,"
+                                             ++ BS.unpack mapBase64 ++ "\n"
+                         in jsWithMap ++ inlineComment
+                    else stackjs
+      writeFile outPath finalJs
 
       -- case compileMode of Library -> ...
       case exports of Nothing -> return ()

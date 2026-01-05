@@ -22,6 +22,7 @@ import { setRuntimeObject } from './SysState.mjs';
 import { initTrustMap, nodeTrustLevel, _trustMap } from './TrustManager.mjs';
 import { serialize } from './serialize.mjs';
 import { Thread } from './Thread.mjs';
+import { ErrorKind } from './TroupeError.mjs';
 
 import { Console } from 'node:console'
 
@@ -220,7 +221,7 @@ function sendMessageToRemote(toPid, message) {
   if (!flowsTo(level, trustLevel)) {
     threadError("Illegal trust flow when sending information to a remote node\n" +
       ` | the trust level of the recepient node: ${trustLevel.stringRep()}\n` +
-      ` | the level of the information to send:  ${level.stringRep()}`);
+      ` | the level of the information to send:  ${level.stringRep()}`, false, null, ErrorKind.IFCCheck);
   } else {
     p2p.sendp2p(node, pid, data)
     return $t().returnImmediateLValue(__unit);   // we return unit to the call site at the thread level
@@ -310,8 +311,8 @@ function rt_mkLabel(x) {
 
 
 
-function threadError(s, internal = false) {
-  return $t().threadError(s, internal);
+function threadError(s, internal = false, explainer = null, errorKind: ErrorKind = ErrorKind.DynTypeError) {
+  return $t().threadError(s, internal, explainer, errorKind);
 }
 
 let rt_threadError = threadError;

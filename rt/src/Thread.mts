@@ -1,7 +1,7 @@
 import * as levels from './Level.mjs'
 import { DowngradeDimension, DowngradeKind, DowngradeResult, DowngradeErrorReason, ValidateDowngradeParams } from './DowngradeEnums.mjs';
 import { LVal, LValCopyAt } from './Lval.mjs';
-import { HandlerError, ImplementationError, StrThreadError } from './TroupeError.mjs';
+import { HandlerError, ImplementationError, StrThreadError, ErrorKind } from './TroupeError.mjs';
 import { getCliArgs, TroupeCliArg } from './TroupeCliArgs.mjs';
 import {
     getDowngradeErrorMessage,
@@ -231,6 +231,14 @@ export class Thread {
     // Source position of the last tail call, used for error reporting when
     // errors occur inside runtime built-ins (where user code isn't on the JS stack)
     lastCallSourcePos: string | null = null;
+
+    /**
+     * Current source map for the executing code.
+     * Set by function/continuation preambles in generated code.
+     * Used by error handlers to translate JS positions to Troupe positions.
+     * This is a V3 source map object (version, sources, mappings, etc.)
+     */
+    currentSourceMap: any | null = null;
 
     failureRate: number  = 0
     failureStartTime : number = 0
@@ -579,7 +587,7 @@ export class Thread {
         if (downgradeCheckResult.kind === "FAILURE") {
             try {
                 const errorMessage = getDowngradeErrorMessage(params, downgradeCheckResult.reason);
-                this.threadError(errorMessage);
+                this.threadError(errorMessage, false, null, ErrorKind.IFCCheck);
             } catch (e) {
                 if (e instanceof ImplementationError) {
                     this.threadError(e.message, true);
@@ -718,7 +726,7 @@ export class Thread {
         if (branchFlag) {
             if (lclear != this.mailbox.mclear) {
                 // this.showStackV2 ()
-                this.threadError (`Mailbox clearance label is not restorted after being raised in a branch; stack depth = ${this._sp}` )
+                this.threadError (`Mailbox clearance label is not restorted after being raised in a branch; stack depth = ${this._sp}`, false, null, ErrorKind.IFCCheck)
             }
         }
         this.pc  = _STACK [_SP - PCOFFSET]; 
@@ -760,16 +768,16 @@ export class Thread {
     // TODO: deprecate (!)
     pcpop (cap_lval) {
         if (this.pini_uuid == null) {
-            this.threadError ("unmatched pcpop");
+            this.threadError ("unmatched pcpop", false, null, ErrorKind.IFCCheck);
         }
-       
-        let cap: Capability<any> = cap_lval.val;        
+
+        let cap: Capability<any> = cap_lval.val;
         let {bl, pc, auth, purpose} = cap.data;
-        
+
         // check the capability
         if (this.pini_uuid != cap.uid || purpose != PCDowngradePurpose.Full) {
-            this.threadError ("Ill-scoped pinipush/pinipop");
-            return null; // does not schedule anything in this thread 
+            this.threadError ("Ill-scoped pinipush/pinipop", false, null, ErrorKind.IFCCheck);
+            return null; // does not schedule anything in this thread
                          // effectively terminating/blocking the thread
         }
 
@@ -834,20 +842,20 @@ export class Thread {
 
     pinipop (cap_lval) {
         if (this.pini_uuid == null) {
-            this.threadError ("unmatched pinipop");
+            this.threadError ("unmatched pinipop", false, null, ErrorKind.IFCCheck);
         }
 
         debug (`Current pc level is ${this.pc.stringRep()}`)
 
-        this.raiseBlockingThreadLev(this.pc); // maintaining the invariant that the blocking level is as high as the pc level       
-        
-        let cap: Capability<any> = cap_lval.val;        
-        let {bl, pc, auth, purpose} = cap.data;
-        
+        this.raiseBlockingThreadLev(this.pc); // maintaining the invariant that the blocking level is as high as the pc level
 
-        if (this.pini_uuid != cap.uid || purpose != PCDowngradePurpose.Pini) {            
-            this.threadError ("Ill-scoped pinipush/pinipop");
-            return; // does not schedule anything in this thread 
+        let cap: Capability<any> = cap_lval.val;
+        let {bl, pc, auth, purpose} = cap.data;
+
+
+        if (this.pini_uuid != cap.uid || purpose != PCDowngradePurpose.Pini) {
+            this.threadError ("Ill-scoped pinipush/pinipop", false, null, ErrorKind.IFCCheck);
+            return; // does not schedule anything in this thread
                     // effectively terminating the thread
         }
 
@@ -882,19 +890,19 @@ export class Thread {
         // These are copy paste from declassify
         // we should recheck
         if (! flowsTo (this.pc, bl_to)) {
-            this.threadError ("The provided target blocking level is lower than the current pc\n" + 
+            this.threadError ("The provided target blocking level is lower than the current pc\n" +
                               ` | the current pc: ${this.pc.stringRep()}\n` +
-                              ` | target blocking level: ${bl_to.stringRep()}`)
+                              ` | target blocking level: ${bl_to.stringRep()}`, false, null, ErrorKind.IFCCheck)
         }
-        
+
 
         let ok_to_use = levels.flowsTo (auth.lev, bl_to);
         if (!ok_to_use) {
-            this.threadError ("The provided authority value is tainted\n" + 
+            this.threadError ("The provided authority value is tainted\n" +
                               ` | the level of the authority value: ${auth.lev.stringRep()}\n` +
-                              ` | target blocking level: ${bl_to.stringRep()}`)
+                              ` | target blocking level: ${bl_to.stringRep()}`, false, null, ErrorKind.IFCCheck)
         }
-        
+
         const current_bl = this.bl; // Capture this.bl as it's effectively levFrom
 
         this._validateDowngradeOrThrow({
@@ -909,26 +917,26 @@ export class Thread {
         });
 
         this.bl = bl_to; // the actual downgrade
-        return this.returnImmediateLValue (__unit); 
+        return this.returnImmediateLValue (__unit);
 
     }
 
 
-    blockDeclassifyTo (auth, bl_to = this.pc) {        
+    blockDeclassifyTo (auth, bl_to = this.pc) {
         if (! flowsTo (this.pc, bl_to)) {
-            this.threadError ("The provided target blocking level is lower than the current pc\n" + 
+            this.threadError ("The provided target blocking level is lower than the current pc\n" +
                               ` | the current pc: ${this.pc.stringRep()}\n` +
-                              ` | target blocking level: ${bl_to.stringRep()}`)
+                              ` | target blocking level: ${bl_to.stringRep()}`, false, null, ErrorKind.IFCCheck)
         }
-        
+
 
         let ok_to_use = levels.flowsTo (auth.lev, bl_to);
         if (!ok_to_use) {
-            this.threadError ("The provided authority value is tainted\n" + 
+            this.threadError ("The provided authority value is tainted\n" +
                               ` | the level of the authority value: ${auth.lev.stringRep()}\n` +
-                              ` | target blocking level: ${bl_to.stringRep()}`)
+                              ` | target blocking level: ${bl_to.stringRep()}`, false, null, ErrorKind.IFCCheck)
         }
-        
+
         const current_bl = this.bl; // Capture this.bl as it's effectively levFrom
 
         this._validateDowngradeOrThrow({
@@ -951,7 +959,7 @@ export class Thread {
         if (! flowsTo (this.pc, bl_to)) {
             this.threadError ("The provided target blocking level is lower than the current pc\n" +
                               ` | the current pc: ${this.pc.stringRep()}\n` +
-                              ` | target blocking level: ${bl_to.stringRep()}`)
+                              ` | target blocking level: ${bl_to.stringRep()}`, false, null, ErrorKind.IFCCheck)
         }
 
 
@@ -959,7 +967,7 @@ export class Thread {
         if (!ok_to_use) {
             this.threadError ("The provided authority value is tainted\n" +
                               ` | the level of the authority value: ${auth.lev.stringRep()}\n` +
-                              ` | target blocking level: ${bl_to.stringRep()}`)
+                              ` | target blocking level: ${bl_to.stringRep()}`, false, null, ErrorKind.IFCCheck)
         }
 
         const current_bl = this.bl; // Capture this.bl as it's effectively levFrom
@@ -1039,17 +1047,17 @@ export class Thread {
     }
 
 
-    threadError (s:string, internal = false, explainer = null) {
-        if ( this.handlerState.isNormal()) {  
+    threadError (s:string, internal = false, explainer = null, errorKind: ErrorKind = ErrorKind.DynTypeError) {
+        if ( this.handlerState.isNormal()) {
           if (internal)  {
             throw new ImplementationError(s)
           }
           else {
-            throw new StrThreadError(this, s, explainer );
+            throw new StrThreadError(this, s, explainer, errorKind);
           }
         } else {
           this.raiseCurrentThreadPC(this.handlerState.lev);
-          throw new HandlerError (this, s) //  "HandlerError" 
+          throw new HandlerError (this, s, errorKind)
         }
     }
    
@@ -1086,16 +1094,16 @@ export class Thread {
 
     lowerMboxClearance (cap_lval:any, auth:any) {
         if (this.mailbox.caps == null ) {
-            this.threadError ("unmatched lowering of mailbox clearance")
+            this.threadError ("unmatched lowering of mailbox clearance", false, null, ErrorKind.IFCCheck)
             return null; // threadError throws
         }
-        
-        let cap:Capability<MboxClearance> = cap_lval.val 
 
-        if (this.mailbox.caps != cap.uid ) {            
-            this.threadError ("Ill-scoped raise/lower of mailbox clearance:\n" + 
-                              `expected cap: ${this.mailbox.caps}\n` + 
-                              `provided cap: ${cap.uid}`)
+        let cap:Capability<MboxClearance> = cap_lval.val
+
+        if (this.mailbox.caps != cap.uid ) {
+            this.threadError ("Ill-scoped raise/lower of mailbox clearance:\n" +
+                              `expected cap: ${this.mailbox.caps}\n` +
+                              `provided cap: ${cap.uid}`, false, null, ErrorKind.IFCCheck)
             return null; // threadError throws
         }
 
@@ -1107,9 +1115,9 @@ export class Thread {
 
         if (!levels.flowsTo (this.pc , this.mailbox.mclear.pc_at_creation)) {
             this.threadError ("Cannot lower mailbox when the pc more sensitive than the mailbox clearance level\n" +
-                              `| current thread's pc level: ${this.pc.stringRep()}\n` +                              
-                              `| mailbox clearance level: ${this.mailbox.mclear.pc_at_creation.stringRep()}`)
-            
+                              `| current thread's pc level: ${this.pc.stringRep()}\n` +
+                              `| mailbox clearance level: ${this.mailbox.mclear.pc_at_creation.stringRep()}`, false, null, ErrorKind.IFCCheck)
+
         }
 
         const currentMboxBoostLevel = this.mailbox.mclear.boost_level;

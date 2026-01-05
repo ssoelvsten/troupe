@@ -55,7 +55,9 @@ This approach works identically for static and dynamic code, replacing the split
 | 16b   | Enable source maps in scripts                    | DONE        | [status-4.md](status-4.md)                                       |
 | 16c   | lastCallSourcePos for runtime errors             | DONE        | [status-4.md](status-4.md)                                       |
 | 16d-f | Dynamic code source maps (Node.js approach)      | DROPPED     | Superseded by Phase 17                                           |
-| 17a-f | Unified source map tracking                      | **PENDING** | [status-6.md](status-6.md)                                       |
+| 17a   | Thread.currentSourceMap + SourceMapResolver      | DONE        | [status-6.md](status-6.md)                                       |
+| 17b   | Error handling uses currentSourceMap             | DONE        | [status-6.md](status-6.md)                                       |
+| 17c-f | Compiler preambles + dynamic code                | **PENDING** | [status-6.md](status-6.md)                                       |
 
 ---
 
@@ -97,6 +99,26 @@ Each phase:
 ---
 
 ## Implementation Progress
+
+### Phase 17a-b: Runtime Source Map Infrastructure - COMPLETE (2026-01-04)
+
+**All tests pass**
+
+**Files modified**:
+- `rt/src/Thread.mts` - Added `currentSourceMap: any | null = null` field
+- `rt/src/SourceMapResolver.mts` - NEW: Minimal source map lookup using `@jridgewell/trace-mapping`
+- `rt/src/TroupeError.mts` - Uses `translateWithSourceMap()` to resolve positions from `thread.currentSourceMap`
+- `package.json` - Added `@jridgewell/trace-mapping` as explicit dependency
+
+**Key implementation details**:
+- Uses `@jridgewell/trace-mapping` (already a transitive dependency) for synchronous source map lookups
+- `lookupPosition(sourceMap, jsLine, jsColumn)` translates JS position to original position
+- `StopThreadError.handleError` now uses `translateWithSourceMap(this.stack, this.thread.currentSourceMap)`
+- Removed dependency on Node.js `--enable-source-maps` flag
+
+**Next**: Phase 17c - Compiler generates preambles (`$t.currentSourceMap = this.__sourceMap`) and attaches source map to `Top` namespace.
+
+---
 
 ### Phase 16a-b: Static Code Source Maps - COMPLETE (2026-01-03)
 
@@ -184,12 +206,12 @@ bin/golden      # Run golden tests
 
 ## How to Continue
 
-### Next: Phase 17 - Unified Source Map Tracking
+### Next: Phase 17c - Compiler Preamble Generation
 
 Follow [status-6.md](status-6.md) for the unified approach:
 
-1. **Phase 17a**: Add `currentSourceMap` field to Thread, add `SourceMapResolver.mts`
-2. **Phase 17b**: Integrate source map translation into error handling
+1. ~~**Phase 17a**: Add `currentSourceMap` field to Thread, add `SourceMapResolver.mts`~~ DONE
+2. ~~**Phase 17b**: Integrate source map translation into error handling~~ DONE
 3. **Phase 17c**: Compiler generates preambles + attaches source map to Top
 4. **Phase 17d**: Extend `JSOutput` with `sourceMap` for `--json-ir` mode
 5. **Phase 17e**: Runtime merges source maps for dynamic code

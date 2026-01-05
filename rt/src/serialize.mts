@@ -14,7 +14,7 @@ import { lub } from './Level.mjs';
 import * as Ty from './TroupeTypes.mjs'
 import { LVal } from './Lval.mjs';
 import { Level } from './Level.mjs';
-import { StopThreadError, ThreadError } from './TroupeError.mjs';
+import { StopThreadError, ThreadError, ErrorKind } from './TroupeError.mjs';
 import { getRuntimeObject } from './SysState.mjs';
 
 import { getCliArgs, TroupeCliArg } from './TroupeCliArgs.mjs';
@@ -29,6 +29,7 @@ const debug = x => logger.debug(x)
 export class UnserializableObjectError extends StopThreadError {
     obj: LVal
     explainstr: string = null;
+    errorKind: ErrorKind = ErrorKind.DynTypeError;
     get errorMessage ()  {
         return (`Unserializable object: ${this.obj.stringRep()}`);
         // TODO: 2021-06-12: improve error reporting

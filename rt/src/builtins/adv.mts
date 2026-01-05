@@ -4,6 +4,7 @@ import * as levels from '../Level.mjs'
 import { assertIsNTuple, assertNormalState } from '../Asserts.mjs';
 import { __unit } from '../UnitVal.mjs';
 import { getCliArgs, TroupeCliArg } from '../TroupeCliArgs.mjs';
+import { ErrorKind } from '../TroupeError.mjs';
 
 const {lub, flowsTo} = levels
 const argv = getCliArgs();
@@ -65,7 +66,7 @@ export function BuiltinAdv <TBase extends Constructor<UserRuntimeZero>>(Base: TB
                 threadError("Illegal flow in adv function:\n" +
                     ` |    pc: ${this.runtime.$t.pc.stringRep()}\n` +
                     ` | block: ${this.runtime.$t.bl.stringRep()}\n` +
-                    ` | value: ${x.stringRep()}`)
+                    ` | value: ${x.stringRep()}`, false, null, ErrorKind.IFCCheck)
             }
             return this.runtime.ret(__unit);
         })
@@ -86,7 +87,7 @@ export function BuiltinAdv <TBase extends Constructor<UserRuntimeZero>>(Base: TB
                 threadError("Illegal flow in cert function:\n" +
                     ` |    pc: ${this.runtime.$t.pc.stringRep()}\n` +
                     ` | block: ${this.runtime.$t.bl.stringRep()}\n` +
-                    ` | value: ${x.stringRep()}`)
+                    ` | value: ${x.stringRep()}`, false, null, ErrorKind.IFCCheck)
             }
             return this.runtime.ret(__unit);            
         })
@@ -105,7 +106,7 @@ export function BuiltinAdv <TBase extends Constructor<UserRuntimeZero>>(Base: TB
                     ` |    pc: ${this.runtime.$t.pc.stringRep()}\n` +
                     ` | block: ${this.runtime.$t.bl.stringRep()}\n` +
                     ` | l_adv: ${l_adv.stringRep()} \n` +
-                    ` | value: ${value.stringRep()}`)
+                    ` | value: ${value.stringRep()}`, false, null, ErrorKind.IFCCheck)
             }
             return this.runtime.ret(__unit);
         })

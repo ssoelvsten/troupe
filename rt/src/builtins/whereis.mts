@@ -8,6 +8,7 @@ import { __nodeManager } from '../NodeManager.mjs';
 import { assertNormalState, assertIsNTuple, assertIsString, assertIsProcessId, assertIsAuthority, assertIsRootAuthority, assertIsNode } from '../Asserts.mjs';
 import { __unit } from '../UnitVal.mjs';
 import { nodeTrustLevel } from '../TrustManager.mjs';
+import { ErrorKind } from '../TroupeError.mjs';
 export let __theRegister = {}
 import {p2p} from '../p2p/p2p.mjs'
 
@@ -38,7 +39,7 @@ export function BuiltinRegistry<TBase extends Constructor<UserRuntimeZero>>(Base
                 flowsTo($r.$t.bl, levels.BOT);
             if (!ok_to_raise) {
                 $r.$t.threadError("Cannot raise trust level when the process is tainted\s" +
-                    ` | blocking label: ${$r.$t.bl.stringRep()}`)
+                    ` | blocking label: ${$r.$t.bl.stringRep()}`, false, null, ErrorKind.IFCCheck)
             }
 
 
@@ -76,7 +77,7 @@ export function BuiltinRegistry<TBase extends Constructor<UserRuntimeZero>>(Base
             
             let okToLookup = flowsTo(lub($r.$t.pc, arg.val[0].lev, arg.val[1].lev), nodeLev);
             if (!okToLookup) {
-                $r.$t.threadError("Information flow violation in whereis");
+                $r.$t.threadError("Information flow violation in whereis", false, null, ErrorKind.IFCCheck);
                 return;
             }
 

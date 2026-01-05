@@ -23,6 +23,6 @@ shift
 # Execute the runtime with the specified Troupe script
 #tmpprocessed=`mktemp`
 #node  --prof --no-logfile-per-isolate --stack-trace-limit=1000 $troupe_rt -f="$troupe_file" "$@"
-node  --enable-source-maps --stack-trace-limit=1000 $troupe_rt -f="$troupe_file" "$@"
+node --stack-trace-limit=1000 $troupe_rt -f="$troupe_file" "$@"
 #node --prof-process v8.log > $tmpprocessed.txt
 #atom $tmpprocessed.txt

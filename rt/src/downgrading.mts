@@ -11,6 +11,7 @@ import {
     formatRobustnessViolationMsg,
     formatTransparencyViolationMsg
 } from './DowngradeFormatter.mjs';
+import { ErrorKind } from './TroupeError.mjs';
 
 
 function stringOfDowngrader (d: DowngradeDimension): string {
@@ -78,7 +79,7 @@ export function downgrader (runtime, dimension:DowngradeDimension) {
                         const _exhaustiveCheck: never = ok_to_downgrade_result.reason;
                         errorMessage = `Unhandled downgrade error reason: ${_exhaustiveCheck} for ${downgradeKindString}`;
                 }
-                runtime.$t.threadError(errorMessage);
+                runtime.$t.threadError(errorMessage, false, null, ErrorKind.IFCCheck);
             }
         })
 }

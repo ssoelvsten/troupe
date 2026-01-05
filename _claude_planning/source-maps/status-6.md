@@ -2,7 +2,7 @@
 
 **Date**: 2026-01-04
 **Subject**: Unified runtime-based source map tracking for static and dynamic code
-**Status**: DESIGN COMPLETE, IMPLEMENTATION PENDING
+**Status**: PHASE 17a-b COMPLETE, PHASE 17c-f PENDING
 **Supersedes**: status-5.md
 
 ---
@@ -508,16 +508,17 @@ When the namespace is garbage collected, its source map is collected too. No glo
 
 ## Implementation Phases
 
-### Phase 17a: Runtime Thread Extension
+### Phase 17a: Runtime Thread Extension ✅ COMPLETE
 
-1. Add `currentSourceMap` field to Thread
-2. Add `SourceMapResolver.mts` with translation utilities
-3. Move `source-map` from devDependencies to dependencies in `rt/package.json`
+1. ✅ Add `currentSourceMap` field to Thread (`rt/src/Thread.mts`)
+2. ✅ Add `SourceMapResolver.mts` with translation utilities (using `@jridgewell/trace-mapping`)
+3. ✅ Add `@jridgewell/trace-mapping` as explicit dependency in `package.json`
 
-### Phase 17b: Error Translation Integration
+### Phase 17b: Error Translation Integration ✅ COMPLETE
 
-1. Integrate source map translation into error handling code
-2. Use `$t.currentSourceMap` when available to translate stack traces
+1. ✅ Integrate source map translation into error handling code (`rt/src/TroupeError.mts`)
+2. ✅ Use `$t.currentSourceMap` when available to translate stack traces
+3. ✅ Removed dependency on Node.js `--enable-source-maps` flag
 
 ### Phase 17c: Compiler - Preamble Generation
 
