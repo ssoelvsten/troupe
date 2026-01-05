@@ -628,11 +628,33 @@ funopt (FunDef hfn consts bb ir) =
 
       readenv = ReadEnv { readConsts = Map.fromList consts  }
       (bb', _, (_, used_rvars)) = runRWS (peval bb) readenv pstate
+      bb'' = dedupeSourcePosAnnotations bb'
       const_used = filter (\(x,_) -> Set.member x used_rvars) consts'
-      new = FunDef hfn const_used bb' ir
-  in if bb /= bb' then funopt new else new
+      new = FunDef hfn const_used bb'' ir
+  in if bb /= bb'' then funopt new else new
 
+-- | Remove duplicate SourcePosAnnotation entries from a basic block tree.
+-- Two annotations are duplicates if they have the same (RawVar, PosInf) pair.
+dedupeSourcePosAnnotations :: RawBBTree -> RawBBTree
+dedupeSourcePosAnnotations (BB insts tr) =
+    BB (dedupeInsts Set.empty insts) (dedupeTerminator tr)
+  where
+    dedupeInsts :: Set (RawVar, PosInf) -> [LRawInst] -> [LRawInst]
+    dedupeInsts _ [] = []
+    dedupeInsts seen (li@(Loc pos inst) : rest) =
+      case inst of
+        SourcePosAnnotation r ->
+          let key = (r, pos)
+          in if Set.member key seen
+             then dedupeInsts seen rest  -- skip duplicate
+             else li : dedupeInsts (Set.insert key seen) rest
+        _ -> li : dedupeInsts seen rest
 
+    dedupeTerminator :: Located RawTerminator -> Located RawTerminator
+    dedupeTerminator (Loc pos tr) = Loc pos $ case tr of
+      If r bb1 bb2 -> If r (dedupeSourcePosAnnotations bb1) (dedupeSourcePosAnnotations bb2)
+      StackExpand bb1 bb2 -> StackExpand (dedupeSourcePosAnnotations bb1) (dedupeSourcePosAnnotations bb2)
+      other -> other
 
 class RawOptable a where
   rawopt :: a -> a
