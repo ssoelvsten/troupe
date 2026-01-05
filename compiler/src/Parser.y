@@ -240,18 +240,19 @@ IntLabelExp :                      { ConstComponent LabelTrue }
 DCLabelExp:
      ConfLabelExp ';' IntLabelExp         { DCLabelExp ($1, $3) } 
 
-Lit:   NUM                        {% LNumeric (NumInt (numTok $1)) <\$> pos $1 }
-     | FLOAT                       {% LNumeric (NumFloat (floatTok $1)) <\$> pos $1 }
-     | STRING                      { LString (strTok $1) }
-     | true                        { LBool True }
-     | false                       { LBool False }
-     | LABEL                       { LLabel (lblTok $1) }
-     |'`<' DCLabelExp '>`'         { LDCLabel $2 }  
-     
+-- Lit now returns Located Lit to preserve source positions for all literals
+Lit:   NUM                        {% atPos $1 (LNumeric (NumInt (numTok $1)) NoPos) }
+     | FLOAT                       {% atPos $1 (LNumeric (NumFloat (floatTok $1)) NoPos) }
+     | STRING                      {% atPos $1 (LString (strTok $1)) }
+     | true                        {% atPos $1 (LBool True) }
+     | false                       {% atPos $1 (LBool False) }
+     | LABEL                       {% atPos $1 (LLabel (lblTok $1)) }
+     |'`<' DCLabelExp '>`'         {% atPos $1 (LDCLabel $2) }
 
 
+-- Atom uses Located Lit to preserve source positions
 Atom : '(' Expr ')'                { $2 }
-     | Lit                         { noLoc (Lit $1) }
+     | Lit                         { let Loc p l = $1 in Loc p (Lit l) }
      | VAR                         {% atPos $1 (Var (varTok $1)) }
      | '(' ')'                     {% atPos $1 (Lit LUnit) }
      | '(' CSExpr Expr ')'         {% atPos $1 (Tuple (reverse ($3:$2))) }
