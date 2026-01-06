@@ -5,3 +5,5 @@ tests/cmp/record-pat-triple-dot.trp:3:15: parse error
   unexpected '.'
   expected '}'
 
+Suggestion: Mismatched braces - missing '}'?
+

@@ -7,6 +7,7 @@ module ParseError
   , getSourceLine
   , makeCaretLine
   , inferContext
+  , suggestFix
   ) where
 
 import Data.List (intercalate)
@@ -42,7 +43,7 @@ makeCaretLine col = replicate (col - 1) ' ' ++ "^"
 
 -- | Format a complete error message with source context
 formatParseError :: ParseErrorInfo -> String
-formatParseError ParseErrorInfo{..} = unlines $ filter (not . null)
+formatParseError info@ParseErrorInfo{..} = unlines $ filter (not . null)
   [ locationLine
   , contextLine
   , ""
@@ -51,6 +52,7 @@ formatParseError ParseErrorInfo{..} = unlines $ filter (not . null)
   , ""
   , unexpectedLine
   , expectedLine
+  , suggestionSection
   ]
   where
     -- Location header: "filename:line:col: parse error"
@@ -88,6 +90,11 @@ formatParseError ParseErrorInfo{..} = unlines $ filter (not . null)
       []  -> ""
       [e] -> "  expected " ++ e
       es  -> "  expected one of: " ++ intercalate ", " es
+
+    -- Suggestion for common mistakes
+    suggestionSection = case suggestFix info of
+      Just suggestion -> "\nSuggestion: " ++ suggestion
+      Nothing         -> ""
 
 -- | Expand tabs to spaces (4 spaces per tab, standard)
 expandTabs :: String -> String
@@ -164,9 +171,11 @@ inferContext expected maybeToken = firstJust
       , "keyword 'in'" `elem` expected = Just "let expression"
       | otherwise = Nothing
 
-    -- In DC label (expecting >`)
+    -- In DC label (expecting >` or only ';' for separator)
     checkDCLabelContext
       | dcLabelEnd `elem` expected = Just "DC label"
+      -- When only ';' is expected, it's likely inside a DC label
+      | expected == ["';'"] = Just "DC label"
       | otherwise = Nothing
       where
         dcLabelEnd = "'>`' (DC label end)"
@@ -196,4 +205,179 @@ inferContext expected maybeToken = firstJust
       , "keyword 'then'" `notElem` expected  -- Not if expression
       , "keyword 'else'" `notElem` expected  -- Not if expression
       = Just "pattern"
+      | otherwise = Nothing
+
+-- -----------------------------------------------------------------------------
+-- Phase 5: Suggestions for Common Mistakes
+-- -----------------------------------------------------------------------------
+
+-- | Helper predicates for token types
+isTokenVal :: Token -> Bool
+isTokenVal TokenVal = True
+isTokenVal _ = False
+
+isTokenFun :: Token -> Bool
+isTokenFun TokenFun = True
+isTokenFun _ = False
+
+isTokenEnd :: Token -> Bool
+isTokenEnd TokenEnd = True
+isTokenEnd _ = False
+
+isIdentifier :: Token -> Bool
+isIdentifier (TokenSym _) = True
+isIdentifier _ = False
+
+isExpressionStart :: Token -> Bool
+isExpressionStart (TokenNum _)    = True
+isExpressionStart (TokenFloat _)  = True
+isExpressionStart (TokenString _) = True
+isExpressionStart (TokenSym _)    = True
+isExpressionStart TokenTrue       = True
+isExpressionStart TokenFalse      = True
+isExpressionStart TokenLParen     = True
+isExpressionStart TokenLBracket   = True
+isExpressionStart TokenLBrace     = True
+isExpressionStart TokenFn         = True
+isExpressionStart TokenHn         = True
+isExpressionStart TokenIf         = True
+isExpressionStart TokenCase       = True
+isExpressionStart TokenLet        = True
+isExpressionStart _               = False
+
+-- | Suggest fixes for common mistakes
+-- Returns a suggestion message if the error matches a known pattern
+suggestFix :: ParseErrorInfo -> Maybe String
+suggestFix ParseErrorInfo{..} = firstJust
+  [ checkValOutsideLet
+  , checkFunOutsideLet
+  , checkMissingEnd
+  , checkMissingIn
+  , checkMissingArrow
+  , checkDCLabelSyntax      -- Check DC label before general semicolon check
+  , checkMissingSemicolon
+  , checkMismatchedParens
+  , checkMismatchedBrackets
+  , checkMismatchedBraces
+  , checkMissingThen
+  , checkMissingElse
+  , checkMissingOf
+  ]
+  where
+    firstJust = foldr (<|>) Nothing
+
+    -- 'val' appearing outside let declarations
+    checkValOutsideLet
+      | Just tok <- peiToken
+      , isTokenVal tok
+      , "keyword 'end'" `notElem` peiExpected
+      , "keyword 'val'" `notElem` peiExpected
+      , any isExprLikeExpected peiExpected =
+          Just $ "'val' can only appear in let declarations.\n" ++
+                 "  Perhaps you meant 'let val x = ... in ... end'?\n" ++
+                 "  Or you may have forgotten 'end' before 'in'."
+      | otherwise = Nothing
+
+    -- 'fun' appearing outside let declarations
+    checkFunOutsideLet
+      | Just tok <- peiToken
+      , isTokenFun tok
+      , "keyword 'end'" `notElem` peiExpected
+      , "keyword 'fun'" `notElem` peiExpected
+      , any isExprLikeExpected peiExpected =
+          Just $ "'fun' can only appear in let declarations.\n" ++
+                 "  Perhaps you meant 'let fun f x = ... in ... end'?\n" ++
+                 "  Or you may have forgotten 'end' before 'in'."
+      | otherwise = Nothing
+
+    -- Check if an expected token suggests expression context
+    isExprLikeExpected exp =
+      exp `elem` ["identifier", "number", "'('", "keyword 'let'",
+                  "keyword 'if'", "keyword 'case'", "keyword 'fn'"]
+
+    -- Missing 'end' keyword
+    checkMissingEnd
+      | "keyword 'end'" `elem` peiExpected
+      , length peiExpected <= 5 =
+          Just "Missing 'end' keyword?\n  Let and case expressions require 'end' to close them."
+      | otherwise = Nothing
+
+    -- Missing 'in' keyword
+    checkMissingIn
+      | "keyword 'in'" `elem` peiExpected
+      , length peiExpected <= 5 =
+          Just "Missing 'in' keyword?\n  Syntax: let <declarations> in <expression> end"
+      | otherwise = Nothing
+
+    -- Missing '=>' in pattern match
+    checkMissingArrow
+      | "'=>'" `elem` peiExpected
+      , length peiExpected <= 3 =
+          Just "Missing '=>' after pattern?\n  Syntax: fn pattern => expression"
+      | otherwise = Nothing
+
+    -- Missing semicolon between expressions
+    checkMissingSemicolon
+      | Just tok <- peiToken
+      , isExpressionStart tok
+      , any (`elem` peiExpected) ["';'", "keyword 'end'", "keyword 'in'"]
+      , length peiExpected <= 10 =
+          Just "Missing semicolon?\n  Use ';' to separate sequential expressions."
+      | otherwise = Nothing
+
+    -- Mismatched parentheses
+    checkMismatchedParens
+      | "')'" `elem` peiExpected, length peiExpected == 1 =
+          Just "Mismatched parentheses - missing ')'?"
+      | "')'" `elem` peiExpected, length peiExpected <= 3 =
+          Just "Possibly mismatched parentheses - check for missing ')'."
+      | otherwise = Nothing
+
+    -- Mismatched brackets
+    checkMismatchedBrackets
+      | "']'" `elem` peiExpected, length peiExpected == 1 =
+          Just "Mismatched brackets - missing ']'?"
+      | "']'" `elem` peiExpected, length peiExpected <= 3 =
+          Just "Possibly mismatched brackets - check for missing ']'."
+      | otherwise = Nothing
+
+    -- Mismatched braces
+    checkMismatchedBraces
+      | "'}'" `elem` peiExpected, length peiExpected == 1 =
+          Just "Mismatched braces - missing '}'?"
+      | "'}'" `elem` peiExpected, length peiExpected <= 3 =
+          Just "Possibly mismatched braces - check for missing '}'."
+      | otherwise = Nothing
+
+    -- DC label syntax help
+    checkDCLabelSyntax
+      | "'>`' (DC label end)" `elem` peiExpected =
+          Just $ "DC label syntax: `< confidentiality ; integrity >`\n" ++
+                 "  Example: `< alice ; bob >`"
+      -- Also trigger DC label help when only ';' is expected (inside DC label)
+      | peiExpected == ["';'"] =
+          Just $ "In DC labels, use ';' to separate confidentiality and integrity.\n" ++
+                 "  Syntax: `< confidentiality ; integrity >`\n" ++
+                 "  Example: `< alice ; bob >`"
+      | otherwise = Nothing
+
+    -- Missing 'then' in if expression
+    checkMissingThen
+      | "keyword 'then'" `elem` peiExpected
+      , length peiExpected <= 3 =
+          Just "Missing 'then' keyword?\n  Syntax: if <condition> then <expr> else <expr>"
+      | otherwise = Nothing
+
+    -- Missing 'else' in if expression
+    checkMissingElse
+      | "keyword 'else'" `elem` peiExpected
+      , length peiExpected <= 3 =
+          Just "Missing 'else' keyword?\n  Syntax: if <condition> then <expr> else <expr>"
+      | otherwise = Nothing
+
+    -- Missing 'of' in case expression
+    checkMissingOf
+      | "keyword 'of'" `elem` peiExpected
+      , length peiExpected <= 3 =
+          Just "Missing 'of' keyword?\n  Syntax: case <expr> of <pattern> => <expr> | ... end"
       | otherwise = Nothing

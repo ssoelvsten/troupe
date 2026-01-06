@@ -6,3 +6,6 @@ tests/cmp/dc-label-multiple-semicolons.trp:1:37: parse error
   unexpected ';'
   expected '>`' (DC label end)
 
+Suggestion: DC label syntax: `< confidentiality ; integrity >`
+  Example: `< alice ; bob >`
+

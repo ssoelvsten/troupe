@@ -5,3 +5,5 @@ tests/cmp/record-pat-dotdot-as-field.trp:3:13: parse error
   unexpected '='
   expected '}'
 
+Suggestion: Mismatched braces - missing '}'?
+

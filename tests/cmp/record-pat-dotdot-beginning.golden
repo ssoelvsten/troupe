@@ -5,3 +5,5 @@ tests/cmp/record-pat-dotdot-beginning.trp:3:12: parse error
   unexpected ','
   expected '}'
 
+Suggestion: Mismatched braces - missing '}'?
+

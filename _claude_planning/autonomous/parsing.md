@@ -33,7 +33,7 @@ Suggestion: 'val' can only appear in let declarations.
 | Phase 2 | Source context display (ParseError.hs) | **Completed** |
 | Phase 3 | Expected tokens (`%errorhandlertype explist`) | **Completed** |
 | Phase 4 | Context tracking | **Completed** |
-| Phase 5 | Suggestions for common mistakes | Pending |
+| Phase 5 | Suggestions for common mistakes | **Completed** |
 | Phase 6 | DC label specialized messages | Pending |
 | Phase 7 | Error recovery | Pending |
 

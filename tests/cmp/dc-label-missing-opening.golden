@@ -5,3 +5,6 @@ tests/cmp/dc-label-missing-opening.trp:1:39: parse error
   unexpected '>`' (DC label end)
   expected keyword 'in'
 
+Suggestion: Missing 'in' keyword?
+  Syntax: let <declarations> in <expression> end
+
