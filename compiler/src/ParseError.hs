@@ -110,19 +110,35 @@ adjustForTabs line col = go 1 1 line
 -- This provides "while parsing X" hints without requiring a full context stack
 -- Order matters: more specific contexts should come before general ones
 inferContext :: [String] -> Maybe Token -> Maybe String
-inferContext expected _maybeToken = firstJust
-  [ checkIfContext       -- Check if/then/else first (more specific than pattern)
-  , checkRaiseContext    -- raise...to
-  , checkCaseContext     -- case...of with | and =>
-  , checkLetContext      -- let declarations
-  , checkDCLabelContext  -- DC labels
-  , checkRecordContext   -- record literals
-  , checkListContext     -- list literals
-  , checkFunctionContext -- fn => (general)
-  , checkPatternContext  -- patterns (most general, check last)
+inferContext expected maybeToken = firstJust
+  [ checkValInExprContext  -- 'val' where expression expected (common mistake)
+  , checkIfContext         -- Check if/then/else first (more specific than pattern)
+  , checkRaiseContext      -- raise...to
+  , checkCaseContext       -- case...of with | and =>
+  , checkLetContext        -- let declarations
+  , checkDCLabelContext    -- DC labels
+  , checkRecordContext     -- record literals
+  , checkListContext       -- list literals
+  , checkFunctionContext   -- fn => (general)
+  , checkPatternContext    -- patterns (most general, check last)
   ]
   where
     firstJust = foldr (<|>) Nothing
+
+    -- 'val' or 'fun' appearing where expression is expected (after 'in')
+    -- This is the most common mistake: forgetting 'end' before 'in'
+    checkValInExprContext
+      | Just tok <- maybeToken
+      , isValOrFun tok
+      , "keyword 'let'" `elem` expected  -- Expecting expression start
+      , "keyword 'val'" `notElem` expected  -- But val is not expected
+      , "keyword 'fun'" `notElem` expected  -- And fun is not expected
+      = Just "let expression body"
+      | otherwise = Nothing
+
+    isValOrFun TokenVal = True
+    isValOrFun TokenFun = True
+    isValOrFun _ = False
 
     -- In if expression (expecting then/else)
     checkIfContext

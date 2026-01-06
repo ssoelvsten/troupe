@@ -524,9 +524,26 @@ bin/troupec tests/_unautomated/simple-4-save.trp
 # Test various error types
 echo 'let x = 1 in x' | bin/troupec /dev/stdin          # missing end
 echo 'fn x x' | bin/troupec /dev/stdin                   # missing =>
-echo '`< alice bob >`' | bin/troupec /dev/stdin          # DC label error
-echo 'let val x = 1 val y = 2 in x end' | bin/troupec /dev/stdin  # missing semicolon?
 ```
+
+> **⚠️ Important: DC Label Testing**
+>
+> DC labels use backtick syntax (`` `< ... >` ``), which causes shell interpretation issues.
+> **Do NOT test DC labels with `echo` or inline shell commands.** Instead, create a `.trp`
+> test file and compile it directly:
+>
+> ```bash
+> # WRONG - backticks will be interpreted by the shell:
+> # echo '`< alice bob >`' | bin/troupec /dev/stdin
+>
+> # CORRECT - use a test file:
+> cat > /tmp/test_dc.trp << 'EOF'
+> `< alice bob >`
+> EOF
+> bin/troupec /tmp/test_dc.trp
+> ```
+>
+> For permanent tests, create files in `tests/cmp/` directory.
 
 ---
 
