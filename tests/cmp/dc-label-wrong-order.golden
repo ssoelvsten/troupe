@@ -1,2 +1,7 @@
 Parse Error:
-tests/cmp/dc-label-wrong-order.trp:1:27 unexpected token TokenDCRootInteg
+tests/cmp/dc-label-wrong-order.trp:1:27: parse error
+  1 | let val x = 60 raisedTo `<#root-integrity; #null-confidentiality>`
+    |                           ^
+  unexpected '#root-integrity'
+  expected ';'
+

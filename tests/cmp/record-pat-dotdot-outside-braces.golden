@@ -1,2 +1,7 @@
 Parse Error:
-tests/cmp/record-pat-dotdot-outside-braces.trp:3:9 unexpected token TokenDotDot
+tests/cmp/record-pat-dotdot-outside-braces.trp:3:9: parse error
+  3 |     val .. {a, b} = r
+    |         ^
+  unexpected '..'
+  expected one of: 'true', 'false', number, float, string, identifier, label, '`<' (DC label), '(', '_', '[', '{'
+

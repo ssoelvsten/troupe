@@ -1,0 +1,6 @@
+let fun f_ext () =
+      let fun f x = x+1
+	in f "hi"
+    end 
+in  val _ = save (authority, "f_ext", f_ext)
+end

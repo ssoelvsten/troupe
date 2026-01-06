@@ -1,2 +1,8 @@
 Parse Error:
-tests/cmp/dc-label-multiple-semicolons.trp:1:37 unexpected token TokenSemi
+tests/cmp/dc-label-multiple-semicolons.trp:1:37: parse error
+  (while parsing DC label)
+  1 | let val x = 10 raisedTo `<alice; bob; charlie>`
+    |                                     ^
+  unexpected ';'
+  expected '>`' (DC label end)
+

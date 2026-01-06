@@ -1,2 +1,7 @@
 Parse Error:
-tests/cmp/dc-label-empty.trp:1:27 unexpected token TokenDCLabelRight
+tests/cmp/dc-label-empty.trp:1:27: parse error
+  1 | let val x = 42 raisedTo `<>`
+    |                           ^
+  unexpected '>`' (DC label end)
+  expected ';'
+

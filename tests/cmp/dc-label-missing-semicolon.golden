@@ -1,2 +1,7 @@
 Parse Error:
-tests/cmp/dc-label-missing-semicolon.trp:1:33 unexpected token TokenSym "bob"
+tests/cmp/dc-label-missing-semicolon.trp:1:33: parse error
+  1 | let val x = 42 raisedTo `<alice bob>`
+    |                                 ^
+  unexpected identifier 'bob'
+  expected ';'
+

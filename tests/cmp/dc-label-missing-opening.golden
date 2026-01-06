@@ -1,2 +1,7 @@
 Parse Error:
-tests/cmp/dc-label-missing-opening.trp:1:39 unexpected token TokenDCLabelRight
+tests/cmp/dc-label-missing-opening.trp:1:39: parse error
+  1 | let val data = 100 raisedTo alice; bob>`
+    |                                       ^
+  unexpected '>`' (DC label end)
+  expected keyword 'in'
+

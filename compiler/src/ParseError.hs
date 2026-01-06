@@ -6,10 +6,12 @@ module ParseError
   , formatParseError
   , getSourceLine
   , makeCaretLine
+  , inferContext
   ) where
 
 import Data.List (intercalate)
-import Lexer (Token, showToken)
+import Control.Applicative ((<|>))
+import Lexer (Token(..), showToken)
 
 -- | Environment for parsing (filename + source text)
 data ParseEnv = ParseEnv
@@ -56,7 +58,8 @@ formatParseError ParseErrorInfo{..} = unlines $ filter (not . null)
     prefix = if null peiFilename then "" else peiFilename ++ ":"
 
     -- Context line: "  (while parsing let expression)"
-    contextLine = case peiContext of
+    -- Auto-infer context if not explicitly provided
+    contextLine = case peiContext <|> inferContext peiExpected peiToken of
       Just ctx -> "  (while parsing " ++ ctx ++ ")"
       Nothing  -> ""
 
@@ -102,3 +105,79 @@ adjustForTabs line col = go 1 1 line
       | srcCol >= col = displayCol
       | c == '\t'     = go (srcCol + 1) (displayCol + 4) cs
       | otherwise     = go (srcCol + 1) (displayCol + 1) cs
+
+-- | Infer parsing context from expected tokens
+-- This provides "while parsing X" hints without requiring a full context stack
+-- Order matters: more specific contexts should come before general ones
+inferContext :: [String] -> Maybe Token -> Maybe String
+inferContext expected _maybeToken = firstJust
+  [ checkIfContext       -- Check if/then/else first (more specific than pattern)
+  , checkRaiseContext    -- raise...to
+  , checkCaseContext     -- case...of with | and =>
+  , checkLetContext      -- let declarations
+  , checkDCLabelContext  -- DC labels
+  , checkRecordContext   -- record literals
+  , checkListContext     -- list literals
+  , checkFunctionContext -- fn => (general)
+  , checkPatternContext  -- patterns (most general, check last)
+  ]
+  where
+    firstJust = foldr (<|>) Nothing
+
+    -- In if expression (expecting then/else)
+    checkIfContext
+      | "keyword 'then'" `elem` expected = Just "if expression"
+      | "keyword 'else'" `elem` expected = Just "if expression"
+      | otherwise = Nothing
+
+    -- In raise expression
+    checkRaiseContext
+      | "keyword 'to'" `elem` expected = Just "raise expression"
+      | otherwise = Nothing
+
+    -- In case expression (expecting | or =>)
+    checkCaseContext
+      | "'|'" `elem` expected, "'=>'" `elem` expected = Just "case expression"
+      | otherwise = Nothing
+
+    -- In let declarations (expecting val/fun/end)
+    checkLetContext
+      | any (`elem` expected) ["keyword 'val'", "keyword 'fun'", "keyword 'end'"]
+      , "keyword 'in'" `notElem` expected = Just "let declarations"
+      | "keyword 'end'" `elem` expected
+      , "keyword 'in'" `elem` expected = Just "let expression"
+      | otherwise = Nothing
+
+    -- In DC label (expecting >`)
+    checkDCLabelContext
+      | dcLabelEnd `elem` expected = Just "DC label"
+      | otherwise = Nothing
+      where
+        dcLabelEnd = "'>`' (DC label end)"
+
+    -- In record (expecting } or ,)
+    checkRecordContext
+      | "'}'" `elem` expected, "','" `elem` expected
+      , "'='" `elem` expected = Just "record"
+      | otherwise = Nothing
+
+    -- In list (expecting ] or ,)
+    checkListContext
+      | "']'" `elem` expected, "','" `elem` expected
+      , "'::'" `notElem` expected = Just "list"
+      | otherwise = Nothing
+
+    -- In function definition (expecting =>)
+    checkFunctionContext
+      | "'=>'" `elem` expected = Just "function or pattern match"
+      | otherwise = Nothing
+
+    -- In pattern (expecting = after pattern) - most general, check last
+    checkPatternContext
+      | "'='" `elem` expected
+      , "keyword 'val'" `notElem` expected
+      , "keyword 'fun'" `notElem` expected
+      , "keyword 'then'" `notElem` expected  -- Not if expression
+      , "keyword 'else'" `notElem` expected  -- Not if expression
+      = Just "pattern"
+      | otherwise = Nothing

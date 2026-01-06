@@ -1,2 +1,7 @@
 Parse Error:
-tests/cmp/record-pat-triple-dot.trp:3:15 unexpected token TokenDot
+tests/cmp/record-pat-triple-dot.trp:3:15: parse error
+  3 |     val {a, ...} = r
+    |               ^
+  unexpected '.'
+  expected '}'
+
