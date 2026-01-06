@@ -1,0 +1,4 @@
+2026-01-06T08:58:53.450Z [RTM] [32minfo[39m: Skipping network creation. Observe that all external IO operations will yield a runtime error.
+Runtime error in thread 84fdfdda-95df-4960-a067-c3be89232bf9@{}%{}
+>> Mailbox clearance label is not restorted after being raised in a branch; stack depth = 11
+>> at tests/rt/neg/ifc/lclear-implicit-raise.trp:8:25
