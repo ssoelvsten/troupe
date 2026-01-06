@@ -1,6 +1,10 @@
-2026-01-03T21:09:51.899Z [RTM] [32minfo[39m: Skipping network creation. Observe that all external IO operations will yield a runtime error.
-PID:cdcce8d8-6753-434d-871a-3a88c2f1eb89@{}%{}     PC:{}                BL:{#TOP}            HNNORMAL             _sp:16               
-Runtime error in thread cdcce8d8-6753-434d-871a-3a88c2f1eb89@{}%{}
+2026-01-06T14:33:34.597Z [RTM] [32minfo[39m: Skipping network creation. Observe that all external IO operations will yield a runtime error.
+PID:bc6aee60-98f3-4296-8352-3c4d873e9159@{}%{}     PC:{}                BL:{#TOP}            HNNORMAL             _sp:16               
+Runtime error in thread bc6aee60-98f3-4296-8352-3c4d873e9159@{}%{}
+
+  6 |     val _ = adv y
+    |             ^
+
 >> Illegal flow in adv function:
  |    pc: {}
  | block: {#TOP}

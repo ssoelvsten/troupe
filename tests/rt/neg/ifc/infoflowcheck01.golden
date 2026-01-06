@@ -1,7 +1,11 @@
-2026-01-03T21:09:51.087Z [RTM] [32minfo[39m: Skipping network creation. Observe that all external IO operations will yield a runtime error.
+2026-01-06T14:33:33.885Z [RTM] [32minfo[39m: Skipping network creation. Observe that all external IO operations will yield a runtime error.
 >>> Main thread finished with value: ()@{secret}%{secret}
 "hi"@{}%{}
-Runtime error in thread d2297165-605b-4f53-9c1a-575e4ea7b291@{}%{}
+Runtime error in thread 19640a40-5c99-48af-9ba4-5b171e31528f@{}%{}
+
+  4 |         in adv (100)
+    |            ^
+
 >> Illegal flow in adv function:
  |    pc: {}
  | block: {secret}

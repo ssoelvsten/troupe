@@ -1,4 +1,8 @@
-2026-01-06T09:36:11.038Z [RTM] [32minfo[39m: Skipping network creation. Observe that all external IO operations will yield a runtime error.
-Runtime error in thread 8cb495da-6b77-444e-adf9-d8e1fc8e583b@{}%{}
+2026-01-06T14:33:31.906Z [RTM] [32minfo[39m: Skipping network creation. Observe that all external IO operations will yield a runtime error.
+Runtime error in thread 328a4920-7cb5-4712-81a6-6154bf6fcb95@{}%{}
+
+  1 | "" ^ 1
+    |      ^
+
 >> value 1 is not a string
 >> at tests/rt/neg/core/concat04.trp:1:6

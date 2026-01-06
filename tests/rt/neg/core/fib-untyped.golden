@@ -1,4 +1,8 @@
-2026-01-05T22:07:37.768Z [RTM] [32minfo[39m: Skipping network creation. Observe that all external IO operations will yield a runtime error.
-Runtime error in thread ac3c5436-8928-45c5-a302-d200355f25c7@{}%{}
+2026-01-06T14:33:29.323Z [RTM] [32minfo[39m: Skipping network creation. Observe that all external IO operations will yield a runtime error.
+Runtime error in thread 3b7478f3-d526-4b77-b273-7949c849e6a3@{}%{}
+
+  3 |       then fib (x - 1) + () 
+    |                          ^
+
 >> value () is not a number
 >> at tests/rt/neg/core/fib-untyped.trp:3:26

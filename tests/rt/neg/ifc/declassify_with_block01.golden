@@ -1,5 +1,9 @@
-2026-01-03T21:09:49.371Z [RTM] [32minfo[39m: Skipping network creation. Observe that all external IO operations will yield a runtime error.
-Runtime error in thread 5de66bbb-e115-4b49-8489-533197fc436f@{}%{}
+2026-01-06T14:33:32.481Z [RTM] [32minfo[39m: Skipping network creation. Observe that all external IO operations will yield a runtime error.
+Runtime error in thread 0081fdd5-77a7-49e5-83c0-8def2e103644@{}%{}
+
+  3 |     val z = declassify (x, authority, `{}`)
+    |             ^
+
 >> Current blocking level does not flow to the target level of the declassification
  | current blocking level: {alice}
  | target blocking level: {}

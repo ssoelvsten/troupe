@@ -5,6 +5,8 @@ import { SchedulerInterface } from "./SchedulerInterface.mjs";
 import { configureColors } from './colorConfig.mjs';
 import { getCliArgs, TroupeCliArg } from './TroupeCliArgs.mjs';
 import { lookupPosition, type EncodedSourceMap } from './SourceMapResolver.mjs';
+import { readFileSync, existsSync } from 'fs';
+import { resolve, isAbsolute } from 'path';
 
 // Ensure colors are configured when this module is loaded
 configureColors();
@@ -143,6 +145,161 @@ function cleanSourcePath(fullPath: string): string {
     return fullPath;
 }
 
+// ============================================================================
+// Source Code Display Functions
+// These functions provide visual error context similar to compiler errors
+// ============================================================================
+
+/** Tab stop width for display (matches common editor defaults) */
+const TAB_WIDTH = 8;
+
+/**
+ * Expand tabs to spaces for consistent display.
+ * Uses 8-space tab stops (matching ParseError.hs behavior).
+ */
+function expandTabs(line: string): string {
+    let result = '';
+    let col = 0;
+    for (const ch of line) {
+        if (ch === '\t') {
+            const spaces = TAB_WIDTH - (col % TAB_WIDTH);
+            result += ' '.repeat(spaces);
+            col += spaces;
+        } else {
+            result += ch;
+            col++;
+        }
+    }
+    return result;
+}
+
+/**
+ * Adjust column number for tabs in the source line.
+ * Converts a 1-indexed column in the original (with tabs) to
+ * the equivalent position after tab expansion.
+ */
+function adjustForTabs(line: string, col: number): number {
+    let displayCol = 0;
+    for (let i = 0; i < col - 1 && i < line.length; i++) {
+        if (line[i] === '\t') {
+            displayCol += TAB_WIDTH - (displayCol % TAB_WIDTH);
+        } else {
+            displayCol++;
+        }
+    }
+    return displayCol + 1; // Return 1-indexed
+}
+
+/**
+ * Create a caret line pointing to error column (1-indexed).
+ */
+function makeCaretLine(col: number): string {
+    return ' '.repeat(col - 1) + '^';
+}
+
+/**
+ * Parse a source location string into components.
+ * Expected format: "filepath:line:col"
+ */
+function parseSourceLocation(loc: string): { filePath: string; line: number; col: number } | null {
+    // Match path (may contain colons on Windows), then :line:col
+    const match = loc.match(/^(.+):(\d+):(\d+)$/);
+    if (!match) return null;
+    return {
+        filePath: match[1],
+        line: parseInt(match[2], 10),
+        col: parseInt(match[3], 10)
+    };
+}
+
+/**
+ * Resolve a potentially relative file path to an absolute path.
+ * Tries multiple strategies: cwd, TROUPE env variable.
+ */
+function resolveSourcePath(filePath: string): string | null {
+    // If already absolute and exists, use it
+    if (isAbsolute(filePath)) {
+        if (existsSync(filePath)) return filePath;
+        return null;
+    }
+
+    // Try relative to current working directory
+    const cwdPath = resolve(process.cwd(), filePath);
+    if (existsSync(cwdPath)) return cwdPath;
+
+    // Try relative to TROUPE environment variable
+    const troupeRoot = process.env['TROUPE'];
+    if (troupeRoot) {
+        const troupePath = resolve(troupeRoot, filePath);
+        if (existsSync(troupePath)) return troupePath;
+    }
+
+    return null;
+}
+
+/**
+ * Attempt to read a source line from a file.
+ * Returns null if file is unavailable or line is out of range.
+ */
+function getSourceLine(filePath: string, lineNum: number): string | null {
+    const resolvedPath = resolveSourcePath(filePath);
+    if (!resolvedPath) return null;
+
+    try {
+        const content = readFileSync(resolvedPath, 'utf-8');
+        const lines = content.split('\n');
+        if (lineNum > 0 && lineNum <= lines.length) {
+            return lines[lineNum - 1];
+        }
+    } catch {
+        // File read error - silently return null
+    }
+    return null;
+}
+
+/**
+ * Result of attempting to format source context.
+ */
+interface SourceContextResult {
+    /** Whether source was successfully read */
+    available: boolean;
+    /** Lines to display (source line and caret, or unavailable message) */
+    lines: string[];
+}
+
+/**
+ * Format source context for an error location.
+ * Returns the source line with line number prefix and caret line,
+ * or an unavailable message if source cannot be read.
+ */
+function formatSourceContext(sourceLocation: string): SourceContextResult {
+    const parsed = parseSourceLocation(sourceLocation);
+    if (!parsed) {
+        return { available: false, lines: ['  (source file not available)'] };
+    }
+
+    const { filePath, line, col } = parsed;
+    const sourceLine = getSourceLine(filePath, line);
+
+    if (sourceLine === null) {
+        return { available: false, lines: ['  (source file not available)'] };
+    }
+
+    // Format like compiler: "  N | source code"
+    const lineNumStr = String(line);
+    const lineNumWidth = lineNumStr.length;
+    const expandedLine = expandTabs(sourceLine);
+    const adjustedCol = adjustForTabs(sourceLine, col);
+
+    const sourceDisplay = `  ${lineNumStr} | ${expandedLine}`;
+    const caretDisplay = `  ${' '.repeat(lineNumWidth)} | ${makeCaretLine(adjustedCol)}`;
+
+    return {
+        available: true,
+        lines: ['', sourceDisplay, caretDisplay, '']
+    };
+}
+
 export abstract class TroupeError extends Error {
     abstract handleError (sched: SchedulerInterface) : void 
 }
@@ -164,8 +321,6 @@ export abstract class StopThreadError extends ThreadError {
     abstract errorKind: ErrorKind;
     handleError (sched) {
         let console = this.thread.rtObj.xconsole
-        console.log (chalk.red ( "Runtime error in thread " + this.thread.tidErrorStringRep()))
-        console.log (chalk.red ( ">> " + this.errorMessage));
 
         // Determine source location based on error kind:
         // - BuiltInArgsTypeMismatch/IFCCheck: error in runtime code, use lastCallSourcePos
@@ -185,11 +340,25 @@ export abstract class StopThreadError extends ThreadError {
             }
         }
 
+        // Format error with source context (visually consistent with compiler errors)
+        console.log(chalk.red("Runtime error in thread " + this.thread.tidErrorStringRep()));
+
+        // Show source context if location is available
         if (sourceLocation) {
-            console.log (chalk.red ( ">> at " + sourceLocation));
+            const sourceContext = formatSourceContext(sourceLocation);
+            for (const line of sourceContext.lines) {
+                console.log(chalk.red(line));
+            }
         }
+
+        console.log(chalk.red(">> " + this.errorMessage));
+
+        if (sourceLocation) {
+            console.log(chalk.red(">> at " + sourceLocation));
+        }
+
         if (getCliArgs()[TroupeCliArg.Explain] && this.explainstr) {
-            console.log (chalk.yellow ( this.explainstr));
+            console.log(chalk.yellow(this.explainstr));
         }
         sched.stopThreadWithErrorMessage(this.thread, this.errorMessage);
     }

@@ -1,5 +1,9 @@
-2026-01-03T21:09:49.389Z [RTM] [32minfo[39m: Skipping network creation. Observe that all external IO operations will yield a runtime error.
-Runtime error in thread 73a33f5c-5d50-4c37-bc43-3dfb69d4e008@{}%{}
+2026-01-06T14:33:32.516Z [RTM] [32minfo[39m: Skipping network creation. Observe that all external IO operations will yield a runtime error.
+Runtime error in thread c6a398a7-bd13-48cf-b94f-728978c54702@{}%{}
+
+  3 |     val () = lowermbox (c, attenuate (authority, `<bob;#root-integrity>`))    
+    |              ^
+
 >> Insufficient authority for lowering the mailbox clearance
 | authority provided: <bob;#root-integrity>
 | current level of the mailbox: <alice;#root-integrity>

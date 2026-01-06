@@ -1,5 +1,9 @@
-2026-01-03T21:09:48.833Z [RTM] [32minfo[39m: Skipping network creation. Observe that all external IO operations will yield a runtime error.
-Runtime error in thread 6b9e2735-2064-477e-b199-11e961868d36@{}%{}
+2026-01-06T14:33:32.474Z [RTM] [32minfo[39m: Skipping network creation. Observe that all external IO operations will yield a runtime error.
+Runtime error in thread ab324c5e-a3fc-466a-a7c0-14dc7cc32623@{}%{}
+
+  4 |     val c2 = pinipushto(a_, `{}`)
+    |              ^
+
 >> level argument of pinipushto operation must flow to the current blocking level
 | the blocking level: {alice,bob}
 | the level argument: {}@{}%{}

@@ -1,4 +1,8 @@
-2026-01-06T09:52:00.874Z [RTM] [32minfo[39m: Skipping network creation. Observe that all external IO operations will yield a runtime error.
-Runtime error in thread f43aa16c-12d7-4dcc-ad7a-772d842ad127@{}%{}
+2026-01-06T14:33:29.972Z [RTM] [32minfo[39m: Skipping network creation. Observe that all external IO operations will yield a runtime error.
+Runtime error in thread 0327fe5e-81b7-4c39-85ea-39df3cba4edb@{}%{}
+
+  1 | let val x = 0 in x.0 end
+    |                  ^
+
 >> value 0 is not a tuple
 >> at tests/rt/neg/core/tuples_idx04c.trp:1:18

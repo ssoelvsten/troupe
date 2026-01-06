@@ -1,5 +1,9 @@
-2026-01-03T21:09:49.544Z [RTM] [32minfo[39m: Skipping network creation. Observe that all external IO operations will yield a runtime error.
-Runtime error in thread 32eacc40-6c65-40a6-b092-ec7b8a1ac586@{}%{}
+2026-01-06T14:33:33.150Z [RTM] [32minfo[39m: Skipping network creation. Observe that all external IO operations will yield a runtime error.
+Runtime error in thread ca97f5b7-0bbf-45e9-b21a-8e1f3504f9ac@{}%{}
+
+  30 |     val _ = blockendorseto (authority, `<alice&bob; #root-integrity>`)
+     |             ^
+
 >> NMIFC transparency violation for blocking level integrity
  | The confidentiality of the data and PC do not permit this endorsement.
  | current blocking level: {alice,bob} (corrupt: true)

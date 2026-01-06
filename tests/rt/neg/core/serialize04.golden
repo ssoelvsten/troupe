@@ -1,5 +1,9 @@
-2026-01-03T21:09:48.184Z [RTM] [32minfo[39m: Skipping network creation. Observe that all external IO operations will yield a runtime error.
+2026-01-06T14:33:31.383Z [RTM] [32minfo[39m: Skipping network creation. Observe that all external IO operations will yield a runtime error.
 1
-Runtime error in thread b8ba3a6c-7298-4771-ad34-078ed5f04e86@{}%{}
+Runtime error in thread 1602355d-d2bc-4a83-8f5b-3c81488165c4@{}%{}
+
+  9 | in  save (authority,"serialize04", resume)
+    |     ^
+
 >> Unserializable object: <sandboxkont>@{}%{}
 >> at tests/rt/neg/core/serialize04.trp:9:5

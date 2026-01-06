@@ -1,5 +1,9 @@
-2026-01-03T21:09:51.904Z [RTM] [32minfo[39m: Skipping network creation. Observe that all external IO operations will yield a runtime error.
-Runtime error in thread d95ebc13-4404-49ec-800a-28a5d1291958@{}%{}
+2026-01-06T14:33:34.630Z [RTM] [32minfo[39m: Skipping network creation. Observe that all external IO operations will yield a runtime error.
+Runtime error in thread 5256fa62-f331-434a-ba19-d84e3cb55e87@{}%{}
+
+  15 |     adv a1
+     |     ^
+
 >> Illegal flow in adv function:
  |    pc: {}
  | block: <alice&bob;#root-integrity>

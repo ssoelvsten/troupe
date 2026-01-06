@@ -1,6 +1,10 @@
-2026-01-03T21:09:51.097Z [RTM] [32minfo[39m: Skipping network creation. Observe that all external IO operations will yield a runtime error.
-Runtime error in thread ae73c45d-2b60-44f7-b188-0cc1eb3e09ee@{}%{}
+2026-01-06T14:33:33.946Z [RTM] [32minfo[39m: Skipping network creation. Observe that all external IO operations will yield a runtime error.
+Runtime error in thread 0d77891e-d4cc-4e86-a814-e82714e81d04@{}%{}
+
+  4 |     val _ = lowermbox ( c1, attenuate (authority, `{bob}` ))
+    |             ^
+
 >> Ill-scoped raise/lower of mailbox clearance:
-expected cap: f7e73f79-de56-477c-829a-a7d96d1942a1
-provided cap: 4d8bb95d-1ed9-471c-90e2-9c7264eba794
+expected cap: f38fa344-a8b9-4694-bdae-7f674cd79aeb
+provided cap: 72a62479-0f81-438b-9a0c-38e671108abb
 >> at tests/rt/neg/ifc/lclear-ill-scoped.trp:4:13
