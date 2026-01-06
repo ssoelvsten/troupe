@@ -12,7 +12,21 @@ Implement full grammar-level error recovery using Happy's `catch` token mechanis
 
 ---
 
-## Step 1: Extend Parser Monad for Error Accumulation
+## Progress Tracking
+
+| Step | Status | Notes |
+|------|--------|-------|
+| Step 1: Monad changes | ✅ COMPLETE | ParseState, formatAllErrors, monad stack updated |
+| Step 2: Error handlers | ⬜ TODO | parserAbort, parserReport, recordError |
+| Step 3: AST nodes | ⬜ TODO | ErrorPattern, ErrorDecl constructors |
+| Step 4: `catch` productions | ⬜ TODO | Grammar recovery points |
+| Step 5: Main.hs | ✅ COMPLETE | (Done as part of Step 1 - parseProg updated) |
+| Step 6: Later stages | ⬜ TODO | Error node handling |
+| Testing | ⬜ TODO | Multi-error test cases |
+
+---
+
+## Step 1: Extend Parser Monad for Error Accumulation ✅ COMPLETE
 
 **File:** `compiler/src/ParseError.hs`
 
@@ -57,10 +71,19 @@ To:
 %monad { ReaderT ParseEnv (StateT ParseState (Except String)) } { (>>=) } { return }
 ```
 
-Update error directive:
+Update error directive (to be done in Step 2):
 ```haskell
 %error { parserAbort } { parserReport }
 ```
+
+**Implementation Notes:**
+- Added `ParseState` type with `psErrors`, `psErrorCount`, `psLastErrorPos` fields
+- Added `initialParseState`, `maxParseErrors` (10), `minErrorDistance` (2)
+- Added `formatAllErrors` for multi-error output formatting
+- Changed monad from `ReaderT ParseEnv (Except String)` to `ReaderT ParseEnv (StateT ParseState (Except String))`
+- Added `ParseM` type alias for cleaner signatures
+- Updated all helper functions (`mkSeq`, `parseError`, `pos`, `atPos`, `checkDuplicateAtoms`) to use `ParseM`
+- Updated `parseProg` to run new monad stack and check accumulated errors
 
 ---
 

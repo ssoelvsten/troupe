@@ -3,7 +3,12 @@
 module ParseError
   ( ParseErrorInfo(..)
   , ParseEnv(..)
+  , ParseState(..)
+  , initialParseState
+  , maxParseErrors
+  , minErrorDistance
   , formatParseError
+  , formatAllErrors
   , getSourceLine
   , makeCaretLine
   , inferContext
@@ -19,6 +24,25 @@ data ParseEnv = ParseEnv
   { peFilename :: String
   , peSource   :: String
   } deriving (Eq, Show)
+
+-- | Error accumulation state for multi-error recovery
+data ParseState = ParseState
+  { psErrors       :: [ParseErrorInfo]  -- ^ Accumulated errors (reverse order)
+  , psErrorCount   :: Int               -- ^ For limiting
+  , psLastErrorPos :: Maybe (Int, Int)  -- ^ For duplicate suppression (line, col)
+  }
+
+-- | Initial parse state with no errors
+initialParseState :: ParseState
+initialParseState = ParseState [] 0 Nothing
+
+-- | Maximum number of parse errors to report before giving up
+maxParseErrors :: Int
+maxParseErrors = 10
+
+-- | Minimum line distance between errors to avoid duplicate reporting
+minErrorDistance :: Int
+minErrorDistance = 2
 
 -- | Complete information about a parse error
 data ParseErrorInfo = ParseErrorInfo
@@ -95,6 +119,14 @@ formatParseError info@ParseErrorInfo{..} = unlines $ filter (not . null)
     suggestionSection = case suggestFix info of
       Just suggestion -> "\nSuggestion: " ++ suggestion
       Nothing         -> ""
+
+-- | Format multiple errors into a combined output message
+formatAllErrors :: [ParseErrorInfo] -> String
+formatAllErrors [] = ""
+formatAllErrors [e] = formatParseError e
+formatAllErrors errs =
+  "Found " ++ show (length errs) ++ " parse errors:\n\n" ++
+  intercalate "\n----------------------------------------\n\n" (map formatParseError errs)
 
 -- | Expand tabs to spaces (4 spaces per tab, standard)
 expandTabs :: String -> String

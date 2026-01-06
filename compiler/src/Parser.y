@@ -11,10 +11,13 @@ import Direct
 import DCLabels
 import Basics
 import TroupePositionInfo (Located(..), PosInf(..), noLoc, getLoc)
-import ParseError (ParseEnv(..), ParseErrorInfo(..), formatParseError)
+import ParseError (ParseEnv(..), ParseState(..), ParseErrorInfo(..),
+                   formatParseError, formatAllErrors, initialParseState,
+                   maxParseErrors, minErrorDistance)
 
 import Control.Monad.Except
 import Control.Monad.Reader
+import Control.Monad.State
 import Data.List (group, sort, intercalate)
 
 
@@ -26,8 +29,8 @@ import Data.List (group, sort, intercalate)
 -- Lexer structure
 %tokentype { L Token }
 
--- Parser monad (ReaderT to thread filename and source for error reporting)
-%monad { ReaderT ParseEnv (Except String) } { (>>=) } { return }
+-- Parser monad (ReaderT + StateT for error accumulation)
+%monad { ReaderT ParseEnv (StateT ParseState (Except String)) } { (>>=) } { return }
 %error { parseError }
 %errorhandlertype explist
 
@@ -369,6 +372,8 @@ FunArgs : Pattern                        { [$1]  }
 
 {
 
+-- | Parser monad type alias
+type ParseM a = ReaderT ParseEnv (StateT ParseState (Except String)) a
 
 -- Helper to create a located pattern at RTGen position
 rtGenPat :: DeclPattern -> LDeclPattern
@@ -388,7 +393,7 @@ piniDecl auth decs =
         (pushDecl:decs) ++ [popDecl]
 
 -- mkSeq now takes the token to get position from
-mkSeq :: LTerm -> LTerm -> L Token -> ReaderT ParseEnv (Except String) LTerm
+mkSeq :: LTerm -> LTerm -> L Token -> ParseM LTerm
 mkSeq t1 t2 tok = do
     p <- pos tok
     let ts = case t2 of
@@ -405,7 +410,7 @@ fromFact xs =
   in Loc p (App y ys)
 
 
-parseError :: ([L Token], [String]) -> ReaderT ParseEnv (Except String) a
+parseError :: ([L Token], [String]) -> ParseM a
 parseError (l:ls, expectedTokens) = do
     env <- ask
     let (AlexPn _ line col) = getPos l
@@ -523,7 +528,11 @@ parseProg :: FilePath -> String -> Either String Prog
 parseProg filename input = runExcept $ do
   tokenStream <- scanTokens input
   let env = ParseEnv { peFilename = filename, peSource = input }
-  runReaderT (prog tokenStream) env
+  (ast, finalState) <- runStateT (runReaderT (prog tokenStream) env) initialParseState
+  -- If any errors were accumulated, report them all
+  case psErrors finalState of
+    [] -> return ast
+    errs -> throwError $ formatAllErrors (reverse errs)
 
 
 numTok (L _ (TokenNum x))    = x
@@ -532,20 +541,20 @@ strTok (L _ (TokenString x)) = x
 varTok (L _ (TokenSym x ))   = x
 lblTok (L _ (TokenLabel x))  = x
 
-pos :: L Token -> ReaderT ParseEnv (Except String) PosInf
+pos :: L Token -> ParseM PosInf
 pos l = do
     env <- ask
     let (AlexPn _ line col) = getPos l
     return $ SrcPosInf (peFilename env) line col
 
 -- | Create a Located value at the position of the given token
-atPos :: L Token -> a -> ReaderT ParseEnv (Except String) (Located a)
+atPos :: L Token -> a -> ParseM (Located a)
 atPos tok x = do
     p <- pos tok
     return (Loc p x)
 
 -- Check for duplicate atom names and report all duplicates with positions
-checkDuplicateAtoms :: [(String, PosInf)] -> ReaderT ParseEnv (Except String) [AtomName]
+checkDuplicateAtoms :: [(String, PosInf)] -> ParseM [AtomName]
 checkDuplicateAtoms atoms
   | null dups = return names
   | otherwise = throwError $ intercalate "\n" (map formatOne dups)
