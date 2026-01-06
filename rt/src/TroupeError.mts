@@ -77,7 +77,10 @@ function isRuntimeFile(fileName: string): boolean {
  * then uses the source map to translate that position to Troupe source.
  */
 function translateWithCallSites(callSites: CallSite[], sourceMap: EncodedSourceMap | null): string | null {
-    if (!sourceMap) return null;
+    // Check for valid source map (must have 'sources' property to be usable for translation)
+    // Note: sourceMap may be { __isRestored: true } for restored code, which isn't a valid source map
+    const hasValidSourceMap = sourceMap && 'sources' in sourceMap;
+    if (!hasValidSourceMap) return null;
 
     for (const site of callSites) {
         const fileName = site.getFileName();
@@ -342,6 +345,11 @@ export abstract class StopThreadError extends ThreadError {
 
         // Format error with source context (visually consistent with compiler errors)
         console.log(chalk.red("Runtime error in thread " + this.thread.tidErrorStringRep()));
+
+        // Indicate if error occurred in restored code (deserialized closure)
+        if (this.thread.currentSourceMap?.__isRestored) {
+            console.log(chalk.yellow(">> (in restored code)"));
+        }
 
         // Show source context if location is available
         if (sourceLocation) {

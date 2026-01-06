@@ -168,7 +168,12 @@ function constructCurrent(compilerOutput: string) {
 
         // console.log (NS.toString()); // debugging
         argValues.unshift(__rtObj)
-        ctxt.namespaces[i] = Reflect.construct (NS, argValues) 
+        ctxt.namespaces[i] = Reflect.construct (NS, argValues)
+        // Mark namespace as restored code for error reporting
+        Object.defineProperty(ctxt.namespaces[i], '__isRestored', {
+            value: true,
+            enumerable: false
+        }) 
         
     }
 
