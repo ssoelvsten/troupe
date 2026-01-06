@@ -81,6 +81,7 @@ data DeclPattern
     | ConsPattern LDeclPattern LDeclPattern
     | ListPattern [LDeclPattern]
     | RecordPattern [(FieldName, Maybe LDeclPattern)] RecordPatternMode
+    | ErrorPattern                                    -- Error recovery placeholder
       deriving (Eq)
 
 -- GetPosInfo for DeclPattern is no longer needed - use posInfo on LDeclPattern instead
@@ -95,6 +96,7 @@ data Handler = Handler LDeclPattern (Maybe LDeclPattern) Guard LTerm
 data Decl
     = ValDecl LDeclPattern LTerm
     | FunDecs [LFunDecl]
+    | ErrorDecl                   -- Error recovery placeholder
   deriving (Eq)
 
 data FunDecl = FunDecl VarName [Lambda]
@@ -342,7 +344,7 @@ ppDecl (FunDecs fs) = ppFuns fs
 
     ppFuns _ = PP.empty
 
-
+ppDecl ErrorDecl = text "<error-decl>"
 
 -- | Pretty print a located declaration pattern
 ppLDeclPattern :: LDeclPattern -> PP.Doc
@@ -373,6 +375,7 @@ ppDeclPattern (RecordPattern fields mode) =
               wildcard = case mode of
                 ExactMatch -> []
                 WildcardMatch -> [text ".."]
+ppDeclPattern ErrorPattern = text "<error>"
 
 ppLit :: Lit -> PP.Doc
 ppLit (LNumeric (NumInt i))  = PP.integer i

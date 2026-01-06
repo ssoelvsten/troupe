@@ -383,6 +383,18 @@ rtGenPat = Loc (RTGen "parser")
 rtGenTerm :: Term -> LTerm
 rtGenTerm = Loc (RTGen "parser")
 
+-- Error recovery placeholders
+-- These create placeholder AST nodes when the parser recovers from an error
+-- Using RTGen position since these are generated during error recovery
+errorExpr :: L Token -> LTerm
+errorExpr _ = Loc (RTGen "error-recovery") (Lit LUnit)  -- Placeholder expression
+
+errorPattern :: L Token -> LDeclPattern
+errorPattern _ = Loc (RTGen "error-recovery") ErrorPattern
+
+errorDecl :: L Token -> Decl
+errorDecl _ = ErrorDecl
+
 piniDecl :: LTerm -> [Decl] -> [Decl]
 piniDecl auth decs =
     let pushDecl = ValDecl (rtGenPat (VarPattern "$pini"))

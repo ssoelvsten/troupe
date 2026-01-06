@@ -18,7 +18,7 @@ Implement full grammar-level error recovery using Happy's `catch` token mechanis
 |------|--------|-------|
 | Step 1: Monad changes | ✅ COMPLETE | ParseState, formatAllErrors, monad stack updated |
 | Step 2: Error handlers | ✅ COMPLETE | parserAbort, parserReport, recordError implemented |
-| Step 3: AST nodes | ⬜ TODO | ErrorPattern, ErrorDecl constructors |
+| Step 3: AST nodes | ✅ COMPLETE | ErrorPattern, ErrorDecl in Direct.hs; helper functions in Parser.y |
 | Step 4: `catch` productions | ⬜ TODO | Grammar recovery points |
 | Step 5: Main.hs | ✅ COMPLETE | (Done as part of Step 1 - parseProg updated) |
 | Step 6: Later stages | ⬜ TODO | Error node handling |
