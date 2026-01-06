@@ -174,6 +174,7 @@ AtomsList : { [] }
 
 
 Expr: Form                        { $1 }
+    | catch                        { noLoc (Lit LUnit) }  -- Error recovery
     | let pini Expr Decs in Expr end  {% atPos $1 (Let (piniDecl $3 $4) $6) }
     | let Decs in Expr end        {% atPos $1 (Let $2 $4) }
     | if Expr then Expr else Expr {% atPos $1 (If $2 $4 $6) }
@@ -215,6 +216,8 @@ Expr: Form                        { $1 }
 
 Match : Pattern '=>' Expr                      { [($1,$3)] }
       | Pattern '=>' Expr '|' Match            { ($1,$3):$5 }
+      -- Error recovery: skip bad case arm content
+      | catch                                  { [(noLoc ErrorPattern, noLoc (Lit LUnit))] }
 
 
 Form :: { LTerm }
@@ -266,6 +269,8 @@ Atom : '(' Expr ')'                { $2 }
      | ListExpr                    { $1 }
      | Atom '.' VAR                {% atPos $2 (ProjField $1 (varTok $3)) }
      | Atom '.' NUM                {% atPos $2 (ProjIdx $1 (fromInteger (numTok $3))) }
+     -- Error recovery: recover at closing paren
+     | '(' catch ')'               {% atPos $1 (Lit LUnit) }
 
 
 RecordExpr
@@ -288,6 +293,8 @@ ListExpr :: {LTerm}
 ListExpr : '[' ']'                 {% atPos $1 (List []) }
      | '[' Expr ']'                {% atPos $1 (List [$2]) }
      | '[' CSExpr Expr ']'         {% atPos $1 (List (reverse ($3:$2))) }
+     -- Error recovery: recover at closing bracket
+     | '[' catch ']'               {% atPos $1 (List []) }
 
 CSExpr : Expr ','                  { [$1] }
      | CSExpr Expr ','             { ($2:$1) }
@@ -338,11 +345,13 @@ CSPattern : Pattern ','         { [$1] }
     | CSPattern  Pattern ','    { ($2:$1) }
 
 
-Dec : val Pattern '=' Expr      { ValDecl $2 $4 }
-    | FunDecs                      { FunDecs $1 }
+Dec : val Pattern '=' Expr         { ValDecl $2 $4 }
+    | FunDecs                       { FunDecs $1 }
+    -- Error recovery: skip bad declaration
+    | catch                         { ErrorDecl }
 
-Decs : Dec                         { [$1] }
-     | Dec Decs                    { $1 : $2 }
+Decs : Dec                          { [$1] }
+     | Dec Decs                     { $1 : $2 }
 
 FunDecs : FunDecl                  { [$1] }
       | FunDecl AndFunDecs         { $1 : $2 }
@@ -445,6 +454,13 @@ makeParseErrorInfo env tokens expected =
           , peiContext     = Nothing
           }
 
+-- | Record an error from a catch token (used in grammar productions)
+-- This is called when catch consumes a token during error recovery
+recordError' :: L Token -> ParseM ()
+recordError' tok = do
+    _ <- recordError [tok] []
+    return ()
+
 -- | Record an error with duplicate suppression
 -- Returns True if the error was recorded, False if it was a duplicate
 recordError :: [L Token] -> [String] -> ParseM Bool
@@ -454,7 +470,10 @@ recordError tokens expected = do
     let (line, col) = getTokenPosition tokens
         isDup = case psLastErrorPos state of
           Nothing -> False
-          Just (lastLine, _) -> abs (line - lastLine) < minErrorDistance
+          Just (lastLine, lastCol) ->
+            -- Suppress if same line AND close column, or adjacent lines
+            (line == lastLine && abs (col - lastCol) < 3) ||
+            (line /= lastLine && abs (line - lastLine) < minErrorDistance)
     if isDup
       then return False
       else do

@@ -3,7 +3,7 @@ tests/cmp/dc-label-missing-opening.trp:1:39: parse error
   1 | let val data = 100 raisedTo alice; bob>`
     |                                       ^
   unexpected '>`' (DC label end)
-  expected keyword 'in'
+  expected one of: keyword 'in', keyword 'val', keyword 'fun'
 
 Suggestion: Missing 'in' keyword?
   Syntax: let <declarations> in <expression> end

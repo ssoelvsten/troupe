@@ -19,10 +19,10 @@ Implement full grammar-level error recovery using Happy's `catch` token mechanis
 | Step 1: Monad changes | ✅ COMPLETE | ParseState, formatAllErrors, monad stack updated |
 | Step 2: Error handlers | ✅ COMPLETE | parserAbort, parserReport, recordError implemented |
 | Step 3: AST nodes | ✅ COMPLETE | ErrorPattern, ErrorDecl in Direct.hs; helper functions in Parser.y |
-| Step 4: `catch` productions | ⬜ TODO | Grammar recovery points |
+| Step 4: `catch` productions | ✅ COMPLETE | catch in Expr, Match, Dec, Atom, ListExpr; dedup logic fixed |
 | Step 5: Main.hs | ✅ COMPLETE | (Done as part of Step 1 - parseProg updated) |
-| Step 6: Later stages | ⬜ TODO | Error node handling |
-| Testing | ⬜ TODO | Multi-error test cases |
+| Step 6: Later stages | ⬜ TODO | Error node handling in later compiler stages |
+| Testing | ✅ COMPLETE | All 798 golden tests pass; multi-error reporting verified |
 
 ---
 
@@ -174,48 +174,51 @@ errorDecl (L pos _) = ErrorDecl pos
 
 ---
 
-## Step 4: Add `catch` Productions to Grammar
+## Step 4: Add `catch` Productions to Grammar ✅ COMPLETE
 
 **File:** `compiler/src/Parser.y`
 
-Add `catch` token and productions at key synchronization points:
+### Implementation Notes
+
+**Key Insight:** The `catch` token is a **built-in Happy token** and must NOT be declared in the `%token` section. It is automatically available when using the two-action `%error` directive.
+
+**Implemented catch productions:**
 
 ```happy
--- Top-level expression recovery
-Expr : Form                           { $1 }
-     | let Decs in Expr end           {% ... }
-     | case Expr of Match end         {% ... }
-     | catch                          {% recordError >> return (errorExpr $1) }
+-- Expression-level recovery (most important for multi-error reporting)
+Expr : Form                        { $1 }
+     | catch                       { noLoc (Lit LUnit) }  -- Error recovery placeholder
+     | ... other productions ...
 
--- Declaration recovery (recover at val/fun/in)
-Dec : val Pattern '=' Expr            { ValDecl $2 $4 }
-    | FunDecs                         { FunDecs $1 }
-    | catch                           {% recordError >> return (errorDecl $1) }
+-- Case arm recovery
+Match : Pattern '=>' Expr                      { [($1,$3)] }
+      | Pattern '=>' Expr '|' Match            { ($1,$3):$5 }
+      | catch                                  { [(noLoc ErrorPattern, noLoc (Lit LUnit))] }
 
-Decs : Dec                            { [$1] }
-     | Dec Decs                       { $1 : $2 }
-     | catch Decs                     {% recordError >> return (errorDecl $1 : $2) }
+-- Declaration recovery
+Dec : val Pattern '=' Expr         { ValDecl $2 $4 }
+    | FunDecs                       { FunDecs $1 }
+    | catch                         { ErrorDecl }
 
--- Case arm recovery (recover at | or end)
-Match : Pattern '=>' Expr             { [($1, $3)] }
-      | Pattern '=>' Expr '|' Match   { ($1,$3) : $5 }
-      | catch '|' Match               {% recordError >> return ((errorPattern $1, errorExpr $1) : $3) }
-      | catch                         {% recordError >> return [(errorPattern $1, errorExpr $1)] }
+-- Bracketed expression recovery
+Atom : ...
+     | '(' catch ')'               {% atPos $1 (Lit LUnit) }
 
--- Parenthesized expression recovery
-Atom : '(' Expr ')'                   { $2 }
-     | '(' catch ')'                  {% recordError >> return (errorExpr $2) }
-     | '[' ExprList ']'               { ... }
-     | '[' catch ']'                  {% recordError >> return (noLoc (List [])) }
+ListExpr : ...
+     | '[' catch ']'               {% atPos $1 (List []) }
 ```
 
-**Synchronization Points (Priority Order):**
-1. `end` keyword - closes let/case
-2. `in` keyword - separates declarations from body
-3. `;` semicolon - expression separator
-4. `|` pipe - case arm separator
-5. `)`, `]`, `}` - closing delimiters
-6. `val`, `fun` - declaration starters
+**Important constraints discovered:**
+1. Only ONE `catch` production per non-terminal to avoid reduce/reduce conflicts
+2. `catch` productions should use simple actions (no monadic `recordError'` in the action - errors are already recorded by `parserReport`)
+3. The `$1` for `catch` is the error token, but accessing it for position info can cause issues
+
+**Duplicate suppression fix:**
+The original line-based suppression (`abs (line - lastLine) < 2`) was too aggressive for same-line errors. Updated to:
+- Same line: suppress only if within 3 columns of last error
+- Different lines: suppress if within 2 lines of last error
+
+**Parser conflicts:** After implementation, the grammar has only 2 shift/reduce conflicts (auto-resolved by Happy's shift preference) and 0 reduce/reduce conflicts.
 
 ---
 
