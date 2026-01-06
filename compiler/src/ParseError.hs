@@ -65,6 +65,41 @@ getSourceLine sourceLines lineNum
 makeCaretLine :: Int -> String
 makeCaretLine col = replicate (col - 1) ' ' ++ "^"
 
+-- | Tokens that can start an expression
+-- When many of these are expected, we summarize as "expression" instead of listing all
+expressionStartTokens :: [String]
+expressionStartTokens =
+  [ "keyword 'let'", "keyword 'if'", "keyword 'case'"
+  , "keyword 'fn'", "keyword 'hn'"
+  , "'true'", "'false'"
+  , "number", "float", "string", "identifier", "label"
+  , "'('", "'['", "'{'"
+  , "'-'"
+  , "'`<' (DC label)"
+  , "'isTuple'", "'isList'", "'isRecord'", "'not'"
+  ]
+
+-- | Check if a token name (string) is an expression starter
+isExpressionStartName :: String -> Bool
+isExpressionStartName = (`elem` expressionStartTokens)
+
+-- | Format expected tokens, summarizing long expression lists
+-- When 8+ expression-starting tokens are expected, summarize as "expression"
+formatExpectedTokens :: [String] -> String
+formatExpectedTokens [] = ""
+formatExpectedTokens [e] = "  expected " ++ e
+formatExpectedTokens tokens
+  | exprCount >= 8 =
+      let others = filter (not . isExpressionStartName) tokens
+      in case others of
+           [] -> "  expected expression"
+           [x] -> "  expected expression or " ++ x
+           xs -> "  expected expression or one of: " ++ intercalate ", " xs
+  | otherwise =
+      "  expected one of: " ++ intercalate ", " tokens
+  where
+    exprCount = length $ filter isExpressionStartName tokens
+
 -- | Format a complete error message with source context
 formatParseError :: ParseErrorInfo -> String
 formatParseError info@ParseErrorInfo{..} = unlines $ filter (not . null)
@@ -109,11 +144,8 @@ formatParseError info@ParseErrorInfo{..} = unlines $ filter (not . null)
       Just tok -> "  unexpected " ++ showToken tok
       Nothing  -> "  unexpected end of input"
 
-    -- "expected identifier, 'fun', or expression"
-    expectedLine = case peiExpected of
-      []  -> ""
-      [e] -> "  expected " ++ e
-      es  -> "  expected one of: " ++ intercalate ", " es
+    -- "expected expression" or "expected one of: ..." (summarized for long lists)
+    expectedLine = formatExpectedTokens peiExpected
 
     -- Suggestion for common mistakes
     suggestionSection = case suggestFix info of

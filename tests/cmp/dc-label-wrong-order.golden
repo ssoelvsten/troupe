@@ -21,5 +21,5 @@ tests/cmp/dc-label-wrong-order.trp:1:44: parse error
   1 | let val x = 60 raisedTo `<#root-integrity; #null-confidentiality>`
     |                                            ^
   unexpected '#null-confidentiality'
-  expected one of: keyword 'let', keyword 'if', keyword 'case', keyword 'fn', keyword 'hn', 'true', 'false', number, float, string, identifier, label, '-', '`<' (DC label), 'isTuple', 'isList', 'isRecord', 'not', '(', '[', '{'
+  expected expression
 
