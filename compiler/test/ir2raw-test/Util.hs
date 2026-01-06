@@ -5,13 +5,13 @@ import RetCPS (VarName(..))
 import TroupePositionInfo (Located(Loc), PosInf(..))
 
 -- Create a Located VarAccess with NoPos for test purposes
--- This is used in expressions which now expect LVarAccess
+-- This is used in expressions and terminators which expect LVarAccess
 mkV :: String -> IR.LVarAccess
 mkV s = Loc NoPos (IR.VarLocal (VN s))
 
--- Create a plain VarAccess for places that still need it (e.g., terminators, MkFunClosures)
-mkVPlain :: String -> IR.VarAccess
-mkVPlain s = IR.VarLocal (VN s)
+-- Create a Located VarName with NoPos for FunDef arguments
+mkVN :: String -> IR.LVarName
+mkVN s = Loc NoPos (VN s)
 
 -- Wrap an instruction with NoPos
 mkLInst :: IR.IRInst -> IR.LIRInst

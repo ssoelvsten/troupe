@@ -9,36 +9,36 @@ import TroupePositionInfo
 
 
 mkP :: IRTerminator -> IRProgram
-mkP tr = IRProgram (Core.Atoms []) [Loc NoPos (FunDef (HFN "main") (VN "arg") NoPos [] body)]
+mkP tr = IRProgram (Core.Atoms []) [Loc NoPos (FunDef (HFN "main") (mkVN "arg") [] body)]
   where body = BB [] (mkLTerm tr)
 
 tcs :: [(String, IRProgram)]
 tcs = map (second mkP)
   [
   ( "TailCall"
-  , TailCall (mkVPlain "x") (mkVPlain "y")
+  , TailCall (mkV "x") (mkV "y")
   ),
   ( "Ret"
-  , Ret (mkVPlain "x")
+  , Ret (mkV "x")
   ),
   ( "LibExport"
-  , LibExport (mkVPlain "x")
+  , LibExport (mkV "x")
   ),
   -- NOTE: We use libexport as terminator because it generates least extra code
   ( "If"
-  , If (mkVPlain "x")
-       (BB [mkLInst (Assign (VN "b1") (Base "v1"))] (mkLTerm (LibExport (mkVPlain "b1"))))
-       (BB [mkLInst (Assign (VN "b2") (Base "v2"))] (mkLTerm (LibExport (mkVPlain "b2"))))
+  , If (mkV "x")
+       (BB [mkLInst (Assign (VN "b1") (Base "v1"))] (mkLTerm (LibExport (mkV "b1"))))
+       (BB [mkLInst (Assign (VN "b2") (Base "v2"))] (mkLTerm (LibExport (mkV "b2"))))
   ),
   ( "StackExpand"
   , StackExpand (VN "x")
-       (BB [mkLInst (Assign (VN "b1") (Base "v1"))] (mkLTerm (LibExport (mkVPlain "b1"))))
-       (BB [mkLInst (Assign (VN "b2") (Base "v2"))] (mkLTerm (LibExport (mkVPlain "b2"))))
+       (BB [mkLInst (Assign (VN "b1") (Base "v1"))] (mkLTerm (LibExport (mkV "b1"))))
+       (BB [mkLInst (Assign (VN "b2") (Base "v2"))] (mkLTerm (LibExport (mkV "b2"))))
   ),
   ( "AssertElseError"
-  , AssertElseError (mkVPlain "x") (BB [mkLInst (Assign (VN "b") (Base "v"))] (mkLTerm (LibExport (mkVPlain "b")))) (mkVPlain "verr") NoPos
+  , AssertElseError (mkV "x") (BB [mkLInst (Assign (VN "b") (Base "v"))] (mkLTerm (LibExport (mkV "b")))) (mkV "verr")
   ),
   ( "Error"
-  , Error (mkVPlain "verr") NoPos
+  , Error (mkV "verr")
   )
   ]

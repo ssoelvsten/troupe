@@ -269,8 +269,6 @@ Atom : '(' Expr ')'                { $2 }
      | ListExpr                    { $1 }
      | Atom '.' VAR                {% atPos $2 (ProjField $1 (varTok $3)) }
      | Atom '.' NUM                {% atPos $2 (ProjIdx $1 (fromInteger (numTok $3))) }
-     -- Error recovery: recover at closing paren
-     | '(' catch ')'               {% atPos $1 (Lit LUnit) }
 
 
 RecordExpr
@@ -293,8 +291,6 @@ ListExpr :: {LTerm}
 ListExpr : '[' ']'                 {% atPos $1 (List []) }
      | '[' Expr ']'                {% atPos $1 (List [$2]) }
      | '[' CSExpr Expr ']'         {% atPos $1 (List (reverse ($3:$2))) }
-     -- Error recovery: recover at closing bracket
-     | '[' catch ']'               {% atPos $1 (List []) }
 
 CSExpr : Expr ','                  { [$1] }
      | CSExpr Expr ','             { ($2:$1) }

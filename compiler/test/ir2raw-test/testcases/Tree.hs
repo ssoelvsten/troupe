@@ -11,15 +11,15 @@ import qualified Basics
 
 
 mkP :: IRBBTree -> IRProgram
-mkP tree = IRProgram (Core.Atoms []) [Loc NoPos (FunDef (HFN "main") (VN "arg") NoPos [] tree)]
+mkP tree = IRProgram (Core.Atoms []) [Loc NoPos (FunDef (HFN "main") (mkVN "arg") [] tree)]
 
 tcs :: [(String, IRProgram)]
 tcs = map (second mkP)
   [ ( "TreeEmpty"
-    , BB [] (mkLTerm (Ret (mkVPlain "r")))
+    , BB [] (mkLTerm (Ret (mkV "r")))
     )
   ,
     ( "TreeAssign"
-    , BB [mkLInst (Assign (VN "r") (Tuple []))] (mkLTerm (Ret (mkVPlain "r")))
+    , BB [mkLInst (Assign (VN "r") (Tuple []))] (mkLTerm (Ret (mkV "r")))
     )
   ]

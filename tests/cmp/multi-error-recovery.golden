@@ -1,0 +1,17 @@
+Parse Error:
+Found 2 parse errors:
+
+tests/cmp/multi-error-recovery.trp:2:5: parse error
+  2 | 1 + ; 2 + ; 3
+    |     ^
+  unexpected ';'
+  expected one of: keyword 'let', keyword 'if', keyword 'case', keyword 'fn', keyword 'hn', 'true', 'false', number, float, string, identifier, label, '-', '`<' (DC label), 'isTuple', 'isList', 'isRecord', 'not', '(', '[', '{'
+
+----------------------------------------
+
+tests/cmp/multi-error-recovery.trp:2:11: parse error
+  2 | 1 + ; 2 + ; 3
+    |           ^
+  unexpected ';'
+  expected one of: keyword 'let', keyword 'if', keyword 'case', keyword 'fn', keyword 'hn', 'true', 'false', number, float, string, identifier, label, '-', '`<' (DC label), 'isTuple', 'isList', 'isRecord', 'not', '(', '[', '{'
+

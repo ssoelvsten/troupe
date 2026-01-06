@@ -21,7 +21,7 @@ Implement full grammar-level error recovery using Happy's `catch` token mechanis
 | Step 3: AST nodes | ✅ COMPLETE | ErrorPattern, ErrorDecl in Direct.hs; helper functions in Parser.y |
 | Step 4: `catch` productions | ✅ COMPLETE | catch in Expr, Match, Dec, Atom, ListExpr; dedup logic fixed |
 | Step 5: Main.hs | ✅ COMPLETE | (Done as part of Step 1 - parseProg updated) |
-| Step 6: Later stages | ⬜ TODO | Error node handling in later compiler stages |
+| Step 6: Later stages | ✅ COMPLETE | Stop after parse errors (Option A) |
 | Testing | ✅ COMPLETE | All 798 golden tests pass; multi-error reporting verified |
 
 ---
@@ -243,20 +243,30 @@ parseProg filename source =
 
 ---
 
-## Step 6: Handle Error Nodes in Later Stages
+## Step 6: Handle Error Nodes in Later Stages ✅ COMPLETE
 
-**Files:** Various compiler stages
+**Decision:** Stop compilation after parsing if errors exist (Option A)
 
-Option A (Recommended): Stop compilation after parsing if errors exist
+The implementation in `parseProg` already handles this correctly:
+
 ```haskell
--- In Main.hs, after parsing
-case parseProg filename source of
-  Left errs -> putStrLn errs >> exitFailure
-  Right ast | hasParseErrors ast -> putStrLn "Parse completed with errors" >> exitFailure
-  Right ast -> continueCompilation ast
+parseProg :: FilePath -> String -> Either String Prog
+parseProg filename input = runExcept $ do
+  tokenStream <- scanTokens input
+  let env = ParseEnv { peFilename = filename, peSource = input }
+  (ast, finalState) <- runStateT (runReaderT (prog tokenStream) env) initialParseState
+  -- If any errors were accumulated, report them all
+  case psErrors finalState of
+    [] -> return ast
+    errs -> throwError $ formatAllErrors (reverse errs)
 ```
 
-Option B: Propagate errors through stages (more complex)
+This ensures:
+- All parse errors are accumulated during parsing
+- After parsing completes, if any errors exist, they are all reported together
+- Compilation stops immediately after error reporting
+- Error AST nodes (`ErrorPattern`, `ErrorDecl`) never reach later compiler stages
+- No changes needed to later stages (type checking, CPS, closure conversion, etc.)
 
 ---
 

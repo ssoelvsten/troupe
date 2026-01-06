@@ -14,8 +14,8 @@ import Basics
 
 
 mkP :: IRExpr -> IRProgram
-mkP e = IRProgram (Core.Atoms []) [Loc NoPos (FunDef (HFN "main") (VN "arg") NoPos [] body)]
-  where body = BB [mkLInst (Assign (VN "r") e)] (mkLTerm (LibExport (mkVPlain "r"))) -- need to use assigned variable so that it is not optimized away
+mkP e = IRProgram (Core.Atoms []) [Loc NoPos (FunDef (HFN "main") (mkVN "arg") [] body)]
+  where body = BB [mkLInst (Assign (VN "r") e)] (mkLTerm (LibExport (mkV "r"))) -- need to use assigned variable so that it is not optimized away
 
 tcs :: [(String, IRProgram)]
 tcs = map (second mkP) $

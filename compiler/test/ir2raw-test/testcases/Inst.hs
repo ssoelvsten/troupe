@@ -10,8 +10,8 @@ import qualified Basics
 
 
 mkP :: IRInst -> IRProgram
-mkP inst = IRProgram (Core.Atoms []) [Loc NoPos (FunDef (HFN "main") (VN "arg") NoPos [] body)]
-  where body = BB [mkLInst inst] (mkLTerm (LibExport (mkVPlain "r")))
+mkP inst = IRProgram (Core.Atoms []) [Loc NoPos (FunDef (HFN "main") (mkVN "arg") [] body)]
+  where body = BB [mkLInst inst] (mkLTerm (LibExport (mkV "r")))
 
 tcs :: [(String, IRProgram)]
 tcs = map (second mkP)
@@ -28,6 +28,6 @@ tcs = map (second mkP)
     )
   ,
     ( "MkFunClosures"
-    , MkFunClosures [(VN "x", mkVPlain "r")] [(VN "f", HFN "f123")]
+    , MkFunClosures [(VN "x", mkV "r")] [(VN "f", HFN "f123")]
     )
   ]

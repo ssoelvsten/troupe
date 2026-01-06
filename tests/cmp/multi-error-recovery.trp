@@ -1,0 +1,2 @@
+(* Test with semicolon separation - similar to Happy test *)
+1 + ; 2 + ; 3
