@@ -6,7 +6,10 @@ tests/cmp/dc-label-wrong-order.trp:1:27: parse error
   unexpected '#root-integrity'
   expected ';'
 
-Suggestion: In DC labels, use ';' to separate confidentiality and integrity.
+Suggestion: Integrity component in wrong position.
+  In DC labels, confidentiality comes BEFORE the semicolon,
+  and integrity comes AFTER.
   Syntax: `< confidentiality ; integrity >`
-  Example: `< alice ; bob >`
+  You have an integrity component ('#root-integrity') in the
+  confidentiality position. Perhaps you meant to swap them?
 

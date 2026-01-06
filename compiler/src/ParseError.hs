@@ -349,12 +349,52 @@ suggestFix ParseErrorInfo{..} = firstJust
           Just "Possibly mismatched braces - check for missing '}'."
       | otherwise = Nothing
 
-    -- DC label syntax help
+    -- DC label syntax help - Phase 6: specialized DC label messages
     checkDCLabelSyntax
+      -- Integrity token in confidentiality position (wrong order)
+      | Just tok <- peiToken
+      , isIntegrityToken tok
+      , peiExpected == ["';'"] =
+          Just $ "Integrity component in wrong position.\n" ++
+                 "  In DC labels, confidentiality comes BEFORE the semicolon,\n" ++
+                 "  and integrity comes AFTER.\n" ++
+                 "  Syntax: `< confidentiality ; integrity >`\n" ++
+                 "  You have an integrity component (" ++ showToken tok ++ ") in the\n" ++
+                 "  confidentiality position. Perhaps you meant to swap them?"
+      -- Confidentiality token in integrity position (wrong order)
+      | Just tok <- peiToken
+      , isConfidentialityToken tok
+      , "'>`' (DC label end)" `elem` peiExpected =
+          Just $ "Confidentiality component in wrong position.\n" ++
+                 "  In DC labels, confidentiality comes BEFORE the semicolon,\n" ++
+                 "  and integrity comes AFTER.\n" ++
+                 "  Syntax: `< confidentiality ; integrity >`\n" ++
+                 "  You have a confidentiality component (" ++ showToken tok ++ ") in the\n" ++
+                 "  integrity position. Perhaps you meant to swap them?"
+      -- Empty DC label (`<>`)
+      | Just tok <- peiToken
+      , isDCLabelEnd tok
+      , peiExpected == ["';'"] =
+          Just $ "Empty DC label is not allowed.\n" ++
+                 "  DC labels must have both confidentiality and integrity components.\n" ++
+                 "  Syntax: `< confidentiality ; integrity >`\n" ++
+                 "  Examples:\n" ++
+                 "    `< alice ; bob >`                               -- principal-based\n" ++
+                 "    `< #null-confidentiality ; #null-integrity >`   -- public data\n" ++
+                 "    `< #root-confidentiality ; #root-integrity >`   -- secret data"
+      -- Multiple semicolons
+      | Just TokenSemi <- peiToken
+      , "'>`' (DC label end)" `elem` peiExpected
+      , length peiExpected <= 3 =
+          Just $ "Too many semicolons in DC label.\n" ++
+                 "  DC labels have exactly ONE semicolon separating confidentiality\n" ++
+                 "  and integrity components.\n" ++
+                 "  Syntax: `< confidentiality ; integrity >`"
+      -- General DC label end expected
       | "'>`' (DC label end)" `elem` peiExpected =
           Just $ "DC label syntax: `< confidentiality ; integrity >`\n" ++
                  "  Example: `< alice ; bob >`"
-      -- Also trigger DC label help when only ';' is expected (inside DC label)
+      -- Only semicolon expected (inside DC label, before semicolon)
       | peiExpected == ["';'"] =
           Just $ "In DC labels, use ';' to separate confidentiality and integrity.\n" ++
                  "  Syntax: `< confidentiality ; integrity >`\n" ++
@@ -381,3 +421,24 @@ suggestFix ParseErrorInfo{..} = firstJust
       , length peiExpected <= 3 =
           Just "Missing 'of' keyword?\n  Syntax: case <expr> of <pattern> => <expr> | ... end"
       | otherwise = Nothing
+
+-- -----------------------------------------------------------------------------
+-- Phase 6: DC Label Token Helpers
+-- -----------------------------------------------------------------------------
+
+-- | Check if token is an integrity-specific component
+isIntegrityToken :: Token -> Bool
+isIntegrityToken TokenDCRootInteg = True
+isIntegrityToken TokenDCNullInteg = True
+isIntegrityToken _ = False
+
+-- | Check if token is a confidentiality-specific component
+isConfidentialityToken :: Token -> Bool
+isConfidentialityToken TokenDCRootConf = True
+isConfidentialityToken TokenDCNullConf = True
+isConfidentialityToken _ = False
+
+-- | Check if token is the DC label end marker
+isDCLabelEnd :: Token -> Bool
+isDCLabelEnd TokenDCLabelRight = True
+isDCLabelEnd _ = False

@@ -6,7 +6,11 @@ tests/cmp/dc-label-empty.trp:1:27: parse error
   unexpected '>`' (DC label end)
   expected ';'
 
-Suggestion: In DC labels, use ';' to separate confidentiality and integrity.
+Suggestion: Empty DC label is not allowed.
+  DC labels must have both confidentiality and integrity components.
   Syntax: `< confidentiality ; integrity >`
-  Example: `< alice ; bob >`
+  Examples:
+    `< alice ; bob >`                               -- principal-based
+    `< #null-confidentiality ; #null-integrity >`   -- public data
+    `< #root-confidentiality ; #root-integrity >`   -- secret data
 
