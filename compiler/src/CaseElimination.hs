@@ -38,7 +38,7 @@ transAtoms :: S.Atoms -> Trans T.Atoms
 transAtoms (S.Atoms atms) = return (T.Atoms atms)
 
 transLit :: S.Lit -> T.Lit
-transLit (S.LNumeric n _pi) = T.LNumeric (transNumeric n)
+transLit (S.LNumeric n) = T.LNumeric (transNumeric n)
   where
     transNumeric (S.NumInt i) = NumInt i
     transNumeric (S.NumFloat f) = NumFloat f
@@ -110,8 +110,8 @@ transHandler (S.Handler pat1 mbpat2 guard body) = do
               Just p2 -> p2
               Nothing -> lp S.Wildcard
       lambdaPats = [lp (S.VarPattern argInput)]
-      callFailure = lt (S.Tuple [lt (S.Lit (S.LNumeric (S.NumInt 1) _srcRT)), lt (S.Lit S.LUnit)])
-      body' = lt (S.Tuple [lt (S.Lit (S.LNumeric (S.NumInt 0) _srcRT)), lt (S.Abs (S.Lambda [lp S.Wildcard] body))])
+      callFailure = lt (S.Tuple [lt (S.Lit (S.LNumeric (S.NumInt 1))), lt (S.Lit S.LUnit)])
+      body' = lt (S.Tuple [lt (S.Lit (S.LNumeric (S.NumInt 0))), lt (S.Abs (S.Lambda [lp S.Wildcard] body))])
       guardCheck = case guard of
          Nothing -> body'
          Just g -> lt (S.If g body' callFailure)
@@ -151,10 +151,7 @@ compilePattern succ (lv, Loc _ (S.VarPattern var)) =
 compilePattern succ (lv, Loc _ (S.ValPattern lit)) = do
   fail <- ask
   let pos = getLoc lv
-      litPos = case lit of
-        S.LNumeric _ p -> p
-        _ -> _srcRT
-  return $ ifpat pos (Loc pos (Bin Eq lv (Loc litPos (Lit (transLit lit))))) succ fail
+  return $ ifpat pos (Loc pos (Bin Eq lv (Loc _srcRT (Lit (transLit lit))))) succ fail
 compilePattern succ (lv, Loc _ S.Wildcard) =
   let pos = getLoc lv
   in return $ Loc pos (Let [T.ValDecl "$wildcard" lv] succ)
@@ -273,10 +270,7 @@ transLTerm (Loc pos term) = transTerm pos term
 -- Now produces Located terms
 transTerm :: PosInf -> S.Term -> Trans T.LTerm
 transTerm pos (S.Lit lit) =
-  let litPos = case lit of
-        S.LNumeric _ p -> p
-        _ -> pos
-  in return $ Loc litPos (T.Lit (transLit lit))
+  return $ Loc pos (T.Lit (transLit lit))
 transTerm pos (S.Var v) = return $ Loc pos (T.Var v)
 transTerm pos (S.Abs l) = do
   l' <- transLambda l

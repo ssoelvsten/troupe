@@ -241,8 +241,8 @@ DCLabelExp:
      ConfLabelExp ';' IntLabelExp         { DCLabelExp ($1, $3) } 
 
 -- Lit now returns Located Lit to preserve source positions for all literals
-Lit:   NUM                        {% atPos $1 (LNumeric (NumInt (numTok $1)) NoPos) }
-     | FLOAT                       {% atPos $1 (LNumeric (NumFloat (floatTok $1)) NoPos) }
+Lit:   NUM                        {% atPos $1 (LNumeric (NumInt (numTok $1))) }
+     | FLOAT                       {% atPos $1 (LNumeric (NumFloat (floatTok $1))) }
      | STRING                      {% atPos $1 (LString (strTok $1)) }
      | true                        {% atPos $1 (LBool True) }
      | false                       {% atPos $1 (LBool False) }
@@ -293,8 +293,8 @@ Pattern : VAR                               {% atPos $1 (VarPattern (varTok $1))
     | Pattern '@' LABEL                     {% atPos $2 (AtPattern $1 (lblTok $3)) }
     | '(' ')'                               {% atPos $1 (ValPattern LUnit) }
     | '_'                                   {% atPos $1 Wildcard }
-    | NUM                                   {% do { p <- pos $1; return $ Loc p (ValPattern (LNumeric (NumInt (numTok $1)) p)) } }
-    | FLOAT                                 {% do { p <- pos $1; return $ Loc p (ValPattern (LNumeric (NumFloat (floatTok $1)) p)) } }
+    | NUM                                   {% atPos $1 (ValPattern (LNumeric (NumInt (numTok $1)))) }
+    | FLOAT                                 {% atPos $1 (ValPattern (LNumeric (NumFloat (floatTok $1)))) }
     | STRING                                {% atPos $1 (ValPattern (LString (strTok $1))) }
     | true                                  {% atPos $1 (ValPattern (LBool True)) }
     | false                                 {% atPos $1 (ValPattern (LBool False)) }

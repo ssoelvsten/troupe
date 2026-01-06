@@ -60,7 +60,7 @@ data Numeric = NumInt Integer | NumFloat Double
   deriving (Eq, Ord, Show)
 
 data Lit
-    = LNumeric Numeric PosInf
+    = LNumeric Numeric
     | LUnit
     | LBool Bool
     | LString String
@@ -375,8 +375,8 @@ ppDeclPattern (RecordPattern fields mode) =
                 WildcardMatch -> [text ".."]
 
 ppLit :: Lit -> PP.Doc
-ppLit (LNumeric (NumInt i) _)  = PP.integer i
-ppLit (LNumeric (NumFloat f) _) = PP.double f
+ppLit (LNumeric (NumInt i))  = PP.integer i
+ppLit (LNumeric (NumFloat f)) = PP.double f
 ppLit (LString s)   = PP.doubleQuotes (text s)
 ppLit (LDCLabel dc) = ppDCLabelExp dc
 ppLit LUnit       = text "()"
