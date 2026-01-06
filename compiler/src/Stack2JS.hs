@@ -408,7 +408,8 @@ toJSFunDefWithPos pos (FunDef hfn stacksize consts bb irfdef) = do
                           else PP.empty
                , nest 2 $ vcat $ [
                   "let _T = rt.runtime.$t",
-                  "_T.currentSourceMap = this.__sourceMap",  -- Source map tracking for error translation
+                  -- Propagate __isDynamic flag from namespace to currentSourceMap for dynamically loaded code detection
+                  "_T.currentSourceMap = this.__isDynamic ? { ...(this.__sourceMap || {}), __isDynamic: true } : this.__sourceMap",
                   "let _STACK = _T.callStack",
                   "let _SP = _T._sp",
                   "let _SP_OLD",
@@ -621,7 +622,8 @@ tr2jsWithPos _pos (StackExpand bb bb2) = do
                   nest 2 $
                         vcat [
                           "let _T = rt.runtime.$t",
-                          "_T.currentSourceMap = this.__sourceMap",  -- Restore source map on continuation entry (cross-namespace calls)
+                          -- Propagate __isRestored flag from namespace to currentSourceMap for restored code detection
+                          "_T.currentSourceMap = this.__isRestored ? { ...(this.__sourceMap || {}), __isRestored: true } : this.__sourceMap",
                           "let _STACK = _T.callStack",
                           "let _SP = _T._sp",
                           -- TODO Do we need this? It seems to be only used zero or one time in the generated places.

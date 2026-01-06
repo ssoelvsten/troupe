@@ -170,7 +170,7 @@ function constructCurrent(compilerOutput: string) {
         argValues.unshift(__rtObj)
         ctxt.namespaces[i] = Reflect.construct (NS, argValues)
         // Mark namespace as restored code for error reporting
-        Object.defineProperty(ctxt.namespaces[i], '__isRestored', {
+        Object.defineProperty(ctxt.namespaces[i], '__isDynamic', {
             value: true,
             enumerable: false
         }) 

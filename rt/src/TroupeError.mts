@@ -5,7 +5,7 @@ import { SchedulerInterface } from "./SchedulerInterface.mjs";
 import { configureColors } from './colorConfig.mjs';
 import { getCliArgs, TroupeCliArg } from './TroupeCliArgs.mjs';
 import { lookupPosition, type EncodedSourceMap } from './SourceMapResolver.mjs';
-import { readFileSync, existsSync } from 'fs';
+import { readFileSync, statSync } from 'fs';
 import { resolve, isAbsolute } from 'path';
 
 // Ensure colors are configured when this module is loaded
@@ -78,7 +78,7 @@ function isRuntimeFile(fileName: string): boolean {
  */
 function translateWithCallSites(callSites: CallSite[], sourceMap: EncodedSourceMap | null): string | null {
     // Check for valid source map (must have 'sources' property to be usable for translation)
-    // Note: sourceMap may be { __isRestored: true } for restored code, which isn't a valid source map
+    // Note: sourceMap may be { __isDynamic: true } for restored code, which isn't a valid source map
     const hasValidSourceMap = sourceMap && 'sources' in sourceMap;
     if (!hasValidSourceMap) return null;
 
@@ -216,26 +216,32 @@ function parseSourceLocation(loc: string): { filePath: string; line: number; col
 }
 
 /**
+ * Check if a path points to a regular file (not a device, pipe, socket, etc.).
+ * Returns false for special files like /dev/stdin that can't be re-read.
+ */
+function isRegularFile(path: string): boolean {
+    try {
+        const stat = statSync(path);
+        return stat.isFile();
+    } catch {
+        return false;
+    }
+}
+
+/**
  * Resolve a potentially relative file path to an absolute path.
- * Tries multiple strategies: cwd, TROUPE env variable.
+ * Only returns paths to regular files (excludes devices, pipes, sockets).
  */
 function resolveSourcePath(filePath: string): string | null {
-    // If already absolute and exists, use it
+    // If already absolute, check if it's a regular file
     if (isAbsolute(filePath)) {
-        if (existsSync(filePath)) return filePath;
+        if (isRegularFile(filePath)) return filePath;
         return null;
     }
 
     // Try relative to current working directory
     const cwdPath = resolve(process.cwd(), filePath);
-    if (existsSync(cwdPath)) return cwdPath;
-
-    // Try relative to TROUPE environment variable
-    const troupeRoot = process.env['TROUPE'];
-    if (troupeRoot) {
-        const troupePath = resolve(troupeRoot, filePath);
-        if (existsSync(troupePath)) return troupePath;
-    }
+    if (isRegularFile(cwdPath)) return cwdPath;
 
     return null;
 }
@@ -347,8 +353,8 @@ export abstract class StopThreadError extends ThreadError {
         console.log(chalk.red("Runtime error in thread " + this.thread.tidErrorStringRep()));
 
         // Indicate if error occurred in restored code (deserialized closure)
-        if (this.thread.currentSourceMap?.__isRestored) {
-            console.log(chalk.yellow(">> (in restored code)"));
+        if (this.thread.currentSourceMap?.__isDynamic) {
+            console.log(chalk.yellow(">> (in dynamically loaded code)"));
         }
 
         // Show source context if location is available
