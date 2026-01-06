@@ -1,4 +1,3 @@
-Parse Error:
 Found 2 parse errors:
 
 tests/cmp/dc-label-multiple-semicolons.trp:1:37: parse error

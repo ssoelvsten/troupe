@@ -99,7 +99,7 @@ process flags fname input = do
 
   case ast of
     Left err -> do
-      die $ "Parse Error:\n" ++ err
+      die err
 
     Right prog_parsed -> do
       let outPath = outFile flags (fromJust fname)

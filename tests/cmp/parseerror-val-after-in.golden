@@ -1,4 +1,3 @@
-Parse Error:
 tests/cmp/parseerror-val-after-in.trp:4:5: parse error
   (while parsing let expression body)
   4 | in  val z = 3

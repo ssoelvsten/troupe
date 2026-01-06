@@ -1,4 +1,3 @@
-Parse Error:
 tests/cmp/record-pat-dotdot-middle.trp:3:15: parse error
   3 |     val {a, .., b} = r
     |               ^

@@ -1,4 +1,3 @@
-Parse Error:
 Found 2 parse errors:
 
 tests/cmp/dc-label-wrong-order.trp:1:27: parse error

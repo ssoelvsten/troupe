@@ -1,4 +1,3 @@
-Parse Error:
 tests/cmp/record-pat-single-dot.trp:3:13: parse error
   3 |     val {a, .} = r
     |             ^

@@ -1,4 +1,3 @@
-Parse Error:
 tests/cmp/record-pat-dotdot-outside-braces.trp:3:9: parse error
   3 |     val .. {a, b} = r
     |         ^
