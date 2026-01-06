@@ -5,3 +5,7 @@ tests/cmp/dc-label-wrong-brackets.trp:1:25: parse error
   unexpected '<'
   expected expression
 
+Suggestion: DC labels require backticks around the angle brackets.
+  Use `< ... >` not < ... >
+  Example: `< alice ; bob >`
+

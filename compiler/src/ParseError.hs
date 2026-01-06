@@ -318,6 +318,7 @@ suggestFix ParseErrorInfo{..} = firstJust
   , checkMissingEnd
   , checkMissingIn
   , checkMissingArrow
+  , checkDCLabelWrongBrackets  -- Check for <...;...> instead of `<...;...>`
   , checkDCLabelSyntax      -- Check DC label before general semicolon check
   , checkMissingSemicolon
   , checkMismatchedParens
@@ -411,6 +412,45 @@ suggestFix ParseErrorInfo{..} = firstJust
       | "'}'" `elem` peiExpected, length peiExpected <= 3 =
           Just "Possibly mismatched braces - check for missing '}'."
       | otherwise = Nothing
+
+    -- DC label with wrong brackets: <...;...> instead of `<...;...>`
+    -- This catches a common mistake where users forget the backticks
+    checkDCLabelWrongBrackets
+      | Just TokenLt <- peiToken  -- Unexpected '<' token
+      , "'`<' (DC label)" `elem` peiExpected  -- DC label start was expected
+      = Just $ "DC labels require backticks around the angle brackets.\n" ++
+               "  Use `< ... >` not < ... >\n" ++
+               "  Example: `< alice ; bob >`"
+      | Just TokenLt <- peiToken  -- Unexpected '<' token
+      , any isExprLikeExpected peiExpected  -- Expression was expected
+      , looksLikeDCLabel =
+          Just $ "DC labels require backticks around the angle brackets.\n" ++
+                 "  Use `< ... >` not < ... >\n" ++
+                 "  Example: `< alice ; bob >`"
+      | otherwise = Nothing
+
+    -- Check if the source line at error position looks like a DC label
+    -- Pattern: <...;...> or <...> starting from error column
+    looksLikeDCLabel =
+      case getSourceLine peiSourceLines peiLine of
+        Just line ->
+          let fromCol = drop (peiColumn - 1) line
+          in  startsWithDCLabelPattern fromCol
+        Nothing -> False
+
+    -- Check if a string starts with something that looks like <...;...> or <...>
+    startsWithDCLabelPattern :: String -> Bool
+    startsWithDCLabelPattern s = case s of
+      '<':rest -> hasMatchingClose rest 0
+      _ -> False
+
+    -- Look for matching '>' with optional ';' inside, tracking nested angle brackets
+    hasMatchingClose :: String -> Int -> Bool
+    hasMatchingClose [] _ = False
+    hasMatchingClose ('>':_) 0 = True  -- Found matching close at depth 0
+    hasMatchingClose ('>':rest) n = hasMatchingClose rest (n - 1)  -- Close nested
+    hasMatchingClose ('<':rest) n = hasMatchingClose rest (n + 1)  -- Open nested
+    hasMatchingClose (_:rest) n = hasMatchingClose rest n
 
     -- DC label syntax help - Phase 6: specialized DC label messages
     checkDCLabelSyntax
