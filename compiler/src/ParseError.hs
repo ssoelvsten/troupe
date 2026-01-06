@@ -337,9 +337,8 @@ suggestFix ParseErrorInfo{..} = firstJust
       , "keyword 'end'" `notElem` peiExpected
       , "keyword 'val'" `notElem` peiExpected
       , any isExprLikeExpected peiExpected =
-          Just $ "'val' can only appear in let declarations.\n" ++
-                 "  Perhaps you meant 'let val x = ... in ... end'?\n" ++
-                 "  Or you may have forgotten 'end' before 'in'."
+          Just $ "'val' can only appear in let declarations (before 'in').\n" ++
+                 "  Either move this declaration before 'in', or just write the expression directly."
       | otherwise = Nothing
 
     -- 'fun' appearing outside let declarations

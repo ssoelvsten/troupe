@@ -3,5 +3,5 @@ tests/cmp/dc-label-wrong-brackets.trp:1:25: parse error
   1 | let val x = 50 raisedTo <alice; bob>
     |                         ^
   unexpected '<'
-  expected one of: keyword 'let', keyword 'if', keyword 'case', keyword 'fn', keyword 'hn', 'true', 'false', number, float, string, identifier, label, '-', '`<' (DC label), 'isTuple', 'isList', 'isRecord', 'not', '(', '[', '{'
+  expected expression
 

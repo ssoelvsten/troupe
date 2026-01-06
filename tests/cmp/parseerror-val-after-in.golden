@@ -6,7 +6,6 @@ tests/cmp/parseerror-val-after-in.trp:4:5: parse error
   unexpected keyword 'val'
   expected expression
 
-Suggestion: 'val' can only appear in let declarations.
-  Perhaps you meant 'let val x = ... in ... end'?
-  Or you may have forgotten 'end' before 'in'.
+Suggestion: 'val' can only appear in let declarations (before 'in').
+  Either move this declaration before 'in', or just write the expression directly.
 
