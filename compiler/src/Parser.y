@@ -31,7 +31,7 @@ import Data.List (group, sort, intercalate)
 
 -- Parser monad (ReaderT + StateT for error accumulation)
 %monad { ReaderT ParseEnv (StateT ParseState (Except String)) } { (>>=) } { return }
-%error { parseError }
+%error { parserAbort } { parserReport }
 %errorhandlertype explist
 
 -- Token Names
@@ -410,35 +410,78 @@ fromFact xs =
   in Loc p (App y ys)
 
 
-parseError :: ([L Token], [String]) -> ParseM a
-parseError (l:ls, expectedTokens) = do
-    env <- ask
-    let (AlexPn _ line col) = getPos l
-    let tks = unPos l
-    let sourceLines = lines (peSource env)
-    let errInfo = ParseErrorInfo
+-- | Get position from token list
+getTokenPosition :: [L Token] -> (Int, Int)
+getTokenPosition (l:_) = let (AlexPn _ line col) = getPos l in (line, col)
+getTokenPosition [] = (0, 0)
+
+-- | Create ParseErrorInfo from tokens and expected list
+makeParseErrorInfo :: ParseEnv -> [L Token] -> [String] -> ParseErrorInfo
+makeParseErrorInfo env tokens expected =
+    let (line, col) = getTokenPosition tokens
+        sourceLines = lines (peSource env)
+        maybeToken = case tokens of
+          (l:_) -> Just (unPos l)
+          []    -> Nothing
+    in ParseErrorInfo
           { peiFilename    = peFilename env
           , peiLine        = line
           , peiColumn      = col
-          , peiToken       = Just tks
-          , peiExpected    = map cleanExpectedToken expectedTokens
-          , peiSourceLines = sourceLines
-          , peiContext     = Nothing  -- Will be populated in Phase 4
-          }
-    throwError $ formatParseError errInfo
-parseError ([], expectedTokens) = do
-    env <- ask
-    let sourceLines = lines (peSource env)
-    let errInfo = ParseErrorInfo
-          { peiFilename    = peFilename env
-          , peiLine        = 0
-          , peiColumn      = 0
-          , peiToken       = Nothing
-          , peiExpected    = map cleanExpectedToken expectedTokens
+          , peiToken       = maybeToken
+          , peiExpected    = map cleanExpectedToken expected
           , peiSourceLines = sourceLines
           , peiContext     = Nothing
           }
-    throwError $ formatParseError errInfo
+
+-- | Record an error with duplicate suppression
+-- Returns True if the error was recorded, False if it was a duplicate
+recordError :: [L Token] -> [String] -> ParseM Bool
+recordError tokens expected = do
+    env <- ask
+    state <- get
+    let (line, col) = getTokenPosition tokens
+        isDup = case psLastErrorPos state of
+          Nothing -> False
+          Just (lastLine, _) -> abs (line - lastLine) < minErrorDistance
+    if isDup
+      then return False
+      else do
+        let err = makeParseErrorInfo env tokens expected
+        put state { psErrors = err : psErrors state
+                  , psErrorCount = psErrorCount state + 1
+                  , psLastErrorPos = Just (line, col) }
+        return True
+
+-- | Called when recovery is impossible (final error handler)
+-- Note: happyAbort provides only tokens, not expected list
+parserAbort :: [L Token] -> ParseM a
+parserAbort tokens = do
+    -- When called directly by happyAbort, we don't have expected tokens
+    -- But we may have accumulated errors already from parserReport calls
+    state <- get
+    case psErrors state of
+      [] -> do
+        -- No previous errors recorded, create one without expected info
+        _ <- recordError tokens []
+        state' <- get
+        throwError $ formatAllErrors (reverse $ psErrors state')
+      _ ->
+        -- Already have errors from parserReport, just output them
+        throwError $ formatAllErrors (reverse $ psErrors state)
+
+-- | Called on each error for potential recovery
+-- The resume function allows continuing after error
+parserReport :: ([L Token], [String]) -> ([L Token] -> ParseM a) -> ParseM a
+parserReport (tokens, expected) resume = do
+    _ <- recordError tokens expected
+    state <- get
+    if psErrorCount state >= maxParseErrors
+      then parserAbort tokens
+      else resume tokens
+
+-- | Legacy parseError for backward compatibility during transition
+parseError :: ([L Token], [String]) -> ParseM a
+parseError (tokens, _) = parserAbort tokens
 
 -- | Clean up token names from Happy's %token declarations to human-readable form
 cleanExpectedToken :: String -> String

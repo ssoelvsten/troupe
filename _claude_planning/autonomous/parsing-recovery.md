@@ -17,7 +17,7 @@ Implement full grammar-level error recovery using Happy's `catch` token mechanis
 | Step | Status | Notes |
 |------|--------|-------|
 | Step 1: Monad changes | ✅ COMPLETE | ParseState, formatAllErrors, monad stack updated |
-| Step 2: Error handlers | ⬜ TODO | parserAbort, parserReport, recordError |
+| Step 2: Error handlers | ✅ COMPLETE | parserAbort, parserReport, recordError implemented |
 | Step 3: AST nodes | ⬜ TODO | ErrorPattern, ErrorDecl constructors |
 | Step 4: `catch` productions | ⬜ TODO | Grammar recovery points |
 | Step 5: Main.hs | ✅ COMPLETE | (Done as part of Step 1 - parseProg updated) |
@@ -87,44 +87,57 @@ Update error directive (to be done in Step 2):
 
 ---
 
-## Step 2: Implement Error Handler Functions
+## Step 2: Implement Error Handler Functions ✅ COMPLETE
 
 **File:** `compiler/src/Parser.y`
 
+**Implementation Notes:**
+- Changed `%error` directive from `{ parseError }` to `{ parserAbort } { parserReport }`
+- `parserAbort` takes `[L Token]` only (Happy's `happyAbort` doesn't provide expected tokens)
+- `parserReport` receives `([L Token], [String])` tuple with expected tokens and a resume continuation
+- Added `recordError` for error accumulation with duplicate suppression
+- Added `getTokenPosition` and `makeParseErrorInfo` helper functions
+- Kept legacy `parseError` for backward compatibility
+
 ```haskell
--- Called when recovery is impossible
-parserAbort :: ([L Token], [String]) -> ParseM a
-parserAbort (tokens, expected) = do
-  recordError tokens expected
-  state <- get
-  throwError $ formatAllErrors (reverse $ psErrors state)
+-- Called when recovery is impossible (receives only tokens from happyAbort)
+parserAbort :: [L Token] -> ParseM a
+parserAbort tokens = do
+    state <- get
+    case psErrors state of
+      [] -> do
+        _ <- recordError tokens []  -- No expected tokens available
+        state' <- get
+        throwError $ formatAllErrors (reverse $ psErrors state')
+      _ ->
+        throwError $ formatAllErrors (reverse $ psErrors state)
 
 -- Called on each error for potential recovery
 parserReport :: ([L Token], [String]) -> ([L Token] -> ParseM a) -> ParseM a
 parserReport (tokens, expected) resume = do
-  recorded <- recordError tokens expected
-  state <- get
-  if psErrorCount state >= maxParseErrors
-    then parserAbort (tokens, expected)
-    else resume tokens
+    _ <- recordError tokens expected
+    state <- get
+    if psErrorCount state >= maxParseErrors
+      then parserAbort tokens
+      else resume tokens
 
--- Record an error (with deduplication)
+-- Record an error (with deduplication based on line distance)
 recordError :: [L Token] -> [String] -> ParseM Bool
 recordError tokens expected = do
-  env <- ask
-  state <- get
-  let (line, col) = getPosition tokens
-      isDup = case psLastErrorPos state of
-        Nothing -> False
-        Just (lastLine, _) -> abs (line - lastLine) < minErrorDistance
-  if isDup
-    then return False
-    else do
-      let err = makeParseErrorInfo env tokens expected
-      put state { psErrors = err : psErrors state
-                , psErrorCount = psErrorCount state + 1
-                , psLastErrorPos = Just (line, col) }
-      return True
+    env <- ask
+    state <- get
+    let (line, col) = getTokenPosition tokens
+        isDup = case psLastErrorPos state of
+          Nothing -> False
+          Just (lastLine, _) -> abs (line - lastLine) < minErrorDistance
+    if isDup
+      then return False
+      else do
+        let err = makeParseErrorInfo env tokens expected
+        put state { psErrors = err : psErrors state
+                  , psErrorCount = psErrorCount state + 1
+                  , psLastErrorPos = Just (line, col) }
+        return True
 ```
 
 ---
