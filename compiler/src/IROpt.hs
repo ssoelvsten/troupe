@@ -298,7 +298,7 @@ irExprPeval e =
             (NumericConst (NumInt a), NumericConst (NumInt b)) -> do
                 let ii f = let c = f a b in do
                               setChangeFlag
-                              r_ (NumericConst (NumInt c), Const (C.LNumeric (NumInt c) NoPos))
+                              r_ (NumericConst (NumInt c), Const (C.LNumeric (NumInt c)))
                 let bb f = let c = f a b in do
                               setChangeFlag
                               r_ (BoolConst c, Const (C.LBool c))
@@ -387,7 +387,7 @@ irExprPeval e =
 
         (Const x) -> do
             case x of
-                C.LNumeric n pos ->
+                C.LNumeric n ->
                     r_ (NumericConst n, e)
                 C.LBool b ->
                     r_ (BoolConst b, e)
@@ -408,7 +408,7 @@ irExprPeval e =
                 TupleVal vars -> do
                     setChangeFlag
                     let n = fromIntegral $ length vars
-                    r_ (NumericConst (NumInt n), Const (C.LNumeric (NumInt n) NoPos))
+                    r_ (NumericConst (NumInt n), Const (C.LNumeric (NumInt n)))
                 _ -> r_ (Unknown, e)
         -- Not possible as not tracking list content:
         -- (Un Basics.ListLength x) -> do

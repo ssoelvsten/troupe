@@ -86,7 +86,7 @@ instance Ord Numeric where
   compare (NumFloat x) (NumInt y) = compare x (fromInteger y)
 
 data Lit
-    = LNumeric Numeric PosInf
+    = LNumeric Numeric
     | LString String
     | LLabel String
     | LDCLabel DCLabelExp
@@ -96,7 +96,7 @@ data Lit
   deriving (Show, Generic)
 instance Serialize Lit
 instance Eq Lit where
-  (LNumeric n1 _) == (LNumeric n2 _) = n1 == n2
+  (LNumeric n1) == (LNumeric n2) = n1 == n2
   (LString s) == (LString s') = s == s'
   (LLabel l) == (LLabel l') = l == l'
   LUnit == LUnit = True
@@ -105,7 +105,7 @@ instance Eq Lit where
   (LDCLabel dc) == (LDCLabel dc') = dc == dc'
   _ == _ = False
 instance Ord Lit where
-  compare (LNumeric n1 _) (LNumeric n2 _) = compare n1 n2
+  compare (LNumeric n1) (LNumeric n2) = compare n1 n2
   compare (LString x) (LString y) = compare x y
   compare (LLabel x) (LLabel y) = compare x y
   compare LUnit LUnit = EQ
@@ -113,8 +113,8 @@ instance Ord Lit where
   compare (LAtom x) (LAtom y) = compare x y
   compare (LDCLabel x) (LDCLabel y) = compare x y
   -- Cross-type ordering (for canonical ordering of different literal types)
-  compare (LNumeric _ _) _ = LT
-  compare _ (LNumeric _ _) = GT
+  compare (LNumeric _) _ = LT
+  compare _ (LNumeric _) = GT
   compare (LString _) _ = LT
   compare _ (LString _) = GT
   compare (LLabel _) _ = LT
@@ -126,16 +126,15 @@ instance Ord Lit where
   compare (LAtom _) _ = LT
   compare _ (LAtom _) = GT
 
-instance GetPosInfo Lit where
-  posInfo (LNumeric _ p) = p
-  posInfo _ = NoPos
+-- Note: Lit no longer has embedded position info. Position comes from the
+-- Located wrapper around terms containing literals.
 
 -- | Semantic equality for literals, handling label normalization
 -- This is used for compile-time constant folding to ensure that
 -- semantically equivalent labels (e.g., `{alice, bob}` and `{bob, alice}`)
 -- are treated as equal.
 litEq :: Lit -> Lit -> Bool
-litEq (LNumeric n1 _) (LNumeric n2 _) = n1 == n2
+litEq (LNumeric n1) (LNumeric n2) = n1 == n2
 litEq (LString s) (LString s') = s == s'
 litEq (LLabel l) (LLabel l') = v1LabelEq l l'
 litEq LUnit LUnit = True
@@ -235,10 +234,9 @@ lowerLam (D.Lambda vs lt) =
     [] -> Unary (Loc NoPos "$unit") (lower lt)
     lx:xs -> Unary lx (foldr (\lx' b -> Loc (getLoc lt) (Abs (Unary lx' b))) (lower lt) xs)
 
--- | Lower a literal. Position info is now on the Located wrapper, not in the literal.
--- For LNumeric in Core, we keep NoPos since the position is on the wrapper.
+-- | Lower a literal. Position info is on the Located wrapper, not in the literal.
 lowerLit :: D.Lit -> Lit
-lowerLit (D.LNumeric n) = LNumeric (lowerNumeric n) NoPos
+lowerLit (D.LNumeric n) = LNumeric (lowerNumeric n)
   where
     lowerNumeric (D.NumInt i) = NumInt i
     lowerNumeric (D.NumFloat f) = NumFloat f
@@ -717,8 +715,8 @@ ppDecl (FunDecs fs) = ppFuns fs
 
 
 ppLit :: Lit -> PP.Doc
-ppLit (LNumeric (NumInt i) _)  = PP.integer i
-ppLit (LNumeric (NumFloat f) _) = PP.double f
+ppLit (LNumeric (NumInt i))  = PP.integer i
+ppLit (LNumeric (NumFloat f)) = PP.double f
 ppLit (LString s)   = PP.doubleQuotes (text s)
 ppLit (LLabel s)    = PP.braces (text s)
 ppLit LUnit         = text "()"

@@ -16,7 +16,7 @@ mkP inst = IRProgram (Core.Atoms []) [Loc NoPos (FunDef (HFN "main") (VN "arg") 
 tcs :: [(String, IRProgram)]
 tcs = map (second mkP)
   [ ( "AssignSimple"
-    , Assign (VN "r") (Const $ Core.LNumeric (Core.NumInt 123) NoPos)
+    , Assign (VN "r") (Const $ Core.LNumeric (Core.NumInt 123))
     )
   ,
     ( "AssignOp"

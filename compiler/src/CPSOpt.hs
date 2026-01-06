@@ -344,9 +344,9 @@ simplifySimpleTerm t =
       Basics.Neq | isLit u && isLit v -> _ret $ lit $ C.LBool (C.litNeq (litVal u) (litVal v))
 
       _ -> case (u, v) of
-              (St (ValSimpleTerm (Lit (C.LNumeric (NumInt n1) _))),
-               St (ValSimpleTerm (Lit (C.LNumeric (NumInt n2) _)))) ->
-                    let ii f = _ret $ lit (C.LNumeric (NumInt (f n1 n2)) NoPos )
+              (St (ValSimpleTerm (Lit (C.LNumeric (NumInt n1)))),
+               St (ValSimpleTerm (Lit (C.LNumeric (NumInt n2))))) ->
+                    let ii f = _ret $ lit (C.LNumeric (NumInt (f n1 n2)))
                         bb f = _ret $ lit (C.LBool (f n1 n2))
                       in case op of
                             Basics.Plus  -> ii (+)
@@ -404,10 +404,10 @@ simplifySimpleTerm t =
         (Basics.Not, St (Bin Basics.Ge v1 v2))  -> _ret $ Bin Basics.Lt v1 v2
 
         (Basics.TupleLength, St (Tuple xs)) ->
-            _ret $ lit (C.LNumeric (NumInt (fromIntegral (length xs))) NoPos)
+            _ret $ lit (C.LNumeric (NumInt (fromIntegral (length xs))))
         -- 2023-08 Revision: Added this case
         (Basics.ListLength, St (List xs)) ->
-            _ret $ lit (C.LNumeric (NumInt (fromIntegral (length xs))) NoPos)
+            _ret $ lit (C.LNumeric (NumInt (fromIntegral (length xs))))
 
 
 
@@ -440,7 +440,7 @@ simplifySimpleTerm t =
     lit l = ValSimpleTerm (Lit l)
     isLit (St (ValSimpleTerm (Lit _))) = True
     isLit _ = False
-    litVal (St (ValSimpleTerm (Lit (C.LNumeric n _)))) = (C.LNumeric n NoPos)
+    litVal (St (ValSimpleTerm (Lit (C.LNumeric n)))) = (C.LNumeric n)
     litVal (St (ValSimpleTerm (Lit x))) = x
     litVal _ = error "incorrect application of litVal"
     __trueLit = lit (C.LBool True)

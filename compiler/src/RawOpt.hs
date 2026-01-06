@@ -212,13 +212,13 @@ monInsert p r = do
 monLookup x s = Map.lookup x (stateMon s)
 
 typeOfLit :: Core.Lit -> Maybe RawType
-typeOfLit lit = 
-    case lit of 
+typeOfLit lit =
+    case lit of
       Core.LUnit -> Just RawUnit
-      Core.LNumeric _ _ -> Just RawNumber 
+      Core.LNumeric _ -> Just RawNumber
       Core.LString _ -> Just RawString
-      Core.LLabel _ -> Just RawLevel               
-      Core.LBool _ -> Just RawBoolean 
+      Core.LLabel _ -> Just RawLevel
+      Core.LBool _ -> Just RawBoolean
       Core.LAtom _ -> Nothing
       Core.LDCLabel _ -> Just RawDCLabel
       
@@ -424,7 +424,7 @@ pevalInst li = do
       RTAssertion (AssertNotZero r) -> do
          renv <- ask
          case Map.lookup r (readConsts renv) of
-           Just (Core.LNumeric (NumInt x) _) | x /= 0 -> return []
+           Just (Core.LNumeric (NumInt x)) | x /= 0 -> return []
            _ -> _keep $ markUsed r
       MkFunClosures ee _ -> _keep $ markUsed (snd (unzip ee))
       -- No applicable optimizations.

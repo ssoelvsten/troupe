@@ -378,9 +378,7 @@ constsToJS consts = do
      docs <- mapM toJsConst consts
      return $ vcat docs
   where
-    toJsConst (x, lit) = do
-      marker <- emitMarker (posInfo lit)
-      return $ marker PP.<> hsep ["const", ppId x , text "=", lit2JS lit ]
+    toJsConst (x, lit) = return $ hsep ["const", ppId x , text "=", lit2JS lit ]
 
 -- | Helper function for FunDef ToJS with explicit position
 toJSFunDefWithPos :: PosInf -> FunDef -> W PP.Doc
