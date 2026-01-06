@@ -11,6 +11,7 @@ import Direct
 import DCLabels
 import Basics
 import TroupePositionInfo (Located(..), PosInf(..), noLoc, getLoc)
+import ParseError (ParseEnv(..), ParseErrorInfo(..), formatParseError)
 
 import Control.Monad.Except
 import Control.Monad.Reader
@@ -25,9 +26,10 @@ import Data.List (group, sort, intercalate)
 -- Lexer structure
 %tokentype { L Token }
 
--- Parser monad (ReaderT to thread filename for position info)
-%monad { ReaderT FilePath (Except String) } { (>>=) } { return }
+-- Parser monad (ReaderT to thread filename and source for error reporting)
+%monad { ReaderT ParseEnv (Except String) } { (>>=) } { return }
 %error { parseError }
+%errorhandlertype explist
 
 -- Token Names
 %token
@@ -386,7 +388,7 @@ piniDecl auth decs =
         (pushDecl:decs) ++ [popDecl]
 
 -- mkSeq now takes the token to get position from
-mkSeq :: LTerm -> LTerm -> L Token -> ReaderT FilePath (Except String) LTerm
+mkSeq :: LTerm -> LTerm -> L Token -> ReaderT ParseEnv (Except String) LTerm
 mkSeq t1 t2 tok = do
     p <- pos tok
     let ts = case t2 of
@@ -403,14 +405,114 @@ fromFact xs =
   in Loc p (App y ys)
 
 
-parseError :: [L Token] -> ReaderT FilePath (Except String) a
-parseError (l:ls) = do
-    filename <- ask
+parseError :: ([L Token], [String]) -> ReaderT ParseEnv (Except String) a
+parseError (l:ls, expectedTokens) = do
+    env <- ask
     let (AlexPn _ line col) = getPos l
     let tks = unPos l
-    let prefix = if null filename then "" else filename ++ ":"
-    throwError $ prefix ++ show line ++ ":" ++ show col  ++ " unexpected token " ++ (show tks)
-parseError [] = throwError "Unexpected end of input"
+    let sourceLines = lines (peSource env)
+    let errInfo = ParseErrorInfo
+          { peiFilename    = peFilename env
+          , peiLine        = line
+          , peiColumn      = col
+          , peiToken       = Just tks
+          , peiExpected    = map cleanExpectedToken expectedTokens
+          , peiSourceLines = sourceLines
+          , peiContext     = Nothing  -- Will be populated in Phase 4
+          }
+    throwError $ formatParseError errInfo
+parseError ([], expectedTokens) = do
+    env <- ask
+    let sourceLines = lines (peSource env)
+    let errInfo = ParseErrorInfo
+          { peiFilename    = peFilename env
+          , peiLine        = 0
+          , peiColumn      = 0
+          , peiToken       = Nothing
+          , peiExpected    = map cleanExpectedToken expectedTokens
+          , peiSourceLines = sourceLines
+          , peiContext     = Nothing
+          }
+    throwError $ formatParseError errInfo
+
+-- | Clean up token names from Happy's %token declarations to human-readable form
+cleanExpectedToken :: String -> String
+cleanExpectedToken "let" = "keyword 'let'"
+cleanExpectedToken "in" = "keyword 'in'"
+cleanExpectedToken "end" = "keyword 'end'"
+cleanExpectedToken "val" = "keyword 'val'"
+cleanExpectedToken "fun" = "keyword 'fun'"
+cleanExpectedToken "and" = "keyword 'and'"
+cleanExpectedToken "if" = "keyword 'if'"
+cleanExpectedToken "then" = "keyword 'then'"
+cleanExpectedToken "else" = "keyword 'else'"
+cleanExpectedToken "case" = "keyword 'case'"
+cleanExpectedToken "of" = "keyword 'of'"
+cleanExpectedToken "import" = "keyword 'import'"
+cleanExpectedToken "fn" = "keyword 'fn'"
+cleanExpectedToken "hn" = "keyword 'hn'"
+cleanExpectedToken "pini" = "keyword 'pini'"
+cleanExpectedToken "when" = "keyword 'when'"
+cleanExpectedToken "with" = "keyword 'with'"
+cleanExpectedToken "receive" = "keyword 'receive'"
+cleanExpectedToken "qualified" = "keyword 'qualified'"
+cleanExpectedToken "as" = "keyword 'as'"
+cleanExpectedToken "datatype" = "keyword 'datatype'"
+cleanExpectedToken "Atoms" = "keyword 'Atoms'"
+cleanExpectedToken "true" = "'true'"
+cleanExpectedToken "false" = "'false'"
+cleanExpectedToken "andalso" = "'andalso'"
+cleanExpectedToken "orelse" = "'orelse'"
+cleanExpectedToken "div" = "'div'"
+cleanExpectedToken "mod" = "'mod'"
+cleanExpectedToken "VAR" = "identifier"
+cleanExpectedToken "NUM" = "number"
+cleanExpectedToken "FLOAT" = "float"
+cleanExpectedToken "STRING" = "string"
+cleanExpectedToken "LABEL" = "label"
+cleanExpectedToken "'=>'" = "'=>'"
+cleanExpectedToken "'='" = "'='"
+cleanExpectedToken "';'" = "';'"
+cleanExpectedToken "'('" = "'('"
+cleanExpectedToken "')'" = "')'"
+cleanExpectedToken "'['" = "'['"
+cleanExpectedToken "']'" = "']'"
+cleanExpectedToken "'{'" = "'{'"
+cleanExpectedToken "'}'" = "'}'"
+cleanExpectedToken "','" = "','"
+cleanExpectedToken "'|'" = "'|'"
+cleanExpectedToken "'_'" = "'_'"
+cleanExpectedToken "'::'" = "'::'"
+cleanExpectedToken "'.'" = "'.'"
+cleanExpectedToken "'..'" = "'..'"
+cleanExpectedToken "'+'" = "'+'"
+cleanExpectedToken "'-'" = "'-'"
+cleanExpectedToken "'*'" = "'*'"
+cleanExpectedToken "'/'" = "'/'"
+cleanExpectedToken "'<'" = "'<'"
+cleanExpectedToken "'<='" = "'<='"
+cleanExpectedToken "'>'" = "'>'"
+cleanExpectedToken "'>='" = "'>='"
+cleanExpectedToken "'<>'" = "'<>'"
+cleanExpectedToken "'@'" = "'@'"
+cleanExpectedToken "'^'" = "'^'"
+cleanExpectedToken "'&'" = "'&'"
+cleanExpectedToken "'`<'" = "'`<' (DC label)"
+cleanExpectedToken "'>`'" = "'>`' (DC label end)"
+cleanExpectedToken "'andb'" = "'andb'"
+cleanExpectedToken "'orb'" = "'orb'"
+cleanExpectedToken "'xorb'" = "'xorb'"
+cleanExpectedToken "'<<'" = "'<<'"
+cleanExpectedToken "'>>'" = "'>>'"
+cleanExpectedToken "'~>>'" = "'~>>'"
+cleanExpectedToken "'raisedTo'" = "'raisedTo'"
+cleanExpectedToken "'isTuple'" = "'isTuple'"
+cleanExpectedToken "'isList'" = "'isList'"
+cleanExpectedToken "'isRecord'" = "'isRecord'"
+cleanExpectedToken "'not'" = "'not'"
+cleanExpectedToken "'flowsTo'" = "'flowsTo'"
+cleanExpectedToken "'levelOf'" = "'levelOf'"
+cleanExpectedToken s = s  -- fallback
 
 
 parseTokens :: String -> Either String [L Token]
@@ -420,7 +522,8 @@ parseTokens = runExcept . scanTokens
 parseProg :: FilePath -> String -> Either String Prog
 parseProg filename input = runExcept $ do
   tokenStream <- scanTokens input
-  runReaderT (prog tokenStream) filename
+  let env = ParseEnv { peFilename = filename, peSource = input }
+  runReaderT (prog tokenStream) env
 
 
 numTok (L _ (TokenNum x))    = x
@@ -429,20 +532,20 @@ strTok (L _ (TokenString x)) = x
 varTok (L _ (TokenSym x ))   = x
 lblTok (L _ (TokenLabel x))  = x
 
-pos :: L Token -> ReaderT FilePath (Except String) PosInf
+pos :: L Token -> ReaderT ParseEnv (Except String) PosInf
 pos l = do
-    filename <- ask
+    env <- ask
     let (AlexPn _ line col) = getPos l
-    return $ SrcPosInf filename line col
+    return $ SrcPosInf (peFilename env) line col
 
 -- | Create a Located value at the position of the given token
-atPos :: L Token -> a -> ReaderT FilePath (Except String) (Located a)
+atPos :: L Token -> a -> ReaderT ParseEnv (Except String) (Located a)
 atPos tok x = do
     p <- pos tok
     return (Loc p x)
 
 -- Check for duplicate atom names and report all duplicates with positions
-checkDuplicateAtoms :: [(String, PosInf)] -> ReaderT FilePath (Except String) [AtomName]
+checkDuplicateAtoms :: [(String, PosInf)] -> ReaderT ParseEnv (Except String) [AtomName]
 checkDuplicateAtoms atoms
   | null dups = return names
   | otherwise = throwError $ intercalate "\n" (map formatOne dups)

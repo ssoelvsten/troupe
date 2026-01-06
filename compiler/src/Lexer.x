@@ -8,7 +8,8 @@ module Lexer (
   Token(..),
   scanTokens,
   L(..),
-  AlexPosn(..)
+  AlexPosn(..),
+  showToken
 ) where
 
 import Direct
@@ -389,6 +390,92 @@ leaveString (p, _, _, input) len =
 
 showPosn :: AlexPosn -> String
 showPosn (AlexPn _ line col) = show line ++ ':': show col
+
+
+-- | Human-readable token description for error messages
+showToken :: Token -> String
+showToken TokenLet = "keyword 'let'"
+showToken TokenIn = "keyword 'in'"
+showToken TokenEnd = "keyword 'end'"
+showToken TokenFun = "keyword 'fun'"
+showToken TokenAnd = "keyword 'and'"
+showToken TokenVal = "keyword 'val'"
+showToken TokenIf = "keyword 'if'"
+showToken TokenThen = "keyword 'then'"
+showToken TokenElse = "keyword 'else'"
+showToken TokenCase = "keyword 'case'"
+showToken TokenOf = "keyword 'of'"
+showToken TokenImport = "keyword 'import'"
+showToken TokenReceive = "keyword 'receive'"
+showToken TokenPini = "keyword 'pini'"
+showToken TokenWhen = "keyword 'when'"
+showToken TokenWith = "keyword 'with'"
+showToken TokenQualified = "keyword 'qualified'"
+showToken TokenAs = "keyword 'as'"
+showToken TokenDatatype = "keyword 'datatype'"
+showToken TokenAtoms = "keyword 'Atoms'"
+showToken TokenFn = "keyword 'fn'"
+showToken TokenHn = "keyword 'hn'"
+showToken TokenTrue = "'true'"
+showToken TokenFalse = "'false'"
+showToken TokenAndAlso = "'andalso'"
+showToken TokenOrElse = "'orelse'"
+showToken TokenIntDiv = "'div'"
+showToken TokenMod = "'mod'"
+showToken (TokenNum n) = "number " ++ show n
+showToken (TokenFloat f) = "float " ++ show f
+showToken (TokenSym s) = "identifier '" ++ s ++ "'"
+showToken (TokenString s) = "string \"" ++ s ++ "\""
+showToken (TokenLabel l) = "label `{" ++ l ++ "}`"
+showToken TokenArrow = "'=>'"
+showToken TokenEq = "'='"
+showToken TokenNe = "'<>'"
+showToken TokenLt = "'<'"
+showToken TokenLe = "'<='"
+showToken TokenGt = "'>'"
+showToken TokenGe = "'>='"
+showToken TokenAdd = "'+'"
+showToken TokenSub = "'-'"
+showToken TokenMul = "'*'"
+showToken TokenDiv = "'/'"
+showToken TokenSemi = "';'"
+showToken TokenLParen = "'('"
+showToken TokenRParen = "')'"
+showToken TokenLBracket = "'['"
+showToken TokenRBracket = "']'"
+showToken TokenLBrace = "'{'"
+showToken TokenRBrace = "'}'"
+showToken TokenComma = "','"
+showToken TokenBar = "'|'"
+showToken TokenWildcard = "'_'"
+showToken TokenColonColon = "'::'"
+showToken TokenDot = "'.'"
+showToken TokenDotDot = "'..'"
+showToken TokenRaisedTo = "'raisedTo'"
+showToken TokenIsTuple = "'isTuple'"
+showToken TokenIsList = "'isList'"
+showToken TokenIsRecord = "'isRecord'"
+showToken TokenNot = "'not'"
+showToken TokenFlowsTo = "'flowsTo'"
+showToken TokenLevelOf = "'levelOf'"
+showToken TokenAt = "'@'"
+showToken TokenCaret = "'^'"
+showToken TokenBinAnd = "'andb'"
+showToken TokenBinOr = "'orb'"
+showToken TokenBinXor = "'xorb'"
+showToken TokenBinShiftLeft = "'<<'"
+showToken TokenBinShiftRight = "'>>'"
+showToken TokenBinZeroShiftRight = "'~>>'"
+showToken TokenDCLabelLeft = "'`<' (DC label start)"
+showToken TokenDCLabelRight = "'>`' (DC label end)"
+showToken TokenAmpersand = "'&'"
+showToken TokenDCTrue = "'#true'"
+showToken TokenDCFalse = "'#false'"
+showToken TokenDCRootConf = "'#root-confidentiality'"
+showToken TokenDCRootInteg = "'#root-integrity'"
+showToken TokenDCNullConf = "'#null-confidentiality'"
+showToken TokenDCNullInteg = "'#null-integrity'"
+showToken TokenEOF = "end of file"
 
 
 lexerError :: String -> Alex a
