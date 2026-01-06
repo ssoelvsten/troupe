@@ -1,4 +1,4 @@
-2026-01-03T21:09:29.133Z [RTM] [32minfo[39m: Skipping network creation. Observe that all external IO operations will yield a runtime error.
-Runtime error in thread e45e0110-29b0-437f-9dc3-9ddb15c6630b@{}%{}
+2026-01-06T09:52:00.709Z [RTM] [32minfo[39m: Skipping network creation. Observe that all external IO operations will yield a runtime error.
+Runtime error in thread b04174b7-ddbc-4304-8e57-315c6675e99b@{}%{}
 >> Index out of bounds: tuple (1@{}%{}, 2@{}%{}, 3@{}%{}) does not have length more than 2147483647
->> at tests/rt/pos/core/tuples_idx05a.trp:1:1
+>> at tests/rt/neg/core/tuples_idx05a.trp:1:1
