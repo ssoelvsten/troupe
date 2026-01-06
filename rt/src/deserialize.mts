@@ -32,13 +32,45 @@ export function setRuntimeObj(rt: RuntimeInterface) {
     __rtObj = rt;
 }
 
-const HEADER:string =  
+const HEADER:string =
         "this.libSet = new Set () \n\
          this.libs = [] \n\
          this.addLib = function (lib, decl)\
              { if (!this.libSet.has (lib +'.'+decl)) {  \
              this.libSet.add (lib +'.'+decl);\
              this.libs.push ({lib:lib, decl:decl})} }\n"
+
+// Merge multiple source maps into a single source map object
+// Each source map has: { file, sources, sourcesContent, names, mappings, version }
+function mergeSourceMaps(sourceMaps: any[]): any {
+    if (sourceMaps.length === 0) return null
+    if (sourceMaps.length === 1) return sourceMaps[0]
+
+    // For dynamically loaded code, we primarily care about the mappings
+    // Combine all sources and mappings from each source map
+    const sources: string[] = []
+    const mappings: string[] = []
+
+    for (const sm of sourceMaps) {
+        if (sm.sources) {
+            for (const src of sm.sources) {
+                if (!sources.includes(src)) {
+                    sources.push(src)
+                }
+            }
+        }
+        if (sm.mappings) {
+            mappings.push(sm.mappings)
+        }
+    }
+
+    return {
+        version: 3,
+        file: "",
+        sources: sources,
+        mappings: mappings.join(";")
+    }
+}
 
 function startCompiler() {
     __compilerOsProcess = spawn(getTroupeRoot() + '/bin/troupec', ['--json-ir']);
@@ -127,6 +159,8 @@ function constructCurrent(compilerOutput: string) {
         let nsFun = HEADER
 
         let atomSet = new Set<string>()
+        // Collect source maps from all snippets in this namespace
+        let namespaceMappings: any[] = []
 
         // nsFun += "this.libSet = new Set () \n"
         // nsFun += "this.libs = [] \n"
@@ -149,18 +183,22 @@ function constructCurrent(compilerOutput: string) {
             for (let atom of snippetJson.atoms) {
                 atomSet.add(atom)
             }
+            // Collect source map from snippet if available
+            if (snippetJson.sourceMap) {
+                namespaceMappings.push(snippetJson.sourceMap)
+            }
             // console.log (snippetJson.atoms)
         }
         let argNames = Array.from(atomSet);
         let argValues = argNames.map( argName => {return new Atom(argName)})
-        argNames.unshift('rt')        
-        argNames.push(nsFun)        
-        // Observe that there is some serious level of 
-        // reflection going on in here 
-        //    Arguments to Function are 
-        //             'rt', ATOM1, ..., ATOMk, nsFun 
-        //    
-        // 
+        argNames.unshift('rt')
+        argNames.push(nsFun)
+        // Observe that there is some serious level of
+        // reflection going on in here
+        //    Arguments to Function are
+        //             'rt', ATOM1, ..., ATOMk, nsFun
+        //
+        //
         let NS: any = Reflect.construct (Function, argNames)
 
         // We now construct an instance of the newly constructed object
@@ -173,7 +211,16 @@ function constructCurrent(compilerOutput: string) {
         Object.defineProperty(ctxt.namespaces[i], '__isDynamic', {
             value: true,
             enumerable: false
-        }) 
+        })
+        // Attach merged source map to namespace for error position translation
+        if (namespaceMappings.length > 0) {
+            // Merge source maps by combining their mappings field
+            const mergedSourceMap = mergeSourceMaps(namespaceMappings)
+            Object.defineProperty(ctxt.namespaces[i], '__sourceMap', {
+                value: mergedSourceMap,
+                enumerable: false
+            })
+        } 
         
     }
 

@@ -57,7 +57,7 @@ import Data.Aeson (ToJSON(toJSON), Value)
 import DCLabels (dcLabelExpToDCLabel)
 import Debug.Trace (trace, traceShow)
 import SourceMap.Types (Mapping(..))
-import TroupeSourceMap (collectMapping)
+import TroupeSourceMap (collectMapping, buildSourceMap)
 
 
 data LibAccess = LibAccess Basics.LibName Basics.VarName
@@ -78,9 +78,10 @@ addLibs xs = vcat $ nub (map addOneLib xs)
 
 
 data JSOutput = JSOutput { libs :: [LibAccess]
-                         , fname:: Maybe String 
-                         , code :: String 
+                         , fname:: Maybe String
+                         , code :: String
                          , atoms :: [Basics.AtomName]
+                         , sourceMap :: Value  -- Source map for restored code error reporting
                          } deriving (Show, Generic)
 
 instance Aeson.ToJSON JSOutput
@@ -307,15 +308,21 @@ parseMarker s
 
 stack2JSON :: CompileMode -> Bool -> StackUnit -> ByteString
 stack2JSON compileMode debugMode su =
-  let opts = CodeGenOpts { cgoDebugMode = debugMode, cgoSourceMapEnabled = False }
-      (ppDoc, (libs, atoms, konts, _markers)) = stack2PPDoc compileMode opts su
+  let opts = CodeGenOpts { cgoDebugMode = debugMode, cgoSourceMapEnabled = True }
+      (ppDoc, (libs, atoms, konts, markers)) = stack2PPDoc compileMode opts su
+      rendered = PP.render ppDoc
+      -- Process markers to generate source map mappings
+      (cleanCode, mappings) = processMarkers rendered markers
       fname = case su of FunStackUnit (Loc _ (FunDef (HFN n) _ _ _ _)) -> Just n
                          AtomStackUnit _                       -> Nothing
                          ProgramStackUnit _                    -> error "Internal error: stack2JSON called with ProgramStackUnit"
+      -- Build source map from mappings (use empty filename since this is dynamically loaded code)
+      srcMap = buildSourceMap "" mappings
   in Aeson.encode $ JSOutput { libs = libs
                              , fname = fname
                              , atoms = atoms
-                             , code = PP.render ppDoc
+                             , code = cleanCode
+                             , sourceMap = srcMap
                              }
 
 
@@ -622,8 +629,8 @@ tr2jsWithPos _pos (StackExpand bb bb2) = do
                   nest 2 $
                         vcat [
                           "let _T = rt.runtime.$t",
-                          -- Propagate __isRestored flag from namespace to currentSourceMap for restored code detection
-                          "_T.currentSourceMap = this.__isRestored ? { ...(this.__sourceMap || {}), __isRestored: true } : this.__sourceMap",
+                          -- Propagate __isDynamic flag from namespace to currentSourceMap for dynamically loaded code detection
+                          "_T.currentSourceMap = this.__isDynamic ? { ...(this.__sourceMap || {}), __isDynamic: true } : this.__sourceMap",
                           "let _STACK = _T.callStack",
                           "let _SP = _T._sp",
                           -- TODO Do we need this? It seems to be only used zero or one time in the generated places.
