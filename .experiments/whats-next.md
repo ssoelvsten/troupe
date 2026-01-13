@@ -9,7 +9,7 @@
                            │                                         
                            │                                         
                            │  Complete integrity                       
-                           │                                         
+                           │  with quarantines                       
                            │                                         
              ┌─────────────▼────────────┐                            
              │           dev            │  Deprecate dev-integrity
@@ -29,39 +29,29 @@
 │  dev-syntactic-variants  │                                         
 └──────────────────────────┘                                         
 ```
+ 
+## Applications
 
     
 ## Integrity 
  
-- [ ] Integrity of blocking and mailboxes
+- [x] Integrity of blocking and mailboxes
     - [x] First implementation of the blocking labels done?
     - Mailboxes 
-      - [ ] What is the integrity interpretation of the mailbox clearances?
-      - [ ] Investigate the syntax to use for mailbox declassification and endorsement. 
+      - [x] What is the integrity interpretation of the mailbox clearances?
+      - [x] Investigate the syntax to use for mailbox declassification and endorsement. 
             Do we need to rename `lowermbox` to `declassifyMbox` `endorseMbox`. In principle, we can do that, creating some backward compatible code for transition
-      - [ ] Create examples showcasing the usage of these primitives
+      - [x] Create examples showcasing the usage of these primitives
 
     - [ ] Recall checked endorsements of my paper with Andrew; are they relevant here? 
 
 ## Quarantining 
 
-- [ ] Testing of quarantining logic
+- [ ] Outline of the quarantining in the security model (done)
+- [ ] Implementation
 
 
-## NMIFC 
-
-- [ ] NMIFC
-
-    Add internal methods
-    - [ ] okToDeclassifyNMIFC and okToEndorseNMIFC
-
-    Make downgrades NMIFC-enforcing in the following order 
-
-    - [ ] Value downgrades
-    - [ ] Blocking label 
-    - [ ] Mailboxes 
-
-    Can we have NMIFC enforced by default? If no, what does it mean for the meta-theory?
+## NMIFC evaluation
     
         
 - [ ] Capability checks in the runtime should check for the ROOT 
@@ -70,12 +60,15 @@
 - [ ] Do we need a coalescing primitive for authority (it's sort of but not 
      exactly the opposuite of attenuation) to support quarantining?
 
-- [ ] Create tests that are specific to integrity and DC labels
+- [x] Create tests that are specific to integrity and DC labels
 
 - [ ] Create tests that investigate the integrity of the mailbox 
       clearances
 
 - [ ] Sanitization-inspired example for integrity
+
+
+- [ ] The implications of NFIC being on by default?
 
 ## Frontend
 
@@ -117,7 +110,7 @@
 
 - [+ongoing+] Consolidate error handling of downgrading
 
-- [ ] Get rid of lubs in the runtime codebase, because it is redundant, now that we have a multi-arg lub
+- [x] Get rid of lubs in the runtime codebase, because it is redundant, now that we have a multi-arg lub
 
 - [ ] DCLabel caching
 

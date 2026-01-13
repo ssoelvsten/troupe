@@ -1,4 +1,21 @@
 # DONE
+## 2026-01-13
+
+
+- [x] NMIFC
+
+    Add internal methods
+    - [x] okToDeclassifyNMIFC and okToEndorseNMIFC
+
+    Make downgrades NMIFC-enforcing in the following order 
+
+    - [x] Value downgrades
+    - [x] Blocking label 
+    - [x] Mailboxes 
+
+    [x] Can we have NMIFC enforced by default? (If no, what does it mean for the meta-theory?)
+    - (yes it is now ON by default)
+
 
 ## 2025-12-27
 
