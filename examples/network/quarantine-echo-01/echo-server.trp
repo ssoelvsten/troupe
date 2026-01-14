@@ -1,0 +1,31 @@
+(* Quarantine Echo Server - Demonstrates trust-based level downgrading *)
+(* The server does NOT trust the client, so received information will be downgraded *)
+
+let
+    val _ = spawn (fn () =>
+        let val _ = sleep (10000)
+            val _ = print "Server timeout exit"
+        in exit (authority, 0)
+        end)
+
+    val _ = register ("echo", self(), authority)
+
+    fun loop () =
+        let val _ = print "SERVER: waiting for messages..."
+            val _ = receive [
+                hn ("ECHO", msg, sender) =>
+                    let val _ = print "SERVER: Received echo request"
+                        (* Print the message with its label to see the downgraded level *)
+                        val _ = print "SERVER: Received msg with labels:"
+                        val _ = printWithLabels msg
+                        val _ = send(sender, ("REPLY", msg))
+                        val _ = print "SERVER: Sent reply"
+                    in ()
+                    end,
+                hn _ => ()
+            ]
+        in loop ()
+        end
+
+in loop ()
+end
