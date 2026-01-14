@@ -975,9 +975,17 @@ function setupBlockingHealthChecker(period: number) {
 function processExpectedNetworkErrors(err, source="unknown") {
     debug(`Error source: ${source}`);
     if(err instanceof AggregateError) {
-      for(const e of err.errors ) {        
+      for(const e of err.errors ) {
         processExpectedNetworkErrors (e, source)
       }
+    } else if(err && err.constructor && err.constructor.name === 'ErrorEvent') {
+      // Handle ErrorEvent from native Node.js WebSocket (via undici)
+      // ErrorEvent doesn't have name/code properties, just a type property
+      // This occurs when WebSocket connections fail (e.g., connection refused, network error)
+      const target = err.target;
+      const url = target && target[Symbol.for('nodejs.url')] ? target[Symbol.for('nodejs.url')] : 'unknown';
+      error(`WebSocket connection failed to ${url}: ${err.message || 'connection error'}`);
+      // Treat as a recoverable network error - don't throw
     } else {
       if(err.name || err.code) {
         const errorId = err.name || err.code;
@@ -1058,6 +1066,35 @@ export let p2p = {
     return whereisp2p(arg1, arg2)
   },
   stopp2p: async () => {
+    // End all pushables on all streams before stopping the node.
+    //
+    // Background: In libp2p v3, streams changed from duplex iterables (with
+    // source/sink that could be piped through) to EventTarget-based streams
+    // with .send() for writing. See: https://blog.libp2p.io/2025-09-30-js-libp2p/
+    //
+    // Previously, a single pipe() could flow through the stream:
+    //   pipe(pushable, ...transforms, stream, ...transforms, handler)
+    // The stream acted as both sink and source, and when it closed, the entire
+    // pipeline would naturally terminate.
+    //
+    // In v3, we need separate read and write pipelines:
+    //   Write: pushable -> transforms -> stream.send()
+    //   Read:  stream (AsyncIterable) -> transforms -> handler
+    //
+    // The write pipeline's `for await` loop blocks waiting for data from the
+    // pushable. Since the pushable is no longer tied to the stream's lifecycle,
+    // it must be explicitly ended. Without this, _node.stop() hangs indefinitely
+    // because libp2p waits for streams to close gracefully, but the write
+    // pipelines never terminate.
+    const connections = _node.getConnections();
+    for (const connection of connections) {
+      for (const stream of connection.streams) {
+        const p = (stream as any).p;
+        if (p && typeof p.end === 'function') {
+          p.end();
+        }
+      }
+    }
     return await _node.stop()
   },
   processExpectedNetworkErrors: (arg1, arg2) => {
