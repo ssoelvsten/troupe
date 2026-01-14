@@ -380,3 +380,11 @@ for the agent-assisted development)
 
 When choosing between the obviosuly clean but laborious approach and 
 a quick easy but partial solution, in this code base we almost always want to do the clean thing that is _right_! 
+
+
+## Note on backticks in the labels.
+
+Beware of the backticks in the syntax of the info flow labels that can have unfortunate 
+interactions with the shell. Example programs that use bacticks should probably not be
+created via echo, but saved in files.
+
