@@ -12,7 +12,7 @@ import { ProcessID } from './process.mjs';
 import { UserRuntime } from './UserRuntime.mjs'
 import * as levels from './Level.mjs'
 import * as DS from './deserialize.mjs'
-import { p2p } from './p2p/p2p.mjs'
+import { p2p, P2pUserError } from './p2p/p2p.mjs'
 import { closeReadline } from './builtins/stdio.mjs';
 import { __theRegister } from './builtins/whereis.mjs';
 import { assertIsFunction } from './Asserts.mjs'
@@ -482,8 +482,13 @@ async function getNetworkPeerId(rtHandlers) {
         return await p2p.startp2p(null, rtHandlers);
       }
     } catch (err) {
-      logger.error("uncaught exception in the runtime")
-      console.error(err.stack);;
+      if (err instanceof P2pUserError) {
+        // User-facing P2P errors are displayed without stack traces
+        logger.error(err.message);
+      } else {
+        logger.error("uncaught exception in the runtime")
+        console.error(err.stack);
+      }
       process.exit(1);
     }
   }

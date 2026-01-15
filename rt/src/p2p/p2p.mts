@@ -86,6 +86,19 @@ import { Logger } from 'winston';
 import {v4 as uuidv4} from 'uuid';
 import { kadDHT } from '@libp2p/kad-dht';
 
+// USER-FACING ERRORS
+
+/**
+ * Error class for P2P errors that should be displayed to users without stack traces.
+ * Similar to CliValidationError for network-related user-facing errors.
+ */
+export class P2pUserError extends Error {
+    constructor(message: string) {
+        super(message);
+        this.name = 'P2pUserError';
+    }
+}
+
 // LOGGING AND DEBUGGING 
 
 const argv = getCliArgs();
@@ -166,6 +179,21 @@ async function startp2p(nodeId, rt: any): Promise<String> {
     id = nodeListener.peerId;
 
   } catch (err) {
+    // Check if this is a relay-related address listening failure
+    // UnsupportedListenAddressesError occurs when libp2p cannot listen on configured addresses,
+    // typically because the relay server is unreachable (timeout)
+    if (err.name === 'UnsupportedListenAddressesError' && err.message) {
+      const relays = getRelays();
+      // Check if any configured relay address appears in the error message
+      const failedRelay = relays?.find(relay => err.message.includes(relay));
+      if (failedRelay) {
+        const message = `Relay server unreachable: ${failedRelay}\n` +
+          `The relay server did not respond in time. Workarounds:\n` +
+          `  --disable-relay             Disable relay functionality entirely\n` +
+          `  --relay-fault-tolerance=no-fatal  Continue startup even if relay fails`;
+        throw new P2pUserError(message);
+      }
+    }
     error(`Something wrong while creating Libp2p node: ${err}`);
     throw err;
   }
