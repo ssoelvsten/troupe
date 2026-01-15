@@ -224,7 +224,9 @@ async function startp2p(nodeId, rt: any): Promise<String> {
  * Create the libp2p node that this peer will use.
  */
 async function createLibp2p(_options) {
-  const defaults = {
+  const relayOnly = argv[TroupeCliArg.RelayOnly] || false;
+
+  const defaults: any = {
     addresses: {
       listen: [`/ip4/0.0.0.0/tcp/${__port}`]
     },
@@ -244,22 +246,29 @@ async function createLibp2p(_options) {
     connectionEncrypters: [
       noise(),
     ],
-    peerDiscovery: [
+    services: {
+      ping: ping(),
+      identify: identify(),
+    },
+  };
+
+  // Only enable DHT, mDNS, and bootstrap discovery if not in relay-only mode
+  if (relayOnly) {
+    debug('Relay-only mode: DHT, mDNS, and bootstrap discovery disabled');
+    defaults.peerDiscovery = [];
+    // No DHT service in relay-only mode
+  } else {
+    defaults.peerDiscovery = [
       bootstrap({
         list: bootstrappers
       }),
       mdns(),
-    ],
-    services: {
-      ping: ping(),
-      dht: kadDHT({
-        clientMode: false,  // Run as both client and server
-        protocol: '/ipfs/kad/1.0.0'
-      }),
-      identify: identify(),
-    },
-    
-  };
+    ];
+    defaults.services.dht = kadDHT({
+      clientMode: false,  // Run as both client and server
+      protocol: '/ipfs/kad/1.0.0'
+    });
+  }
 
   return create(defaultsDeep(_options, defaults));
 }
