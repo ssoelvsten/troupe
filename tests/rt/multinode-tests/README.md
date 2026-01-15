@@ -154,6 +154,26 @@ $TROUPE/network.sh echo-server.trp --id ids/server.json --aliases aliases.json -
 ### Log Analysis
 Each test run creates temporary output files for each node in `/tmp/troupe-multinode-*/output/`
 
+## Troubleshooting
+
+### Tests fail in VSCode but pass in Terminal (macOS)
+
+On macOS Sequoia and later, multinode tests may fail when run from VSCode's integrated terminal but work fine in a regular Terminal. Symptoms include:
+- Nodes start but cannot discover each other
+- Client prints "Starting echo client" but never finds the server
+- No `libp2p:mdns peer found` messages in debug output
+
+**Cause:** macOS Sequoia introduced stricter privacy controls. VSCode needs explicit permission to access the local network, which is required for mDNS peer discovery.
+
+**Solution:** Grant VSCode local network access:
+1. Open **System Settings → Privacy & Security → Local Network**
+2. Find **Visual Studio Code** and enable the toggle
+3. Restart VSCode
+
+If VSCode doesn't appear in the list, try running a multinode test first to trigger the permission prompt, then check the settings again.
+
+**Reference:** [VSCode Issue #228862](https://github.com/microsoft/vscode/issues/228862)
+
 ## Limitations
 
 - Tests require finite execution patterns
