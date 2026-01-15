@@ -20,6 +20,7 @@ export enum TroupeCliArg {
     RSpawn = 'rspawn',
     Relay = 'relay',
     RelayOnly = 'relay-only',
+    NoP2pCircuit = 'no-p2p-circuit',
     NoColor = 'no-color',
     V1Labels = 'v1-labels',
     SuppressLocalInfoMessage = 'suppress-local-info-message',
@@ -45,6 +46,7 @@ export interface ParsedArgs {
     [TroupeCliArg.RSpawn]?: boolean;
     [TroupeCliArg.Relay]?: string | string[];
     [TroupeCliArg.RelayOnly]?: boolean;
+    [TroupeCliArg.NoP2pCircuit]?: boolean;
     [TroupeCliArg.NoColor]?: boolean;
     [TroupeCliArg.V1Labels]?: boolean;
     [TroupeCliArg.SuppressLocalInfoMessage]?: boolean;
@@ -75,6 +77,7 @@ export function getCliArgs(): ParsedArgs {
             .option(TroupeCliArg.RSpawn, { type: 'boolean', default: false, describe: 'Allow remote spawning of troupe processes' })
             .option(TroupeCliArg.Relay, { type: 'array', describe: 'Relay server multiaddress(es) for P2P connectivity' })
             .option(TroupeCliArg.RelayOnly, { type: 'boolean', default: false, describe: 'Disable DHT, mDNS, and bootstrap discovery; only use relay for peer connectivity' })
+            .option(TroupeCliArg.NoP2pCircuit, { type: 'boolean', default: false, describe: 'Disable /p2p-circuit listen address (for testing NO_RESERVATION error handling)' })
             .option(TroupeCliArg.NoColor, {
                 type: 'boolean',
                 default: false,

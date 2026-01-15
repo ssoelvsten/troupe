@@ -81,6 +81,7 @@ cd "$TROUPE_ROOT"
     --port $SERVER_PORT \
     --relay "$RELAY_MULTIADDR" \
     --relay-only \
+    --debugp2p \
     > "$SCRIPT_DIR/server.log" 2>&1 &
 SERVER_PID=$!
 
@@ -99,6 +100,7 @@ echo ""
     --port $CLIENT_PORT \
     --relay "$RELAY_MULTIADDR" \
     --relay-only \
+    --debugp2p \
     > "$SCRIPT_DIR/client.log" 2>&1 &
 CLIENT_PID=$!
 

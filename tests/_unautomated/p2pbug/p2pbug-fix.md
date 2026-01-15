@@ -1,4 +1,4 @@
-# P2P Bug Fix Plan: NO_RESERVATION Error Handling and Relay Reservations
+# P2P Bug Fix: NO_RESERVATION Error Handling and Relay Reservations
 
 ## Problem Summary
 
@@ -10,24 +10,46 @@ Two related issues prevent Troupe nodes from communicating through a relay:
 
 ---
 
+## Implementation Status: PARTIAL
+
+Error handling (Part A) and reservation setup (Part B) have been implemented in `rt/src/p2p/p2p.mts`. However, testing has revealed a deeper issue with the STOP protocol handling.
+
+### Current State After Testing
+
+1. **Error handling works**: `NO_RESERVATION`, `CONNECTION_FAILED`, and protobuf errors are now caught gracefully (no crashes)
+2. **Reservations are being made**: The relay confirms receiving RESERVE requests from both server and client
+3. **Circuit connections fail**: When a client tries to connect through the relay, the STOP protocol to the server never completes
+
+### Remaining Issue: STOP Protocol Not Completing
+
+The test logs show:
+- Relay receives CONNECT from client
+- Relay starts STOP request to server
+- STOP never completes (no "stop request successful" or "connection established" logs)
+- Relay keeps receiving RESERVE refresh requests from the server (expected)
+- Client gets `CONNECTION_FAILED` error
+
+This appears to be a protocol-level issue where the Troupe node isn't properly handling the incoming STOP requests from the relay. The `circuitRelayTransport` should handle this automatically, but something is preventing the protocol from completing.
+
+### Possible Causes to Investigate
+
+1. Transport protocol mismatch between relay (WebSocket) and Troupe nodes (TCP)
+2. Stream multiplexer incompatibility
+3. Missing identify protocol exchange before STOP
+4. Race condition between reservation and incoming connection handling
+
+---
+
 ## Part A: Graceful Error Handling for NO_RESERVATION
 
 ### Goal
 Treat `NO_RESERVATION` as a normal network condition (peer not reachable through relay), not an exceptional error. The system should gracefully handle this and allow retry mechanisms to work.
 
-### File: `rt/src/p2p/p2p.mts`
+### Implementation (Lines 1050-1070)
 
-### Change 1: Add NO_RESERVATION to Known Error Cases
+Added new cases to `processExpectedNetworkErrors()`:
 
-**Location**: `processExpectedNetworkErrors()` function, around line 1029 (after `ERR_HOP_REQUEST_FAILED`)
-
-**Add these cases**:
 ```typescript
-case 'HopRequestFailedError':
-case 'ERR_HOP_REQUEST_FAILED':
-  debug(`${err.toString()}`)
-  break;
-// ADD THESE NEW CASES:
 case 'InvalidMessageError':
   // Check if this is a relay-related error (NO_RESERVATION, etc.)
   if (err.message && err.message.includes('NO_RESERVATION')) {
@@ -45,18 +67,6 @@ case 'ReservationRefusedError':
 case 'ERR_RESERVATION_REFUSED':
   debug(`Relay reservation refused: ${err.toString()}`);
   break;
-```
-
-**Rationale**:
-- `InvalidMessageError` with `NO_RESERVATION` is the actual error thrown by js-libp2p when the target peer has no reservation
-- Other relay status codes (`RESOURCE_LIMIT_EXCEEDED`, `PERMISSION_DENIED`) should also be handled gracefully
-- These are normal network conditions, not bugs - the target simply isn't reachable through the relay
-
-### Change 2: Consider Adding Connection Failure Error
-
-**Location**: Same function, add case for connection-specific errors
-
-```typescript
 case 'ConnectionFailedError':
 case 'ERR_CONNECTION_FAILED':
   debug(`Connection failed: ${err.toString()}`);
@@ -70,138 +80,77 @@ case 'ERR_CONNECTION_FAILED':
 ### Goal
 Make nodes listen on relay circuit addresses, which triggers the reservation protocol in Circuit Relay V2.
 
-### File: `rt/src/p2p/p2p.mts`
+### Implementation Approach
 
-### Change 3: Add Relay Listen Address to Node Configuration
+**Key insight**: In js-libp2p, you cannot dynamically call `node.listen()` after the node is created. The `Libp2p` type doesn't expose a `listen()` method. Instead, the `/p2p-circuit` address must be included in the listen addresses at node creation time. The `circuitRelayTransport` then automatically makes a reservation when a relay is dialed.
 
-**Location**: `createLibp2p()` function, around line 229-231
+This differs from the original plan which proposed calling `_node.listen()` dynamically in `dialRelay()`.
 
-**Current code**:
+### Change 1: Add /p2p-circuit to Listen Addresses (Lines 230-237)
+
 ```typescript
-const defaults: any = {
-  addresses: {
-    listen: [`/ip4/0.0.0.0/tcp/${__port}`]
-  },
-  // ...
-};
-```
+async function createLibp2p(_options) {
+  const relayOnly = argv[TroupeCliArg.RelayOnly] || false;
+  const noP2pCircuit = argv[TroupeCliArg.NoP2pCircuit] || false;
 
-**Problem**: The listen addresses don't include any relay circuit addresses.
+  // Build listen addresses. Include /p2p-circuit to enable relay reservations
+  // in Circuit Relay v2, unless --no-p2p-circuit is specified (for testing).
+  const listenAddrs = [`/ip4/0.0.0.0/tcp/${__port}`];
+  if (!noP2pCircuit) {
+    listenAddrs.push('/p2p-circuit');
+  } else {
+    debug('--no-p2p-circuit: Relay reservations disabled (for testing NO_RESERVATION handling)');
+  }
 
-**Approach**: The relay addresses ARE known before node creation - CLI args are processed at lines 143-146 in `startp2p()`, before `createLibp2p()` is called at line 154. We have two options:
-
-1. **Option A (Cleaner)**: Pass relay listen addresses to `createLibp2p()` upfront
-2. **Option B (Simpler)**: Add listen addresses dynamically after dialing the relay
-
-Option B is simpler because:
-- `createLibp2p()` would need to be refactored to accept relay addresses
-- The relay must be dialed first anyway to establish the connection
-- libp2p supports adding listen addresses dynamically via `node.listen()`
-
-### Change 4: Listen on Relay After Dialing
-
-**Location**: `dialRelay()` function, around line 712-720
-
-**Current code**:
-```typescript
-const connection = await _node.dial(relayId);
-debug(`Relay dialed`);
-_relayId = id;
-debug(`Relay connected, keep alive counter is ${_keepAliveCounter++}`);
-
-// In circuit relay v2, we don't need to send keep-alive messages
-// The connection is maintained by libp2p automatically
-// Just return null since we don't have a stream to return
-return null;
-```
-
-**New code**:
-```typescript
-const connection = await _node.dial(relayId);
-debug(`Relay dialed`);
-_relayId = id;
-
-// In circuit relay v2, we need to LISTEN on the relay to make a reservation
-// This tells the relay we want to be reachable through it
-const relayListenAddr = multiaddr(`/p2p/${id}/p2p-circuit`);
-debug(`Setting up relay reservation by listening on ${relayListenAddr.toString()}`);
-
-try {
-  await _node.listen([relayListenAddr]);
-  debug(`Relay reservation established - now reachable through relay ${id}`);
-} catch (listenErr) {
-  // Log but don't fail - we can still make outbound connections
-  debug(`Failed to establish relay reservation: ${listenErr}`);
-  processExpectedNetworkErrors(listenErr, "relay listen");
+  const defaults: any = {
+    addresses: {
+      listen: listenAddrs
+    },
+    // ...
+  };
 }
-
-debug(`Relay connected, keep alive counter is ${_keepAliveCounter++}`);
-return null;
 ```
 
-**Rationale**:
-- In libp2p, calling `node.listen([addr])` on a circuit relay address triggers the HOP RESERVE protocol
-- The relay will allocate a slot for this peer and track it as reachable
-- Other peers can then connect through the relay using `/p2p/{relayId}/p2p-circuit/p2p/{thisPeerId}`
-- We choose to do this after dialing because the dial establishes the connection needed for the reservation
+### Change 2: Log Relay Addresses After Dialing (Lines 716-726)
 
-### Change 5: Reservation Refresh (NOT NEEDED - Built-in)
+Updated `dialRelay()` to log circuit addresses after connecting:
 
-**Good news**: The js-libp2p `circuitRelayTransport` **automatically handles reservation refresh**:
+```typescript
+// In circuit relay v2, the reservation is made automatically when we dial the relay
+// because we have /p2p-circuit in our listen addresses (configured in createLibp2p).
+// The circuitRelayTransport handles the HOP RESERVE protocol internally.
+// Log the relay circuit addresses we're now reachable at.
+const relayAddrs = _node.getMultiaddrs().filter(m => m.toString().includes('p2p-circuit'));
+if (relayAddrs.length > 0) {
+  debug(`Relay reservation established - now reachable through relay ${id}`);
+  relayAddrs.forEach(addr => debug(`Relay address: ${addr.toString()}`));
+} else {
+  debug(`Relay dialed but no circuit addresses yet - reservation may be pending`);
+}
+```
+
+### Reservation Refresh (NOT NEEDED - Built-in)
+
+The js-libp2p `circuitRelayTransport` automatically handles reservation refresh:
 - Internally tracks reservation expiration via `ReservationStore`
 - Sets timeouts to refresh ~10 minutes before expiry
 - Calls `addRelay()` again automatically
 
-**No manual refresh code needed!**
-
-### Change 6: Debug Output for Reservation Info
-
-The existing code at lines 200-202 already logs advertised addresses when they change:
-```typescript
-_node.addEventListener('self:peer:update', (_) => {
-  debug(`Advertising with following addresses:`);
-  _node.getMultiaddrs().forEach(m => debug(m.toString()));
-});
-```
-
-After a successful reservation, this will automatically log the relay circuit address like:
-```
-/p2p/12D3KooW.../p2p-circuit/p2p/12D3KooW...
-```
-
-**Optional enhancement**: Add explicit logging after listen() succeeds:
-
-```typescript
-try {
-  await _node.listen([relayListenAddr]);
-  debug(`Relay reservation established - now reachable through relay ${id}`);
-  // Log the new multiaddrs which will include the relay circuit address
-  const relayAddrs = _node.getMultiaddrs().filter(m => m.toString().includes('p2p-circuit'));
-  relayAddrs.forEach(addr => debug(`Relay address: ${addr.toString()}`));
-} catch (listenErr) {
-  // ...
-}
-```
-
-### Reservation Details from libp2p
-
-Per the [Circuit Relay V2 spec](https://github.com/libp2p/specs/blob/master/relay/circuit-v2.md#reservation), reservation responses contain:
-- `expire`: UTC UNIX time in seconds when reservation expires
-- `addrs`: Relay addresses (without trailing p2p-circuit)
-- `voucher`: Cryptographic voucher (advisory, for future enforcement)
-
-These are managed internally by js-libp2p's `ReservationStore`. The expiration is used to schedule automatic refresh. We don't need to access these directly - just observe the result via `getMultiaddrs()`.
+No manual refresh code needed!
 
 ---
 
-## Part C: Import Updates
+## Part C: Testing CLI Option
 
-### File: `rt/src/p2p/p2p.mts`
+### New Option: --no-p2p-circuit
 
-Verify `multiaddr` is imported (it should already be, around line 15):
+Added to `rt/src/TroupeCliArgs.mts`:
+
 ```typescript
-import { multiaddr } from '@multiformats/multiaddr'
+NoP2pCircuit = 'no-p2p-circuit',
 ```
+
+This option disables the `/p2p-circuit` listen address, allowing you to test the NO_RESERVATION error handling in isolation. When a node runs with `--no-p2p-circuit`, it will not make a reservation with the relay, so other nodes trying to reach it through the relay will get `NO_RESERVATION` errors.
 
 ---
 
@@ -210,14 +159,14 @@ import { multiaddr } from '@multiformats/multiaddr'
 ### Test 1: Verify NO_RESERVATION is Handled Gracefully
 
 1. Start relay
-2. Start server WITHOUT the reservation fix (comment out Change 4)
+2. Start server WITH `--no-p2p-circuit` flag (prevents reservation)
 3. Start client and call `whereis("@server", "service")`
 4. **Expected**: Debug log shows "Relay reservation not found", no stack trace, graceful timeout or retry
 
 ### Test 2: Verify Reservations Work
 
 1. Start relay
-2. Start server WITH all fixes
+2. Start server (normal mode, with reservation)
 3. Verify server log shows "Relay reservation established"
 4. Start client
 5. Call `whereis("@server", "service")`
@@ -230,11 +179,12 @@ import { multiaddr } from '@multiformats/multiaddr'
 
 ---
 
-## Files to Modify
+## Files Modified
 
-| File | Changes |
-|------|---------|
-| `rt/src/p2p/p2p.mts` | Add error cases to `processExpectedNetworkErrors()`, add relay listen in `dialRelay()` |
+| File                        | Changes                                                                                                          |
+|-----------------------------|------------------------------------------------------------------------------------------------------------------|
+| `rt/src/p2p/p2p.mts`        | Add error cases to `processExpectedNetworkErrors()`, add /p2p-circuit to listen addresses, log relay addresses  |
+| `rt/src/TroupeCliArgs.mts`  | Add `--no-p2p-circuit` option                                                                                    |
 
 ---
 
@@ -242,25 +192,37 @@ import { multiaddr } from '@multiformats/multiaddr'
 
 From libp2p Circuit Relay V2 spec, status codes that can appear in HOP responses:
 
-| Status | Meaning |
-|--------|---------|
-| `OK` | Success |
-| `RESERVATION_REFUSED` | Relay refused to make reservation |
-| `RESOURCE_LIMIT_EXCEEDED` | Relay has too many reservations |
-| `PERMISSION_DENIED` | Relay denied permission |
-| `CONNECTION_FAILED` | Relay couldn't connect to target |
-| `NO_RESERVATION` | Target peer has no reservation with relay |
-| `MALFORMED_MESSAGE` | Invalid message format |
-| `UNEXPECTED_MESSAGE` | Wrong message type |
+| Status                    | Meaning                                    |
+|---------------------------|--------------------------------------------|
+| `OK`                      | Success                                    |
+| `RESERVATION_REFUSED`     | Relay refused to make reservation          |
+| `RESOURCE_LIMIT_EXCEEDED` | Relay has too many reservations            |
+| `PERMISSION_DENIED`       | Relay denied permission                    |
+| `CONNECTION_FAILED`       | Relay couldn't connect to target           |
+| `NO_RESERVATION`          | Target peer has no reservation with relay  |
+| `MALFORMED_MESSAGE`       | Invalid message format                     |
+| `UNEXPECTED_MESSAGE`      | Wrong message type                         |
 
-All of these should be treated as recoverable network conditions, not fatal errors.
+All of these are now treated as recoverable network conditions, not fatal errors.
 
 ---
 
 ## Summary of Changes
 
-1. **Error Handling** (Part A): Add `InvalidMessageError` with `NO_RESERVATION` (and related statuses) to the known error cases in `processExpectedNetworkErrors()`. These should log at debug level and not throw.
+1. **Error Handling** (Part A): Added `InvalidMessageError` with `NO_RESERVATION` (and related statuses) to the known error cases in `processExpectedNetworkErrors()`. These now log at debug level and don't throw.
 
-2. **Relay Reservation** (Part B): After dialing the relay in `dialRelay()`, call `_node.listen([relayCircuitAddr])` to establish a reservation. This makes the node reachable through the relay.
+2. **Relay Reservation** (Part B): Added `/p2p-circuit` to listen addresses in `createLibp2p()`. This makes the `circuitRelayTransport` automatically establish a reservation when dialing a relay.
 
-3. **Testing**: Verify both the error handling (graceful degradation) and the fix (successful relay communication).
+3. **Testing Support** (Part C): Added `--no-p2p-circuit` CLI option to disable reservations for testing the error handling in isolation.
+
+---
+
+## Known Issues (See p2pbug-2.md)
+
+The following issues were discovered during testing and require further investigation:
+
+1. **STOP Protocol Failure**: Circuit relay connections fail because the STOP protocol doesn't complete. The relay receives CONNECT and starts STOP, but it never succeeds.
+
+2. **Missing Circuit Address Advertisement**: Nodes don't advertise their `/p2p-circuit` addresses even after successful reservation.
+
+3. **Protobuf Decoding Errors**: "invalid wire type 4" errors occur during HopMessage decoding. This was previously suppressed but is now properly thrown to enable debugging.

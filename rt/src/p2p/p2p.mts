@@ -225,10 +225,20 @@ async function startp2p(nodeId, rt: any): Promise<String> {
  */
 async function createLibp2p(_options) {
   const relayOnly = argv[TroupeCliArg.RelayOnly] || false;
+  const noP2pCircuit = argv[TroupeCliArg.NoP2pCircuit] || false;
+
+  // Build listen addresses. Include /p2p-circuit to enable relay reservations
+  // in Circuit Relay v2, unless --no-p2p-circuit is specified (for testing).
+  const listenAddrs = [`/ip4/0.0.0.0/tcp/${__port}`];
+  if (!noP2pCircuit) {
+    listenAddrs.push('/p2p-circuit');
+  } else {
+    debug('--no-p2p-circuit: Relay reservations disabled (for testing NO_RESERVATION handling)');
+  }
 
   const defaults: any = {
     addresses: {
-      listen: [`/ip4/0.0.0.0/tcp/${__port}`]
+      listen: listenAddrs
     },
     connectionManager : {
       minConnections: 1,
@@ -712,11 +722,20 @@ async function dialRelay(relayAddr: string) {
     const connection = await _node.dial(relayId);
     debug(`Relay dialed`);
     _relayId = id;
-    debug(`Relay connected, keep alive counter is ${_keepAliveCounter++}`);
 
-    // In circuit relay v2, we don't need to send keep-alive messages
-    // The connection is maintained by libp2p automatically
-    // Just return null since we don't have a stream to return
+    // In circuit relay v2, the reservation is made automatically when we dial the relay
+    // because we have /p2p-circuit in our listen addresses (configured in createLibp2p).
+    // The circuitRelayTransport handles the HOP RESERVE protocol internally.
+    // Log the relay circuit addresses we're now reachable at.
+    const relayAddrs = _node.getMultiaddrs().filter(m => m.toString().includes('p2p-circuit'));
+    if (relayAddrs.length > 0) {
+      debug(`Relay reservation established - now reachable through relay ${id}`);
+      relayAddrs.forEach(addr => debug(`Relay address: ${addr.toString()}`));
+    } else {
+      debug(`Relay dialed but no circuit addresses yet - reservation may be pending`);
+    }
+
+    debug(`Relay connected, keep alive counter is ${_keepAliveCounter++}`);
     return null;
   } catch (err) {
     processExpectedNetworkErrors (err, "dial relay");
@@ -1047,6 +1066,28 @@ function processExpectedNetworkErrors(err, source="unknown") {
           case 'ERR_TIMEOUT':
             debug(`${err.toString()}`);
             break;
+          case 'InvalidMessageError':
+            // Check if this is a relay-related error (NO_RESERVATION, etc.)
+            if (err.message && err.message.includes('NO_RESERVATION')) {
+              debug(`Relay reservation not found: ${err.toString()}`);
+            } else if (err.message && err.message.includes('RESOURCE_LIMIT_EXCEEDED')) {
+              debug(`Relay resource limit exceeded: ${err.toString()}`);
+            } else if (err.message && err.message.includes('PERMISSION_DENIED')) {
+              debug(`Relay permission denied: ${err.toString()}`);
+            } else {
+              // Unknown InvalidMessageError - log as error but don't throw
+              error(`InvalidMessageError: ${err.toString()}`);
+            }
+            break;
+          case 'ReservationRefusedError':
+          case 'ERR_RESERVATION_REFUSED':
+            debug(`Relay reservation refused: ${err.toString()}`);
+            break;
+          case 'ConnectionFailedError':
+          case 'ERR_CONNECTION_FAILED':
+            debug(`Connection failed: ${err.toString()}`);
+            break;
+      
 
           default:
             error(`Unhandled error case with error identifier ${errorId}`)
