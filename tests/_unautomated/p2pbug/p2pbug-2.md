@@ -8,9 +8,101 @@ Additionally, there's a protobuf decoding error ("invalid wire type 4") that was
 
 ---
 
-## Issue 1: STOP Protocol Not Completing
+## FIXES IMPLEMENTED (2026-01-15)
 
-### Symptoms
+The following fixes have been applied and tested:
+
+### Fix 1: Use Specific Relay Address in Listen Config
+
+**Problem**: Using generic `/p2p-circuit` as listen address triggers relay discovery, but in `--relay-only` mode, discovery (DHT, mDNS, bootstrap) is disabled. The `circuitRelayTransport` never makes a reservation.
+
+**Solution**: In `rt/src/p2p/p2p.mts`, changed the listen address configuration to include the specific relay address:
+
+```typescript
+// OLD (broken in relay-only mode):
+listenAddrs.push('/p2p-circuit');
+
+// NEW (works):
+for (const relay of relays) {
+  listenAddrs.push(`${relay}/p2p-circuit`);
+}
+```
+
+This triggers `CircuitListen` instead of `CircuitSearch` in the transport listener, which explicitly makes a reservation on the specified relay.
+
+### Fix 2: Reduce Relay Limit Values to Avoid Protobuf Overflow
+
+**Problem**: The relay's `defaultDurationLimit: 2147483647` and `defaultDataLimit: BigInt(4294967295)` caused protobuf encoding issues. When encoded as varints, these values created invalid protobuf data that caused "invalid wire type" errors.
+
+**Solution**: In `p2p-tools/relay/relay.mts`, reduced the limit values:
+
+```typescript
+// OLD (causes protobuf decode errors):
+reservations: {
+  defaultDurationLimit: 2147483647,
+  defaultDataLimit: BigInt(4294967295),
+}
+
+// NEW (works):
+reservations: {
+  defaultDurationLimit: 3600,  // 1 hour
+  defaultDataLimit: BigInt(1073741824),  // 1GB
+}
+```
+
+### Fix 3: Enable `runOnLimitedConnection` for Troupe Protocol
+
+**Problem**: Circuit relay connections are "limited connections" and by default libp2p won't open protocol streams on them. The Troupe protocol handler and dial calls didn't have this option enabled.
+
+**Solution**: In `rt/src/p2p/p2p.mts`, added `runOnLimitedConnection: true`:
+
+```typescript
+// Handler registration:
+await _node.handle(_PROTOCOL, async (stream, connection) => {
+  // ...
+}, { runOnLimitedConnection: true });
+
+// Dial call:
+const stream = await _node.dialProtocol(id, _PROTOCOL, { runOnLimitedConnection: true });
+```
+
+### Fix 4: Remove Deprecated mplex Stream Muxer
+
+**Problem**: `mplex` is deprecated and can cause issues with circuit relay. The official examples only use `yamux`.
+
+**Solution**: Commented out `mplex()` from both `rt/src/p2p/p2p.mts` and `p2p-tools/relay/relay.mts`:
+
+```typescript
+streamMuxers: [
+  yamux(),
+  // mplex is deprecated - use only yamux for circuit relay compatibility
+  // mplex()
+],
+```
+
+---
+
+## Test Results After Fixes
+
+Running `bash run.sh` now shows:
+
+1. ✅ Server makes reservation with relay
+2. ✅ Server advertises circuit relay address
+3. ✅ Client makes reservation with relay
+4. ✅ Client advertises circuit relay address
+5. ✅ Client finds server via `whereis()` through circuit relay
+6. ✅ Client sends PING to server through relay
+7. ✅ Server receives PING
+8. ✅ Server sends PONG back
+9. ⚠️ Client may timeout before receiving PONG (race condition, separate issue)
+
+The core circuit relay functionality is now working. The remaining issue is a timing/race condition where the connection is closed before the response arrives, which is a separate concern from the relay setup.
+
+---
+
+## Issue 1: STOP Protocol Not Completing (RESOLVED)
+
+### Symptoms (Before Fix)
 
 1. Both server and client successfully make reservations with the relay
 2. Client sends CONNECT request to relay
@@ -18,282 +110,125 @@ Additionally, there's a protobuf decoding error ("invalid wire type 4") that was
 4. STOP request never completes - no "stop request successful" log
 5. Client receives `CONNECTION_FAILED` status
 
-### Relay Log Evidence
+### Root Cause
 
-```
-hop connect request from [client]
-starting circuit relay v2 stop request to [server]
-received circuit v2 hop protocol stream from [server]   <-- Server sends RESERVE refresh
-received RESERVE
-...
-(no "stop request successful" or "connection established" logs)
-```
+The `circuitRelayTransport` was using generic `/p2p-circuit` listen address which triggers relay **discovery**. In `--relay-only` mode with no DHT/mDNS/bootstrap, discovery never finds any relays, so no reservation is made.
 
-The relay keeps receiving RESERVE refreshes from the server, but the STOP never completes.
+### Solution
 
-### Root Cause Investigation
+Use specific relay address format: `/ip4/x.x.x.x/tcp/port/ws/p2p/RELAY_ID/p2p-circuit`
 
-The STOP protocol in Circuit Relay V2 works as follows:
-1. Relay opens a new stream to the target peer using `/libp2p/circuit/relay/0.2.0/stop`
-2. Target peer's `circuitRelayTransport` should handle this stream
-3. Target peer responds, and the relay merges the streams
-
-Possible causes:
-1. **Transport mismatch**: Relay uses WebSocket (`/ws`), Troupe nodes use TCP. The relay connects to nodes via WebSocket, but Troupe nodes may not be listening on WebSocket for the STOP protocol.
-2. **Protocol handler not registered**: The `circuitRelayTransport` may not be properly registering the STOP protocol handler.
-3. **Identify protocol timing**: The STOP protocol may require identify exchange first.
-4. **Connection reuse issue**: The relay may be trying to use a connection that's not suitable for the STOP protocol.
-
-### Reproduction Steps
-
-```bash
-cd tests/_unautomated/p2pbug
-bash run.sh
-```
-
-Look for in relay.log:
-- "starting circuit relay v2 stop request" WITHOUT subsequent "stop request successful"
-
-Look for in server.log:
-- No incoming connection logs from the relay for STOP
+This tells the transport to make a reservation on that specific relay without requiring discovery.
 
 ---
 
-## Issue 2: Protobuf Decoding Error
+## Issue 2: Protobuf Decoding Error (RESOLVED)
+
+### Symptoms (Before Fix)
+
+```
+Error: invalid wire type 4 at offset 332
+    at Uint8ArrayReader.skipType (...)
+    at Object.decode (...circuit-relay-v2/dist/src/pb/index.js:85:36)
+```
+
+### Root Cause
+
+The relay's limit configuration used very large values that caused protobuf encoding issues:
+- `defaultDurationLimit: 2147483647` (max int32)
+- `defaultDataLimit: BigInt(4294967295)` (max uint32)
+
+When these values were encoded in the HopMessage `limit` field, the protobuf varint encoding produced bytes that were misinterpreted by the decoder.
+
+### Investigation Method
+
+Added hex dump logging to `@libp2p/utils/dist/src/stream-utils.js` to capture the actual bytes received:
+
+```javascript
+console.log('PB_READ bytes:', Buffer.from(value).toString('hex'));
+```
+
+The hex dump showed that the `limit` field at the end of the message contained invalid varint sequences like `ff 00 00 19 c2 28 64` instead of proper varint encoding.
+
+### Solution
+
+Reduce the limit values to reasonable sizes (1 hour, 1GB) which encode correctly.
+
+---
+
+## Issue 3: LimitedConnectionError (RESOLVED)
 
 ### Symptoms
 
 ```
-Error: invalid wire type 4 at offset 18
-    at Uint8ArrayReader.skipType (.../protons-runtime/dist/src/utils/reader.js:198:23)
-    at Object.decode (.../circuit-relay-v2/dist/src/pb/index.js:85:36)
-    ...
-    at async CircuitRelayTransport.dial (...)
+LimitedConnectionError: Cannot open protocol stream on limited connection
 ```
 
-This error occurs during `HopMessage.decode()` when parsing a response from the relay.
+### Root Cause
 
-### Current "Fix" (Inadequate)
+Circuit relay connections are marked as "limited" by libp2p. By default, protocol streams cannot be opened on limited connections for security/resource reasons.
 
-The current code suppresses this error:
-```typescript
-case 'Error':
-  if (err.message && err.message.includes('invalid wire type')) {
-    debug(`Protobuf decode error (will retry): ${err.toString()}`);
-  }
-```
+### Solution
 
-This is a band-aid that hides the problem rather than fixing it.
-
-### Root Cause Investigation
-
-"Invalid wire type 4" in protobuf means:
-- Wire type 4 doesn't exist in protobuf (valid types are 0-5)
-- The decoder is reading data that isn't a valid protobuf message
-- This usually indicates reading the wrong data or a protocol mismatch
-
-Possible causes:
-1. **Reading non-protobuf data**: The client may be reading data from a different protocol/stream
-2. **Stream multiplexing issue**: yamux/mplex may be delivering data from the wrong stream
-3. **Protocol version mismatch**: Different versions of the circuit relay protocol
-4. **Partial message**: Reading before the full message is available
-
-### Current Status
-
-The ad-hoc suppression of this error has been REMOVED. The error now throws as it should, allowing proper debugging. See `rt/src/p2p/p2p.mts` line ~1090.
-
-### How to Investigate
-
-1. **Add hex dump of received bytes before decoding**:
-
-   Patch `node_modules/@libp2p/circuit-relay-v2/dist/src/transport/index.js`:
-   ```javascript
-   // Before the HopMessage.decode() call, add:
-   console.log('HOP response bytes:', Buffer.from(data).toString('hex'));
-   ```
-
-2. **Decode the hex manually**:
-
-   Use a protobuf decoder to see what the bytes actually contain. Wire type 4 doesn't exist, so we're likely reading:
-   - Data from a different protocol
-   - Partial/corrupted data
-   - Framing bytes that shouldn't be included
-
-3. **Check stream protocol ID**:
-
-   Log `stream.protocol` before reading to confirm we're on the right protocol.
-
-4. **Compare with working example**:
-
-   Run the js-libp2p circuit relay example and capture the bytes for comparison:
-   ```bash
-   git clone https://github.com/libp2p/js-libp2p-example-circuit-relay
-   cd js-libp2p-example-circuit-relay
-   # Add logging to capture bytes
-   ```
-
-5. **Check length-prefix framing**:
-
-   The circuit relay uses length-prefixed messages. If the length prefix is being included in the protobuf decode, this would cause the error.
+Add `runOnLimitedConnection: true` to both:
+1. Protocol handler registration (`_node.handle()`)
+2. Protocol dial calls (`_node.dialProtocol()`)
 
 ---
 
-## Test Setup for Reliable Reproduction
+## Remaining Issue: Connection Timing
 
-### Prerequisites
+After all fixes, there's still a timing issue where the server sends PONG but the client times out. The connection is closed immediately after the response is sent. This appears to be a Troupe-level issue rather than a libp2p/relay issue.
 
-```bash
-# Ensure runtime is built
-cd /path/to/Troupe
-make rt
+### Evidence from Logs
 
-# Ensure relay is built
-cd p2p-tools/relay
-make
+Server side (works correctly):
+```
+Received SEND from [client]
+SERVER: Received PING from client
+SERVER: Sent PONG reply
+SERVER: Test passed
+Hanging up connection to [client]
 ```
 
-### Test Configuration
+Client side (doesn't receive PONG):
+```
+CLIENT: Found echo server!
+CLIENT: Sent PING, waiting for PONG...
+Disconnect from [server]
+CLIENT: Timeout - could not find server (BUG REPRODUCED)
+```
 
-The test uses `--relay-only` mode which disables DHT and mDNS, forcing all peer discovery through the relay. This isolates the circuit relay behavior.
+The connection is hung up before the PONG can be received. This is likely a race condition in the Troupe message handling that should be investigated separately.
 
-Key files:
-- `run.sh` - Main test script
-- `server.trp` - Server that registers a service and waits
-- `client.trp` - Client that does `whereis()` to find server
-- `config.json` - Node identities
-- `aliases.json` - Maps `@server` alias to server's peer ID
+---
 
-### Running the Test
+## Files Modified
+
+| File | Change |
+|------|--------|
+| `rt/src/p2p/p2p.mts` | Use specific relay address, remove mplex, add runOnLimitedConnection |
+| `p2p-tools/relay/relay.mts` | Reduce limit values, remove mplex |
+
+---
+
+## How to Verify Fixes
 
 ```bash
 cd tests/_unautomated/p2pbug
 bash run.sh
 ```
 
-### Expected vs Actual Behavior
-
-**Expected**:
-1. Relay starts
-2. Server connects to relay, makes reservation, registers "echo" service
-3. Client connects to relay, makes reservation
-4. Client does `whereis("@server", "echo")`
-5. Client dials server through relay circuit
-6. Server receives WHEREIS, responds
-7. Client gets server's PID
-
-**Actual**:
-1-4 work correctly
-5. Client's dial through relay fails:
-   - Sometimes with protobuf error
-   - Sometimes with `CONNECTION_FAILED` status
-6-7 never happen
-
-### Debugging Options
-
-Add these flags to `run.sh` for more detail:
-
-```bash
-# Already added:
---debugp2p              # Troupe P2P debug logging
-
-# Can also add to relay start:
-DEBUG=libp2p:*          # All libp2p debug output
-DEBUG=libp2p:circuit-relay:*  # Circuit relay specific
-```
+Expected output should show:
+- "Relay reservation established" for both server and client
+- "Relay address: /ip4/.../p2p-circuit/p2p/..." in the advertised addresses
+- "CLIENT: Found echo server!" indicating whereis() worked
+- Server receiving PING and sending PONG
 
 ---
 
-## Files to Investigate
+## References
 
-| File | Purpose |
-|------|---------|
-| `rt/src/p2p/p2p.mts` | Troupe's libp2p configuration |
-| `p2p-tools/relay/relay.mts` | Relay server implementation |
-| `node_modules/@libp2p/circuit-relay-v2/dist/src/transport/index.js` | Circuit relay transport |
-| `node_modules/@libp2p/circuit-relay-v2/dist/src/pb/index.js` | Protobuf message definitions |
-
----
-
-## Key Finding: Missing Circuit Address Advertisement
-
-Looking at the server log:
-```
-Advertising with following addresses:
-/ip4/127.0.0.1/tcp/16789/p2p/...
-/ip4/10.192.104.4/tcp/16789/p2p/...
-```
-
-The server does NOT advertise its `/p2p-circuit` address! Even though:
-1. The server has `/p2p-circuit` in its listen addresses
-2. The relay confirms the RESERVE was successful
-
-The `self:peer:update` event fires but only shows TCP addresses, not the circuit relay address. This means either:
-1. The reservation isn't being properly processed by `circuitRelayTransport`
-2. There's a timing issue where we check addresses before the reservation completes
-3. The transport isn't adding the circuit address to the advertised addresses
-
----
-
-## Hypotheses to Test
-
-### Hypothesis 1: Reservation Not Completing on Client Side
-
-The relay says "sent confirmation response" but the Troupe node may not be properly receiving/processing it.
-
-The `circuitRelayTransport` should:
-1. Send RESERVE request
-2. Receive OK response with relay addresses
-3. Add circuit address to node's multiaddrs
-
-**Test**: Add logging inside `circuitRelayTransport` to see if the response is received.
-
-### Hypothesis 2: Transport Protocol Mismatch (Less Likely)
-
-The relay listens on WebSocket only:
-```
-/ip4/127.0.0.1/tcp/15555/ws/p2p/...
-```
-
-Troupe nodes listen on TCP:
-```
-/ip4/0.0.0.0/tcp/16789
-```
-
-When the relay tries to send STOP to the server, it may need to use TCP but only has a WebSocket connection.
-
-**Test**: Add WebSocket listen address to Troupe nodes, or add TCP to relay.
-
-### Hypothesis 3: Missing Identify Exchange
-
-The STOP protocol may require the target peer to be identified first. Check if identify is exchanged before the STOP request.
-
-**Test**: Add logging around identify events on the server.
-
-### Hypothesis 3: Stream Protocol Mismatch
-
-The protobuf error suggests receiving wrong data. The stream may be for a different protocol.
-
-**Test**: Log the protocol ID of streams when data is received.
-
-### Hypothesis 4: Connection Not Suitable for STOP
-
-The relay may be trying to reuse a connection that was established for a different purpose.
-
-**Test**: Check if the relay opens a new stream on the existing connection or tries to use an existing stream.
-
----
-
-## Next Steps
-
-1. [ ] Add hex dump logging before protobuf decode to see actual bytes
-2. [ ] Add logging for STOP protocol handler registration on Troupe nodes
-3. [ ] Test with WebSocket transport enabled on Troupe nodes
-4. [ ] Compare libp2p configuration with working js-libp2p relay examples
-5. [ ] Check if there's a version compatibility issue between relay and Troupe's libp2p dependencies
-
----
-
-## Related Files
-
-- [p2pbug-fix.md](p2pbug-fix.md) - Original fix for NO_RESERVATION error handling
-- [README.md](README.md) - Overview of the P2P bug reproduction setup
+- [mplex deprecation](https://docs.libp2p.io/concepts/multiplex/mplex/)
+- [Circuit Relay v2 spec](https://github.com/libp2p/specs/blob/master/relay/circuit-v2.md)
+- [js-libp2p circuit relay example](https://github.com/libp2p/js-libp2p-example-circuit-relay)

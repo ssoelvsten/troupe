@@ -170,10 +170,11 @@ async function startp2p(nodeId, rt: any): Promise<String> {
   }
   
   // When a peer dials using the Troupe protocol, handle the connection
+  // runOnLimitedConnection is required for circuit relay connections
   await _node.handle(_PROTOCOL, async (stream, connection) => {
     debug(`Handling protocol dial from id: ${connection.remotePeer}`);
     setupConnection(connection.remotePeer, stream);
-  });
+  }, { runOnLimitedConnection: true });
 
   // When a node is discovered, save the address and report it on the debug logger
   _node.addEventListener('peer:discovery', async (evt) => {
@@ -227,11 +228,26 @@ async function createLibp2p(_options) {
   const relayOnly = argv[TroupeCliArg.RelayOnly] || false;
   const noP2pCircuit = argv[TroupeCliArg.NoP2pCircuit] || false;
 
-  // Build listen addresses. Include /p2p-circuit to enable relay reservations
-  // in Circuit Relay v2, unless --no-p2p-circuit is specified (for testing).
+  // Build listen addresses
   const listenAddrs = [`/ip4/0.0.0.0/tcp/${__port}`];
+
+  // For circuit relay v2, we need to specify the exact relay address to listen on.
+  // Using just '/p2p-circuit' triggers relay discovery, but in relay-only mode
+  // discovery is disabled. By specifying the full relay address with /p2p-circuit,
+  // we tell the transport to make a reservation on that specific relay.
   if (!noP2pCircuit) {
-    listenAddrs.push('/p2p-circuit');
+    const relays = getRelays();
+    if (relays && relays.length > 0) {
+      // Use specific relay addresses (e.g., /ip4/.../p2p/RELAYID/p2p-circuit)
+      for (const relay of relays) {
+        listenAddrs.push(`${relay}/p2p-circuit`);
+        debug(`Adding circuit relay listen address: ${relay}/p2p-circuit`);
+      }
+    } else {
+      // No specific relay configured - use generic /p2p-circuit for discovery
+      listenAddrs.push('/p2p-circuit');
+      debug('No specific relay configured, using generic /p2p-circuit for discovery');
+    }
   } else {
     debug('--no-p2p-circuit: Relay reservations disabled (for testing NO_RESERVATION handling)');
   }
@@ -251,7 +267,9 @@ async function createLibp2p(_options) {
     ],
     streamMuxers: [
       yamux(),
-      mplex()
+      // mplex is deprecated and can cause issues with circuit relay protobuf decoding
+      // See: https://docs.libp2p.io/concepts/multiplex/mplex/
+      // mplex()
     ],
     connectionEncrypters: [
       noise(),
@@ -335,8 +353,9 @@ function dial(id: PeerId) {
         await getPeerInfo(id);
 
         // Dial using the Troupe protocol
+        // runOnLimitedConnection is required for circuit relay connections
         debug(`Trying to dial ${id}, attempt number ${i}`);
-        const stream = await _node.dialProtocol(id, _PROTOCOL);
+        const stream = await _node.dialProtocol(id, _PROTOCOL, { runOnLimitedConnection: true });
         debug("Dial successful");
 
         // Handle inputs and outputs
