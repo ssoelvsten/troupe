@@ -1,6 +1,7 @@
-MKID=node $(TROUPE)/p2p-tools/built/mkid.mjs
-MKALIASES=node $(TROUPE)/p2p-tools/built/mkaliases.js
-START=$(TROUPE)/network.sh
+TROUPE_ROOT=../../..
+MKID=node $(TROUPE_ROOT)/p2p-tools/built/mkid.mjs
+MKALIASES=node $(TROUPE_ROOT)/p2p-tools/built/mkaliases.js
+START=$(TROUPE_ROOT)/network.sh
 
 # Run both server and client together
 # Usage: make run (or: make setup && make run)
