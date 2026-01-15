@@ -1,6 +1,30 @@
 import yargs from 'yargs';
 import { hideBin } from 'yargs/helpers';
 
+/**
+ * Error class for CLI validation failures.
+ * These errors are displayed to users without stack traces.
+ */
+class CliValidationError extends Error {
+    constructor(message: string) {
+        super(message);
+        this.name = 'CliValidationError';
+    }
+}
+
+/**
+ * Handles CLI errors gracefully.
+ * For CliValidationError, prints a clean message and exits.
+ * For other errors, rethrows to preserve the original stack trace.
+ */
+function handleCliError(error: unknown): never {
+    if (error instanceof CliValidationError) {
+        console.error(`Error: ${error.message}`);
+        process.exit(1);
+    }
+    throw error;
+}
+
 export enum TroupeCliArg {
     Debug = 'debug',
     DebugSandbox = 'debugsandbox',
@@ -21,6 +45,8 @@ export enum TroupeCliArg {
     Relay = 'relay',
     RelayOnly = 'relay-only',
     NoP2pCircuit = 'no-p2p-circuit',
+    DisableRelay = 'disable-relay',
+    RelayFaultTolerance = 'relay-fault-tolerance',
     NoColor = 'no-color',
     V1Labels = 'v1-labels',
     SuppressLocalInfoMessage = 'suppress-local-info-message',
@@ -47,6 +73,8 @@ export interface ParsedArgs {
     [TroupeCliArg.Relay]?: string | string[];
     [TroupeCliArg.RelayOnly]?: boolean;
     [TroupeCliArg.NoP2pCircuit]?: boolean;
+    [TroupeCliArg.DisableRelay]?: boolean;
+    [TroupeCliArg.RelayFaultTolerance]?: string;
     [TroupeCliArg.NoColor]?: boolean;
     [TroupeCliArg.V1Labels]?: boolean;
     [TroupeCliArg.SuppressLocalInfoMessage]?: boolean;
@@ -77,7 +105,22 @@ export function getCliArgs(): ParsedArgs {
             .option(TroupeCliArg.RSpawn, { type: 'boolean', default: false, describe: 'Allow remote spawning of troupe processes' })
             .option(TroupeCliArg.Relay, { type: 'array', describe: 'Relay server multiaddress(es) for P2P connectivity' })
             .option(TroupeCliArg.RelayOnly, { type: 'boolean', default: false, describe: 'Disable DHT, mDNS, and bootstrap discovery; only use relay for peer connectivity' })
-            .option(TroupeCliArg.NoP2pCircuit, { type: 'boolean', default: false, describe: 'Disable /p2p-circuit listen address (for testing NO_RESERVATION error handling)' })
+            .option(TroupeCliArg.NoP2pCircuit, {
+                type: 'boolean',
+                default: false,
+                describe: 'Disable /p2p-circuit listen address (for testing NO_RESERVATION error handling)',
+                coerce: () => {
+                    // Handle the case where yargs interprets --no-p2p-circuit as negation
+                    return process.argv.includes('--no-p2p-circuit');
+                }
+            })
+            .option(TroupeCliArg.DisableRelay, { type: 'boolean', default: false, describe: 'Completely disable relay functionality (no circuit relay transport or connections)' })
+            .option(TroupeCliArg.RelayFaultTolerance, {
+                type: 'string',
+                choices: ['fatal', 'no-fatal'],
+                default: 'fatal',
+                describe: 'Control whether relay connection failures are fatal (fatal) or non-fatal (no-fatal)'
+            })
             .option(TroupeCliArg.NoColor, {
                 type: 'boolean',
                 default: false,
@@ -112,6 +155,34 @@ export function getCliArgs(): ParsedArgs {
         }
 
         parsedArgs = rawArgs as ParsedArgs;
+
+        // Validate relay-related options for consistency
+        try {
+            validateRelayOptions(parsedArgs);
+        } catch (error) {
+            handleCliError(error);
+        }
     }
     return parsedArgs;
+}
+
+/**
+ * Validates that relay-related CLI options are consistent with each other.
+ * Throws an error if inconsistent options are detected.
+ */
+export function validateRelayOptions(args: ParsedArgs): void {
+    const disableRelay = args[TroupeCliArg.DisableRelay];
+    const relay = args[TroupeCliArg.Relay];
+    const relayOnly = args[TroupeCliArg.RelayOnly];
+    const noP2pCircuit = args[TroupeCliArg.NoP2pCircuit];
+
+    if (disableRelay && relay && (Array.isArray(relay) ? relay.length > 0 : true)) {
+        throw new CliValidationError("Inconsistent relay options: --disable-relay cannot be used with --relay");
+    }
+    if (disableRelay && relayOnly) {
+        throw new CliValidationError("Inconsistent relay options: --disable-relay cannot be used with --relay-only");
+    }
+    if (relayOnly && noP2pCircuit) {
+        throw new CliValidationError("Inconsistent relay options: --relay-only cannot be used with --no-p2p-circuit");
+    }
 } 

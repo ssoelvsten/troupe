@@ -56,6 +56,7 @@ the libp2p).
 // IMPORTS
 
 import type { PeerId } from '@libp2p/interface';
+import { FaultTolerance } from '@libp2p/interface';
 import { getCliArgs, TroupeCliArg } from '../TroupeCliArgs.mjs';
 import { tcp } from '@libp2p/tcp';
 import { webSockets } from '@libp2p/websockets';
@@ -211,11 +212,17 @@ async function startp2p(nodeId, rt: any): Promise<String> {
 
   // Make sure the relay is dialed and the connections are kept live
   // To use more than one relay, make sure to dial them all
-  const relays = getRelays();
-  if (relays && relays.length > 0) {
-    keepAliveRelay(relays[0]);
+  // Skip if --no-relay is set
+  const disableRelay = argv[TroupeCliArg.DisableRelay] || false;
+  if (disableRelay) {
+    debug("--disable-relay: Skipping relay connection setup");
   } else {
-    debug("No relay configured, skipping relay connection");
+    const relays = getRelays();
+    if (relays && relays.length > 0) {
+      keepAliveRelay(relays[0]);
+    } else {
+      debug("No relay configured, skipping relay connection");
+    }
   }
 
   return id.toString();
@@ -227,6 +234,13 @@ async function startp2p(nodeId, rt: any): Promise<String> {
 async function createLibp2p(_options) {
   const relayOnly = argv[TroupeCliArg.RelayOnly] || false;
   const noP2pCircuit = argv[TroupeCliArg.NoP2pCircuit] || false;
+  const disableRelay = argv[TroupeCliArg.DisableRelay] || false;
+  const relayFaultTolerance = argv[TroupeCliArg.RelayFaultTolerance] || 'fatal';
+
+  // Determine fault tolerance setting for transport manager
+  const faultTolerance = relayFaultTolerance === 'no-fatal'
+    ? FaultTolerance.NO_FATAL
+    : FaultTolerance.FATAL_ALL;
 
   // Build listen addresses
   const listenAddrs = [`/ip4/0.0.0.0/tcp/${__port}`];
@@ -235,7 +249,8 @@ async function createLibp2p(_options) {
   // Using just '/p2p-circuit' triggers relay discovery, but in relay-only mode
   // discovery is disabled. By specifying the full relay address with /p2p-circuit,
   // we tell the transport to make a reservation on that specific relay.
-  if (!noP2pCircuit) {
+  // Skip all circuit relay addresses if --disable-relay is set
+  if (!disableRelay && !noP2pCircuit) {
     const relays = getRelays();
     if (relays && relays.length > 0) {
       // Use specific relay addresses (e.g., /ip4/.../p2p/RELAYID/p2p-circuit)
@@ -248,9 +263,16 @@ async function createLibp2p(_options) {
       listenAddrs.push('/p2p-circuit');
       debug('No specific relay configured, using generic /p2p-circuit for discovery');
     }
+  } else if (disableRelay) {
+    debug('--disable-relay: All relay functionality disabled');
   } else {
     debug('--no-p2p-circuit: Relay reservations disabled (for testing NO_RESERVATION handling)');
   }
+
+  // Build transports list - exclude circuit relay transport if --disable-relay is set
+  const transports = disableRelay
+    ? [tcp(), webSockets()]
+    : [tcp(), webSockets(), circuitRelayTransport({})];
 
   const defaults: any = {
     addresses: {
@@ -260,11 +282,10 @@ async function createLibp2p(_options) {
       minConnections: 1,
       maxConnections: Infinity,
     },
-    transports: [
-      tcp(),
-      webSockets(),
-      circuitRelayTransport({})
-    ],
+    transportManager: {
+      faultTolerance: faultTolerance
+    },
+    transports: transports,
     streamMuxers: [
       yamux(),
       // mplex is deprecated and can cause issues with circuit relay protobuf decoding
