@@ -19,13 +19,14 @@ import { LVal, MbVal } from "./Lval.mjs";
 import { MailboxInterface } from "./MailboxInterface.mjs";
 import { Level } from "./Level.mjs";
 import { Thread } from "./Thread.mjs";
+import { Record } from "./Record.mjs";
 
 
 function createMessage(msg, fromNodeId, pc) {
-    let tuple:any = mkTuple ([msg, fromNodeId]);  
-    // tuple.isTuple = true; // hack! 2018-10-19: AA
-    // tuple._troupeType = TroupeType.TUPLE
-    // tuple.dataLevel = lub (msg.dataLevel, pc)
+    // Create metadata record with senderNode field
+    // This enables the handler syntax: hn pattern | {senderNode=node} => ...
+    let metadata = Record.mkRecord([["senderNode", fromNodeId]]);
+    let tuple:any = mkTuple([msg, new LVal(metadata, fromNodeId.lev)]);
     return new MbVal(tuple, pc);
   }
 
