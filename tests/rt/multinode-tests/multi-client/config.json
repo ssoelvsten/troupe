@@ -4,7 +4,7 @@
   "coordination": "parallel",
   "network": {
     "relay_port": 5556,
-    "use_relay": true
+    "use_relay": "relay-only"
   },
   "nodes": [
     {

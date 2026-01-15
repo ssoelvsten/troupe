@@ -27,12 +27,12 @@ Each test lives in its own directory with:
   "coordination": "parallel|sequential",
   "network": {
     "relay_port": 5555,
-    "use_relay": true
+    "use_relay": "relay-only|no-relay|both"
   },
   "nodes": [
     {
       "id": "node1",
-      "script": "node1.trp", 
+      "script": "node1.trp",
       "port": 6789,
       "start_delay": 0,
       "expected_exit_code": 0
@@ -40,6 +40,11 @@ Each test lives in its own directory with:
   ]
 }
 ```
+
+#### `use_relay` options:
+- `"relay-only"`: Run test with relay server (default behavior)
+- `"no-relay"`: Run test without relay server
+- `"both"`: Run test twice - once with relay, once without. Output shows separate test names with suffixes: `test-name (relay)` and `test-name (no-relay)`
 
 ## Running Tests
 

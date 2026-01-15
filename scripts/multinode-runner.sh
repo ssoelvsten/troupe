@@ -824,46 +824,53 @@ merge_outputs() {
     esac
 }
 
-run_test() {
+# Run a single test with a specific relay mode
+# Args: config_file, relay_mode ("relay" or "no-relay"), test_name_suffix (optional)
+run_test_single() {
     local config_file="$1"
-    
+    local relay_mode="$2"
+    local test_name_suffix="${3:-}"
+
     # Set up temporary directory for this test run
     TEMP_DIR=$(mktemp -d -t troupe-multinode-XXXXXX)
     local output_dir="$TEMP_DIR/output"
     mkdir -p "$output_dir"
-    
+
     # Get test directory
     local test_dir
     test_dir=$(dirname "$(realpath "$config_file")")
-    
+
     local test_name
     test_name=$(jq -r '.test_name' "$config_file")
-    
+    if [[ -n "$test_name_suffix" ]]; then
+        test_name="$test_name ($test_name_suffix)"
+    fi
+
     log "Running multi-node test: $test_name"
     log "Test directory: $test_dir"
     log "Output directory: $output_dir"
-    
+    log "Relay mode: $relay_mode"
+
     # Validate ports are available before starting
     validate_ports "$config_file"
-    
+
     # Setup phase
     setup_network_identities "$test_dir" "$config_file"
 
-    local use_relay
-    use_relay=$(jq -r '.network.use_relay' "$config_file")
-    if [[ "$use_relay" == "true" ]]; then
+    # Start relay if needed
+    if [[ "$relay_mode" == "relay" ]]; then
         start_relay "$config_file"
     else
-        log "Relay disabled by configuration"
+        log "Relay disabled for this run"
     fi
-    
+
     # Execution phase
     local coordination
     coordination=$(jq -r '.coordination // "parallel"' "$config_file")
-    
+
     local node_count
     node_count=$(get_node_count "$config_file")
-    
+
     case "$coordination" in
         "parallel")
             # Start all nodes simultaneously
@@ -886,9 +893,7 @@ run_test() {
             done
 
             if [[ "$failed" == "true" ]]; then
-                echo "Error: The following nodes failed: ${failed_nodes[*]}" >&2
-                # Don't call error() here as it triggers cleanup prematurely
-                # Just return failure to the caller
+                echo "Error: The following nodes failed in $test_name: ${failed_nodes[*]}" >&2
                 return 1
             fi
             ;;
@@ -902,11 +907,87 @@ run_test() {
             error "Unknown coordination strategy: $coordination"
             ;;
     esac
-    
+
     # Output phase
     merge_outputs "$config_file" "$output_dir"
-    
-    log "Multi-node test completed successfully"
+
+    log "Multi-node test completed successfully: $test_name"
+}
+
+run_test() {
+    local config_file="$1"
+
+    local use_relay
+    use_relay=$(jq -r '.network.use_relay' "$config_file")
+
+    case "$use_relay" in
+        "both")
+            # Run test twice: first with relay, then without
+            echo "=== Running with relay ===" >&2
+            run_test_single "$config_file" "relay" "relay"
+            local relay_result=$?
+
+            # Clean up between runs
+            cleanup_between_runs
+
+            echo "=== Running without relay ===" >&2
+            run_test_single "$config_file" "no-relay" "no-relay"
+            local no_relay_result=$?
+
+            # Return failure if either run failed
+            if [[ $relay_result -ne 0 ]] || [[ $no_relay_result -ne 0 ]]; then
+                return 1
+            fi
+            ;;
+        "relay-only")
+            run_test_single "$config_file" "relay"
+            ;;
+        "no-relay")
+            run_test_single "$config_file" "no-relay"
+            ;;
+        *)
+            error "Unknown use_relay value: $use_relay (expected 'both', 'relay-only', or 'no-relay')"
+            ;;
+    esac
+}
+
+# Cleanup between test runs when running "both" mode
+cleanup_between_runs() {
+    log "Cleaning up between relay/no-relay runs..."
+
+    # Kill relay if running
+    if is_valid_pid "$RELAY_PID"; then
+        log "Stopping relay (PID: $RELAY_PID)"
+        kill "$RELAY_PID" 2>/dev/null || true
+        sleep 1
+        kill -9 "$RELAY_PID" 2>/dev/null || true
+    fi
+    RELAY_PID=""
+    RELAY_MULTIADDR=""
+
+    # Kill any node processes
+    if [[ -n "${CLEANUP_PIDS[*]:-}" ]]; then
+        for pid in "${CLEANUP_PIDS[@]}"; do
+            if is_valid_pid "$pid"; then
+                kill "$pid" 2>/dev/null || true
+            fi
+        done
+    fi
+    CLEANUP_PIDS=()
+
+    # Clean up ports
+    if [[ -n "$TEST_CONFIG" ]]; then
+        local ports=($(get_all_ports "$TEST_CONFIG"))
+        for port in "${ports[@]}"; do
+            if [[ "$port" =~ ^[0-9]+$ ]]; then
+                kill_processes_on_port "$port"
+            fi
+        done
+    fi
+
+    # Wait for socket release
+    sleep 2
+    log "Cleanup between runs complete"
 }
 
 main() {
