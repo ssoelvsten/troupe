@@ -48,26 +48,31 @@ export class MailboxProcessor implements MailboxInterface {
 
 
 
-    addMessage(fromNodeId, toPid, message, pc) {        
+    addMessage(fromNode: string, toPid, message, pc) {
 
         debug (`addMessage ${message.stringRep()} ${pc.stringRep()}`)
         let __sched = this.sched;
-    
+
         // check whether the recipient is alive
         if (!__sched.isAlive(toPid)) {
-            return;            
+            return;
         }
 
         // get the recipient thread
         let t = __sched.getThread (toPid);
 
-        // create the message 
+        // Construct fromNodeId using the receiving thread's creation-time PC
+        // This ensures the label reflects when the thread was created, not when
+        // the message was received
+        let fromNodeId = new LVal(fromNode, lub (pc, t.pcAtCreation()));
+
+        // create the message
         let messageWithSenderId = createMessage(message, fromNodeId, pc);
 
         // add the message to the thread's mailbox
         t.addMessage (messageWithSenderId);
 
-        // unblock the thread if necessary        
+        // unblock the thread if necessary
         __sched.unblockThread(toPid);
     }
 

@@ -185,12 +185,10 @@ async function receiveFromRemote(pid, jsonObj, fromNode) {
   let data = await DS.deserialize(nodeTrustLevel(fromNode), jsonObj)
   debug(`* rt receiveFromremote *  ${fromNode} ${data.stringRep()}`);
 
-  // TODO: 2018-07-23: do we need to do some more raising
-  // about the level of the fromNode?; AA
-
-  let fromNodeId = __sched.mkVal(fromNode);
   let toPid = new LVal(new ProcessID(rt_uuid, pid, __nodeManager.getLocalNode()), data.lev);
-  __theMailbox.addMessage(fromNodeId, toPid, data.val, data.lev);
+  // Pass raw fromNode; addMessage will construct the labeled value using
+  // the receiving thread's creation-time PC
+  __theMailbox.addMessage(fromNode, toPid, data.val, data.lev);
   __sched.resumeLoopAsync();
 
 }
@@ -246,8 +244,7 @@ function rt_sendMessageNochecks(lRecipientPid, message, ret = true) {
   // debug (`rt_sendMessageNoChecks ${message.stringRep()}`)
 
   if (isLocalPid(recipientPid)) {
-    let nodeId = __sched.mkVal(__nodeManager.getNodeId());
-    __theMailbox.addMessage(nodeId, lRecipientPid, message, $t().pc);
+    __theMailbox.addMessage(__nodeManager.getNodeId(), lRecipientPid, message, $t().pc);
 
     if (ret) {
       return $t().returnImmediateLValue(__unit);      
