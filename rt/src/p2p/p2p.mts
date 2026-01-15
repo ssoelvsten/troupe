@@ -287,9 +287,9 @@ async function createLibp2p(_options) {
         debug(`Adding circuit relay listen address: ${relay}/p2p-circuit`);
       }
     } else {
-      // No specific relay configured - use generic /p2p-circuit for discovery
-      listenAddrs.push('/p2p-circuit');
-      debug('No specific relay configured, using generic /p2p-circuit for discovery');
+      // No relays configured - skip circuit relay listen address
+      // Direct connectivity via TCP/mDNS will still work
+      debug('No relays configured, skipping /p2p-circuit listen address');
     }
   } else if (disableRelay) {
     debug('--disable-relay: All relay functionality disabled');

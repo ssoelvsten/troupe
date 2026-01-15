@@ -479,14 +479,7 @@ ensure_relay_built() {
 
 start_relay() {
     local config_file="$1"
-    local use_relay
-    use_relay=$(jq -r '.network.use_relay // true' "$config_file")
-    
-    if [[ "$use_relay" != "true" ]]; then
-        log "Relay disabled by configuration"
-        return 0
-    fi
-    
+
     # Check if relay address is provided in config
     local relay_address
     relay_address=$(jq -r '.network.relay_address // ""' "$config_file")
@@ -855,7 +848,14 @@ run_test() {
     
     # Setup phase
     setup_network_identities "$test_dir" "$config_file"
-    start_relay "$config_file"
+
+    local use_relay
+    use_relay=$(jq -r '.network.use_relay' "$config_file")
+    if [[ "$use_relay" == "true" ]]; then
+        start_relay "$config_file"
+    else
+        log "Relay disabled by configuration"
+    fi
     
     # Execution phase
     local coordination
