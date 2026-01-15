@@ -3,25 +3,35 @@ MKID=node $(TROUPE_ROOT)/p2p-tools/built/mkid.mjs
 MKALIASES=node $(TROUPE_ROOT)/p2p-tools/built/mkaliases.js
 START=$(TROUPE_ROOT)/network.sh
 
+# Server configuration
+SERVER_PORT=6789
+SERVER_CMD=$(START) echo-server.trp --disable-relay --id=ids/server.json --port=$(SERVER_PORT)
+
+# Client configuration
+CLIENT_CMD=$(START) echo-client.trp --disable-relay --id=ids/client.json --aliases=aliases.json --trustmap=client-trustmap.json
+
 # Run both server and client together
 # Usage: make run (or: make setup && make run)
 run: check-setup
-	@echo "Starting server in background..."
-	$(START) echo-server.trp --id=ids/server.json --port=6789 &
-	@sleep 2
-	@echo "Starting client..."
-	$(START) echo-client.trp --id=ids/client.json --aliases=aliases.json --trustmap=client-trustmap.json
-	@echo "Done. You may need to kill the server manually (pkill -f echo-server)"
+	@echo "Starting server in background..." && \
+	$(SERVER_CMD) & SERVER_PID=$$!; \
+	sleep 2; \
+	echo "Starting client..."; \
+	$(CLIENT_CMD); CLIENT_EXIT=$$?; \
+	echo "Client finished, waiting for server..."; \
+	wait $$SERVER_PID; SERVER_EXIT=$$?; \
+	echo "Done. Server exit: $$SERVER_EXIT, Client exit: $$CLIENT_EXIT"; \
+	exit $$CLIENT_EXIT
 
 # Server: does NOT trust the client (no trustmap entry for client)
 # This means information from the client will be downgraded to BOT level
 server: check-setup
-	$(START) echo-server.trp --id=ids/server.json --port=6789
+	$(SERVER_CMD)
 
 # Client: trusts the server at level {alice}
 # This allows the client to send {alice}-level data to the server
 client: check-setup
-	$(START) echo-client.trp --id=ids/client.json --aliases=aliases.json --trustmap=client-trustmap.json
+	$(CLIENT_CMD)
 
 # Full setup: create identifiers and trustmap
 setup: create-network-identifiers create-trustmap

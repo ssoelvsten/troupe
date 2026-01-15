@@ -3,14 +3,20 @@
 
 let
     val _ = spawn (fn () =>
-        let val _ = sleep (10000)
+        let val _ = sleep (10000000)
             val _ = print "Server timeout exit"
-        in exit (authority, 0)
+        in exit (authority, 124)
         end)
+
+    fun serverDone() = 
+        sleep (1000); 
+        print "Server done";
+        exit (authority, 0)
 
     val _ = register ("echo", self(), authority)
 
-    fun loop () =
+    fun loop i =
+        if i > 0 then serverDone() else 
         let val _ = print "SERVER: waiting for messages..."
             val _ = receive [
                 hn ("ECHO", msg, sender) =>
@@ -24,8 +30,8 @@ let
                     end,
                 hn _ => ()
             ]
-        in loop ()
+        in loop (i+1)
         end
 
-in loop ()
+in loop 0 
 end

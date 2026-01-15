@@ -18,5 +18,6 @@ let val _ = print "CLIENT: Starting echo client"
     val _ = print "CLIENT: Received response with labels:"
     val _ = printWithLabels response
 
-in print "CLIENT: Echo test completed"
+    val _ = print "CLIENT: Echo test completed"
+in exit (authority, 0)
 end
