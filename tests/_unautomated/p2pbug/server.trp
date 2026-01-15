@@ -25,7 +25,8 @@ let
     ]
 
 in if result = "success" then
-       (print "SERVER: Test passed"; exit(authority, 0))
+       (* Allow time for PONG to be delivered through circuit relay *)
+       (print "SERVER: Test passed"; sleep 1000; exit(authority, 0))
    else
        (print "SERVER: Test failed"; exit(authority, 1))
 end

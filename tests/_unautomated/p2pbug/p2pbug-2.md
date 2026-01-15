@@ -176,30 +176,48 @@ Add `runOnLimitedConnection: true` to both:
 
 ---
 
-## Remaining Issue: Connection Timing
+## Issue 4: Connection Timing (RESOLVED)
 
-After all fixes, there's still a timing issue where the server sends PONG but the client times out. The connection is closed immediately after the response is sent. This appears to be a Troupe-level issue rather than a libp2p/relay issue.
+After the circuit relay fixes, there was still a timing issue where the server sends PONG but the client times out. This has been resolved.
 
-### Evidence from Logs
+### Root Cause
 
-Server side (works correctly):
+When a Troupe program calls `exit()` immediately after `send()`, the P2P shutdown happens before the message can traverse through the circuit relay to the remote peer. The issue is:
+
+1. `send()` queues the message in the stream's write buffer
+2. `exit()` triggers `stopp2p()` which stops the libp2p node
+3. The node closes connections before the data can be relayed to the peer
+4. The remote peer sees a disconnect instead of receiving the message
+
+### Solution
+
+For fire-and-forget `send()` operations where you need to ensure delivery before exiting, add a short delay before calling `exit()`. This gives time for messages to traverse through circuit relays.
+
+```sml
+(* After send, wait for message to be delivered through relay *)
+val _ = send(recipient, message)
+val _ = sleep 1000  (* Allow relay transmission *)
+val _ = exit(authority, 0)
 ```
-Received SEND from [client]
-SERVER: Received PING from client
-SERVER: Sent PONG reply
-SERVER: Test passed
-Hanging up connection to [client]
-```
 
-Client side (doesn't receive PONG):
-```
-CLIENT: Found echo server!
-CLIENT: Sent PING, waiting for PONG...
-Disconnect from [server]
-CLIENT: Timeout - could not find server (BUG REPRODUCED)
-```
+### Why This Happens
 
-The connection is hung up before the PONG can be received. This is likely a race condition in the Troupe message handling that should be investigated separately.
+In libp2p v3, `stream.send()` returns immediately - it just queues data in an internal buffer. There's no API to wait for data to actually reach the remote peer. For circuit relay connections, "reaching the transport" (what `stream.close()` waits for) only means reaching the relay connection, not the end-to-end peer.
+
+The `stopp2p()` function in the runtime:
+1. Ends all pushables (signals no more data to queue)
+2. Waits for write pipelines to drain (all data sent to `stream.send()`)
+3. Calls `_node.stop()` which closes all connections
+
+The data is in libp2p's buffers when `_node.stop()` is called, but it hasn't traversed the relay yet.
+
+### Alternative Solutions Considered
+
+1. **Application-level ACKs**: Require acknowledgment before exiting. Cleanest but adds complexity.
+2. **Runtime-level flush**: Track pending writes and wait. Rejected because libp2p doesn't expose when data reaches the remote peer.
+3. **Arbitrary delays in runtime**: Hacky and unreliable.
+
+The sleep solution is pragmatic for test cases and applications where delivery timing matters.
 
 ---
 

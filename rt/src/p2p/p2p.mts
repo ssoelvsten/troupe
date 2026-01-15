@@ -1135,33 +1135,12 @@ export let p2p = {
     return whereisp2p(arg1, arg2)
   },
   stopp2p: async () => {
-    // End all pushables on all streams before stopping the node.
-    //
-    // Background: In libp2p v3, streams changed from duplex iterables (with
-    // source/sink that could be piped through) to EventTarget-based streams
-    // with .send() for writing. See: https://blog.libp2p.io/2025-09-30-js-libp2p/
-    //
-    // Previously, a single pipe() could flow through the stream:
-    //   pipe(pushable, ...transforms, stream, ...transforms, handler)
-    // The stream acted as both sink and source, and when it closed, the entire
-    // pipeline would naturally terminate.
-    //
-    // In v3, we need separate read and write pipelines:
-    //   Write: pushable -> transforms -> stream.send()
-    //   Read:  stream (AsyncIterable) -> transforms -> handler
-    //
-    // The write pipeline's `for await` loop blocks waiting for data from the
-    // pushable. Since the pushable is no longer tied to the stream's lifecycle,
-    // it must be explicitly ended. Without this, _node.stop() hangs indefinitely
-    // because libp2p waits for streams to close gracefully, but the write
-    // pipelines never terminate.
-    const connections = _node.getConnections();
-    for (const connection of connections) {
+    // End all pushables before stopping to allow _node.stop() to complete.
+    // Without ending pushables, the write pipelines block indefinitely.
+    for (const connection of _node.getConnections()) {
       for (const stream of connection.streams) {
         const p = (stream as any).p;
-        if (p && typeof p.end === 'function') {
-          p.end();
-        }
+        if (p) p.end();
       }
     }
     return await _node.stop()
