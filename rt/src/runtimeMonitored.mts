@@ -456,41 +456,43 @@ async function loadServiceCode() {
 
 async function getNetworkPeerId(rtHandlers) {
   const nodeIdFile = argv[TroupeCliArg.Id] as string;
+
+  // Parse node ID from file if provided
+  let nodeId = null;
   if (nodeIdFile) {
     try {
-      let nodeIdObj = await readFile(nodeIdFile, 'utf-8')
-      process.on('unhandledRejection', (e) => p2p.processExpectedNetworkErrors(e, "unhandledRejection"))
-      // process.on ('unhandledRejection', up => {console.log ("Unhandled rejection"); console.error (up)})
-      // process.on ('uncaughtException', up => {console.log ("Uncaught exception"); console.error (up)})
-      process.on('uncaughtException', (e) => p2p.processExpectedNetworkErrors(e, "uncaughtException"))
-      return await p2p.startp2p(JSON.parse(nodeIdObj), rtHandlers);
+      const nodeIdObj = await readFile(nodeIdFile, 'utf-8')
+      nodeId = JSON.parse(nodeIdObj);
     } catch (err) {
-      logger.error("cannot load id file")
+      logger.error(`cannot load id file: ${nodeIdFile}`)
       process.exit(1);
     }
-  } else {
-    try {
-      if (argv[TroupeCliArg.LocalOnly] || argv[TroupeCliArg.Persist]) {
-        if (!argv[TroupeCliArg.SuppressLocalInfoMessage]) {
-          info("Skipping network creation. Observe that all external IO operations will yield a runtime error.")
-        }
-        if (argv[TroupeCliArg.Persist]) {
-          info("Running with persist flag.")
-        }
-        return null//  OBS: 2018-07-22: we are jumping over the network creation
-      } else {
-        return await p2p.startp2p(null, rtHandlers);
-      }
-    } catch (err) {
-      if (err instanceof P2pUserError) {
-        // User-facing P2P errors are displayed without stack traces
-        logger.error(err.message);
-      } else {
-        logger.error("uncaught exception in the runtime")
-        console.error(err.stack);
-      }
-      process.exit(1);
+  }
+
+  // Handle local-only or persist modes (skip network creation)
+  if (argv[TroupeCliArg.LocalOnly] || argv[TroupeCliArg.Persist]) {
+    if (!argv[TroupeCliArg.SuppressLocalInfoMessage]) {
+      info("Skipping network creation. Observe that all external IO operations will yield a runtime error.")
     }
+    if (argv[TroupeCliArg.Persist]) {
+      info("Running with persist flag.")
+    }
+    return null // OBS: 2018-07-22: we are jumping over the network creation
+  }
+
+  // Start P2P network
+  try {
+    process.on('unhandledRejection', (e) => p2p.processExpectedNetworkErrors(e, "unhandledRejection"))
+    process.on('uncaughtException', (e) => p2p.processExpectedNetworkErrors(e, "uncaughtException"))
+    return await p2p.startp2p(nodeId, rtHandlers);
+  } catch (err) {
+    if (err instanceof P2pUserError) {
+      logger.error(err.message);
+    } else {
+      logger.error("p2p network initialization failed")
+      console.error(err.stack);
+    }
+    process.exit(1);
   }
 }
 
