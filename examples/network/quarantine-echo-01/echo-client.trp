@@ -4,10 +4,15 @@
 let val _ = print "CLIENT: Starting echo client"
     val _ = sleep 200  (* Give server time to register *)
 
-    val echo = whereis ("@server", "echo")
+    val {processId = echo_received, quarantineAuth = q} = qwhereis ("@server", "echo")
     val _ = print "CLIENT: Found echo server"
-    val _ = printWithLabels echo
-
+    val _ = printWithLabels echo_received
+    val _ = print "CLIENT: whereis quarantined authority"
+    val _ = printWithLabels q
+    val _ = printWithLabels (attenuate (authority, `{XXX}`))
+    val echo = downgrade (echo_received, q, `{alice}`)
+    val _ = printWithLabels echo 
+   
     (* Create a message at level {alice} *)
     val test_msg = "Hello from alice" raisedTo `{alice}`
     val _ = print "CLIENT: test_msg with labels:"

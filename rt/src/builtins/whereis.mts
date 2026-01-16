@@ -21,6 +21,7 @@ const argv = getCliArgs();
 
 let logLevel = argv[TroupeCliArg.Debug] ? 'debug': 'info'
 import { mkLogger } from '../logger.mjs'
+import { Authority } from '../Authority.mjs'
 const logger = mkLogger('RTM', logLevel);
 const debug = x => logger.debug(x)
 
@@ -151,20 +152,20 @@ export function BuiltinRegistry<TBase extends Constructor<UserRuntimeZero>>(Base
                         ["processId", pidLVal]
                     ]);
                     return this.runtime.$t.mkValWithLev (resultRecord, pidLVal.lev);
-                    // return new LVal(resultRecord, pidLVal.lev);
                 },
                 // Remote: wrap in record, include quarantineAuth if quarantine occurred
                 (pid, bodyLev, result) => {
+                    let resLev = lub (this.runtime.$t.pc, bodyLev)
                     let pidLVal = this.runtime.$t.mkValWithLev(pid, bodyLev);
                     let fields: [string, LVal][] = [["processId", pidLVal]];
                     if (result.quarantineAuth) {
-                        fields.push(["quarantineAuth", 
-                                this.runtime.$t.mkValWithLev(
-                                    result.quarantineAuth
-                                  , this.runtime.$t.pc)]);
+                        let qAuthLval = this.runtime.$t.mkValWithLev (
+                               new Authority (result.quarantineAuth)
+                             , this.runtime.$t.pc)
+                        fields.push(["quarantineAuth", qAuthLval])
                     }
                     let resultRecord = Record.mkRecord(fields);
-                    return this.runtime.$t.mkValWithLev(resultRecord, bodyLev);
+                    return this.runtime.$t.mkValWithLev(resultRecord, this.runtime.$t.pc);
                 }
             );
         }, "qwhereis")
