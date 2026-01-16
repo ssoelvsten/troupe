@@ -125,6 +125,22 @@ Upon receiving a message with value `v` labeled at `ℓ` from node `n` with trus
 
 3. Place tuple `(ℓ_q, relabeled_data)` in mailbox where `ℓ_q` is fresh quarantine authority.
 
+### Component-Wise Quarantine (Implementation Detail)
+
+The implementation performs a **component-wise** check for DC labels rather than an all-or-nothing quarantine:
+
+```
+Given claimed label ⟨C; I⟩ and trust level ⟨C_t; I_t⟩:
+
+  result.confidentiality = C   if C_t ⊑ C (trust implies claimed confidentiality)
+                           C_q otherwise (use quarantine confidentiality)
+
+  result.integrity       = I   if I_t ⊑ I (trust implies claimed integrity)
+                           I_q otherwise (use quarantine integrity)
+```
+
+This allows **partial trust**: if a node is trusted for confidentiality but not integrity, only the integrity component gets quarantined. The `implies` function on CNF formulas checks if one component implies another (i.e., is at least as restrictive).
+
 ### Implementation Tasks for Full Quarantine [COMPLETED]
 
 All tasks were implemented in commit `b99f4cc`. See [deserialization.md](deserialization.md) for details.

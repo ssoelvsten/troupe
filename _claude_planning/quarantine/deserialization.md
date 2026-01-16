@@ -47,10 +47,31 @@ function mkValue(arg) {
 When deserializing a message from node `n` with trust level `ℓ_n`, the ingress check has **three outcomes**:
 
 1. **TRUSTED**: All labels in the aggregate satisfy `ℓ_n ⪰ ℓ` → return value unchanged
-2. **QUARANTINE**: Some label has `ℓ_n ⋡ ℓ` but none are corrupt → return value with a **single** fresh quarantine label
+2. **QUARANTINE**: Some label has `ℓ_n ⋡ ℓ` but none are corrupt → return value with quarantine label components
 3. **DROP**: Any label is corrupt → drop the message entirely
 
-The key insight is that quarantine is a **message-level** decision, not per-value. A single fresh quarantine label applies to the entire message if any part is untrusted.
+The key insight is that quarantine is a **message-level** decision, not per-value. A single fresh quarantine label is created per message if any part is untrusted.
+
+### Component-Wise Quarantine Logic (Updated)
+
+For DC labels, the quarantine check is performed **component-wise** on confidentiality and integrity separately:
+
+```
+Given:
+  - claimedLevel = ⟨conf_claimed; int_claimed⟩
+  - trustLevel = ⟨conf_trust; int_trust⟩
+  - quarantineLabel = ⟨conf_q; int_q⟩ (fresh, lazily created)
+
+Result label components:
+  - conf_result = conf_claimed   if conf_trust ⊑ conf_claimed
+                  conf_q         otherwise
+  - int_result  = int_claimed    if int_trust ⊑ int_claimed
+                  int_q          otherwise
+
+Result = ⟨conf_result; int_result⟩
+```
+
+**Rationale**: This allows partial trust. If a node is trusted for confidentiality but not integrity (or vice versa), only the untrusted component gets quarantined. The `implies` function checks if the trust level's component implies (is at least as restrictive as) the claimed level's component.
 
 ---
 
@@ -124,7 +145,19 @@ function constructCurrent(compilerOutput: string) {
             if (lev.isCorrupt()) {
                 throw new CorruptDataException();
             }
-            return this.quarantineLabel;  // Triggers lazy creation
+
+            // Component-wise quarantine: only quarantine the specific
+            // confidentiality/integrity component that is not trusted
+            const quarantineLabel = this.quarantineLabel; // Triggers lazy creation
+
+            let conf_label = implies(__trustLevel.confidentiality, lev.confidentiality)
+                ? lev.confidentiality
+                : quarantineLabel.confidentiality;
+            let int_label = implies(__trustLevel.integrity, lev.integrity)
+                ? lev.integrity
+                : quarantineLabel.integrity;
+
+            return new DCLabel(conf_label, int_label);
         }
 
         /** Main deserialization method - adapted from existing mkValue */
@@ -269,12 +302,14 @@ addMessage(fromNode: string, toPid, message, pc, quarantineAuth = null) {
 
 **File**: [rt/src/deserialize.mts](rt/src/deserialize.mts)
 
-Add UUID import:
+Add imports for UUID, DCLabel, and implies:
 ```typescript
 import { v4 as uuidv4 } from 'uuid';
+import { DCLabel } from './levels/DCLabels/dclabel.mjs';
+import { implies } from './levels/DCLabels/cnf.mjs';
 ```
 
-Note: `levels` namespace already imported at line 17.
+Note: `levels` namespace already imported at line 18.
 
 ---
 

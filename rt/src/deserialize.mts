@@ -19,6 +19,8 @@ import * as levels from './Level.mjs';
 import { getTroupeRoot } from './troupeRoot.mjs';
 import { getCliArgs, TroupeCliArg } from './TroupeCliArgs.mjs';
 import { mkLogger } from './logger.mjs';
+import { DCLabel } from './levels/DCLabels/dclabel.mjs';
+import { implies } from './levels/DCLabels/cnf.mjs';
 
 const argv = getCliArgs();
 const logLevel = argv[TroupeCliArg.DebugQuarantine] ? 'debug' : 'info';
@@ -291,8 +293,18 @@ function constructCurrent(compilerOutput: string) {
                 qdebug(`DROP: corrupt label ${lev.stringRep()}`);
                 throw new CorruptDataException();
             }
-            qdebug(`QUARANTINE: label ${lev.stringRep()} not trusted by ${__trustLevel.stringRep()} -> ${this.quarantineLabel.stringRep()}`);
-            return this.quarantineLabel;  // Triggers lazy creation
+
+            const quarantineLabel = this.quarantineLabel // Triggers lazy creation
+            
+            let conf_label = implies((__trustLevel as Level).confidentiality, lev.confidentiality)? lev.confidentiality : 
+                quarantineLabel.confidentiality
+            let int_label = implies ((__trustLevel as Level).integrity, lev.integrity)? lev.integrity : 
+                quarantineLabel.integrity
+            
+            const resultLabel = new DCLabel (conf_label, int_label)
+
+            qdebug(`QUARANTINE: label ${lev.stringRep()} not trusted by ${__trustLevel.stringRep()} -> ${resultLabel.stringRep()}`);
+            return resultLabel;  
         }
 
         private deserializeArray(x: any[]): LVal[] {
