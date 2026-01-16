@@ -102,7 +102,18 @@ async function spawnAtNode(nodeid, f) {
 
   try {
     let body1 = await p2p.spawnp2p(node.nodeId, data);
-    let body = await DS.deserialize(nodeTrustLevel(node.nodeId), body1)
+    let result = await DS.deserialize(nodeTrustLevel(node.nodeId), body1)
+
+    // For spawn responses, DROP means we can't trust the pid we got back
+    if (result.result === DS.IngressResult.DROP) {
+      error(`Dropping corrupt spawn response from ${node.nodeId}`);
+      theThread.throwInSuspended("Corrupt spawn response from remote node");
+      __sched.scheduleThread(theThread);
+      __sched.resumeLoopAsync();
+      return;
+    }
+
+    let body = result.value!;
     let pid = new ProcessID(body.val.uuid, body.val.pid, body.val.node);
     theThread.returnSuspended(new LVal(pid, body.lev));
 
@@ -150,7 +161,16 @@ async function spawnFromRemote(jsonObj, fromNode) {
 
   let nodeLev = nodeTrustLevel(fromNode);
 
-  let lf = await DS.deserialize(nodeLev, jsonObj)
+  let result = await DS.deserialize(nodeLev, jsonObj)
+
+  // For spawn requests, DROP means we reject the spawn
+  if (result.result === DS.IngressResult.DROP) {
+    debug(`Rejecting spawn from ${fromNode} due to corrupt data`);
+    // Return null to indicate failure - the caller will handle this
+    return null;
+  }
+
+  let lf = result.value!;
   let f = lf.val;
   let newPid =
     __sched.scheduleNewThreadAtLevel(
@@ -182,15 +202,29 @@ async function spawnFromRemote(jsonObj, fromNode) {
  */
 async function receiveFromRemote(pid, jsonObj, fromNode) {
   debug(`* rt receiveFromremote *  ${JSON.stringify(jsonObj)}`)
-  let data = await DS.deserialize(nodeTrustLevel(fromNode), jsonObj)
+
+  const result = await DS.deserialize(nodeTrustLevel(fromNode), jsonObj);
+
+  // Handle ingress check result
+  if (result.result === DS.IngressResult.DROP) {
+    debug(`Dropping corrupt message from ${fromNode}`);
+    return;  // Silent drop
+  }
+
+  const data = result.value!;
   debug(`* rt receiveFromremote *  ${fromNode} ${data.stringRep()}`);
 
   let toPid = new LVal(new ProcessID(rt_uuid, pid, __nodeManager.getLocalNode()), data.lev);
+
+  // Pass quarantine authority if present
+  const quarantineAuth = result.result === DS.IngressResult.QUARANTINE
+    ? result.quarantineAuth!
+    : null;
+
   // Pass raw fromNode; addMessage will construct the labeled value using
   // the receiving thread's creation-time PC
-  __theMailbox.addMessage(fromNode, toPid, data.val, data.lev);
+  __theMailbox.addMessage(fromNode, toPid, data.val, data.lev, quarantineAuth);
   __sched.resumeLoopAsync();
-
 }
 
 

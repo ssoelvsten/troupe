@@ -1,7 +1,7 @@
 import { UserRuntimeZero, Constructor, mkBase } from './UserRuntimeZero.mjs'
 import { LVal } from '../Lval.mjs';
 import * as levels from '../Level.mjs'
-import {deserialize} from '../deserialize.mjs'
+import {deserialize, IngressResult} from '../deserialize.mjs'
 import * as fs from 'node:fs';
 import { assertIsNTuple, assertIsRootAuthority, assertIsString } from '../Asserts.mjs'
 import { __unit } from '../UnitVal.mjs';
@@ -28,7 +28,20 @@ export function BuiltinPersist<TBase extends Constructor<UserRuntimeZero>>(Base:
 
             (async () => {
                 let jsonStr = await fs.promises.readFile("./out/saved." + file.val + ".persist.json", 'utf8');
-                let data = await deserialize(levels.TOP, JSON.parse(jsonStr));                
+                // Use ROOT (most trusted) for local deserialization - we trust our own persisted data
+                let result = await deserialize(levels.ROOT, JSON.parse(jsonStr));
+
+                // For restore, DROP means the persisted data was corrupted
+                if (result.result === IngressResult.DROP) {
+                    theThread.throwInSuspended("Corrupt data in persisted file");
+                    this.runtime.__sched.scheduleThread(theThread);
+                    this.runtime.__sched.resumeLoopAsync();
+                    return;
+                }
+
+                // For local restore, we trust TOP so QUARANTINE should not happen
+                // but if it does, we still use the value
+                let data = result.value!;
                 theThread.returnSuspended(data);
                 this.runtime.__sched.scheduleThread(theThread);
                 this.runtime.__sched.resumeLoopAsync();

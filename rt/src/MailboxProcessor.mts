@@ -20,15 +20,21 @@ import { MailboxInterface } from "./MailboxInterface.mjs";
 import { Level } from "./Level.mjs";
 import { Thread } from "./Thread.mjs";
 import { Record } from "./Record.mjs";
+import { Authority } from "./Authority.mjs";
 
 
-function createMessage(msg, fromNodeId, pc) {
+function createMessage(msg, fromNodeId, pc, quarantineAuthLVal: LVal | null = null) {
     // Create metadata record with senderNode field
     // This enables the handler syntax: hn pattern | {senderNode=node} => ...
-    let metadata = Record.mkRecord([["senderNode", fromNodeId]]);
-    let tuple:any = mkTuple([msg, new LVal(metadata, fromNodeId.lev)]);
+    let metadataFields: [string, any][] = [["senderNode", fromNodeId]];
+    if (quarantineAuthLVal !== null) {
+        // Add quarantine authority to metadata (already an LVal containing Authority)
+        metadataFields.push(["quarantineAuth", quarantineAuthLVal]);
+    }
+    let metadata = Record.mkRecord(metadataFields);
+    let tuple: any = mkTuple([msg, new LVal(metadata, fromNodeId.lev)]);
     return new MbVal(tuple, pc);
-  }
+}
 
 
 export class MailboxProcessor implements MailboxInterface {
@@ -48,7 +54,7 @@ export class MailboxProcessor implements MailboxInterface {
 
 
 
-    addMessage(fromNode: string, toPid, message, pc) {
+    addMessage(fromNode: string, toPid, message, pc, quarantineAuth: Level | null = null) {
 
         debug (`addMessage ${message.stringRep()} ${pc.stringRep()}`)
         let __sched = this.sched;
@@ -64,10 +70,16 @@ export class MailboxProcessor implements MailboxInterface {
         // Construct fromNodeId using the receiving thread's creation-time PC
         // This ensures the label reflects when the thread was created, not when
         // the message was received
-        let fromNodeId = new LVal(fromNode, lub (pc, t.pcAtCreation()));
+        let metadataLev = lub(pc, t.pcAtCreation());
+        let fromNodeId = new LVal(fromNode, metadataLev);
 
-        // create the message
-        let messageWithSenderId = createMessage(message, fromNodeId, pc);
+        // Create quarantine authority LVal if present
+        let quarantineAuthLVal = quarantineAuth !== null
+            ? new LVal(new Authority(quarantineAuth), metadataLev)
+            : null;
+
+        // create the message with optional quarantine authority
+        let messageWithSenderId = createMessage(message, fromNodeId, pc, quarantineAuthLVal);
 
         // add the message to the thread's mailbox
         t.addMessage (messageWithSenderId);

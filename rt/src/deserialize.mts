@@ -1,6 +1,7 @@
 "use strict";
 import { strict as assert } from 'node:assert'
 import {spawn} from 'child_process'
+import { v4 as uuidv4 } from 'uuid';
 import * as Ty from './TroupeTypes.mjs'
 import { __exitInitiated } from './runtimeMonitored.mjs';
 import { LVal } from './Lval.mjs';
@@ -9,13 +10,33 @@ import { ProcessID } from './process.mjs';
 import { Authority } from './Authority.mjs';
 import { Atom } from './Atom.mjs';
 import { __unitbase }from './UnitBase.mjs'
-import { glb, mkLevel } from './Level.mjs';
+import { mkLevel } from './Level.mjs';
 import { RuntimeInterface } from './RuntimeInterface.mjs';
 import { Level } from './Level.mjs';
 import { Record } from './Record.mjs';
 import { RawClosure } from './RawClosure.mjs';
 import * as levels from './Level.mjs';
 import { getTroupeRoot } from './troupeRoot.mjs';
+
+// Ingress check result types for quarantine protocol
+export enum IngressResult {
+    TRUSTED,      // All labels trusted - use original value
+    QUARANTINE,   // Some labels untrusted - apply quarantine label
+    DROP          // Corrupt label found - drop message
+}
+
+export type DeserializeResult = {
+    result: IngressResult;
+    value?: LVal;                   // Present if TRUSTED or QUARANTINE
+    quarantineAuth?: Level;         // Present if QUARANTINE
+}
+
+// Exception thrown when corrupt data is encountered during deserialization
+class CorruptDataException extends Error {
+    constructor() {
+        super("Corrupt data encountered during deserialization");
+    }
+}
 
 let __compilerOsProcess = null;
 
@@ -224,115 +245,148 @@ function constructCurrent(compilerOutput: string) {
         
     }
 
+    /*
+                   #     #
+     #    # #    # #     #   ##   #      #    # ######
+     ##  ## #   #  #     #  #  #  #      #    # #
+     # ## # ####   #     # #    # #      #    # #####
+     #    # #  #    #   #  ###### #      #    # #
+     #    # #   #    # #   #    # #      #    # #
+     #    # #    #    #    #    # ######  ####  ######
+
+    */
+
+    // IngressDeserializer performs the ingress check during deserialization.
+    // Each instance tracks whether any label was quarantined.
+    class IngressDeserializer {
+        private _quarantineLabel: Level | null = null;
+
+        /** Lazy getter - creates quarantine label on first access */
+        get quarantineLabel(): Level {
+            if (this._quarantineLabel === null) {
+                this._quarantineLabel = levels.fromSingleTag(uuidv4().toString());
+            }
+            return this._quarantineLabel;
+        }
+
+        /** Returns true if any label was quarantined */
+        get wasQuarantined(): boolean {
+            return this._quarantineLabel !== null;
+        }
+
+        /** Check label and return effective label (original if trusted, quarantine if not) */
+        private checkLabel(lev: Level): Level {
+            if (levels.actsFor(__trustLevel, lev)) {
+                return lev;  // Trusted - use original
+            }
+            // Not trusted - check if corrupt before quarantining
+            if (lev.isCorrupt()) {
+                throw new CorruptDataException();
+            }
+            return this.quarantineLabel;  // Triggers lazy creation
+        }
+
+        private deserializeArray(x: any[]): LVal[] {
+            let a: LVal[] = [];
+            for (let i = 0; i < x.length; i++) {
+                a.push(this.mkValue(x[i]));
+            }
+            return a;
+        }
+
+        /** Main deserialization method - adapted from existing mkValue */
+        mkValue(arg: { val: any; lev: any; tlev: any; troupeType: Ty.TroupeType; }): LVal {
+            // debuglog ("*** mkValue", arg);
+            assert(Ty.isLVal(arg));
+            let obj = arg.val;
+            let lev = mkLevel(arg.lev);
+            let tlev = mkLevel(arg.tlev);
+
+            const effectiveLev = this.checkLabel(lev);
+            const effectiveTlev = this.checkLabel(tlev);
+
+            let _tt = arg.troupeType;
+
+            const value = (): any => {
+                switch (_tt) {
+                    case Ty.TroupeType.RECORD:
+                        // for records, the serialization format is  [[key, value_json], ...]
+                        let a: [string, LVal][] = [];
+                        for (let i = 0; i < obj.length; i++) {
+                            a.push([obj[i][0], this.mkValue(obj[i][1])]);
+                        }
+                        return Record.mkRecord(a);
+                    case Ty.TroupeType.LIST:
+                        return mkList(this.deserializeArray(obj));
+                    case Ty.TroupeType.TUPLE:
+                        return mkTuple(this.deserializeArray(obj));
+                    case Ty.TroupeType.CLOSURE:
+                        return mkClosure(obj.ClosureID);
+                    case Ty.TroupeType.NUMBER:
+                    case Ty.TroupeType.BOOLEAN:
+                    case Ty.TroupeType.STRING:
+                        return obj;
+                    case Ty.TroupeType.PROCESS_ID:
+                        return new ProcessID(obj.uuid, obj.pid, obj.node);
+                    case Ty.TroupeType.AUTHORITY:
+                        // 2018-10-18: AA: authority attenuation based on the trust level of the sender
+                        // Use checkLabel - if trusted, keep original authority; if not, quarantine it
+                        return new Authority(this.checkLabel(mkLevel(obj.authorityLevel)));
+                    case Ty.TroupeType.LEVEL:
+                        return mkLevel(obj.lev);
+                    case Ty.TroupeType.LVAL:
+                        return this.mkValue(obj);
+                    case Ty.TroupeType.ATOM:
+                        return new Atom(obj.atom, obj.creation_uuid);
+                    case Ty.TroupeType.UNIT:
+                        return __unitbase;
+                    default:
+                        return obj;
+                }
+            };
+
+            return new LVal(value(), effectiveLev, effectiveTlev);
+        }
+    }
+
+    // Create ingress checker instance for this deserialization operation
+    const ingress = new IngressDeserializer();
+
     // 2. reconstruct the closures and environments
     let sercloss = serobj.closures;
 
     let serenvs = serobj.envs;
 
     function mkClosure(i: number) {
-        if (!ctxt.closures[i]) {            
+        if (!ctxt.closures[i]) {
             let nm = ctxt.namespaces[sercloss[i].namespacePtr.NamespaceID]
-            let fn = nm[sercloss[i].fun];              
-            let env = mkEnv(sercloss[i].envptr.EnvID, (env) => {                
+            let fn = nm[sercloss[i].fun];
+            let env = mkEnv(sercloss[i].envptr.EnvID, (env: any) => {
                 ctxt.closures[i] = RawClosure(env, nm, fn);
-            })        
-            ctxt.closures[i].__dataLevel = env.__dataLevel;     
+            })
+            ctxt.closures[i].__dataLevel = env.__dataLevel;
         }
         return ctxt.closures[i];
     }
 
-    function mkEnv(i: number, post_init?: (any)=>void ) {
-        if (!ctxt.envs[i]) {        
-            let env = {__dataLevel : levels.BOT};
+    function mkEnv(i: number, post_init?: (arg0: any) => void) {
+        if (!ctxt.envs[i]) {
+            let env: any = { __dataLevel: levels.BOT };
             if (post_init) {
-                post_init (env)
+                post_init(env);
             }
             ctxt.envs[i] = env;
             for (var field in serenvs[i]) {
-                let v = mkValue(serenvs[i][field]);
-                env[field] = v 
-                env.__dataLevel = levels.lub (env.__dataLevel, v.dataLevel)
-            }            
+                let v = ingress.mkValue(serenvs[i][field]);
+                env[field] = v;
+                env.__dataLevel = levels.lub(env.__dataLevel, v.dataLevel);
+            }
         } else {
             if (post_init) {
-                post_init (ctxt.envs[i]);
+                post_init(ctxt.envs[i]);
             }
         }
-        return ctxt.envs[i]
-    }
-
-
-    function deserializeArray(x) {
-        let a = [];
-        for (let i = 0; i < x.length; i++) {
-            a.push(mkValue(x[i]));
-        }
-        return a 
-    }
-
-    /* 
-                   #     #                             
-     #    # #    # #     #   ##   #      #    # ###### 
-     ##  ## #   #  #     #  #  #  #      #    # #      
-     # ## # ####   #     # #    # #      #    # #####  
-     #    # #  #    #   #  ###### #      #    # #      
-     #    # #   #    # #   #    # #      #    # #      
-     #    # #    #    #    #    # ######  ####  ###### 
-                                                       
-    */
-
-    function mkValue(arg: { val: any; lev: any; tlev: any; troupeType: Ty.TroupeType; }) {
-        // debuglog ("*** mkValue", arg);
-        assert(Ty.isLVal(arg));
-        let obj = arg.val;
-        let lev = mkLevel(arg.lev);
-        let tlev = mkLevel(arg.tlev);
-
-        function _trustGLB(x: Level) {
-            return (glb(x, __trustLevel))
-        }
-
-        let _tt = arg.troupeType
-    
-
-        function value() {            
-            switch (_tt) {                
-                case Ty.TroupeType.RECORD:
-                    // for reords, the serialization format is  [[key, value_json], ...]
-                    let a = [];
-                    for (let i = 0; i < obj.length; i++) {
-                        a.push ([ obj[i][0], mkValue(obj[i][1]) ])
-                    }
-                    return Record.mkRecord(a);
-                case Ty.TroupeType.LIST:
-                    return mkList(deserializeArray(obj))
-                case Ty.TroupeType.TUPLE:
-                    return mkTuple(deserializeArray(obj))
-                case Ty.TroupeType.CLOSURE:
-                    return mkClosure(obj.ClosureID)
-                case Ty.TroupeType.NUMBER: 
-                case Ty.TroupeType.BOOLEAN:  
-                case Ty.TroupeType.STRING:
-                    return obj;
-                case Ty.TroupeType.PROCESS_ID:
-                    return new ProcessID(obj.uuid, obj.pid, obj.node)
-                case Ty.TroupeType.AUTHORITY:
-                    // 2018-10-18: AA: authority attenuation based on the trust level of the sender 
-                    return new Authority(_trustGLB(mkLevel(obj.authorityLevel)))
-                case Ty.TroupeType.LEVEL:
-                    return mkLevel(obj.lev)
-                case Ty.TroupeType.LVAL:
-                    return mkValue(obj)
-                case Ty.TroupeType.ATOM:
-                     return new Atom(obj.atom, obj.creation_uuid)
-                case Ty.TroupeType.UNIT:
-                    return __unitbase
-                default:
-                    return obj;
-            }
-        }
-
-        return new LVal(value(), _trustGLB(lev), _trustGLB(tlev));
+        return ctxt.envs[i];
     }
 
     for (let i = 0; i < sercloss.length; i++) {
@@ -343,7 +397,26 @@ function constructCurrent(compilerOutput: string) {
         mkEnv(i);
     }
 
-    let v = mkValue(serobj.value);
+    // Deserialize the main value with exception handling for corrupt data
+    let result: DeserializeResult;
+    try {
+        let v = ingress.mkValue(serobj.value);
+        if (ingress.wasQuarantined) {
+            result = {
+                result: IngressResult.QUARANTINE,
+                value: v,
+                quarantineAuth: ingress.quarantineLabel
+            };
+        } else {
+            result = { result: IngressResult.TRUSTED, value: v };
+        }
+    } catch (e) {
+        if (e instanceof CorruptDataException) {
+            result = { result: IngressResult.DROP };
+        } else {
+            throw e;  // Re-throw unexpected errors
+        }
+    }
 
     // go over the namespaces we have generated
     // and load all libraries before calling the last callback
@@ -356,13 +429,13 @@ function constructCurrent(compilerOutput: string) {
         }
     }
 
-    loadLib(0, () => desercb(v));
+    loadLib(0, () => desercb(result));
 }
 
 // 2018-11-30: AA: TODO: implement a proper deserialization queue instead of 
 // the coarse-grained piggybacking on the event loop
 
-function deserializeCb(lev: Level, jsonObj: any, cb: (body: LVal) => void) {
+function deserializeCb(lev: Level, jsonObj: any, cb: (result: DeserializeResult) => void) {
     if (__isCurrentlyUsingCompiler) {
         setImmediate(deserializeCb, lev, jsonObj, cb) // postpone; 2018-03-04;aa
     } else {
@@ -395,10 +468,10 @@ function deserializeCb(lev: Level, jsonObj: any, cb: (body: LVal) => void) {
     }
 }
 
-export function deserialize(lev: Level, jsonObj: any): Promise<LVal> {
+export function deserialize(lev: Level, jsonObj: any): Promise<DeserializeResult> {
     return new Promise((resolve, reject) => {
-        deserializeCb(lev, jsonObj, (body: LVal) => {
-            resolve(body)
+        deserializeCb(lev, jsonObj, (result: DeserializeResult) => {
+            resolve(result)
         })
     });
 }

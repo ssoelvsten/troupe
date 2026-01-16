@@ -3,7 +3,7 @@ import { UserRuntimeZero, Constructor, mkBase } from './UserRuntimeZero.mjs'
 import * as levels from '../Level.mjs'
 import { ProcessID } from '../process.mjs';
 const { lub, flowsTo } = levels
-import {deserialize} from '../deserialize.mjs'
+import {deserialize, IngressResult} from '../deserialize.mjs'
 import { __nodeManager } from '../NodeManager.mjs';
 import { assertNormalState, assertIsNTuple, assertIsString, assertIsProcessId, assertIsAuthority, assertIsRootAuthority, assertIsNode } from '../Asserts.mjs';
 import { __unit } from '../UnitVal.mjs';
@@ -89,7 +89,18 @@ export function BuiltinRegistry<TBase extends Constructor<UserRuntimeZero>>(Base
                 (async () => {
                     try {
                         let body1 = await p2p.whereisp2p(n, k);
-                        let body = await deserialize(nodeTrustLevel(n), body1);
+                        let result = await deserialize(nodeTrustLevel(n), body1);
+
+                        // For whereis responses, DROP means we can't trust the pid we got back
+                        if (result.result === IngressResult.DROP) {
+                            debug(`Dropping corrupt whereis response from ${n}`);
+                            theThread.throwInSuspended("Corrupt whereis response from remote node");
+                            __sched.scheduleThread(theThread);
+                            __sched.resumeLoopAsync();
+                            return;
+                        }
+
+                        let body = result.value!;
                         let pid = new ProcessID(body.val.uuid, body.val.pid, body.val.node);
 
                         theThread.returnSuspended(theThread.mkValWithLev(pid, body.lev));
