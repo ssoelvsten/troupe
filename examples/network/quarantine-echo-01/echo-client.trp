@@ -4,25 +4,25 @@
 let val _ = print "CLIENT: Starting echo client"
     val _ = sleep 200  (* Give server time to register *)
 
-    val {processId = echo_received, quarantineAuth = q} = qwhereis ("@server", "echo")
+    val {processId = echo_received, ..} = qwhereis ("@server", "echo")
     val _ = print "CLIENT: Found echo server"
     val _ = printWithLabels echo_received
-    val _ = print "CLIENT: whereis quarantined authority"
-    val _ = printWithLabels q
-    val _ = printWithLabels (attenuate (authority, `{XXX}`))
-    val echo = downgrade (echo_received, q, `{alice}`)
-    val _ = printWithLabels echo 
-   
+    (* val _ = print "CLIENT: whereis quarantined authority" *)
+    (* val _ = printWithLabels q *)
+    val alice_auth = attenuate ( authority, `{alice}`)
+    (* val q_alice = coalesce (alice_auth, q) *)
+    val echo = endorse (echo_received, alice_auth, `<; alice>`)
+    val _ = printWithLabels echo    
     (* Create a message at level {alice} *)
     val test_msg = "Hello from alice" raisedTo `{alice}`
     val _ = print "CLIENT: test_msg with labels:"
     val _ = printWithLabels test_msg
     val _ = print "CLIENT: Sending message at level {alice}"
-    val _ = debugpc ()
+    (* val _ = debugpc () *)
     val datum = ("ECHO", test_msg, self())
     val _ = printWithLabels datum
     val _ = send (echo, datum)
-    val response = receive [hn ("REPLY", x) => x]
+    val response = receive [hn ("REPLY", x)  => x]
     val _ = print "CLIENT: Received response with labels:"
     val _ = printWithLabels response
 
