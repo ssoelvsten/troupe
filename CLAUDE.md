@@ -391,3 +391,8 @@ created via echo, but saved in files.
 ## Executing tests
 
 Running tests takes time; to save on running them, run them and save the results in a temp file and read that file for failures and status (instead of re-running them from scratch)
+
+
+## New primitives should have tests
+
+When adding new primitives into the language, make sure to create one or more tests that would demonstrate the syntax, the expected behavior, expected error messages, etc. Keep these demo tests brief and down to the chase; propose to add them to the appropriate place in the test corpus.

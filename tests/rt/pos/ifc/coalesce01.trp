@@ -1,0 +1,20 @@
+(* Test for the coalesce built-in: combines two authorities using conjunction on both components *)
+(* coalesce: ⟨S₁, I₁⟩ ⊛ ⟨S₂, I₂⟩ = ⟨S₁ ∧ S₂, I₁ ∧ I₂⟩ *)
+
+let val authAlice = attenuate (authority, `{alice}`)
+    val authBob = attenuate (authority, `{bob}`)
+
+    (* Coalesce creates combined authority that acts for both *)
+    val combined = coalesce (authAlice, authBob)
+
+    val _ = print ("authAlice:", authAlice)
+    val _ = print ("authBob:", authBob)
+    val _ = print ("combined:", combined)
+
+    (* Test with more complex labels *)
+    val authCharlie = attenuate (authority, `{charlie}`)
+    val combined3 = coalesce (combined, authCharlie)
+    val _ = print ("combined with charlie:", combined3)
+
+in ()
+end

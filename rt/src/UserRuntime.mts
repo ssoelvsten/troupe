@@ -21,6 +21,7 @@ import { BuiltinSend } from './builtins/send.mjs'
 import { BuiltinSpawn } from './builtins/spawn.mjs'
 import { BuiltinReceive } from './builtins/receive.mjs'
 import { BuiltinAttenuate } from './builtins/attenuate.mjs'
+import { BuiltinCoalesce } from './builtins/coalesce.mjs'
 import { BuiltinRegistry } from './builtins/whereis.mjs'
 import { BuiltinDeclassify } from './builtins/declassify.mjs'
 import { BuiltinRaiseTrust } from './builtins/raiseTrust.mjs'
@@ -45,6 +46,7 @@ export const UserRuntime =
     BuiltinRaiseTrust(
     BuiltinDeclassify (
     BuiltinRegistry(
+    BuiltinCoalesce(
     BuiltinAttenuate(
     BuiltSpawnSendReceive(
     BuiltinStringToInt(
@@ -67,4 +69,4 @@ export const UserRuntime =
     BuiltinRecordReflection(
     BuiltinTypeInformation(
     BuiltinStdIo(UserRuntimeZero)
-    ))))))))))))))))))))))))))))))
+    )))))))))))))))))))))))))))))))

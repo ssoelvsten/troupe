@@ -1,0 +1,6 @@
+2026-01-16T12:23:37.962Z [RTM] [32minfo[39m: Skipping network creation. Observe that all external IO operations will yield a runtime error.
+("authAlice:", !{alice})
+("authBob:", !{bob})
+("combined:", !<alice&bob;alice&bob>)
+("combined with charlie:", !<alice&bob&charlie;alice&bob&charlie>)
+>>> Main thread finished with value: ()@{}%{}

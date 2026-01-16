@@ -158,7 +158,17 @@ export class DCLabel extends AbstractLevel<DCLabel> {
         );
     }
 
-
+    /**
+     * Coalesce operator (⊛): combines two labels using conjunction on both components
+     * ⟨S₁, I₁⟩ ⊛ ⟨S₂, I₂⟩ = ⟨S₁ ∧ S₂, I₁ ∧ I₂⟩
+     * Creates a combined authority that acts for both input authorities.
+     */
+    coalesce(other: DCLabel): DCLabel {
+        return new DCLabel(
+            conjunction(this.confidentiality, other.confidentiality),
+            conjunction(this.integrity, other.integrity)
+        );
+    }
 
     toJSON () {
         return { confidentiality: this.confidentiality.toJSON() 

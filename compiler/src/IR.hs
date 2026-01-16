@@ -317,6 +317,7 @@ instance WellFormedIRCheck IRExpr where
                      , "ceil"
                      , "cert"
                      , "charCodeAtWithDefault"
+                     , "coalesce"
                      , "consume"
                      , "_debug"
                      , "debugMbox"
