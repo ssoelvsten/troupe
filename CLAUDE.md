@@ -388,3 +388,6 @@ Beware of the backticks in the syntax of the info flow labels that can have unfo
 interactions with the shell. Example programs that use bacticks should probably not be
 created via echo, but saved in files.
 
+## Executing tests
+
+Running tests takes time; to save on running them, run them and save the results in a temp file and read that file for failures and status (instead of re-running them from scratch)
