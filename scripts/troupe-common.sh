@@ -39,7 +39,7 @@ troupe_parse_args() {
         else
             case "$arg" in
                 # Runtime boolean options (no value expected)
-                --debug|-d|--debugsandbox|--debugmailbox|--debugp2p)
+                --debug|-d|--debugsandbox|--debugmailbox|--debugp2p|--debugquarantine)
                     TROUPE_RUNTIME_ARGS="$TROUPE_RUNTIME_ARGS $arg"
                     ;;
                 --pini|--nmifc|--showStack|-ss|--rspawn|--localonly|-l|--persist|-P)

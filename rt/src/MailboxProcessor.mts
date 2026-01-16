@@ -11,6 +11,11 @@ let logLevel = argv[TroupeCliArg.DebugMailbox] ? 'debug': 'info'
 import { mkLogger } from './logger.mjs'
 const logger = mkLogger('MBX', logLevel);
 const debug = x => logger.debug(x);
+
+// Quarantine-specific logger
+const qrnLogLevel = argv[TroupeCliArg.DebugQuarantine] ? 'debug' : 'info';
+const qrnLogger = mkLogger('QRN', qrnLogLevel);
+const qdebug = (x: string) => qrnLogger.debug(x);
 import  { HandlerState as SandboxStatus }  from  './SandboxStatus.mjs' ;
 import {lub,flowsTo} from './Level.mjs'
 import * as levels from './Level.mjs'
@@ -77,6 +82,10 @@ export class MailboxProcessor implements MailboxInterface {
         let quarantineAuthLVal = quarantineAuth !== null
             ? new LVal(new Authority(quarantineAuth), metadataLev)
             : null;
+
+        if (quarantineAuthLVal !== null) {
+            qdebug(`MAILBOX: delivering quarantined message to pid=${toPid.val.pid} auth=${quarantineAuth!.stringRep()}`);
+        }
 
         // create the message with optional quarantine authority
         let messageWithSenderId = createMessage(message, fromNodeId, pc, quarantineAuthLVal);

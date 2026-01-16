@@ -48,6 +48,11 @@ const info = x => logger.info(x)
 const debug = x => logger.debug(x)
 const error = x => logger.error(x)
 
+// Quarantine-specific logger
+const qrnLogLevel = argv[TroupeCliArg.DebugQuarantine] ? 'debug' : 'info';
+const qrnLogger = mkLogger('QRN', qrnLogLevel);
+const qdebug = (x: string) => qrnLogger.debug(x);
+
 let __p2pRunning = false;
 
 // Flag to prevent compiler exit handler from interfering with intended exit code
@@ -208,6 +213,7 @@ async function receiveFromRemote(pid, jsonObj, fromNode) {
   // Handle ingress check result
   if (result.result === DS.IngressResult.DROP) {
     debug(`Dropping corrupt message from ${fromNode}`);
+    qdebug(`DROP: message from ${fromNode} contained corrupt data`);
     return;  // Silent drop
   }
 
@@ -220,6 +226,10 @@ async function receiveFromRemote(pid, jsonObj, fromNode) {
   const quarantineAuth = result.result === DS.IngressResult.QUARANTINE
     ? result.quarantineAuth!
     : null;
+
+  if (quarantineAuth !== null) {
+    qdebug(`QUARANTINE: message from ${fromNode} quarantined with auth ${quarantineAuth.stringRep()}`);
+  }
 
   // Pass raw fromNode; addMessage will construct the labeled value using
   // the receiving thread's creation-time PC

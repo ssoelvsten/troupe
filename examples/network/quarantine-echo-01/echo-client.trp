@@ -6,14 +6,17 @@ let val _ = print "CLIENT: Starting echo client"
 
     val echo = whereis ("@server", "echo")
     val _ = print "CLIENT: Found echo server"
+    val _ = printWithLabels echo
 
     (* Create a message at level {alice} *)
     val test_msg = "Hello from alice" raisedTo `{alice}`
     val _ = print "CLIENT: test_msg with labels:"
     val _ = printWithLabels test_msg
     val _ = print "CLIENT: Sending message at level {alice}"
-    val _ = send (echo, ("ECHO", test_msg, self()))
-
+    val _ = debugpc ()
+    val datum = ("ECHO", test_msg, self())
+    val _ = printWithLabels datum
+    val _ = send (echo, datum)
     val response = receive [hn ("REPLY", x) => x]
     val _ = print "CLIENT: Received response with labels:"
     val _ = printWithLabels response

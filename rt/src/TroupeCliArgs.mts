@@ -30,6 +30,7 @@ export enum TroupeCliArg {
     DebugSandbox = 'debugsandbox',
     DebugMailbox = 'debugmailbox',
     DebugP2p = 'debugp2p',
+    DebugQuarantine = 'debugquarantine',
     Pini = 'pini',
     Nmifc = 'nmifc',
     ShowStack = 'showStack',
@@ -58,6 +59,7 @@ export interface ParsedArgs {
     [TroupeCliArg.DebugSandbox]?: boolean;
     [TroupeCliArg.DebugMailbox]?: boolean;
     [TroupeCliArg.DebugP2p]?: boolean;
+    [TroupeCliArg.DebugQuarantine]?: boolean;
     [TroupeCliArg.Pini]?: boolean;
     [TroupeCliArg.Nmifc]?: boolean;
     [TroupeCliArg.ShowStack]?: boolean;
@@ -91,6 +93,7 @@ export function getCliArgs(): ParsedArgs {
             .option(TroupeCliArg.DebugSandbox, { type: 'boolean', default: false, describe: 'Enable debug logging for sandbox operations' })
             .option(TroupeCliArg.DebugMailbox, { type: 'boolean', default: false, describe: 'Enable debug logging for mailbox processing' })
             .option(TroupeCliArg.DebugP2p, { type: 'boolean', default: false, describe: 'Enable debug logging for P2P communication' })
+            .option(TroupeCliArg.DebugQuarantine, { type: 'boolean', default: false, describe: 'Enable debug logging for quarantine operations' })
             .option(TroupeCliArg.Pini, { type: 'boolean', default: false, describe: 'Enable Pini mode for declassification' })
             .option(TroupeCliArg.Nmifc, { type: 'boolean', default: true, describe: 'Enable NMIFC (Non-Malleable IFC) enforcement for downgrades (use --no-nmifc to disable)' })
             .option(TroupeCliArg.ShowStack, { alias: 'ss', type: 'boolean', default: false, describe: 'Show stack traces on errors' })

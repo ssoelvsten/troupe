@@ -17,6 +17,13 @@ import { Record } from './Record.mjs';
 import { RawClosure } from './RawClosure.mjs';
 import * as levels from './Level.mjs';
 import { getTroupeRoot } from './troupeRoot.mjs';
+import { getCliArgs, TroupeCliArg } from './TroupeCliArgs.mjs';
+import { mkLogger } from './logger.mjs';
+
+const argv = getCliArgs();
+const logLevel = argv[TroupeCliArg.DebugQuarantine] ? 'debug' : 'info';
+const logger = mkLogger('QRN', logLevel);
+const qdebug = (x: string) => logger.debug(x);
 
 // Ingress check result types for quarantine protocol
 export enum IngressResult {
@@ -281,8 +288,10 @@ function constructCurrent(compilerOutput: string) {
             }
             // Not trusted - check if corrupt before quarantining
             if (lev.isCorrupt()) {
+                qdebug(`DROP: corrupt label ${lev.stringRep()}`);
                 throw new CorruptDataException();
             }
+            qdebug(`QUARANTINE: label ${lev.stringRep()} not trusted by ${__trustLevel.stringRep()} -> ${this.quarantineLabel.stringRep()}`);
             return this.quarantineLabel;  // Triggers lazy creation
         }
 
