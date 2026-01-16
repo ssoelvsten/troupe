@@ -3,6 +3,7 @@ import { assertIsString, assertIsNumber, assertIsNTuple } from '../Asserts.mjs'
 import { __unit } from '../UnitVal.mjs';
 import { TroupeType } from '../TroupeTypes.mjs';
 import Table from 'cli-table3';
+import { Record } from '../Record.mjs';
 
 
 export function BuiltinDebugUtils <TBase extends Constructor<UserRuntimeZero>> (Base:TBase) {
@@ -48,6 +49,7 @@ export function BuiltinDebugUtils <TBase extends Constructor<UserRuntimeZero>> (
             const thread = this.runtime.$t;
             const mailbox = thread.mailbox;
             const maxMessages = 10;
+            const valueColWidth = 100;  // width of value column in tables
 
             const boxChars = {
                 'top': '═', 'top-mid': '╤', 'top-left': '╔', 'top-right': '╗',
@@ -59,16 +61,18 @@ export function BuiltinDebugUtils <TBase extends Constructor<UserRuntimeZero>> (
             // Metadata table
             const metaTable = new Table({
                 chars: boxChars,
-                style: { head: [], border: [] },
-                colWidths: [18, 60]
+                style: { head: [], border: [], 'padding-left': 1, 'padding-right': 1 },
+                colWidths: [18, valueColWidth],
+                wordWrap: true,
+                wrapOnWordBoundary: false
             });
 
             const mclear = mailbox.mclear;
             metaTable.push(
                 [{ colSpan: 2, content: 'MAILBOX DEBUG INFO', hAlign: 'center' }],
-                ['Thread ID', thread.tidErrorStringRep().substring(0, 57)],
+                ['Thread ID', thread.tidErrorStringRep()],
                 ['Total messages', String(mailbox.length)],
-                ['Mbox clearance', mclear.stringRep().substring(0, 57)]
+                ['Mbox clearance', mclear.stringRep()]
             );
 
             console.log("");
@@ -78,7 +82,8 @@ export function BuiltinDebugUtils <TBase extends Constructor<UserRuntimeZero>> (
                 const emptyTable = new Table({
                     chars: boxChars,
                     style: { head: [], border: [] },
-                    colWidths: [78]
+                    colWidths: [18 + valueColWidth],
+                    wordWrap: true
                 });
                 emptyTable.push([{ content: '(mailbox is empty)', hAlign: 'center' }]);
                 console.log(emptyTable.toString());
@@ -89,29 +94,56 @@ export function BuiltinDebugUtils <TBase extends Constructor<UserRuntimeZero>> (
             // Show the last N messages (most recent)
             const startIdx = Math.max(0, mailbox.length - maxMessages);
 
-            // Messages table
-            const msgTable = new Table({
-                chars: boxChars,
-                style: { head: [], border: [] },
-                head: ['#', 'Message Value', 'Label'],
-                colWidths: [6, 50, null]  // null = auto-size for label
-            });
-
             if (startIdx > 0) {
-                msgTable.push([{ colSpan: 3, content: `(showing last ${maxMessages} of ${mailbox.length} messages)`, hAlign: 'center' }]);
+                console.log(`(showing last ${maxMessages} of ${mailbox.length} messages)`);
             }
 
+            // Display each message in vertical layout
             for (let i = startIdx; i < mailbox.length; i++) {
                 const mbVal = mailbox[i];
-                let msgStr = mbVal.stringRep(true);
-                if (msgStr.length > 47) {
-                    msgStr = msgStr.substring(0, 44) + "...";
+                // mbVal.val is a tuple: [msg, metadata_record_lval]
+                const msgTuple = mbVal.val;
+                const actualMsg = msgTuple[0];  // The actual message
+                const metadataLVal = msgTuple[1];  // LVal containing metadata Record
+                const metadata = metadataLVal.val as Record;
+
+                const msgStr = actualMsg.stringRep(true);
+                const levStr = mbVal.lev.stringRep();
+
+                // Get senderNode (always present) - display with label
+                const senderLVal = metadata.getField('senderNode');
+                const senderStr = senderLVal.stringRep();
+
+                // Get quarantineAuth (optional) - display with label
+                let quarantineStr: string | null = null;
+                if (metadata.hasField('quarantineAuth')) {
+                    const authLVal = metadata.getField('quarantineAuth');
+                    quarantineStr = authLVal.stringRep();
                 }
-                const levStr = mbVal.lev.stringRep();  // full label, no truncation
-                msgTable.push([String(i), msgStr, levStr]);
+
+                // Create vertical table for this message
+                const msgTable = new Table({
+                    chars: boxChars,
+                    style: { head: [], border: [], 'padding-left': 1, 'padding-right': 1 },
+                    colWidths: [18, valueColWidth],
+                    wordWrap: true,
+                    wrapOnWordBoundary: false  // wrap anywhere, not just word boundaries
+                });
+
+                msgTable.push(
+                    [{ colSpan: 2, content: `MESSAGE #${i}`, hAlign: 'center' }],
+                    ['Value', { content: msgStr }],
+                    ['Label', { content: levStr }],
+                    ['Sender', { content: senderStr }]
+                );
+
+                if (quarantineStr !== null) {
+                    msgTable.push(['Quarantine', { content: quarantineStr }]);
+                }
+
+                console.log(msgTable.toString());
             }
 
-            console.log(msgTable.toString());
             console.log("");
 
             return this.runtime.ret(__unit);
