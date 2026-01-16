@@ -5,7 +5,7 @@ import { Record } from '../Record.mjs'
 import { LVal } from '../Lval.mjs'
 import { ProcessID } from '../process.mjs';
 const { lub, flowsTo } = levels
-import {deserialize, IngressResult} from '../deserialize.mjs'
+import {deserialize, IngressResult, DeserializeResult} from '../deserialize.mjs'
 import { __nodeManager } from '../NodeManager.mjs';
 import { assertNormalState, assertIsNTuple, assertIsString, assertIsProcessId, assertIsAuthority, assertIsRootAuthority, assertIsNode } from '../Asserts.mjs';
 import { __unit } from '../UnitVal.mjs';
@@ -25,9 +25,13 @@ const logger = mkLogger('RTM', logLevel);
 const debug = x => logger.debug(x)
 
 
+// Type for result transformation functions
+type LocalResultTransformer = (pidLVal: LVal) => LVal;
+type RemoteResultTransformer = (pid: ProcessID, bodyLev: levels.Level, result: DeserializeResult) => LVal;
+
 export function BuiltinRegistry<TBase extends Constructor<UserRuntimeZero>>(Base: TBase) {
     return class extends Base {
-        register = mkBase((arg) => {            
+        register = mkBase((arg) => {
             let $r = this.runtime
             assertNormalState("register")
             assertIsNTuple(arg, 3);
@@ -35,7 +39,7 @@ export function BuiltinRegistry<TBase extends Constructor<UserRuntimeZero>>(Base
             assertIsProcessId(arg.val[1]);
             assertIsAuthority(arg.val[2]);
             assertIsRootAuthority(arg.val[2]);
-            
+
 
             let ok_to_raise =
                 flowsTo($r.$t.bl, levels.BOT);
@@ -57,71 +61,15 @@ export function BuiltinRegistry<TBase extends Constructor<UserRuntimeZero>>(Base
         }, "register")
 
 
-
-        whereis = mkBase((arg) => {            
+        // Common implementation for whereis and qwhereis
+        private whereisImpl(
+            arg: any,
+            fnName: string,
+            localTransform: LocalResultTransformer,
+            remoteTransform: RemoteResultTransformer
+        ) {
             let $r = this.runtime
-            assertNormalState("whereis")
-            assertIsNTuple(arg, 2);
-            assertIsNode(arg.val[0]);
-            assertIsString(arg.val[1]);
-            $r.$t.raiseBlockingThreadLev(arg.val[0].lev);
-            $r.$t.raiseBlockingThreadLev(arg.val[1].lev);
-
-            let __sched = $r.__sched
-
-            // let n = dealias(arg.val[0].val);    
-            let n = __nodeManager.getNode(arg.val[0].val).nodeId;
-            
-            let k = arg.val[1].val;
-            let nodeLev = nodeTrustLevel(n);
-            let theThread = $r.$t;
-
-            
-            let okToLookup = flowsTo(lub($r.$t.pc, arg.val[0].lev, arg.val[1].lev), nodeLev);
-            if (!okToLookup) {
-                $r.$t.threadError("Information flow violation in whereis", false, null, ErrorKind.IFCCheck);
-                return;
-            }
-
-            if (__nodeManager.isLocalNode(n)) {
-                if (__theRegister[k]) {            
-                    return $r.ret(__theRegister[k]) 
-                }
-            } else {
-                (async () => {
-                    try {
-                        let body1 = await p2p.whereisp2p(n, k);
-                        let result = await deserialize(nodeTrustLevel(n), body1);
-
-                        // For whereis responses, DROP means we can't trust the pid we got back
-                        if (result.result === IngressResult.DROP) {
-                            debug(`Dropping corrupt whereis response from ${n}`);
-                            theThread.throwInSuspended("Corrupt whereis response from remote node");
-                            __sched.scheduleThread(theThread);
-                            __sched.resumeLoopAsync();
-                            return;
-                        }
-
-                        let body = result.value!;
-                        let pid = new ProcessID(body.val.uuid, body.val.pid, body.val.node);
-
-                        theThread.returnSuspended(theThread.mkValWithLev(pid, body.lev));
-                        __sched.scheduleThread(theThread);
-                        __sched.resumeLoopAsync();
-
-                    } catch (err) {
-                        $r.debug("whereis error: " + err.toString())
-                        throw err;
-                    }
-
-                })()
-            }
-        }, "whereis")
-
-
-        qwhereis = mkBase((arg) => {
-            let $r = this.runtime
-            assertNormalState("qwhereis")
+            assertNormalState(fnName)
             assertIsNTuple(arg, 2);
             assertIsNode(arg.val[0]);
             assertIsString(arg.val[1]);
@@ -139,18 +87,14 @@ export function BuiltinRegistry<TBase extends Constructor<UserRuntimeZero>>(Base
 
             let okToLookup = flowsTo(lub($r.$t.pc, arg.val[0].lev, arg.val[1].lev), nodeLev);
             if (!okToLookup) {
-                $r.$t.threadError("Information flow violation in qwhereis", false, null, ErrorKind.IFCCheck);
+                $r.$t.threadError(`Information flow violation in ${fnName}`, false, null, ErrorKind.IFCCheck);
                 return;
             }
 
             if (__nodeManager.isLocalNode(n)) {
                 if (__theRegister[k]) {
                     let pidLVal = __theRegister[k];
-                    // Local lookup: no quarantine possible, so no quarantineAuth field
-                    let resultRecord = Record.mkRecord([
-                        ["processId", pidLVal]
-                    ]);
-                    return $r.ret(new LVal(resultRecord, pidLVal.lev));
+                    return $r.ret(localTransform(pidLVal));
                 }
             } else {
                 (async () => {
@@ -158,9 +102,9 @@ export function BuiltinRegistry<TBase extends Constructor<UserRuntimeZero>>(Base
                         let body1 = await p2p.whereisp2p(n, k);
                         let result = await deserialize(nodeTrustLevel(n), body1);
 
-                        // For qwhereis responses, DROP means we can't trust the pid we got back
+                        // DROP means we can't trust the pid we got back
                         if (result.result === IngressResult.DROP) {
-                            debug(`Dropping corrupt qwhereis response from ${n}`);
+                            debug(`Dropping corrupt ${fnName} response from ${n}`);
                             theThread.throwInSuspended("Corrupt whereis response from remote node");
                             __sched.scheduleThread(theThread);
                             __sched.resumeLoopAsync();
@@ -169,26 +113,56 @@ export function BuiltinRegistry<TBase extends Constructor<UserRuntimeZero>>(Base
 
                         let body = result.value!;
                         let pid = new ProcessID(body.val.uuid, body.val.pid, body.val.node);
-                        let pidLVal = new LVal(pid, body.lev);
+                        let resultLVal = remoteTransform(pid, body.lev, result);
 
-                        // Build record fields - only include quarantineAuth if quarantine occurred
-                        let fields: [string, LVal][] = [["processId", pidLVal]];
-                        if (result.quarantineAuth) {
-                            fields.push(["quarantineAuth", new LVal(result.quarantineAuth, levels.BOT)]);
-                        }
-                        let resultRecord = Record.mkRecord(fields);
-
-                        theThread.returnSuspended(theThread.mkValWithLev(resultRecord, body.lev));
+                        theThread.returnSuspended(resultLVal);
                         __sched.scheduleThread(theThread);
                         __sched.resumeLoopAsync();
 
                     } catch (err) {
-                        $r.debug("qwhereis error: " + err.toString())
+                        $r.debug(`${fnName} error: ` + err.toString())
                         throw err;
                     }
 
                 })()
             }
+        }
+
+
+        whereis = mkBase((arg) => {
+            return this.whereisImpl(
+                arg,
+                "whereis",
+                // Local: return the pid LVal directly
+                (pidLVal) => pidLVal,
+                // Remote: return just the pid with its level
+                (pid, bodyLev, _result) => this.runtime.$t.mkValWithLev(pid, bodyLev)
+            );
+        }, "whereis")
+
+
+        qwhereis = mkBase((arg) => {
+            return this.whereisImpl(
+                arg,
+                "qwhereis",
+                // Local: wrap in record (no quarantine possible)
+                (pidLVal) => {
+                    let resultRecord = Record.mkRecord([
+                        ["processId", pidLVal]
+                    ]);
+                    return new LVal(resultRecord, pidLVal.lev);
+                },
+                // Remote: wrap in record, include quarantineAuth if quarantine occurred
+                (pid, bodyLev, result) => {
+                    let pidLVal = new LVal(pid, bodyLev);
+                    let fields: [string, LVal][] = [["processId", pidLVal]];
+                    if (result.quarantineAuth) {
+                        fields.push(["quarantineAuth", new LVal(result.quarantineAuth, levels.BOT)]);
+                    }
+                    let resultRecord = Record.mkRecord(fields);
+                    return this.runtime.$t.mkValWithLev(resultRecord, bodyLev);
+                }
+            );
         }, "qwhereis")
 
     }
