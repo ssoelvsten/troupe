@@ -322,6 +322,7 @@ instance WellFormedIRCheck IRExpr where
                      , "_debug"
                      , "debugMbox"
                      , "debugpc"
+                     , "debugValue"
                      , "declassify"
                      , "downgrade"
                      , "exit"

@@ -2,6 +2,7 @@ import { UserRuntimeZero } from './builtins/UserRuntimeZero.mjs'
 import { BuiltinStdIo } from './builtins/stdio.mjs'
 import { BuiltinMath } from './builtins/math.mjs'
 import { BuiltinDebugUtils } from './builtins/debugutils.mjs'
+import { BuiltinDebugValue } from './builtins/debugValue.mjs'
 import { BuiltinPini } from './builtins/pini.mjs'
 import { BuiltinMonitors } from './builtins/monitor.mjs'
 import { BuiltinSleep } from './builtins/sleep.mjs'
@@ -64,9 +65,10 @@ export const UserRuntime =
     BuiltinSleep(
     BuiltinMonitors(
     BuiltinPini(
+    BuiltinDebugValue(
     BuiltinDebugUtils(
     BuiltinMath(
     BuiltinRecordReflection(
     BuiltinTypeInformation(
     BuiltinStdIo(UserRuntimeZero)
-    )))))))))))))))))))))))))))))))
+    ))))))))))))))))))))))))))))))))
