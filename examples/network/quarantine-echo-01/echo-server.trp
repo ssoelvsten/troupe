@@ -19,8 +19,10 @@ let
         if i > 0 then serverDone() else 
         let val _ = print "SERVER: waiting for messages..."
             val _ = receive [
-                hn ("ECHO", msg, sender) =>
+                hn ("ECHO", msg, sender) | {senderNode} =>
                     let val _ = print "SERVER: Received echo request"
+                        val _ = print "SERVER: Sending node id"
+                        val _ = print senderNode
                         (* Print the message with its label to see the downgraded level *)
                         val _ = print "SERVER: Received msg with labels:"
                         val _ = printWithLabels msg
