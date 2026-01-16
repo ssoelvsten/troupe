@@ -150,14 +150,18 @@ export function BuiltinRegistry<TBase extends Constructor<UserRuntimeZero>>(Base
                     let resultRecord = Record.mkRecord([
                         ["processId", pidLVal]
                     ]);
-                    return new LVal(resultRecord, pidLVal.lev);
+                    return this.runtime.$t.mkValWithLev (resultRecord, pidLVal.lev);
+                    // return new LVal(resultRecord, pidLVal.lev);
                 },
                 // Remote: wrap in record, include quarantineAuth if quarantine occurred
                 (pid, bodyLev, result) => {
-                    let pidLVal = new LVal(pid, bodyLev);
+                    let pidLVal = this.runtime.$t.mkValWithLev(pid, bodyLev);
                     let fields: [string, LVal][] = [["processId", pidLVal]];
                     if (result.quarantineAuth) {
-                        fields.push(["quarantineAuth", new LVal(result.quarantineAuth, levels.BOT)]);
+                        fields.push(["quarantineAuth", 
+                                this.runtime.$t.mkValWithLev(
+                                    result.quarantineAuth
+                                  , this.runtime.$t.pc)]);
                     }
                     let resultRecord = Record.mkRecord(fields);
                     return this.runtime.$t.mkValWithLev(resultRecord, bodyLev);
