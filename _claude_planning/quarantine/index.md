@@ -12,10 +12,10 @@ This document contains an overview of all the steps we need to implement quarant
 2. **Check existing metadata access for messages in runtime** [DONE]
    - See detailed findings below in "Step 2 Details"
 
-3. **Extend runtime and frontend for record-based metadata approach** [PARTIALLY DONE]
+3. **Extend runtime and frontend for record-based metadata approach** [DONE]
    - ✅ Message metadata now uses record `{senderNode=nodeId}` instead of plain `nodeId`
-   - ⬜ Quarantine authority field not yet added
-   - ⬜ Ingress quarantine check not yet implemented
+   - ✅ Quarantine authority field added to metadata (`quarantineAuth`)
+   - ✅ Ingress quarantine check implemented (commit `b99f4cc`)
    - See "Step 3 Details" below
 
 4. **Revisit the example**
@@ -45,12 +45,10 @@ function createMessage(msg, fromNodeId, pc) {
 
 ### Metadata Available to Handlers
 
-| Field       | Type   | Description                        |
-|-------------|--------|------------------------------------|
-| senderNode  | string | Node ID of the sender (e.g., peer ID or `"<local>"`) |
-
-Future fields (to be added for quarantine):
-- `quarantineAuth` - Fresh label for downgrading quarantined messages
+| Field          | Type      | Description                                              |
+|----------------|-----------|----------------------------------------------------------|
+| senderNode     | string    | Node ID of the sender (e.g., peer ID or `"<local>"`)     |
+| quarantineAuth | Authority | Fresh authority for downgrading quarantined messages (present only if message was quarantined) |
 
 ### How to Access Metadata in Handlers
 
@@ -127,25 +125,17 @@ Upon receiving a message with value `v` labeled at `ℓ` from node `n` with trus
 
 3. Place tuple `(ℓ_q, relabeled_data)` in mailbox where `ℓ_q` is fresh quarantine authority.
 
-### Implementation Tasks for Full Quarantine
+### Implementation Tasks for Full Quarantine [COMPLETED]
 
-1. **Add `quarantineAuth` field to metadata record**:
-   ```typescript
-   let metadata = Record.mkRecord([
-       ["senderNode", fromNodeId],
-       ["quarantineAuth", quarantineLabel]  // null/unit if not quarantined
-   ]);
-   ```
+All tasks were implemented in commit `b99f4cc`. See [deserialization.md](deserialization.md) for details.
 
-2. **Implement ingress check in `receiveFromRemote`** (rt/src/runtimeMonitored.mts:183-196):
-   - Check if `trustLevel ⪰ messageLevel` using `actsFor`
-   - If not: generate fresh quarantine label, relabel message
-   - If corrupt after relabeling: drop message
-
-3. **Add fresh label generation capability**:
-   - Need runtime support for creating unique quarantine labels
-
-4. **Extend TrustManager** for quarantine state tracking (optional)
+| Task | Description | Location |
+|------|-------------|----------|
+| 1 | `IngressResult` enum (TRUSTED/QUARANTINE/DROP) | deserialize.mts:22-26 |
+| 2 | `IngressDeserializer` class with `checkLabel()` | deserialize.mts:261-350 |
+| 3 | Exception handling for corrupt data | deserialize.mts:400-419 |
+| 4 | `receiveFromRemote` handles three outcomes | runtimeMonitored.mts:203-228 |
+| 5 | `quarantineAuth` in message metadata | MailboxProcessor.mts:26-37, 57-89 |
 
 ---
 

@@ -1,15 +1,21 @@
 # Quarantine Ingress Implementation Plan
 
+## Status: ✅ COMPLETED
+
+All tasks in this plan were implemented in commit `b99f4cc` (2026-01-16). All 800 golden tests pass.
+
+---
+
 ## Summary
 
 The quarantine protocol requires **attenuating (downgrading) the security level of incoming messages** from remote nodes when the node's trust level is insufficient for the message's claimed label. This prevents untrusted nodes from injecting high-integrity or high-confidentiality data into the system.
 
-## Current State (after commit `1b349cb`)
+## Current State (after commit `b99f4cc`)
 
-- Message metadata uses record `{senderNode=nodeId}` (done in commit `e3f37bc`)
-- `fromNodeId` label now uses `lub(pc, t.pcAtCreation())` (done in commit `1b349cb`)
-- `addMessage` now takes raw `fromNode: string` and constructs the labeled value internally
-- **Missing**: Quarantine authority field and ingress check logic
+- Message metadata uses record `{senderNode=nodeId, quarantineAuth=...}`
+- `fromNodeId` label now uses `lub(pc, t.pcAtCreation())` (commit `1b349cb`)
+- `addMessage` takes raw `fromNode: string` and optional `quarantineAuth: Level`
+- **Completed**: Quarantine authority field and ingress check logic (commit `b99f4cc`)
 
 ## Key Insight: Messages Are Aggregates
 
@@ -48,9 +54,9 @@ The key insight is that quarantine is a **message-level** decision, not per-valu
 
 ---
 
-## Implementation Tasks
+## Implementation Tasks [ALL COMPLETED]
 
-### Task 1: Define Ingress Result Type
+### Task 1: Define Ingress Result Type ✅
 
 **File**: [rt/src/deserialize.mts](rt/src/deserialize.mts)
 
@@ -70,7 +76,7 @@ export type DeserializeResult = {
 }
 ```
 
-### Task 2: Create `ValueDeserializer` Class with `mkValue` Method
+### Task 2: Create `ValueDeserializer` Class with `mkValue` Method ✅
 
 **File**: [rt/src/deserialize.mts](rt/src/deserialize.mts)
 
@@ -149,7 +155,7 @@ The single pass:
 4. If trusted → returns original label
 5. After construction, `deserializer.wasQuarantined` indicates the outcome
 
-### Task 3: Add Exception Handling in `constructCurrent`
+### Task 3: Add Exception Handling in `constructCurrent` ✅
 
 **File**: [rt/src/deserialize.mts:346](rt/src/deserialize.mts#L346)
 
@@ -183,7 +189,7 @@ try {
 loadLib(0, () => desercb(result));
 ```
 
-### Task 3b: Update Callback Types
+### Task 3b: Update Callback Types ✅
 
 **File**: [rt/src/deserialize.mts:365-404](rt/src/deserialize.mts#L365-L404)
 
@@ -203,7 +209,7 @@ export function deserialize(lev: Level, jsonObj: any): Promise<DeserializeResult
 }
 ```
 
-### Task 4: Update `receiveFromRemote` to Handle Ingress Results
+### Task 4: Update `receiveFromRemote` to Handle Ingress Results ✅
 
 **File**: [rt/src/runtimeMonitored.mts:183-194](rt/src/runtimeMonitored.mts#L183-L194)
 
@@ -235,7 +241,7 @@ async function receiveFromRemote(pid, jsonObj, fromNode) {
 }
 ```
 
-### Task 5: Update `addMessage` and `createMessage` for Quarantine Authority
+### Task 5: Update `addMessage` and `createMessage` for Quarantine Authority ✅
 
 **File**: [rt/src/MailboxProcessor.mts:25-31, 51-77](rt/src/MailboxProcessor.mts#L25-L77)
 
@@ -259,7 +265,7 @@ addMessage(fromNode: string, toPid, message, pc, quarantineAuth = null) {
 }
 ```
 
-### Task 6: Add Required Imports
+### Task 6: Add Required Imports ✅
 
 **File**: [rt/src/deserialize.mts](rt/src/deserialize.mts)
 
@@ -295,3 +301,7 @@ Note: `levels` namespace already imported at line 17.
    - Trusted client messages pass through unchanged
    - Handler can access `quarantineAuth` in metadata
 2. Run existing multinode tests to ensure no regressions
+
+## Verification
+
+All 800 golden tests pass after implementation (commit `b99f4cc`).
