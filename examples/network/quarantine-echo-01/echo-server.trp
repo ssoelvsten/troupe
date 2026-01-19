@@ -61,10 +61,10 @@ let
                                 (* Print the message with its label to see the downgraded level *)
                                 val _ = print "SERVER: Received msg with labels:"
                                 val _ = printWithLabels msg
-                                val msg' = downgrade (msg, quarantineAuth, `<;>`)
-                                val _ = printWithLabels msg'
+                                (* val msg' = downgrade (msg, quarantineAuth, `<;>`) *)
+                                (* val _ = printWithLabels msg *)
                                 val _ = debugpc ()
-                                val _ = send(sender, ("REPLY", msg'))
+                                val _ = send(sender, ("REPLY", msg))
                                 val _ = print "SERVER: Sent reply"
                             in ()
                             end
