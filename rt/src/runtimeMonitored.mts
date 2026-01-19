@@ -80,7 +80,7 @@ async function spawnAtNode(nodeid, f) {
 
   // TODO: 2018-09-24: AA: do the information flow check
 
-  let { data, level } = serialize(f, lub($t().pc, nodeid.lev));
+  let { data, level } = serialize(f, lub($t().pc, nodeid.lev), node.nodeId);
 
   let trustLevel = nodeTrustLevel(node.nodeId);
   let theThread = $t();
@@ -190,7 +190,7 @@ async function spawnFromRemote(jsonObj, fromNode) {
   // 2018-09-19: AA: because we need to send some info back, we have to invoke
   // serialization.
 
-  let serObj = serialize(newPid, levels.BOT).data
+  let serObj = serialize(newPid, levels.BOT, fromNode).data
   __sched.resumeLoopAsync();
   return (serObj);
 }
@@ -249,9 +249,9 @@ async function receiveFromRemote(pid, jsonObj, fromNode) {
 function sendMessageToRemote(toPid, message) {
   let node = toPid.node.nodeId;
   let pid = toPid.pid;
-  // debug (`* rt *  ${toPid}  ${message.stringRep()}`);  
+  // debug (`* rt *  ${toPid}  ${message.stringRep()}`);
 
-  let { data, level } = serialize(new MbVal(message, $t().pc), $t().pc);
+  let { data, level } = serialize(new MbVal(message, $t().pc), $t().pc, node);
 
   // debug (`* rt *  ${JSON.stringify(data)}`);
   let trustLevel = nodeTrustLevel(node);
@@ -328,12 +328,12 @@ let rt_debug = function (s) {
 
 
 
-async function whereisFromRemote(k) {
+async function whereisFromRemote(k, fromNode) {
   __sched.resumeLoopAsync()
   // TODO: 2018-10-20: make use of the levels as they were
   // recorded during the registration (instead of the bottom here )
   if (__theRegister[k]) {
-    let serObj = serialize(__theRegister[k], levels.BOT).data
+    let serObj = serialize(__theRegister[k], levels.BOT, fromNode).data
     return serObj
   }
 }

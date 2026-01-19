@@ -695,10 +695,10 @@ async function inputHandler(id, input) {
       );
       break;
 
-    case (MessageType.WHEREIS): 
+    case (MessageType.WHEREIS):
       debug("Received WHEREIS");
       // Get the runtime to find the peer
-      let runtimeAnswer = await _rt.whereisFromRemote(input.message);
+      let runtimeAnswer = await _rt.whereisFromRemote(input.message, id);
 
      // Reply with WHEREISOK
       pushWrap(id, {

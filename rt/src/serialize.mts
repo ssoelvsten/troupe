@@ -44,20 +44,35 @@ export class UnserializableObjectError extends StopThreadError {
 }
 
 /**
- * Error thrown when attempting to serialize quarantined data to a node
- * other than the original quarantine source node.
- *
- * Quarantined data can only be sent back to its source node (where labels
- * are restored to their original form) or processed locally. Forwarding
- * quarantined data to third parties is prohibited.
+ * Error thrown when attempting to locally serialize quarantined data (e.g., persist to disk).
+ * Quarantined labels require a target node for restoration.
  */
-export class QuarantinedDataForwardingError extends StopThreadError {
+export class QuarantineLocalSerializeError extends StopThreadError {
+    lval: LVal;
+    explainstr: string = "Quarantined data cannot be serialized locally. " +
+                         "Quarantined labels require a target node for restoration.";
+    errorKind: ErrorKind = ErrorKind.IFCCheck;
+
+    get errorMessage() {
+        return `Cannot serialize quarantined data locally. ` +
+               `Quarantined labels require a target node for restoration.`;
+    }
+
+    constructor(lval: LVal) {
+        super(getRuntimeObject().$t);
+        this.lval = lval;
+    }
+}
+
+/**
+ * Error thrown when attempting to forward quarantined data to a node
+ * other than the original quarantine source.
+ */
+export class QuarantineForwardError extends StopThreadError {
     lval: LVal;
     targetNodeId: string;
-    explainstr: string = "Quarantined data contains labels tagged with their source node. " +
-                         "This data can only be sent back to its original source (where labels are restored) " +
-                         "or processed locally. Forwarding to third parties is prohibited to prevent " +
-                         "unauthorized information flow.";
+    explainstr: string = "Quarantined data can only be sent back to its source node. " +
+                         "Forwarding to other nodes is prohibited.";
     errorKind: ErrorKind = ErrorKind.IFCCheck;
 
     get errorMessage() {
@@ -82,7 +97,7 @@ export class QuarantinedDataForwardingError extends StopThreadError {
  *        quarantined labels, those labels will be restored if the target matches
  *        the quarantine source, or an error will be thrown if they don't match.
  * @returns Serialized data and the computed level
- * @throws QuarantinedDataForwardingError if quarantined data targets wrong node
+ * @throws QuarantineSerializeError if quarantined data targets wrong node
  */
 export function serialize(w:LVal, pclev:Level, targetNodeId?: string) {
     let seenNamespaces = new Map();
@@ -105,11 +120,11 @@ export function serialize(w:LVal, pclev:Level, targetNodeId?: string) {
     function serializeLevel(lev: Level, contextLval: LVal): any {
         if (lev.hasQuarantinedLabels && lev.hasQuarantinedLabels()) {
             if (targetNodeId === undefined) {
-                throw new QuarantinedDataForwardingError(contextLval, 'unknown');
+                throw new QuarantineLocalSerializeError(contextLval);
             }
             const restored = lev.restoreForNode(targetNodeId);
             if (restored === null) {
-                throw new QuarantinedDataForwardingError(contextLval, targetNodeId);
+                throw new QuarantineForwardError(contextLval, targetNodeId);
             }
             return restored.toJSON();
         }
