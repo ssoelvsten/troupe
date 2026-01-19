@@ -15,29 +15,42 @@ let
 
     val _ = register ("echo", self(), authority)
 
-    fun loop i =
-        if i > 0 then serverDone() else 
-        let val _ = print "SERVER: waiting for messages..."
-            val _ = sleep (3000)
+    fun gate () = 
+        let 
             val _ = debugMbox()
-
+                
             (* --------------------------------------------- 
-               this pattern should corresopnd to the notion 
-               of gates in the IFC literature
-               --------------------------------------------- 
+                this pattern should corresopnd to the notion 
+                of gates in the IFC literature
+                --------------------------------------------
             *)
 
             val c = raisembox (`<; #null-integrity>`)
             val datum =
                 rcv ( `{}`
                     , `<; #null-integrity>`  (** [⊥, NULL] *)
-                    , [ hn x | y => (x,y) ]) 
+                    , [ hn x | y => let val _ = debugValue y in (x,y) end ]) 
             
             val _ = lowermbox (c, authority) 
-            val _ = blockdown authority 
+            val _ = blockdown authority
+            val (x,y) = 
+                 downgrade (datum, authority, `{}`)
+            val x' = downgrade (x, authority, `{}`)
+            val y' = downgrade (y, authority, `{}`)
             val _ = debugpc ()
+        in (x', y')
+        end 
 
             (* ---------- end of the gate pattern -------- *)
+
+
+    fun loop i =
+        if i > 0 then serverDone() else 
+        let val _ = print "SERVER: waiting for messages..."
+            val _ = sleep (3000)
+            
+            val datum = gate ()
+            val _ = debugValue datum
  
             val _ = 
               case datum of 
@@ -48,8 +61,10 @@ let
                                 (* Print the message with its label to see the downgraded level *)
                                 val _ = print "SERVER: Received msg with labels:"
                                 val _ = printWithLabels msg
+                                val msg' = downgrade (msg, quarantineAuth, `<;>`)
+                                val _ = printWithLabels msg'
                                 val _ = debugpc ()
-                                val _ = send(sender, ("REPLY", msg))
+                                val _ = send(sender, ("REPLY", msg'))
                                 val _ = print "SERVER: Sent reply"
                             in ()
                             end
