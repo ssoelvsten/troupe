@@ -8,4 +8,4 @@ Runtime error in thread e5bd15c7-b05c-425e-88d1-26ba42711e14@{}%{}
  |    pc: {#TOP}
  | block: {#TOP}
  | value: 1@{}%{}
->> at tests/rt/neg/ifc/simple.trp:2:23
+>> at tests/rt/neg/ifc/simple-ifc-violation01.trp:2:23

@@ -5,4 +5,4 @@ Runtime error in thread 9404ba3d-5bd9-4fdb-bbc6-587966dc9c85@{}%{}
     | ^
 
 >> value ()@{}%{} is not a authority
->> at tests/rt/neg/ifc/cliargs01.trp:2:1
+>> at tests/rt/neg/ifc/cliargs-noauth01.trp:2:1

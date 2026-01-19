@@ -5,4 +5,4 @@ Runtime error in thread 217c36dc-50af-4288-88a7-ab4cbdd6a289@{}%{}
     |         ^
 
 >> pattern match failure in let declaration
->> at tests/rt/neg/core/pattern02.trp:1:9
+>> at tests/rt/neg/core/pattern-literal-mismatch01.trp:1:9

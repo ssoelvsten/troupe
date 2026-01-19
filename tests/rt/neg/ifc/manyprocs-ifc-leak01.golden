@@ -8,7 +8,7 @@ Runtime error in thread a37e98b8-6463-43e8-be09-5e2aaf8cc97c@{}%{}
  |    pc: {}
  | block: {#TOP}
  | value: 5@{}%{}
->> at tests/rt/neg/ifc/manyprocs.trp:15:21
+>> at tests/rt/neg/ifc/manyprocs-ifc-leak01.trp:15:21
 (6@{}%{}, "x"@{}%{})@{}%{}
 Runtime error in thread f78543d8-5c91-4251-866d-f60400530aea@{}%{}
 
@@ -19,4 +19,4 @@ Runtime error in thread f78543d8-5c91-4251-866d-f60400530aea@{}%{}
  |    pc: {}
  | block: {#TOP}
  | value: 6@{}%{}
->> at tests/rt/neg/ifc/manyprocs.trp:13:18
+>> at tests/rt/neg/ifc/manyprocs-ifc-leak01.trp:13:18
