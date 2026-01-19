@@ -274,8 +274,11 @@ function constructCurrent(compilerOutput: string) {
         /** Lazy getter - creates quarantine tag on first access */
         get quarantineTag(): QuarantineTag {
             if (this._quarantineTag === null) {
+                // Use sender's node ID if available, otherwise fall back to receiver's node ID.
+                // Using sender's node ID allows quarantined data to be sent back to the sender.
+                const nodeId = __senderNodeId ?? __nodeManager.getNodeId();
                 this._quarantineTag = {
-                    nodeId: __nodeManager.getNodeId(),
+                    nodeId: nodeId,
                     quarantineId: uuidv4().toString()
                 };
             }
@@ -460,13 +463,16 @@ function constructCurrent(compilerOutput: string) {
     loadLib(0, () => desercb(result));
 }
 
-// 2018-11-30: AA: TODO: implement a proper deserialization queue instead of 
+// 2018-11-30: AA: TODO: implement a proper deserialization queue instead of
 // the coarse-grained piggybacking on the event loop
 
-function deserializeCb(lev: Level, jsonObj: any, cb: (result: DeserializeResult) => void) {
+let __senderNodeId: string | undefined = undefined;
+
+function deserializeCb(lev: Level, jsonObj: any, senderNodeId: string | undefined, cb: (result: DeserializeResult) => void) {
     if (__isCurrentlyUsingCompiler) {
-        setImmediate(deserializeCb, lev, jsonObj, cb) // postpone; 2018-03-04;aa
+        setImmediate(deserializeCb, lev, jsonObj, senderNodeId, cb) // postpone; 2018-03-04;aa
     } else {
+        __senderNodeId = senderNodeId;
         __isCurrentlyUsingCompiler = true // prevent parallel deserialization attempts; important! -- leads to nasty 
         // race conditions otherwise; 2018-11-30; AA
         __trustLevel = lev;
@@ -496,9 +502,18 @@ function deserializeCb(lev: Level, jsonObj: any, cb: (result: DeserializeResult)
     }
 }
 
-export function deserialize(lev: Level, jsonObj: any): Promise<DeserializeResult> {
+/**
+ * Deserialize a value from JSON with ingress checking.
+ *
+ * @param lev The trust level for the sender
+ * @param jsonObj The serialized JSON object
+ * @param senderNodeId Optional sender node ID. If provided and labels need quarantining,
+ *                     the quarantine tag will use this ID (allowing the data to be sent
+ *                     back to the sender). If not provided, uses the receiver's node ID.
+ */
+export function deserialize(lev: Level, jsonObj: any, senderNodeId?: string): Promise<DeserializeResult> {
     return new Promise((resolve, reject) => {
-        deserializeCb(lev, jsonObj, (result: DeserializeResult) => {
+        deserializeCb(lev, jsonObj, senderNodeId, (result: DeserializeResult) => {
             resolve(result)
         })
     });

@@ -238,57 +238,107 @@ export class DCLabel extends AbstractLevel<DCLabel> {
     }
 
     /**
+     * Result type for restoreForNode operation.
+     * On success: { success: true, label: DCLabel }
+     * On failure: { success: false, mismatchedNodes: Set<string> }
+     */
+    static RestoreResult: {
+        success(label: DCLabel): { success: true; label: DCLabel };
+        failure(mismatchedNodes: Set<string>): { success: false; mismatchedNodes: Set<string> };
+    } = {
+        success: (label: DCLabel) => ({ success: true as const, label }),
+        failure: (mismatchedNodes: Set<string>) => ({ success: false as const, mismatchedNodes })
+    };
+
+    /**
      * Restore quarantined labels for serialization to a specific target node.
      *
      * If this label contains quarantined labels whose quarantine node matches the target,
      * those labels are restored to their original form. If there are quarantined labels
-     * for a different node, returns null to indicate an error.
+     * for a different node, returns failure with the mismatched node IDs.
      *
      * @param targetNodeId The ID of the node we're serializing to
-     * @returns The restored DCLabel, or null if quarantined labels don't match target node
+     * @returns RestoreResult indicating success with restored label, or failure with mismatched nodes
      */
-    restoreForNode(targetNodeId: string): DCLabel | null {
-        const restoredConf = this.restoreCNFForNode(this.confidentiality, targetNodeId);
-        if (restoredConf === null) return null;
+    restoreForNode(targetNodeId: string): { success: true; label: DCLabel } | { success: false; mismatchedNodes: Set<string> } {
+        const mismatchedNodes = new Set<string>();
 
-        const restoredIntg = this.restoreCNFForNode(this.integrity, targetNodeId);
-        if (restoredIntg === null) return null;
+        const restoredConf = this.restoreCNFForNode(this.confidentiality, targetNodeId, mismatchedNodes);
+        const restoredIntg = this.restoreCNFForNode(this.integrity, targetNodeId, mismatchedNodes);
 
-        return new DCLabel(restoredConf, restoredIntg);
+        if (mismatchedNodes.size > 0) {
+            return DCLabel.RestoreResult.failure(mismatchedNodes);
+        }
+
+        return DCLabel.RestoreResult.success(new DCLabel(restoredConf!, restoredIntg!));
+    }
+
+    /**
+     * Collect all quarantine source node IDs from this label.
+     * Useful for error reporting when quarantine forward checks fail.
+     */
+    getQuarantineSourceNodes(): Set<string> {
+        const nodes = new Set<string>();
+        const collectFromCNF = (cnf: CNF) => {
+            for (const cat of cnf.categories) {
+                for (const label of cat.getLabels()) {
+                    const tag = label.getQuarantineTag();
+                    if (tag) {
+                        nodes.add(tag.nodeId);
+                    }
+                }
+            }
+        };
+        collectFromCNF(this.confidentiality);
+        collectFromCNF(this.integrity);
+        return nodes;
     }
 
     /**
      * Helper to restore quarantined labels in a CNF for a specific target node.
+     * Collects mismatched node IDs into the provided set.
      * Returns null if any quarantined label doesn't match the target node.
      */
-    private restoreCNFForNode(cnf: CNF, targetNodeId: string): CNF | null {
+    private restoreCNFForNode(cnf: CNF, targetNodeId: string, mismatchedNodes: Set<string>): CNF | null {
         const newCategories: Category[] = [];
+        let hasMismatch = false;
+
         for (const cat of cnf.categories) {
             const newLabels: Label[] = [];
             for (const label of cat.getLabels()) {
                 if (label.kind === LabelKind.QUARANTINED) {
                     const qlabel = label as QuarantinedLabel;
                     if (qlabel.quarantineTag.nodeId !== targetNodeId) {
-                        // Quarantined label for different node - error
-                        return null;
+                        // Quarantined label for different node - collect and mark error
+                        mismatchedNodes.add(qlabel.quarantineTag.nodeId);
+                        hasMismatch = true;
+                    } else {
+                        // Restore to original label
+                        newLabels.push(qlabel.restore());
                     }
-                    // Restore to original label
-                    newLabels.push(qlabel.restore());
                 } else if (label.kind === LabelKind.QFALSE) {
                     const qfalse = label as QFalseLabel;
                     if (qfalse.quarantineTag.nodeId !== targetNodeId) {
-                        // QFalse for different node - error
-                        return null;
+                        // QFalse for different node - collect and mark error
+                        mismatchedNodes.add(qfalse.quarantineTag.nodeId);
+                        hasMismatch = true;
+                    } else {
+                        // QFalse restores to CNF_FALSE, which is an empty category
+                        // We return the single-empty-category CNF to represent this
+                        return CNF_FALSE;
                     }
-                    // QFalse restores to CNF_FALSE, which is an empty category
-                    // We return the single-empty-category CNF to represent this
-                    return CNF_FALSE;
                 } else {
                     // Regular label - keep as is
                     newLabels.push(label);
                 }
             }
-            newCategories.push(new Category(newLabels));
+            if (!hasMismatch) {
+                newCategories.push(new Category(newLabels));
+            }
+        }
+
+        if (hasMismatch) {
+            return null;
         }
         return new CNF(new Set(newCategories));
     }

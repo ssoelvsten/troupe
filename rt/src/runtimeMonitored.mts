@@ -108,7 +108,7 @@ async function spawnAtNode(nodeid, f) {
 
   try {
     let body1 = await p2p.spawnp2p(node.nodeId, data);
-    let result = await DS.deserialize(nodeTrustLevel(node.nodeId), body1)
+    let result = await DS.deserialize(nodeTrustLevel(node.nodeId), body1, node.nodeId)
 
     // For spawn responses, DROP means we can't trust the pid we got back
     if (shouldDrop(result)) {
@@ -167,7 +167,7 @@ async function spawnFromRemote(jsonObj, fromNode) {
 
   let nodeLev = nodeTrustLevel(fromNode);
 
-  let result = await DS.deserialize(nodeLev, jsonObj)
+  let result = await DS.deserialize(nodeLev, jsonObj, fromNode)
 
   // For spawn requests, DROP means we reject the spawn
   if (shouldDrop(result)) {
@@ -209,7 +209,7 @@ async function spawnFromRemote(jsonObj, fromNode) {
 async function receiveFromRemote(pid, jsonObj, fromNode) {
   debug(`* rt receiveFromremote *  ${JSON.stringify(jsonObj)}`)
 
-  const result = await DS.deserialize(nodeTrustLevel(fromNode), jsonObj);
+  const result = await DS.deserialize(nodeTrustLevel(fromNode), jsonObj, fromNode);
 
   // Handle ingress check result
   if (shouldDrop(result)) {

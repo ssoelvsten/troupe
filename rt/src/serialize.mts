@@ -71,19 +71,23 @@ export class QuarantineLocalSerializeError extends StopThreadError {
 export class QuarantineForwardError extends StopThreadError {
     lval: LVal;
     targetNodeId: string;
+    quarantineSourceNodes: Set<string>;
     explainstr: string = "Quarantined data can only be sent back to its source node. " +
                          "Forwarding to other nodes is prohibited.";
     errorKind: ErrorKind = ErrorKind.IFCCheck;
 
     get errorMessage() {
+        const sourceList = Array.from(this.quarantineSourceNodes).map(n => `"${n}"`).join(', ');
         return `Cannot forward quarantined data to node "${this.targetNodeId}". ` +
-               `Quarantined labels can only be sent back to their source node.`;
+               `Quarantined labels can only be sent back to their source node. ` +
+               `Found quarantine source node(s): ${sourceList}.`;
     }
 
-    constructor(lval: LVal, targetNodeId: string) {
+    constructor(lval: LVal, targetNodeId: string, quarantineSourceNodes: Set<string>) {
         super(getRuntimeObject().$t);
         this.lval = lval;
         this.targetNodeId = targetNodeId;
+        this.quarantineSourceNodes = quarantineSourceNodes;
     }
 }
 
@@ -122,11 +126,12 @@ export function serialize(w:LVal, pclev:Level, targetNodeId?: string) {
             if (targetNodeId === undefined) {
                 throw new QuarantineLocalSerializeError(contextLval);
             }
-            const restored = lev.restoreForNode(targetNodeId);
-            if (restored === null) {
-                throw new QuarantineForwardError(contextLval, targetNodeId);
+            const result = lev.restoreForNode(targetNodeId);
+            if (result.success === true) {
+                return result.label.toJSON();
             }
-            return restored.toJSON();
+            // result.success === false, so mismatchedNodes exists
+            throw new QuarantineForwardError(contextLval, targetNodeId, result.mismatchedNodes);
         }
         return lev.toJSON();
     }

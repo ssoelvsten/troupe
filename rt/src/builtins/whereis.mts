@@ -101,7 +101,7 @@ export function BuiltinRegistry<TBase extends Constructor<UserRuntimeZero>>(Base
                 (async () => {
                     try {
                         let body1 = await p2p.whereisp2p(n, k);
-                        let result = await deserialize(nodeTrustLevel(n), body1);
+                        let result = await deserialize(nodeTrustLevel(n), body1, n);
 
                         // DROP means we can't trust the pid we got back
                         if (shouldDrop(result)) {
