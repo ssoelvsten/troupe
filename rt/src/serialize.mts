@@ -43,8 +43,48 @@ export class UnserializableObjectError extends StopThreadError {
     }
 }
 
+/**
+ * Error thrown when attempting to serialize quarantined data to a node
+ * other than the original quarantine source node.
+ *
+ * Quarantined data can only be sent back to its source node (where labels
+ * are restored to their original form) or processed locally. Forwarding
+ * quarantined data to third parties is prohibited.
+ */
+export class QuarantinedDataForwardingError extends StopThreadError {
+    lval: LVal;
+    targetNodeId: string;
+    explainstr: string = "Quarantined data contains labels tagged with their source node. " +
+                         "This data can only be sent back to its original source (where labels are restored) " +
+                         "or processed locally. Forwarding to third parties is prohibited to prevent " +
+                         "unauthorized information flow.";
+    errorKind: ErrorKind = ErrorKind.IFCCheck;
 
-export function serialize(w:LVal, pclev:Level) {    
+    get errorMessage() {
+        return `Cannot forward quarantined data to node "${this.targetNodeId}". ` +
+               `Quarantined labels can only be sent back to their source node.`;
+    }
+
+    constructor(lval: LVal, targetNodeId: string) {
+        super(getRuntimeObject().$t);
+        this.lval = lval;
+        this.targetNodeId = targetNodeId;
+    }
+}
+
+
+/**
+ * Serializes a labeled value for transmission to another node.
+ *
+ * @param w The labeled value to serialize
+ * @param pclev The PC level at the time of serialization
+ * @param targetNodeId Optional target node ID. If provided and the value contains
+ *        quarantined labels, those labels will be restored if the target matches
+ *        the quarantine source, or an error will be thrown if they don't match.
+ * @returns Serialized data and the computed level
+ * @throws QuarantinedDataForwardingError if quarantined data targets wrong node
+ */
+export function serialize(w:LVal, pclev:Level, targetNodeId?: string) {
     let seenNamespaces = new Map();
     let seenClosures = new Map();
     let seenEnvs = new Map();
@@ -56,10 +96,30 @@ export function serialize(w:LVal, pclev:Level) {
 
     let level = pclev;
 
+    /**
+     * Helper to serialize a level, handling quarantine restoration.
+     * @param lev The level to serialize
+     * @param contextLval The LVal containing this level (for error reporting)
+     * @returns JSON representation of the level (restored if needed)
+     */
+    function serializeLevel(lev: Level, contextLval: LVal): any {
+        if (lev.hasQuarantinedLabels && lev.hasQuarantinedLabels()) {
+            if (targetNodeId === undefined) {
+                throw new QuarantinedDataForwardingError(contextLval, 'unknown');
+            }
+            const restored = lev.restoreForNode(targetNodeId);
+            if (restored === null) {
+                throw new QuarantinedDataForwardingError(contextLval, targetNodeId);
+            }
+            return restored.toJSON();
+        }
+        return lev.toJSON();
+    }
+
     function walk(lval:LVal) {
         assert(Ty.isLVal(lval));
 
-        level = lub(level, lval.lev); // 2018-09-24: AA: is this the only place 
+        level = lub(level, lval.lev); // 2018-09-24: AA: is this the only place
         // where we need to check the level of the message?
 
         let jsonObj;
@@ -161,13 +221,15 @@ export function serialize(w:LVal, pclev:Level) {
                 }
                 break;
             case Ty.TroupeType.LEVEL:
-                jsonObj = { lev: x.toJSON(), isLevel: true };
+                // Handle quarantined labels during serialization
+                jsonObj = { lev: serializeLevel(x, lval), isLevel: true };
                 break;
             case Ty.TroupeType.LVAL:
                 jsonObj = walk(x);
                 break;
             case Ty.TroupeType.AUTHORITY:
-                jsonObj = { authorityLevel: x.authorityLevel.toJSON() }
+                // Authority level can also contain quarantined labels
+                jsonObj = { authorityLevel: serializeLevel(x.authorityLevel, lval) }
                 break;
             case Ty.TroupeType.ATOM:
                 jsonObj = { atom: x.atom, creation_uuid: x.creation_uuid };
@@ -186,14 +248,17 @@ export function serialize(w:LVal, pclev:Level) {
 
         return {
             val: jsonObj
-            , lev: lval.lev.toJSON()
-            , tlev: lval.tlev.toJSON()
-            , troupeType: _tt               
+            , lev: serializeLevel(lval.lev, lval)
+            , tlev: serializeLevel(lval.tlev, lval)
+            , troupeType: _tt
         };
     }
 
     let value = walk(w);
-    value.lev = lub(w.lev, pclev).toJSON();
+    // The final level is the lub of the value's level and the PC level
+    // This also needs quarantine handling
+    const finalLevel = lub(w.lev, pclev);
+    value.lev = serializeLevel(finalLevel, w);
 
 
     let nsp = [];

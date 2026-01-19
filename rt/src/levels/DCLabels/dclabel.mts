@@ -10,6 +10,7 @@ import { Category
        , disjunction
     } from './cnf.mjs'
 import { DC_CONF_LITERALS, DC_DELIM_LEFT, DC_DELIM_RIGHT, DC_DELIM_SEP, DC_IFC_TOP, DC_INTG_LITERALS, DC_TRUST_ROOT, getDelimiters } from './dcl_pp_config.mjs';
+import { Label, LabelKind, RegularLabel, QuarantinedLabel, QFalseLabel, QuarantineTag } from './label.mjs';
 
 import { getCliArgs, TroupeCliArg } from '../../TroupeCliArgs.mjs';
 import { mkLogger } from '../../logger.mjs';
@@ -70,30 +71,44 @@ export class DCLabel extends AbstractLevel<DCLabel> {
         return this.flowsTo(other) && other.flowsTo(this);
     }
 
-    isTagsetCompatible() : boolean |  Set<string> {
+    isTagsetCompatible(): boolean | Set<string> {
         if (this.confidentiality.categories.size == 0) {
             return false;
         }
 
         if (this.integrity.categories.size != 1) {
-            return false; 
+            return false;
         }
-        const _the_integrity: Category = 
+        const _the_integrity: Category =
             this.integrity.categories.values().next().value;
 
-        const s :Set <string> = _the_integrity.labels;
+        const integrityLabels = _the_integrity.getLabels();
 
+        // All labels must be RegularLabels for tagset compatibility
+        for (const label of integrityLabels) {
+            if (label.kind !== LabelKind.REGULAR) {
+                return false;
+            }
+        }
+
+        // Build a set of principal names from integrity labels
+        const s: Set<string> = new Set(
+            integrityLabels.map(l => (l as RegularLabel).principal)
+        );
 
         for (let cat of this.confidentiality.categories) {
-            if (cat.labels.size == 1) {
-                // debug (`isTagsetCompatible: cat.labels.size is 1`);
-                const l:string  = cat.labels.values().next().value;
-                // debug (`checking the label ${l}`)
-                if (!s.has(l)) {
-                    return false; 
+            const catLabels = cat.getLabels();
+            if (catLabels.length == 1) {
+                const label = catLabels[0];
+                // Must be a RegularLabel
+                if (label.kind !== LabelKind.REGULAR) {
+                    return false;
+                }
+                const principal = (label as RegularLabel).principal;
+                if (!s.has(principal)) {
+                    return false;
                 }
             } else {
-                // debug (`isTagsetCompatible: cat.labels.size is ${cat.labels.size}`);
                 return false;
             }
         }
@@ -185,12 +200,129 @@ export class DCLabel extends AbstractLevel<DCLabel> {
     // TODO: Performance optimization - if this path becomes a bottleneck, consider
     // adding a fromSingleTagNormalized() variant that skips normalization for cases
     // where the frontend (e.g., IR processor/lexer) has already normalized the tag.
-    static fromSingleTag (s:string):DCLabel {
-        // Normalize case for consistency with tagsets and lexer (defensive programming)
-        let labels = new Set ([s.trim().toLowerCase()])
-        let cat = new Category(labels)
-        let cnf = new CNF (new Set ([cat]))
-        return new DCLabel(cnf, cnf)
+    static fromSingleTag(s: string): DCLabel {
+        // Create a RegularLabel (which handles normalization and validation)
+        const label = new RegularLabel(s);
+        const cat = new Category([label]);
+        const cnf = new CNF(new Set([cat]));
+        return new DCLabel(cnf, cnf);
+    }
+
+    /**
+     * Check if this label contains any quarantined components (QuarantinedLabel or QFalseLabel).
+     */
+    hasQuarantinedLabels(): boolean {
+        const checkCNF = (cnf: CNF): boolean => {
+            for (const cat of cnf.categories) {
+                for (const label of cat.getLabels()) {
+                    if (label.isQuarantined()) return true;
+                }
+            }
+            return false;
+        };
+        return checkCNF(this.confidentiality) || checkCNF(this.integrity);
+    }
+
+    /**
+     * Quarantine this label by converting all RegularLabels to QuarantinedLabels.
+     * CNF_FALSE components become QFalseLabel.
+     *
+     * @param tag The quarantine tag identifying this quarantine session
+     * @returns A new DCLabel with quarantined components
+     */
+    quarantine(tag: QuarantineTag): DCLabel {
+        return new DCLabel(
+            this.quarantineCNF(this.confidentiality, tag),
+            this.quarantineCNF(this.integrity, tag)
+        );
+    }
+
+    /**
+     * Restore quarantined labels for serialization to a specific target node.
+     *
+     * If this label contains quarantined labels whose quarantine node matches the target,
+     * those labels are restored to their original form. If there are quarantined labels
+     * for a different node, returns null to indicate an error.
+     *
+     * @param targetNodeId The ID of the node we're serializing to
+     * @returns The restored DCLabel, or null if quarantined labels don't match target node
+     */
+    restoreForNode(targetNodeId: string): DCLabel | null {
+        const restoredConf = this.restoreCNFForNode(this.confidentiality, targetNodeId);
+        if (restoredConf === null) return null;
+
+        const restoredIntg = this.restoreCNFForNode(this.integrity, targetNodeId);
+        if (restoredIntg === null) return null;
+
+        return new DCLabel(restoredConf, restoredIntg);
+    }
+
+    /**
+     * Helper to restore quarantined labels in a CNF for a specific target node.
+     * Returns null if any quarantined label doesn't match the target node.
+     */
+    private restoreCNFForNode(cnf: CNF, targetNodeId: string): CNF | null {
+        const newCategories: Category[] = [];
+        for (const cat of cnf.categories) {
+            const newLabels: Label[] = [];
+            for (const label of cat.getLabels()) {
+                if (label.kind === LabelKind.QUARANTINED) {
+                    const qlabel = label as QuarantinedLabel;
+                    if (qlabel.quarantineTag.nodeId !== targetNodeId) {
+                        // Quarantined label for different node - error
+                        return null;
+                    }
+                    // Restore to original label
+                    newLabels.push(qlabel.restore());
+                } else if (label.kind === LabelKind.QFALSE) {
+                    const qfalse = label as QFalseLabel;
+                    if (qfalse.quarantineTag.nodeId !== targetNodeId) {
+                        // QFalse for different node - error
+                        return null;
+                    }
+                    // QFalse restores to CNF_FALSE, which is an empty category
+                    // We return the single-empty-category CNF to represent this
+                    return CNF_FALSE;
+                } else {
+                    // Regular label - keep as is
+                    newLabels.push(label);
+                }
+            }
+            newCategories.push(new Category(newLabels));
+        }
+        return new CNF(new Set(newCategories));
+    }
+
+    /**
+     * Helper to quarantine a single CNF component.
+     */
+    private quarantineCNF(cnf: CNF, tag: QuarantineTag): CNF {
+        // Special case: CNF_FALSE (single empty category) becomes qfalse
+        if (cnf.categories.size === 1) {
+            const cat = cnf.categories.values().next().value as Category;
+            if (cat.isEmpty()) {
+                // This is CNF_FALSE - create qfalse
+                const qfalse = new QFalseLabel(tag);
+                return new CNF(new Set([new Category([qfalse])]));
+            }
+        }
+
+        // Quarantine all labels in all categories
+        const newCategories: Category[] = [];
+        for (const cat of cnf.categories) {
+            const newLabels: Label[] = [];
+            for (const label of cat.getLabels()) {
+                if (label.kind === LabelKind.REGULAR) {
+                    // Convert RegularLabel to QuarantinedLabel
+                    newLabels.push(QuarantinedLabel.fromRegular(label as RegularLabel, tag));
+                } else {
+                    // Already quarantined - keep as is
+                    newLabels.push(label);
+                }
+            }
+            newCategories.push(new Category(newLabels));
+        }
+        return new CNF(new Set(newCategories));
     }
 
     /**
@@ -410,3 +542,22 @@ export class DCLevelSystem extends AbstractLevelSystem<DCLabel> {
 export const mkLevel = DCLabel.fromJSON
 export type Level = DCLabel
 export const levels = new DCLevelSystem ()
+
+/**
+ * Creates a quarantine authority label for the given quarantine tag.
+ *
+ * The quarantine authority contains qfalse, which can authorize downgrading
+ * of any quarantined labels with the same quarantine tag.
+ *
+ * @param tag The quarantine tag identifying this quarantine session
+ * @returns A DCLabel suitable for use as quarantine authority
+ */
+export function createQuarantineAuthority(tag: QuarantineTag): DCLabel {
+    const qfalse = new QFalseLabel(tag);
+    const cat = new Category([qfalse]);
+    const cnf = new CNF(new Set([cat]));
+    return new DCLabel(cnf, cnf);
+}
+
+// Re-export QuarantineTag for use by other modules
+export { QuarantineTag } from './label.mjs';

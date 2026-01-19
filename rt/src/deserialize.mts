@@ -19,8 +19,8 @@ import * as levels from './Level.mjs';
 import { getTroupeRoot } from './troupeRoot.mjs';
 import { getCliArgs, TroupeCliArg } from './TroupeCliArgs.mjs';
 import { mkLogger } from './logger.mjs';
-import { DCLabel } from './levels/DCLabels/dclabel.mjs';
-import { implies } from './levels/DCLabels/cnf.mjs';
+import { DCLabel, createQuarantineAuthority, QuarantineTag } from './levels/DCLabels/dclabel.mjs';
+import { __nodeManager } from './NodeManager.mjs';
 
 const argv = getCliArgs();
 const logLevel = argv[TroupeCliArg.DebugQuarantine] ? 'debug' : 'info';
@@ -268,19 +268,32 @@ function constructCurrent(compilerOutput: string) {
     // IngressDeserializer performs the ingress check during deserialization.
     // Each instance tracks whether any label was quarantined.
     class IngressDeserializer {
-        private _quarantineLabel: Level | null = null;
+        private _quarantineTag: QuarantineTag | null = null;
+        private _quarantineAuth: Level | null = null;
 
-        /** Lazy getter - creates quarantine label on first access */
-        get quarantineLabel(): Level {
-            if (this._quarantineLabel === null) {
-                this._quarantineLabel = levels.fromSingleTag(uuidv4().toString());
+        /** Lazy getter - creates quarantine tag on first access */
+        get quarantineTag(): QuarantineTag {
+            if (this._quarantineTag === null) {
+                this._quarantineTag = {
+                    nodeId: __nodeManager.getNodeId(),
+                    quarantineId: uuidv4().toString()
+                };
             }
-            return this._quarantineLabel;
+            return this._quarantineTag;
+        }
+
+        /** Returns the quarantine authority (qfalse-based) if quarantine occurred */
+        get quarantineAuthority(): Level | null {
+            if (this._quarantineTag === null) return null;
+            if (this._quarantineAuth === null) {
+                this._quarantineAuth = createQuarantineAuthority(this._quarantineTag);
+            }
+            return this._quarantineAuth;
         }
 
         /** Returns true if any label was quarantined */
         get wasQuarantined(): boolean {
-            return this._quarantineLabel !== null;
+            return this._quarantineTag !== null;
         }
 
         /** Check label and return effective label (original if trusted, quarantine if not) */
@@ -294,17 +307,11 @@ function constructCurrent(compilerOutput: string) {
                 throw new CorruptDataException();
             }
 
-            const quarantineLabel = this.quarantineLabel // Triggers lazy creation
-            
-            let conf_label = implies((__trustLevel as Level).confidentiality, lev.confidentiality)? lev.confidentiality : 
-                quarantineLabel.confidentiality
-            let int_label = implies ((__trustLevel as Level).integrity, lev.integrity)? lev.integrity : 
-                quarantineLabel.integrity
-            
-            const resultLabel = new DCLabel (conf_label, int_label)
+            // Quarantine the label using the new quarantine mechanism
+            const quarantinedLabel = (lev as DCLabel).quarantine(this.quarantineTag);
 
-            qdebug(`QUARANTINE: label ${lev.stringRep()} not trusted by ${__trustLevel.stringRep()} -> ${resultLabel.stringRep()}`);
-            return resultLabel;  
+            qdebug(`QUARANTINE: label ${lev.stringRep()} not trusted by ${__trustLevel.stringRep()} -> ${quarantinedLabel.stringRep()}`);
+            return quarantinedLabel;
         }
 
         private deserializeArray(x: any[]): LVal[] {
@@ -426,7 +433,7 @@ function constructCurrent(compilerOutput: string) {
             result = {
                 result: IngressResult.QUARANTINE,
                 value: v,
-                quarantineAuth: ingress.quarantineLabel
+                quarantineAuth: ingress.quarantineAuthority
             };
         } else {
             result = { result: IngressResult.TRUSTED, value: v };

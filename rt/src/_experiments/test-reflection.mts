@@ -248,13 +248,14 @@ console.log("\n\n7. Hypothesis: NMIFC succeeds iff source is not corrupt");
 console.log("-".repeat(60));
 
 import { Category, CNF } from '../levels/DCLabels/cnf.mjs';
+import { RegularLabel } from '../levels/DCLabels/label.mjs';
 import Table from 'cli-table3';
 
 function mkLabel(cTags: string[], iTags: string[]): DCLabel {
     // Create CNF from tags (conjunction of single-tag categories)
     const mkCNF = (tags: string[]): CNF => {
         if (tags.length === 0) return CNF_TRUE;
-        const cats = new Set(tags.map(t => new Category(new Set([t]))));
+        const cats = new Set(tags.map(t => new Category([new RegularLabel(t)])));
         return new CNF(cats);
     };
     return new DCLabel(mkCNF(cTags), mkCNF(iTags));

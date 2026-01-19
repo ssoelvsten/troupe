@@ -2,6 +2,7 @@
 
 import { DCLabel, IFC_BOT, IFC_TOP, TRUST_NULL, TRUST_ROOT, levels } from '../levels/DCLabels/dclabel.mjs';
 import { implies, CNF_TRUE, CNF_FALSE, Category, CNF } from '../levels/DCLabels/cnf.mjs';
+import { RegularLabel } from '../levels/DCLabels/label.mjs';
 import { DowngradeResult, DowngradeErrorReason } from '../DowngradeEnums.mjs';
 
 // Helper to format downgrade results
@@ -23,7 +24,7 @@ function formatResult(r: DowngradeResult): string {
 function mkLabel(cTags: string[], iTags: string[]): DCLabel {
     const mkCNF = (tags: string[]): CNF => {
         if (tags.length === 0) return CNF_TRUE;
-        const cats = new Set(tags.map(t => new Category(new Set([t]))));
+        const cats = new Set(tags.map(t => new Category([new RegularLabel(t)])));
         return new CNF(cats);
     };
     return new DCLabel(mkCNF(cTags), mkCNF(iTags));
