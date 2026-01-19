@@ -33,6 +33,7 @@ import { mkLogger } from './logger.mjs'
 import { getTroupeRoot } from './troupeRoot.mjs'
 import { Record } from './Record.mjs';
 import { level } from 'winston';
+import { shouldDrop, extractQuarantineAuth } from './QuarantineUtils.mjs';
 
 const readFile = fs.promises.readFile
 const rt_uuid = runId
@@ -110,7 +111,7 @@ async function spawnAtNode(nodeid, f) {
     let result = await DS.deserialize(nodeTrustLevel(node.nodeId), body1)
 
     // For spawn responses, DROP means we can't trust the pid we got back
-    if (result.result === DS.IngressResult.DROP) {
+    if (shouldDrop(result)) {
       error(`Dropping corrupt spawn response from ${node.nodeId}`);
       theThread.throwInSuspended("Corrupt spawn response from remote node");
       __sched.scheduleThread(theThread);
@@ -169,7 +170,7 @@ async function spawnFromRemote(jsonObj, fromNode) {
   let result = await DS.deserialize(nodeLev, jsonObj)
 
   // For spawn requests, DROP means we reject the spawn
-  if (result.result === DS.IngressResult.DROP) {
+  if (shouldDrop(result)) {
     debug(`Rejecting spawn from ${fromNode} due to corrupt data`);
     // Return null to indicate failure - the caller will handle this
     return null;
@@ -211,7 +212,7 @@ async function receiveFromRemote(pid, jsonObj, fromNode) {
   const result = await DS.deserialize(nodeTrustLevel(fromNode), jsonObj);
 
   // Handle ingress check result
-  if (result.result === DS.IngressResult.DROP) {
+  if (shouldDrop(result)) {
     debug(`Dropping corrupt message from ${fromNode}`);
     qdebug(`DROP: message from ${fromNode} contained corrupt data`);
     return;  // Silent drop
@@ -223,9 +224,7 @@ async function receiveFromRemote(pid, jsonObj, fromNode) {
   let toPid = new LVal(new ProcessID(rt_uuid, pid, __nodeManager.getLocalNode()), data.lev);
 
   // Pass quarantine authority if present
-  const quarantineAuth = result.result === DS.IngressResult.QUARANTINE
-    ? result.quarantineAuth!
-    : null;
+  const quarantineAuth = extractQuarantineAuth(result);
 
   if (quarantineAuth !== null) {
     qdebug(`QUARANTINE: message from ${fromNode} quarantined with auth ${quarantineAuth.stringRep()}`);

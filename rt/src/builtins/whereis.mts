@@ -5,7 +5,8 @@ import { Record } from '../Record.mjs'
 import { LVal } from '../Lval.mjs'
 import { ProcessID } from '../process.mjs';
 const { lub, flowsTo } = levels
-import {deserialize, IngressResult, DeserializeResult} from '../deserialize.mjs'
+import {deserialize, DeserializeResult} from '../deserialize.mjs'
+import { shouldDrop, wrapQuarantineAuth } from '../QuarantineUtils.mjs'
 import { __nodeManager } from '../NodeManager.mjs';
 import { assertNormalState, assertIsNTuple, assertIsString, assertIsProcessId, assertIsAuthority, assertIsRootAuthority, assertIsNode } from '../Asserts.mjs';
 import { __unit } from '../UnitVal.mjs';
@@ -21,7 +22,6 @@ const argv = getCliArgs();
 
 let logLevel = argv[TroupeCliArg.Debug] ? 'debug': 'info'
 import { mkLogger } from '../logger.mjs'
-import { Authority } from '../Authority.mjs'
 const logger = mkLogger('RTM', logLevel);
 const debug = x => logger.debug(x)
 
@@ -104,7 +104,7 @@ export function BuiltinRegistry<TBase extends Constructor<UserRuntimeZero>>(Base
                         let result = await deserialize(nodeTrustLevel(n), body1);
 
                         // DROP means we can't trust the pid we got back
-                        if (result.result === IngressResult.DROP) {
+                        if (shouldDrop(result)) {
                             debug(`Dropping corrupt ${fnName} response from ${n}`);
                             theThread.throwInSuspended("Corrupt whereis response from remote node");
                             __sched.scheduleThread(theThread);
@@ -155,13 +155,10 @@ export function BuiltinRegistry<TBase extends Constructor<UserRuntimeZero>>(Base
                 },
                 // Remote: wrap in record, include quarantineAuth if quarantine occurred
                 (pid, bodyLev, result) => {
-                    let resLev = lub (this.runtime.$t.pc, bodyLev)
                     let pidLVal = this.runtime.$t.mkValWithLev(pid, bodyLev);
                     let fields: [string, LVal][] = [["processId", pidLVal]];
-                    if (result.quarantineAuth) {
-                        let qAuthLval = this.runtime.$t.mkValWithLev (
-                               new Authority (result.quarantineAuth)
-                             , this.runtime.$t.pc)
+                    let qAuthLval = wrapQuarantineAuth(result.quarantineAuth ?? null, this.runtime.$t.pc);
+                    if (qAuthLval !== null) {
                         fields.push(["quarantineAuth", qAuthLval])
                     }
                     let resultRecord = Record.mkRecord(fields);

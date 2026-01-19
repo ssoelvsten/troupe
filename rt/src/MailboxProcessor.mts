@@ -25,7 +25,7 @@ import { MailboxInterface } from "./MailboxInterface.mjs";
 import { Level } from "./Level.mjs";
 import { Thread } from "./Thread.mjs";
 import { Record } from "./Record.mjs";
-import { Authority } from "./Authority.mjs";
+import { wrapQuarantineAuth } from "./QuarantineUtils.mjs";
 
 
 function createMessage(msg, fromNodeId, pc, quarantineAuthLVal: LVal | null = null) {
@@ -79,9 +79,7 @@ export class MailboxProcessor implements MailboxInterface {
         let fromNodeId = new LVal(fromNode, metadataLev);
 
         // Create quarantine authority LVal if present
-        let quarantineAuthLVal = quarantineAuth !== null
-            ? new LVal(new Authority(quarantineAuth), metadataLev)
-            : null;
+        let quarantineAuthLVal = wrapQuarantineAuth(quarantineAuth, metadataLev);
 
         if (quarantineAuthLVal !== null) {
             qdebug(`MAILBOX: delivering quarantined message to pid=${toPid.val.pid} auth=${quarantineAuth!.stringRep()}`);
