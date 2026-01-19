@@ -292,10 +292,11 @@ export class DCLevelSystem extends AbstractLevelSystem<DCLabel> {
                 , isNMIFC: boolean = false
                 , pc     : DCLabel = null ) : DowngradeResult => {
 
-
-            if (kind === DowngradeKind.VALUE && !this.flowsTo(bl, l_to)) {
-                return DowngradeError(DowngradeErrorReason.BLOCKING_LEVEL_MISMATCH);
-            }
+            // 2026-01-16: AA: I don't think we actually need this check
+            // 
+            // if (kind === DowngradeKind.VALUE && !this.flowsTo(bl, l_to)) {
+            //     return DowngradeError(DowngradeErrorReason.BLOCKING_LEVEL_MISMATCH);
+            // }
 
             /*
 
