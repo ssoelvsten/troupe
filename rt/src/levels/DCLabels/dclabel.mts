@@ -12,8 +12,8 @@ import { Category
 import { DC_CONF_LITERALS, DC_DELIM_LEFT, DC_DELIM_RIGHT, DC_DELIM_SEP, DC_IFC_TOP, DC_INTG_LITERALS, DC_TRUST_ROOT, getDelimiters } from './dcl_pp_config.mjs';
 import { Label, LabelKind, RegularLabel, QuarantinedLabel, QFalseLabel, QuarantineTag } from './label.mjs';
 
-import { getCliArgs, TroupeCliArg } from '../../TroupeCliArgs.mjs';
-import { mkLogger } from '../../logger.mjs';
+// import { getCliArgs, TroupeCliArg } from '../../TroupeCliArgs.mjs';
+// import { mkLogger } from '../../logger.mjs';
 
 // const argv = getCliArgs();
 // const logLevel = argv[TroupeCliArg.Debug] ? 'debug' : 'info';
@@ -270,7 +270,7 @@ export class DCLabel extends AbstractLevel<DCLabel> {
             return DCLabel.RestoreResult.failure(mismatchedNodes);
         }
 
-        return DCLabel.RestoreResult.success(new DCLabel(restoredConf!, restoredIntg!));
+        return DCLabel.RestoreResult.success(new DCLabel(restoredConf, restoredIntg));
     }
 
     /**
@@ -297,11 +297,10 @@ export class DCLabel extends AbstractLevel<DCLabel> {
     /**
      * Helper to restore quarantined labels in a CNF for a specific target node.
      * Collects mismatched node IDs into the provided set.
-     * Returns null if any quarantined label doesn't match the target node.
+     * Always returns a valid CNF; caller checks mismatchedNodes to determine success.
      */
-    private restoreCNFForNode(cnf: CNF, targetNodeId: string, mismatchedNodes: Set<string>): CNF | null {
+    private restoreCNFForNode(cnf: CNF, targetNodeId: string, mismatchedNodes: Set<string>): CNF {
         const newCategories: Category[] = [];
-        let hasMismatch = false;
 
         for (const cat of cnf.categories) {
             const newLabels: Label[] = [];
@@ -309,37 +308,26 @@ export class DCLabel extends AbstractLevel<DCLabel> {
                 if (label.kind === LabelKind.QUARANTINED) {
                     const qlabel = label as QuarantinedLabel;
                     if (qlabel.quarantineTag.nodeId !== targetNodeId) {
-                        // Quarantined label for different node - collect and mark error
                         mismatchedNodes.add(qlabel.quarantineTag.nodeId);
-                        hasMismatch = true;
+                        newLabels.push(label);  // keep as-is
                     } else {
-                        // Restore to original label
                         newLabels.push(qlabel.restore());
                     }
                 } else if (label.kind === LabelKind.QFALSE) {
                     const qfalse = label as QFalseLabel;
                     if (qfalse.quarantineTag.nodeId !== targetNodeId) {
-                        // QFalse for different node - collect and mark error
                         mismatchedNodes.add(qfalse.quarantineTag.nodeId);
-                        hasMismatch = true;
-                    } else {
-                        // QFalse restores to CNF_FALSE, which is an empty category
-                        // We return the single-empty-category CNF to represent this
-                        return CNF_FALSE;
+                        newLabels.push(label);  // keep as-is
                     }
+                    // else: QFalse restores to false in a disjunction (false ∨ X = X),
+                    // so we don't add anything to newLabels.
                 } else {
-                    // Regular label - keep as is
                     newLabels.push(label);
                 }
             }
-            if (!hasMismatch) {
-                newCategories.push(new Category(newLabels));
-            }
+            newCategories.push(new Category(newLabels));
         }
 
-        if (hasMismatch) {
-            return null;
-        }
         return new CNF(new Set(newCategories));
     }
 
@@ -347,30 +335,26 @@ export class DCLabel extends AbstractLevel<DCLabel> {
      * Helper to quarantine a single CNF component.
      */
     private quarantineCNF(cnf: CNF, tag: QuarantineTag): CNF {
-        // Special case: CNF_FALSE (single empty category) becomes qfalse
-        if (cnf.categories.size === 1) {
-            const cat = cnf.categories.values().next().value as Category;
-            if (cat.isEmpty()) {
-                // This is CNF_FALSE - create qfalse
-                const qfalse = new QFalseLabel(tag);
-                return new CNF(new Set([new Category([qfalse])]));
-            }
-        }
-
         // Quarantine all labels in all categories
         const newCategories: Category[] = [];
         for (const cat of cnf.categories) {
-            const newLabels: Label[] = [];
-            for (const label of cat.getLabels()) {
-                if (label.kind === LabelKind.REGULAR) {
-                    // Convert RegularLabel to QuarantinedLabel
-                    newLabels.push(QuarantinedLabel.fromRegular(label as RegularLabel, tag));
-                } else {
-                    // Already quarantined - keep as is
-                    newLabels.push(label);
+            if (cat.isEmpty()) {
+                // Empty category (false clause) becomes qfalse
+                const qfalse = new QFalseLabel(tag);
+                newCategories.push(new Category([qfalse]));
+            } else {
+                const newLabels: Label[] = [];
+                for (const label of cat.getLabels()) {
+                    if (label.kind === LabelKind.REGULAR) {
+                        // Convert RegularLabel to QuarantinedLabel
+                        newLabels.push(QuarantinedLabel.fromRegular(label as RegularLabel, tag));
+                    } else {
+                        // Already quarantined - keep as is
+                        newLabels.push(label);
+                    }
                 }
+                newCategories.push(new Category(newLabels));
             }
-            newCategories.push(new Category(newLabels));
         }
         return new CNF(new Set(newCategories));
     }
