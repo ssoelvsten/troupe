@@ -30,7 +30,8 @@ export function sameQuarantineTag(a: QuarantineTag, b: QuarantineTag): boolean {
 export enum LabelKind {
     REGULAR = 'regular',
     QUARANTINED = 'quarantined',
-    QFALSE = 'qfalse'
+    QFALSE = 'qfalse',
+    WILDCARD_QFALSE = 'wildcard_qfalse'
 }
 
 /**
@@ -258,6 +259,56 @@ export class QFalseLabel extends Label {
 }
 
 /**
+ * WildcardQFalse - represents wildcard quarantine authority for a node.
+ *
+ * Unlike QFalseLabel which requires matching both nodeId and quarantineId,
+ * WildcardQFalseLabel only requires matching the nodeId. This enables coalescing
+ * of quarantine authorities when checking actsFor for a specific target node.
+ *
+ * IMPORTANT: This label is NOT serializable - it is purely an internal construct
+ * for authority checks. Attempting to serialize it will throw an error.
+ *
+ * Implication semantics:
+ * - WildcardQFalse@nodeA IMPLIES any QuarantinedLabel with nodeA (any quarantineId)
+ * - WildcardQFalse@nodeA IMPLIES any QFalseLabel with nodeA (any quarantineId)
+ */
+export class WildcardQFalseLabel extends Label {
+    readonly kind = LabelKind.WILDCARD_QFALSE;
+    readonly nodeId: string;
+
+    constructor(nodeId: string) {
+        super();
+        this.nodeId = nodeId;
+    }
+
+    toKey(): string {
+        return `W:${this.nodeId}`;
+    }
+
+    stringRep(): string {
+        return `#wildcard@${this.nodeId}`;
+    }
+
+    toJSON(): LabelJSON {
+        throw new Error("WildcardQFalseLabel cannot be serialized - it is for internal use only");
+    }
+
+    equals(other: Label): boolean {
+        if (other.kind !== LabelKind.WILDCARD_QFALSE) return false;
+        return this.nodeId === (other as WildcardQFalseLabel).nodeId;
+    }
+
+    isQuarantined(): boolean {
+        return true;
+    }
+
+    getQuarantineTag(): QuarantineTag | null {
+        // WildcardQFalse doesn't have a specific quarantine tag
+        return null;
+    }
+}
+
+/**
  * Deserialize a label from JSON.
  */
 export function labelFromJSON(json: LabelJSON): Label {
@@ -279,6 +330,8 @@ export function labelFromJSON(json: LabelJSON): Label {
  * Implication rules:
  * - Every label implies itself
  * - QFalse implies any QuarantinedLabel with the same quarantine tag
+ * - WildcardQFalse implies any QuarantinedLabel with the same nodeId (any quarantineId)
+ * - WildcardQFalse implies any QFalseLabel with the same nodeId (any quarantineId)
  * - No other cross-type implications hold
  */
 export function labelImplies(x: Label, y: Label): boolean {
@@ -291,6 +344,16 @@ export function labelImplies(x: Label, y: Label): boolean {
             (x as QFalseLabel).quarantineTag,
             (y as QuarantinedLabel).quarantineTag
         );
+    }
+
+    // WildcardQFalse implies any QuarantinedLabel with the same nodeId
+    if (x.kind === LabelKind.WILDCARD_QFALSE && y.kind === LabelKind.QUARANTINED) {
+        return (x as WildcardQFalseLabel).nodeId === (y as QuarantinedLabel).quarantineTag.nodeId;
+    }
+
+    // WildcardQFalse implies any QFalseLabel with the same nodeId
+    if (x.kind === LabelKind.WILDCARD_QFALSE && y.kind === LabelKind.QFALSE) {
+        return (x as WildcardQFalseLabel).nodeId === (y as QFalseLabel).quarantineTag.nodeId;
     }
 
     return false;

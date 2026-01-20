@@ -10,23 +10,19 @@ import { Category
        , disjunction
     } from './cnf.mjs'
 import { DC_CONF_LITERALS, DC_DELIM_LEFT, DC_DELIM_RIGHT, DC_DELIM_SEP, DC_IFC_TOP, DC_INTG_LITERALS, DC_TRUST_ROOT, getDelimiters } from './dcl_pp_config.mjs';
-import { Label, LabelKind, RegularLabel, QuarantinedLabel, QFalseLabel, QuarantineTag } from './label.mjs';
+import { Label, LabelKind, RegularLabel, QuarantinedLabel, QFalseLabel, WildcardQFalseLabel, QuarantineTag } from './label.mjs';
 
 /**
  * Options for quarantine-aware implication checks.
  *
  * When performing actsFor checks for serialization to a specific node,
- * we need to first restore quarantined labels for that node and track any
- * mismatched nodes (quarantined for a different node).
+ * we coalesce the authority with a wildcard quarantine authority for that node.
+ * This allows the check to succeed for any quarantined labels from the target node,
+ * while naturally failing for quarantined labels from other nodes.
  */
 export interface QuarantineOptions {
     /** The target node ID for which we're checking the implication */
     node: string;
-    /**
-     * If true, proceed with implication check even if there are quarantined
-     * labels for mismatched nodes. If false, return false when mismatches exist.
-     */
-    allowMismatched: boolean;
 }
 
 // import { getCliArgs, TroupeCliArg } from '../../TroupeCliArgs.mjs';
@@ -85,21 +81,15 @@ export class DCLabel extends AbstractLevel<DCLabel> {
                 && implies(this.integrity, other.integrity);
         }
 
-        // Restore quarantined labels for the target node
-        const mismatchedNodes = new Set<string>();
+        // Coalescing approach: combine this label with wildcard authority for the target node.
+        // The wildcard authority can imply any quarantined label from the same node,
+        // so the implication naturally succeeds for same-node quarantined labels
+        // and fails for labels quarantined from different nodes.
+        const wildcardAuth = createWildcardQuarantineAuthority(options.node);
+        const coalescedThis = this.coalesce(wildcardAuth);
 
-        const thisConf = this.restoreCNFForNode(this.confidentiality, options.node, mismatchedNodes);
-        const thisIntg = this.restoreCNFForNode(this.integrity, options.node, mismatchedNodes);
-        const otherConf = this.restoreCNFForNode(other.confidentiality, options.node, mismatchedNodes);
-        const otherIntg = this.restoreCNFForNode(other.integrity, options.node, mismatchedNodes);
-
-        // If mismatches exist and not allowed, return false
-        if (mismatchedNodes.size > 0 && !options.allowMismatched) {
-            return false;
-        }
-
-        // Check implication on restored labels
-        return implies(thisConf, otherConf) && implies(thisIntg, otherIntg);
+        return implies(coalescedThis.confidentiality, other.confidentiality)
+            && implies(coalescedThis.integrity, other.integrity);
     }
 
     equals(other: DCLabel): boolean {
@@ -624,6 +614,27 @@ export const levels = new DCLevelSystem ()
 export function createQuarantineAuthority(tag: QuarantineTag): DCLabel {
     const qfalse = new QFalseLabel(tag);
     const cat = new Category([qfalse]);
+    const cnf = new CNF(new Set([cat]));
+    return new DCLabel(cnf, cnf);
+}
+
+/**
+ * Creates a wildcard quarantine authority for a given node.
+ *
+ * The wildcard authority contains WildcardQFalseLabel, which can imply
+ * any quarantined label (QuarantinedLabel or QFalseLabel) from the same node,
+ * regardless of the specific quarantineId.
+ *
+ * This is used internally for actsFor checks when serializing to a specific node.
+ * Unlike createQuarantineAuthority, this creates an authority that covers ALL
+ * quarantine sessions from the given node.
+ *
+ * @param nodeId The target node ID
+ * @returns A DCLabel suitable for use as wildcard quarantine authority
+ */
+export function createWildcardQuarantineAuthority(nodeId: string): DCLabel {
+    const wildcard = new WildcardQFalseLabel(nodeId);
+    const cat = new Category([wildcard]);
     const cnf = new CNF(new Set([cat]));
     return new DCLabel(cnf, cnf);
 }
