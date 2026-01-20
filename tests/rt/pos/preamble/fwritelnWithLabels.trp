@@ -1,0 +1,2 @@
+fwritelnWithLabels (stdout authority, "Hello, Troupe!" raisedTo `{alice}`)
+

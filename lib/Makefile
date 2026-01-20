@@ -6,7 +6,6 @@ build:
   # No dependencies
 	$(COMPILER) ./Number.trp -l
 	$(COMPILER) ./List.trp -l
-	$(COMPILER) ./StdIO.trp -l
 	$(COMPILER) ./ThreadUtil.trp -l
 	$(COMPILER) ./Result.trp -l
 
