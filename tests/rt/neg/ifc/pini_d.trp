@@ -1,8 +1,6 @@
 (* testing corner case of declassification when destructing *)
 let val secretAlice = 1 raisedTo `<alice;#root-integrity>`
     val secretBob = 1 raisedTo `<bob;#root-integrity>`
-    val aliceAuth = attenuate (authority, `<alice;#root-integrity>`)
-    val bobAuth = attenuate (authority, `<bob;#root-integrity>`)
 
     val a = if secretAlice > 0 then (1,2) else (3,4)
     val b = if secretBob > 0 then (5,6) else (7,8)
