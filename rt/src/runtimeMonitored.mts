@@ -26,7 +26,7 @@ import { ErrorKind } from './TroupeError.mjs';
 
 import { Console } from 'node:console'
 
-const { flowsTo, lub, glb } = levels
+const { flowsTo, actsFor, lub, glb } = levels
 import { getCliArgs, TroupeCliArg } from './TroupeCliArgs.mjs';
 import { configureColors, isColorEnabled } from './colorConfig.mjs';
 import { mkLogger } from './logger.mjs'
@@ -85,7 +85,7 @@ async function spawnAtNode(nodeid, f) {
   let trustLevel = nodeTrustLevel(node.nodeId);
   let theThread = $t();
 
-  if (!flowsTo(level, trustLevel)) {
+  if (!actsFor(trustLevel, level, { node: node.nodeId, allowMismatched: false })) {
     theThread.throwInSuspended("Illegal trust flow when spawning on a remote node\n" +
       ` | the trust level of the recepient node: ${trustLevel.stringRep()}\n` +
       ` | the level of the information in spawn: ${level.stringRep()}`)
@@ -259,7 +259,7 @@ function sendMessageToRemote(toPid, message) {
   // debug ("data level: " +  level.stringRep());
   // debug ("remote trust level: " + trustLevel.stringRep());
 
-  if (!flowsTo(level, trustLevel)) {
+  if (!actsFor(trustLevel, level, { node, allowMismatched: false })) {
     threadError("Illegal trust flow when sending information to a remote node\n" +
       ` | the trust level of the recepient node: ${trustLevel.stringRep()}\n` +
       ` | the level of the information to send:  ${level.stringRep()}`, false, null, ErrorKind.IFCCheck);

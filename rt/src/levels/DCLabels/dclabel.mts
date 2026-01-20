@@ -12,6 +12,23 @@ import { Category
 import { DC_CONF_LITERALS, DC_DELIM_LEFT, DC_DELIM_RIGHT, DC_DELIM_SEP, DC_IFC_TOP, DC_INTG_LITERALS, DC_TRUST_ROOT, getDelimiters } from './dcl_pp_config.mjs';
 import { Label, LabelKind, RegularLabel, QuarantinedLabel, QFalseLabel, QuarantineTag } from './label.mjs';
 
+/**
+ * Options for quarantine-aware implication checks.
+ *
+ * When performing actsFor checks for serialization to a specific node,
+ * we need to first restore quarantined labels for that node and track any
+ * mismatched nodes (quarantined for a different node).
+ */
+export interface QuarantineOptions {
+    /** The target node ID for which we're checking the implication */
+    node: string;
+    /**
+     * If true, proceed with implication check even if there are quarantined
+     * labels for mismatched nodes. If false, return false when mismatches exist.
+     */
+    allowMismatched: boolean;
+}
+
 // import { getCliArgs, TroupeCliArg } from '../../TroupeCliArgs.mjs';
 // import { mkLogger } from '../../logger.mjs';
 
@@ -51,9 +68,9 @@ export class DCLabel extends AbstractLevel<DCLabel> {
 
     }
 
-    actsFor(other:DCLabel) : boolean {
-        /* 
-        returns true if this label actsfor another label. 
+    actsFor(other: DCLabel, options?: QuarantineOptions): boolean {
+        /*
+        returns true if this label actsfor another label.
 
         S_1 ==> S2         I_1 ==> I_2
         -------------------------------
@@ -62,9 +79,27 @@ export class DCLabel extends AbstractLevel<DCLabel> {
         assuming this = <S_1, I_1>
         */
 
-        return implies(this.confidentiality, other.confidentiality)
-            && implies(this.integrity, other.integrity);
-        
+        if (!options) {
+            // Original behavior
+            return implies(this.confidentiality, other.confidentiality)
+                && implies(this.integrity, other.integrity);
+        }
+
+        // Restore quarantined labels for the target node
+        const mismatchedNodes = new Set<string>();
+
+        const thisConf = this.restoreCNFForNode(this.confidentiality, options.node, mismatchedNodes);
+        const thisIntg = this.restoreCNFForNode(this.integrity, options.node, mismatchedNodes);
+        const otherConf = this.restoreCNFForNode(other.confidentiality, options.node, mismatchedNodes);
+        const otherIntg = this.restoreCNFForNode(other.integrity, options.node, mismatchedNodes);
+
+        // If mismatches exist and not allowed, return false
+        if (mismatchedNodes.size > 0 && !options.allowMismatched) {
+            return false;
+        }
+
+        // Check implication on restored labels
+        return implies(thisConf, otherConf) && implies(thisIntg, otherIntg);
     }
 
     equals(other: DCLabel): boolean {
@@ -405,8 +440,8 @@ export class DCLevelSystem extends AbstractLevelSystem<DCLabel> {
         return a.flowsTo (b);   
     }
 
-    actsFor(a: DCLabel, b: DCLabel): boolean {
-        return a.actsFor (b);   
+    actsFor(a: DCLabel, b: DCLabel, options?: QuarantineOptions): boolean {
+        return a.actsFor(b, options);
     }
 
     
