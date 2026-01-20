@@ -13,16 +13,6 @@ let (** OS.IO module with file reading and writing.
             fun readln fd =
                 freadln fd
 
-            (** Similar to `readln` but ensures the blocking label is not raised. *)
-            fun readln' fd =
-                let pini authority
-                    val ln = readln fd
-                in ln end
-
-            (** Similar to `readln'` but declassifies what is read to the given level. *)
-            fun readlnAtLevel fd level =
-                declassify (readln' fd, authority, level)
-
             (*--- File Writing ---*)
             fun _write fd str = fwrite (fd, str)
 
@@ -40,8 +30,6 @@ let (** OS.IO module with file reading and writing.
             fun writelnL fd x = (writeL fd x; _write fd "\n")
         in
             { readln
-            , readln'
-            , readlnAtLevel
             , write
             , writeL
             , writeln
@@ -71,21 +59,11 @@ let (** OS.IO module with file reading and writing.
             fun input question =
                 (OS.write stdout question; OS.readln stdin)
 
-            (** Similar to `input` but does not raise the blocking label. *)
-            fun input' question =
-                (OS.write stdout question; OS.readln' stdin)
-
-            (** Similar to `input'` but also declassifies the result. *)
-            fun inputAtLevel question level =
-                (OS.write stdout question; OS.readlnAtLevel stdin level)
-
             (*--- Submodule(s) ---*)
 
             (** Reading from `stdin`. *)
             val In  =
                 { readln        = fn () => OS.readln  stdin
-                , readln'       = fn () => OS.readln' stdin
-                , readlnAtLevel = fn l  => OS.readlnAtLevel stdin l
                 }
 
             (** Printing to `stdout`. *)
@@ -112,8 +90,6 @@ let (** OS.IO module with file reading and writing.
             , stderr
             , Err
             , input
-            , input'
-            , inputAtLevel
             }
         end
 

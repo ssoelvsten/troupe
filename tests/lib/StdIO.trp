@@ -82,41 +82,11 @@ let val StdIO = StdIO authority
                 val _ = printThread ()
             in () end
 
-    val _ = let pini authority
-                val _ = StdIO.Out.print "What is your name: "
-                val n = StdIO.In.readln' ()
-                val _ = hello n
-
-                val _ = printThread ()
-            in () end
-
-    val _ = let pini authority
-                val _ = StdIO.Out.print "What is your name: "
-                val n = StdIO.In.readlnAtLevel `{}`
-                val _ = hello n
-
-                val _ = printThread ()
-            in () end
-
     (* _____________________________________________________________________________________________
      * input*
      *)
     val _ = let pini authority
                 val n = StdIO.input "What is your name: "
-                val _ = hello n
-
-                val _ = printThread ()
-            in () end
-
-    val _ = let pini authority
-                val n = StdIO.input' "What is your name: "
-                val _ = hello n
-
-                val _ = printThread ()
-            in () end
-
-    val _ = let pini authority
-                val n = StdIO.inputAtLevel "What is your name: " `{}`
                 val _ = hello n
 
                 val _ = printThread ()
