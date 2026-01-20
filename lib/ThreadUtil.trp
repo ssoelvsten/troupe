@@ -13,11 +13,7 @@ let (** Run function `f` after `duration` milliseconds. The function `f` is give
     (* TODO: Cancel `spawnTimeout` and `spawnInterval`. But, this requires a non-blocking `receive`
      *       operation. *)
 
-    (*--- Module ---*)
-    val ThreadUtil = {
-        spawnTimeout,
-        spawnInterval
-    }
-
-in [ ("ThreadUtil", ThreadUtil) ]
+in [ ("spawnTimeout", spawnTimeout)
+   , ("spawnInterval", spawnInterval)
+   ]
 end
