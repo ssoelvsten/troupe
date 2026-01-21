@@ -1,12 +1,13 @@
 #!/bin/sh
-# Shared Troupe environment setup
-# Source this file to get TROUPE_ROOT set correctly
+# Troupe environment setup
+# Source this file to get TROUPE_ROOT
 #
 # Usage from scripts in /scripts/:
 #   . "$(dirname "$0")/troupe-env.sh"
 #
 # Usage from root-level scripts:
-#   . "$(dirname "$0")/scripts/troupe-env.sh"
+#   _TROUPE_CALLER_DIR="$(cd "$(dirname "$0")" && pwd)"
+#   . "$_TROUPE_CALLER_DIR/scripts/troupe-env.sh"
 
 # Determine the repo root from this file's location
 # Use BASH_SOURCE if available (bash), otherwise fall back to the approach

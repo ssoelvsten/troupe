@@ -14,6 +14,7 @@ import { BuiltinSelf } from './builtins/self.mjs'
 import { BuiltinExit } from './builtins/exit.mjs'
 import { BuiltinAdv } from './builtins/adv.mjs'
 import { BuiltinGetTime } from './builtins/getTime.mjs'
+import { BuiltinCliArgs } from './builtins/cliargs.mjs'
 import { BuiltinStringToInt } from './builtins/stringToInt.mjs'
 import { BuiltinToString } from './builtins/toString.mjs'
 import { BuiltinSend } from './builtins/send.mjs'
@@ -49,6 +50,7 @@ export const UserRuntime =
     BuiltinStringToInt(
     BuiltinToString(
     BuiltinGetTime(
+    BuiltinCliArgs(
     BuiltinAdv(
     BuiltinExit(
     BuiltinSelf(
@@ -64,5 +66,5 @@ export const UserRuntime =
     BuiltinMath(
     BuiltinRecordReflection(
     BuiltinTypeInformation(
-    BuiltinStdIo(UserRuntimeZero)    
-    )))))))))))))))))))))))))))))
+    BuiltinStdIo(UserRuntimeZero)
+    ))))))))))))))))))))))))))))))

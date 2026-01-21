@@ -17,6 +17,6 @@ export class RawTuple extends Array<LVal> implements TroupeAggregateRawValue {
     };
 
     let dataLevels = x.map(lv => lv.dataLevel);
-    this.dataLevel = levels.lubs.call(null, dataLevels);
+    this.dataLevel = levels.lub(...dataLevels);
   }
 }

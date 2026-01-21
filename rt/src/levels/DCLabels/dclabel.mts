@@ -9,7 +9,7 @@ import { Category
        , conjunction
        , disjunction
     } from './cnf.mjs'
-import { DC_CONF_LITERALS, DC_DELIM_LEFT, DC_DELIM_LEFT_V1, DC_DELIM_RIGHT, DC_DELIM_RIGHT_V1, DC_DELIM_SEP, DC_IFC_TOP, DC_INTG_LITERALS, DC_TRUST_ROOT } from './dcl_pp_config.mjs';
+import { DC_CONF_LITERALS, DC_DELIM_LEFT, DC_DELIM_RIGHT, DC_DELIM_SEP, DC_IFC_TOP, DC_INTG_LITERALS, DC_TRUST_ROOT, getDelimiters } from './dcl_pp_config.mjs';
 
 import { getCliArgs, TroupeCliArg } from '../../TroupeCliArgs.mjs';
 import { mkLogger } from '../../logger.mjs';
@@ -107,34 +107,32 @@ export class DCLabel extends AbstractLevel<DCLabel> {
             return this._cachedStringRepresentation
         }
 
+        const delims = getDelimiters();
+
         if (this.flowsTo(IFC_BOT)) {
-            this._cachedStringRepresentation = 
-                DC_DELIM_LEFT_V1 + DC_DELIM_RIGHT_V1
-        } else
-        if (IFC_TOP.flowsTo(this)) {
-               this._cachedStringRepresentation = 
-                DC_DELIM_LEFT_V1 + DC_IFC_TOP + DC_DELIM_RIGHT_V1
-        } else 
-        if (TRUST_ROOT.flowsTo(this) && this.flowsTo(TRUST_ROOT)) {
-            this._cachedStringRepresentation = 
-                DC_DELIM_LEFT_V1 + DC_TRUST_ROOT + DC_DELIM_RIGHT_V1
-        } else  {
-            // debug (`calling isTagsetCompatible`)
-            let s = this.isTagsetCompatible() 
-            // debug (`returning from isTagsetCompatible: ${s}`)
+            this._cachedStringRepresentation =
+                delims.left + delims.right
+        } else if (IFC_TOP.flowsTo(this)) {
+            this._cachedStringRepresentation =
+                delims.left + DC_IFC_TOP + delims.right
+        } else if (TRUST_ROOT.flowsTo(this) && this.flowsTo(TRUST_ROOT)) {
+            this._cachedStringRepresentation =
+                delims.left + DC_TRUST_ROOT + delims.right
+        } else {
+            let s = this.isTagsetCompatible()
             if (s) {
-                this._cachedStringRepresentation = 
-                    tagsetStringRep (s as Set <string>);
+                this._cachedStringRepresentation =
+                    tagsetStringRep(s as Set<string>, delims.left, delims.right);
             } else {
-                this._cachedStringRepresentation = 
-                    DC_DELIM_LEFT + 
-                    this.confidentiality.stringRep(DC_CONF_LITERALS) + 
+                this._cachedStringRepresentation =
+                    DC_DELIM_LEFT +
+                    this.confidentiality.stringRep(DC_CONF_LITERALS) +
                     DC_DELIM_SEP +
-                    this.integrity.stringRep(DC_INTG_LITERALS) + 
+                    this.integrity.stringRep(DC_INTG_LITERALS) +
                     DC_DELIM_RIGHT
-                }
-        } 
-        
+            }
+        }
+
         return this._cachedStringRepresentation;
     }
 

@@ -13,6 +13,7 @@ import RawDefUse (iDefUse)
 import qualified Data.Set as Set 
 import qualified Basics
 import qualified Core
+import Core (Numeric(..))
 import           RetCPS (VarName (..))
 import qualified Data.Map.Lazy as Map 
 import           IR ( Identifier(..)
@@ -185,7 +186,7 @@ typeOfLit :: Core.Lit -> Maybe RawType
 typeOfLit lit = 
     case lit of 
       Core.LUnit -> Just RawUnit
-      Core.LInt _ _ -> Just RawNumber 
+      Core.LNumeric _ _ -> Just RawNumber 
       Core.LString _ -> Just RawString
       Core.LLabel _ -> Just RawLevel               
       Core.LBool _ -> Just RawBoolean 
@@ -385,9 +386,9 @@ pevalInst i = do
       -- TODO track record fields
       RTAssertion (AssertRecordHasField r f) -> _keep $ markUsed r
       RTAssertion (AssertNotZero r) -> do
-         renv <- ask 
-         case Map.lookup r (readConsts renv) of 
-           Just (Core.LInt x _) | x /= 0 -> return []
+         renv <- ask
+         case Map.lookup r (readConsts renv) of
+           Just (Core.LNumeric (NumInt x) _) | x /= 0 -> return []
            _ -> _keep $ markUsed r
       MkFunClosures ee _ -> _keep $ markUsed (snd (unzip ee)) 
       -- No applicable optimizations.

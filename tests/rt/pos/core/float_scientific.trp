@@ -1,0 +1,9 @@
+let val a = 1.5e10
+    val b = 3.14E-2
+    val c = 1_000.5
+    val d = 3.141_592
+in print a;
+   print b;
+   print c;
+   print d
+end

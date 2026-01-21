@@ -11,7 +11,7 @@ import Options.Applicative
 import System.Directory
 import System.Process
 import System.Exit 
-import System.FilePath (takeBaseName, replaceExtension)
+import System.FilePath (takeBaseName, replaceExtension, takeDirectory)
 import qualified Data.ByteString.Lazy as LBS 
 import qualified Data.ByteString.Char8
 import System.Info
@@ -115,23 +115,75 @@ runNegative testname tc = do
         ExitSuccess -> fail testname 
         
 
--- Try to find Troupe root from executable path, fall back to TROUPE env var
+-- | Search upward from a directory for the .troupe-root marker file.
+-- This supports git worktrees where multiple checkouts share the same
+-- repository structure but have different root directories.
+-- Returns Nothing if we reach the filesystem root without finding the marker.
+findTroupeRootUpward :: FilePath -> IO (Maybe FilePath)
+findTroupeRootUpward dir = do
+    let markerPath = dir ++ "/.troupe-root"
+    exists <- doesFileExist markerPath
+    if exists
+    then return (Just dir)
+    else do
+        let parent = takeDirectory dir
+        if parent == dir  -- reached filesystem root (e.g., "/" on Unix)
+        then return Nothing
+        else findTroupeRootUpward parent
+
+-- | Determine the Troupe root directory using multiple strategies:
+--
+-- 1. **Executable path check**: If running as the installed `bin/golden` binary,
+--    strip the `/bin/golden` suffix to get the root. This is the fastest path
+--    for the common case of running the installed binary directly.
+--
+-- 2. **Current directory search**: Search upward from the current working
+--    directory for a `.troupe-root` marker file. This supports:
+--    - Running via `stack test` (executable is in .stack-work/dist/...)
+--    - Git worktrees where each worktree has its own .troupe-root marker
+--    - Running from any subdirectory of a Troupe checkout
+--
+-- 3. **Environment variable fallback**: Use the TROUPE environment variable
+--    if set. This is the legacy method and serves as a final fallback.
+--
+-- The .troupe-root file is an empty marker file that should exist at the
+-- root of each Troupe checkout or worktree.
 getTroupeRoot :: IO String
 getTroupeRoot = do
     progPath <- getExecutablePath
     let binSuffix = "/bin/golden"
     if binSuffix `isSuffixOf` progPath
     then do
+        -- Running as installed bin/golden binary
         let home = take (length progPath - length binSuffix) progPath
         markerExists <- doesFileExist (home ++ "/.troupe-root")
-        if markerExists then return home else fallbackToEnv
-    else fallbackToEnv
+        if markerExists then return home else searchFromCwd
+    else searchFromCwd
   where
+    -- Search upward from current working directory for .troupe-root
+    -- This handles `stack test` and git worktrees
+    searchFromCwd = do
+        cwd <- getCurrentDirectory
+        result <- findTroupeRootUpward cwd
+        case result of
+            Just root -> return root
+            Nothing -> fallbackToEnv
+    -- Final fallback: check TROUPE environment variable
     fallbackToEnv = do
         maybeEnv <- lookupEnv "TROUPE"
         case maybeEnv of
             Just troupeDir -> return troupeDir
-            Nothing -> error "Cannot determine Troupe root. Set the TROUPE environment variable."
+            Nothing -> error $ unlines
+                [ "Cannot determine Troupe root directory."
+                , "Tried:"
+                , "  1. Executable path (looking for /bin/golden suffix)"
+                , "  2. Searching upward from cwd for .troupe-root marker"
+                , "  3. TROUPE environment variable"
+                , ""
+                , "Solutions:"
+                , "  - Run from within a Troupe checkout with .troupe-root file"
+                , "  - Set the TROUPE environment variable to the Troupe root"
+                ]
 
 main :: IO ()
 main = do

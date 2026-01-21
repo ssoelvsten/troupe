@@ -1,6 +1,8 @@
+import { getCliArgs, TroupeCliArg } from '../../TroupeCliArgs.mjs';
+
 export enum Delimiterification {
     None,
-    AsNeeded, 
+    AsNeeded,
     Always
 }
 
@@ -24,5 +26,15 @@ export const DC_CONF_LITERALS = { trueLit : "#null-confidentiality"
                                 }
 
 export const DC_INTG_LITERALS = { trueLit : "#null-integrity"
-                                , falseLit: "#root-integrity" 
+                                , falseLit: "#root-integrity"
                                 }
+
+export function getDelimiters() {
+    const argv = getCliArgs();
+    const useV1 = argv[TroupeCliArg.V1Labels] !== false;
+    return {
+        left: useV1 ? DC_DELIM_LEFT_V1 : DC_DELIM_LEFT,
+        right: useV1 ? DC_DELIM_RIGHT_V1 : DC_DELIM_RIGHT,
+        sep: DC_DELIM_SEP
+    };
+}

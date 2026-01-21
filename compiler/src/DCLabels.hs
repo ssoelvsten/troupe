@@ -13,6 +13,7 @@ module DCLabels
   , LabelExp (..)
   , LabelOp(..)
   , LabelConst(..)
+  , LabelComponent(..)
   , ppDCLabelExp
   , ppDCLabelExpLit
   , labelExpToCNF
@@ -100,9 +101,13 @@ newtype DCLabel = DCLabel (CNF,CNF)
 -- reporting (2025-05-13; AA)
 
 -- data DCLabelExp = DCLabelExp String (LabelExp, LabelExp)
-type DCLabOrConst = Either LabelExp LabelConst
-newtype DCLabelExp = 
-     DCLabelExp (DCLabOrConst, DCLabOrConst)
+data LabelComponent
+    = ExprComponent LabelExp
+    | ConstComponent LabelConst
+    deriving (Eq, Generic, Ord)
+
+newtype DCLabelExp =
+     DCLabelExp (LabelComponent, LabelComponent)
         deriving (Eq, Generic, Ord)
 
 labelConstToCNF :: LabelConst -> CNF 
@@ -112,8 +117,8 @@ labelConstToCNF (LabelFalse) = CNF [DisjTags []]
 dcLabelExpToDCLabel :: DCLabelExp -> DCLabel
 dcLabelExpToDCLabel (DCLabelExp (e1,e2)) =
     let f e = case e of
-                 Left le -> labelExpToCNF le
-                 Right lc -> labelConstToCNF lc
+                 ExprComponent le -> labelExpToCNF le
+                 ConstComponent lc -> labelConstToCNF lc
     in DCLabel(f e1, f e2)
 
 
@@ -162,7 +167,8 @@ instance Serialize DisjTags
 instance Serialize CNF
 instance Serialize DCLabel
 instance Serialize LabelExp
-instance Serialize DCLabelExp 
+instance Serialize LabelComponent
+instance Serialize DCLabelExp
 
 -- pretty printing 
 --
@@ -189,9 +195,9 @@ ppDCLabelExp (DCLabelExp (e1, e2))  =
           , ppMLabelExp e2
           , text ">" 
           ]
-        where 
-          ppMLabelExp (Left e) = ppLabelExp e 
-          ppMLabelExp (Right s) = text (show s)
+        where
+          ppMLabelExp (ExprComponent e) = ppLabelExp e
+          ppMLabelExp (ConstComponent s) = text (show s)
 
 ppDCLabelExpLit e = 
      text "`" PP.<> (ppDCLabelExp e) PP.<> text "`"

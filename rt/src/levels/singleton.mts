@@ -42,12 +42,6 @@ function fromString (str2): Singleton {
 
 
 
-export function lubs (x) {
-    return __theLevel
-  
-}
-
-
 export let BOT = __theLevel
 export let TOP = __theLevel 
 export let mkLevel = fromString

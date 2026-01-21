@@ -35,7 +35,10 @@ transAtoms :: S.Atoms -> Trans T.Atoms
 transAtoms (S.Atoms atms) = return (T.Atoms atms)
 
 transLit :: S.Lit -> T.Lit
-transLit (S.LInt n pi)    = T.LInt n pi
+transLit (S.LNumeric n pi) = T.LNumeric (transNumeric n) pi
+  where
+    transNumeric (S.NumInt i) = NumInt i
+    transNumeric (S.NumFloat f) = NumFloat f
 transLit (S.LString s) = T.LString s
 transLit (S.LLabel s)  = T.LLabel s
 transLit (S.LDCLabel dc)  = T.LDCLabel dc
@@ -95,8 +98,8 @@ transHandler (S.Handler pat1 mbpat2 guard body) = do
               Just pat2 -> pat2
               Nothing   -> S.Wildcard      
       lambdaPats = [S.VarPattern argInput] 
-      callFailure = S.Tuple [S.Lit (S.LInt 1 _srcRT), S.Lit S.LUnit ]  
-      body' =  S.Tuple[ S.Lit (S.LInt 0 _srcRT), S.Abs ( S.Lambda [S.Wildcard] body )  ]
+      callFailure = S.Tuple [S.Lit (S.LNumeric (S.NumInt 1) _srcRT), S.Lit S.LUnit ]
+      body' =  S.Tuple[ S.Lit (S.LNumeric (S.NumInt 0) _srcRT), S.Abs ( S.Lambda [S.Wildcard] body )  ]
       guardCheck = case guard of
          Nothing -> body'
          Just g -> S.If g body' callFailure
@@ -137,7 +140,7 @@ compilePattern succ (v, S.TuplePattern pats) = do
   succ' <- foldM compilePattern succ (reverse (zip accessors pats))
   -- The expression for the tuple pattern checks whether the to-be-assigned value is a tuple with the correct length,
   -- and then executes the expression succ' which checks the nested patterns.
-  return $ ifpat (Bin And (Un IsTuple v) (Bin Eq (Un TupleLength v) (Lit (LInt (toInteger (length pats)) _srcRT)))) succ' fail
+  return $ ifpat (Bin And (Un IsTuple v) (Bin Eq (Un TupleLength v) (Lit (LNumeric (NumInt (toInteger (length pats))) _srcRT)))) succ' fail
 -- TODO Generate more efficient code:
 -- Decompose the list v according to the pattern with a DFS pass.
 -- This would benefit from an "is empty" operation (to not having to use the RT-dispatched equals).
@@ -151,13 +154,13 @@ compilePattern succ (v, S.ListPattern pats) = do
   succ' <- foldM compilePattern succ (reverse (zip accessors pats)) -- pairs of pattern (the nested ones in the list) and term accessing the value at the corresponding index in the list term
   -- The expression for the list pattern checks whether the to-be-assigned value is a list with the correct length,
   -- and then executes the expression succ' which checks the nested patterns.
-  return $ ifpat (Bin And (Un IsList v) (Bin Eq (Un ListLength v) (Lit (LInt (toInteger (length pats)) _srcRT)))) succ' fail
+  return $ ifpat (Bin And (Un IsList v) (Bin Eq (Un ListLength v) (Lit (LNumeric (NumInt (toInteger (length pats))) _srcRT)))) succ' fail
 compilePattern succ (v, S.ConsPattern p1 p2) = do
   fail <- ask
   succ' <- compilePattern succ (Un Head v, p1)
   succ'' <- compilePattern succ' (Un Tail v, p2)
   -- TODO Avoid list length (potentially expensive). Implement similarly to the improved list pattern (see above).
-  return $ ifpat (Bin And (Un IsList v) (Bin Gt (Un ListLength v) (Lit (LInt 0 _srcRT) ))) succ'' fail
+  return $ ifpat (Bin And (Un IsList v) (Bin Gt (Un ListLength v) (Lit (LNumeric (NumInt 0) _srcRT)))) succ'' fail
 compilePattern succ (v, S.RecordPattern fieldPatterns mode) = do
   fail <- ask
   -- Check for duplicate field names
@@ -174,7 +177,7 @@ compilePattern succ (v, S.RecordPattern fieldPatterns mode) = do
         ExactMatch ->
           -- Check that the record has exactly the specified number of fields
           let expectedSize = length fieldPatterns
-              sizeCheck = Bin Eq (Un RecordSize v) (Lit (LInt (fromIntegral expectedSize) _srcRT))
+              sizeCheck = Bin Eq (Un RecordSize v) (Lit (LNumeric (NumInt (fromIntegral expectedSize)) _srcRT))
               recordCheck = Bin And (Un IsRecord v) sizeCheck
           in return $ ifpat recordCheck succ' fail
     where ifHasField f k = do 

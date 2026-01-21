@@ -54,6 +54,7 @@ import Control.Monad.Except
     andalso { L _ TokenAndAlso }
     orelse  { L _ TokenOrElse }
     NUM   { L _ (TokenNum _) }
+    FLOAT { L _ (TokenFloat _) }
     STRING{ L _ (TokenString _)}
     VAR   { L _  (TokenSym _) }
     LABEL { L _  (TokenLabel _) }
@@ -225,20 +226,21 @@ LabelExp:
      | LabelExp '&'  LabelExp      { OpExp Conj $1 $3 } 
      | LabelExp '|'  LabelExp      { OpExp Disj $1 $3 }
 
-ConfLabelExp :                     { Right LabelTrue }
-     | '#root-confidentiality'     { Right LabelFalse }
-     | '#null-confidentiality'     { Right LabelTrue }
-     | LabelExp                    { Left $1 }
+ConfLabelExp :                     { ConstComponent LabelTrue }
+     | '#root-confidentiality'     { ConstComponent LabelFalse }
+     | '#null-confidentiality'     { ConstComponent LabelTrue }
+     | LabelExp                    { ExprComponent $1 }
 
-IntLabelExp :                      { Right LabelTrue }
-     | '#root-integrity'           { Right LabelFalse }
-     | '#null-integrity'           { Right LabelTrue }
-     | LabelExp                    { Left $1 }     
+IntLabelExp :                      { ConstComponent LabelTrue }
+     | '#root-integrity'           { ConstComponent LabelFalse }
+     | '#null-integrity'           { ConstComponent LabelTrue }
+     | LabelExp                    { ExprComponent $1 }     
 
 DCLabelExp:
      ConfLabelExp ';' IntLabelExp         { DCLabelExp ($1, $3) } 
 
-Lit:   NUM                        { LInt (numTok $1) (pos $1) }
+Lit:   NUM                        { LNumeric (NumInt (numTok $1)) (pos $1) }
+     | FLOAT                       { LNumeric (NumFloat (floatTok $1)) (pos $1) }
      | STRING                      { LString (strTok $1) }
      | true                        { LBool True }
      | false                       { LBool False }
@@ -396,6 +398,7 @@ parseProg input = runExcept $ do
 
 
 numTok (L _ (TokenNum x))    = x
+floatTok (L _ (TokenFloat x)) = x
 strTok (L _ (TokenString x)) = x
 varTok (L _ (TokenSym x ))   = x
 lblTok (L _ (TokenLabel x))  = x

@@ -6,6 +6,7 @@ module Core (   Lambda (..)
               , Term (..)
               , Decl (..)
               , FunDecl (..)
+              , Numeric(..)
               , Lit(..)
               , litEq
               , litNeq
@@ -54,8 +55,24 @@ data Decl
 data FunDecl = FunDecl VarName Lambda
   deriving (Eq)
 
+-- Numeric type represents integer and floating point numeric literals
+-- with cross-type equality (NumInt 3 == NumFloat 3.0)
+data Numeric = NumInt Integer | NumFloat Double
+  deriving (Show, Generic)
+instance Serialize Numeric
+instance Eq Numeric where
+  (NumInt x) == (NumInt y) = x == y
+  (NumFloat x) == (NumFloat y) = x == y
+  (NumInt x) == (NumFloat y) = fromInteger x == y
+  (NumFloat x) == (NumInt y) = x == fromInteger y
+instance Ord Numeric where
+  compare (NumInt x) (NumInt y) = compare x y
+  compare (NumFloat x) (NumFloat y) = compare x y
+  compare (NumInt x) (NumFloat y) = compare (fromInteger x) y
+  compare (NumFloat x) (NumInt y) = compare x (fromInteger y)
+
 data Lit
-    = LInt Integer PosInf
+    = LNumeric Numeric PosInf
     | LString String
     | LLabel String
     | LDCLabel DCLabelExp
@@ -64,33 +81,39 @@ data Lit
     | LAtom AtomName
   deriving (Show, Generic)
 instance Serialize Lit
-instance Eq Lit where 
-  (LInt x _) == (LInt y _) = x == y
-  (LString s) == (LString s') = s == s' 
-  (LLabel l) == (LLabel l') = l == l' 
-  LUnit == LUnit = True 
-  (LBool x) == (LBool y) = x == y 
+instance Eq Lit where
+  (LNumeric n1 _) == (LNumeric n2 _) = n1 == n2
+  (LString s) == (LString s') = s == s'
+  (LLabel l) == (LLabel l') = l == l'
+  LUnit == LUnit = True
+  (LBool x) == (LBool y) = x == y
   (LAtom x) == (LAtom y) = x == y
-  (LDCLabel dc) == (LDCLabel dc') = dc == dc' 
+  (LDCLabel dc) == (LDCLabel dc') = dc == dc'
   _ == _ = False
-instance Ord Lit where 
-  (LInt x _)   <= (LInt y _)   = x <= y
-  (LString x ) <= (LString y)  = x <=y
-  (LLabel x)   <= (LLabel y)   = x <=y
-  (LUnit)      <= (LUnit)      = True 
-  (LBool x)    <= (LBool y)    = x <=y
-  (LAtom x)    <= (LAtom y)    = x <=y
-  (LDCLabel x) <= (LDCLabel y) = x <= y
-  (LInt _ _)   <= (LString _)  = True 
-  (LString _)  <= (LLabel _)   = True 
-  (LLabel _)   <= (LUnit)      = True 
-  (LUnit)      <= (LBool _)    = True 
-  (LBool _)    <= (LAtom _)    = True 
-  (LAtom _)    <= (LDCLabel _) = True
-  _ <= _                       = False 
+instance Ord Lit where
+  compare (LNumeric n1 _) (LNumeric n2 _) = compare n1 n2
+  compare (LString x) (LString y) = compare x y
+  compare (LLabel x) (LLabel y) = compare x y
+  compare LUnit LUnit = EQ
+  compare (LBool x) (LBool y) = compare x y
+  compare (LAtom x) (LAtom y) = compare x y
+  compare (LDCLabel x) (LDCLabel y) = compare x y
+  -- Cross-type ordering (for canonical ordering of different literal types)
+  compare (LNumeric _ _) _ = LT
+  compare _ (LNumeric _ _) = GT
+  compare (LString _) _ = LT
+  compare _ (LString _) = GT
+  compare (LLabel _) _ = LT
+  compare _ (LLabel _) = GT
+  compare LUnit _ = LT
+  compare _ LUnit = GT
+  compare (LBool _) _ = LT
+  compare _ (LBool _) = GT
+  compare (LAtom _) _ = LT
+  compare _ (LAtom _) = GT
 
 instance GetPosInfo Lit where
-  posInfo (LInt _ p) = p
+  posInfo (LNumeric _ p) = p
   posInfo _ = NoPos
 
 -- | Semantic equality for literals, handling label normalization
@@ -98,7 +121,7 @@ instance GetPosInfo Lit where
 -- semantically equivalent labels (e.g., `{alice, bob}` and `{bob, alice}`)
 -- are treated as equal.
 litEq :: Lit -> Lit -> Bool
-litEq (LInt x _) (LInt y _) = x == y
+litEq (LNumeric n1 _) (LNumeric n2 _) = n1 == n2
 litEq (LString s) (LString s') = s == s'
 litEq (LLabel l) (LLabel l') = v1LabelEq l l'
 litEq LUnit LUnit = True
@@ -188,7 +211,10 @@ lowerLam (D.Lambda vs t) =
     x:xs -> Unary x (foldr (\x b -> (Abs (Unary x b))) (lower t) xs)
 
 
-lowerLit (D.LInt n pi) = LInt n pi
+lowerLit (D.LNumeric n pi) = LNumeric (lowerNumeric n) pi
+  where
+    lowerNumeric (D.NumInt i) = NumInt i
+    lowerNumeric (D.NumFloat f) = NumFloat f
 lowerLit (D.LString s) = LString s
 lowerLit (D.LLabel s) = LLabel s
 lowerLit (D.LDCLabel dc) = LDCLabel dc
@@ -621,7 +647,8 @@ ppDecl (FunDecs fs) = ppFuns fs
 
 
 ppLit :: Lit -> PP.Doc
-ppLit (LInt i _)      = PP.integer i
+ppLit (LNumeric (NumInt i) _)  = PP.integer i
+ppLit (LNumeric (NumFloat f) _) = PP.double f
 ppLit (LString s)   = PP.doubleQuotes (text s)
 ppLit (LLabel s)    = PP.braces (text s)
 ppLit LUnit         = text "()"

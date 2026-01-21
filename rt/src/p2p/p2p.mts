@@ -79,6 +79,7 @@ import p2pconfig, { setCliRelays, getRelays } from './p2pconfig.mjs';
 import { multiaddr } from '@multiformats/multiaddr';
 import { identify } from '@libp2p/identify';
 import { circuitRelayTransport } from '@libp2p/circuit-relay-v2';
+import { ping } from '@libp2p/ping';
 const KEEP_ALIVE = 'KEEP_ALIVE'; // Tag for keeping connections alive
 import { Logger } from 'winston';
 import {v4 as uuidv4} from 'uuid';
@@ -169,7 +170,7 @@ async function startp2p(nodeId, rt: any): Promise<String> {
   }
   
   // When a peer dials using the Troupe protocol, handle the connection
-  await _node.handle(_PROTOCOL, async ({ connection, stream }) => {
+  await _node.handle(_PROTOCOL, async (stream, connection) => {
     debug(`Handling protocol dial from id: ${connection.remotePeer}`);
     setupConnection(connection.remotePeer, stream);
   });
@@ -250,6 +251,7 @@ async function createLibp2p(_options) {
       mdns(),
     ],
     services: {
+      ping: ping(),
       dht: kadDHT({
         clientMode: false,  // Run as both client and server
         protocol: '/ipfs/kad/1.0.0'
@@ -473,36 +475,53 @@ function setupConnection(peerId: PeerId, stream): void {
   debug(`setupConnection with ${id}`);
   const p = pushable({ objectMode : true });
 
-  // Setup the pipe to send and receive messages
-  pipe (p,
-        (source) => map(source, (json) => JSON.stringify(json)),
-        (source) => map(source, (string : string) => uint8ArrayFromString(string, 'utf8')),
-        (source) => lp.encode(source),
-        stream,
-        (source) => lp.decode(source),
-        (source) => map(source, (buf) => uint8ArrayToString(buf.subarray())),
-        (source) => map(source, (string : string) => JSON.parse(string)),
-        async (source) => {
-          try {
-            for await (const message of source) {
-              // Send any input to the input handler
-              inputHandler(id, message);
-            }
-          } catch (err) {
-            processExpectedNetworkErrors(err, "setupConnection/pipe");
-          }
+  // In libp2p v3, streams are AsyncIterable for reading and use .send() for writing
+  // We need to set up separate read and write pipelines
 
-          // Hangs up when the connection closes
-          debug(`Hanging up connection to ${id}`);                
-          try {
-            await _node.hangUp(peerId);
-          } catch (err) {
-            processExpectedNetworkErrors(err, "setupConnection/hang-up");
-          }
-
-          // Resends any unacknowledged WHEREIS and SPAWN requests for this peer
-          reissueUnacknowledged(id);
+  // Write pipeline: pushable -> encode -> send to stream
+  pipe(
+    p,
+    (source) => map(source, (json) => JSON.stringify(json)),
+    (source) => map(source, (string: string) => uint8ArrayFromString(string, 'utf8')),
+    (source) => lp.encode(source),
+    async (source) => {
+      try {
+        for await (const data of source) {
+          stream.send(data);
         }
+      } catch (err) {
+        processExpectedNetworkErrors(err, "setupConnection/write-pipe");
+      }
+    }
+  );
+
+  // Read pipeline: stream -> decode -> handle messages
+  pipe(
+    stream,
+    (source) => lp.decode(source),
+    (source) => map(source, (buf) => uint8ArrayToString(buf.subarray())),
+    (source) => map(source, (string: string) => JSON.parse(string)),
+    async (source) => {
+      try {
+        for await (const message of source) {
+          // Send any input to the input handler
+          inputHandler(id, message);
+        }
+      } catch (err) {
+        processExpectedNetworkErrors(err, "setupConnection/read-pipe");
+      }
+
+      // Hangs up when the connection closes
+      debug(`Hanging up connection to ${id}`);
+      try {
+        await _node.hangUp(peerId);
+      } catch (err) {
+        processExpectedNetworkErrors(err, "setupConnection/hang-up");
+      }
+
+      // Resends any unacknowledged WHEREIS and SPAWN requests for this peer
+      reissueUnacknowledged(id);
+    }
   );
 
   stream.p = p; // Storing a reference to the pushable on the stream
