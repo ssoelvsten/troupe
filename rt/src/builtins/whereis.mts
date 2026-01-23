@@ -1,12 +1,11 @@
 'use strict'
 import { UserRuntimeZero, Constructor, mkBase } from './UserRuntimeZero.mjs'
 import * as levels from '../Level.mjs'
-import { Record } from '../Record.mjs'
 import { LVal } from '../Lval.mjs'
 import { ProcessID } from '../process.mjs';
 const { lub, flowsTo } = levels
 import {deserialize, DeserializeResult} from '../deserialize.mjs'
-import { shouldDrop, wrapQuarantineAuth } from '../QuarantineUtils.mjs'
+import { shouldDrop } from '../QuarantineUtils.mjs'
 import { __nodeManager } from '../NodeManager.mjs';
 import { assertNormalState, assertIsNTuple, assertIsString, assertIsProcessId, assertIsAuthority, assertIsRootAuthority, assertIsNode } from '../Asserts.mjs';
 import { __unit } from '../UnitVal.mjs';
@@ -140,32 +139,6 @@ export function BuiltinRegistry<TBase extends Constructor<UserRuntimeZero>>(Base
                 (pid, bodyLev, _result) => this.runtime.$t.mkValWithLev(pid, bodyLev)
             );
         }, "whereis")
-
-
-        qwhereis = mkBase((arg) => {
-            return this.whereisImpl(
-                arg,
-                "qwhereis",
-                // Local: wrap in record (no quarantine possible)
-                (pidLVal) => {
-                    let resultRecord = Record.mkRecord([
-                        ["processId", pidLVal]
-                    ]);
-                    return this.runtime.$t.mkValWithLev (resultRecord, pidLVal.lev);
-                },
-                // Remote: wrap in record, include quarantineAuth if quarantine occurred
-                (pid, bodyLev, result) => {
-                    let pidLVal = this.runtime.$t.mkValWithLev(pid, bodyLev);
-                    let fields: [string, LVal][] = [["processId", pidLVal]];
-                    let qAuthLval = wrapQuarantineAuth(result.quarantineAuth ?? null, this.runtime.$t.pc);
-                    if (qAuthLval !== null) {
-                        fields.push(["quarantineAuth", qAuthLval])
-                    }
-                    let resultRecord = Record.mkRecord(fields);
-                    return this.runtime.$t.mkValWithLev(resultRecord, this.runtime.$t.pc);
-                }
-            );
-        }, "qwhereis")
 
     }
 }

@@ -384,7 +384,6 @@ instance WellFormedIRCheck IRExpr where
                      , "toStringL"
                      , "toString"
                      , "whereis"
-                     , "qwhereis"                 
                                       
                      ]
         then return ()

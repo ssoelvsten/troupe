@@ -1,3 +1,4 @@
+import Missing
 (* Quarantine Echo Server - Demonstrates trust-based level downgrading *)
 (* The server does NOT trust the client, so received information will be downgraded *)
 
@@ -64,7 +65,7 @@ let
                                 (* val msg' = downgrade (msg, quarantineAuth, `<;>`) *)
                                 (* val _ = printWithLabels msg *)
                                 val _ = debugpc ()
-                                val _ = send(sender, ("REPLY", msg))
+                                val _ = invokeWithTaint (levelOf msg) (fn () => send(sender, ("REPLY", msg)))
                                 val _ = print "SERVER: Sent reply"
                             in ()
                             end
