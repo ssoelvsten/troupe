@@ -5,10 +5,10 @@ START=$(TROUPE_ROOT)/network.sh
 
 # Server configuration
 SERVER_PORT=6789
-SERVER_CMD=$(START) echo-server.trp --debugquarantine --disable-relay --id=ids/server.json --port=$(SERVER_PORT)
+SERVER_CMD=$(START) qecho-server.trp --debugquarantine --disable-relay --id=ids/server.json --port=$(SERVER_PORT)
 
 # Client configuration
-CLIENT_CMD=$(START) echo-client.trp --debugquarantine --disable-relay --id=ids/client.json --aliases=aliases.json --trustmap=client-trustmap.json
+CLIENT_CMD=$(START) qecho-client.trp --debugquarantine --disable-relay --id=ids/client.json --aliases=aliases.json --trustmap=client-trustmap.json
 
 # Run both server and client together
 # Usage: make run (or: make setup && make run)
@@ -55,6 +55,6 @@ create-trustmap: ids/server.json
 
 clean:
 	rm -rf ids/ aliases.json client-trustmap.json out/
-	pkill -f "echo-server.trp" 2>/dev/null || true
+	pkill -f "qecho-server.trp" 2>/dev/null || true
 
 .PHONY: run server client setup check-setup create-network-identifiers create-trustmap clean
