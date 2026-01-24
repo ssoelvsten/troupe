@@ -1,16 +1,16 @@
-# Step 2.1: Add isRegularTrust() Method
+# Step 2.1: Add isRegularTrust() Function
 
-**Status**: NOT STARTED
+**Status**: COMPLETED
 
 ---
 
 ## Objective
 
-Add a method to DCLabel that checks if a trust label is "regular" - meaning integrity equals confidentiality (`I_n <=> C_n`).
+Add a function to Ingress.mts that checks if a trust label is "regular" - meaning integrity equals confidentiality (`I_n <=> C_n`).
 
 ## File to Modify
 
-`rt/src/levels/DCLabels/dclabel.mts`
+`rt/src/Ingress.mts`
 
 ## Context
 
@@ -19,22 +19,20 @@ From the specification:
 
 ## Implementation
 
-Add to the DCLabel class:
+Add to Ingress.mts:
 
 ```typescript
 /**
- * Check if this is a "regular" trust label where I <=> C.
+ * Check if a label has "regular" trust where I ⟺ C.
  *
  * A regular trust label has equivalent integrity and confidentiality,
  * meaning the node is trusted to the same degree for both components.
  *
  * This is used during ingress to determine if partial quarantine logic applies.
  */
-isRegularTrust(): boolean {
-    // I <=> C means I => C and C => I
-    // For CNF, this is bidirectional implication
-    return implies(this.integrity, this.confidentiality)
-        && implies(this.confidentiality, this.integrity);
+export function isRegularTrust(label: DCLabel): boolean {
+    return implies(label.integrity, label.confidentiality)
+        && implies(label.confidentiality, label.integrity);
 }
 ```
 
@@ -55,10 +53,10 @@ print "isRegularTrust check"
 
 ## Completion Checklist
 
-- [ ] Method added to DCLabel class
-- [ ] `make rt` succeeds
-- [ ] Mark this step COMPLETED in INDEX.md
+- [x] Function added to Ingress.mts
+- [x] `make rt` succeeds
+- [x] Mark this step COMPLETED in INDEX.md
 
 ## Notes
 
-(Add any implementation notes here after completion)
+Completed 2026-01-24. Added as standalone function in Ingress.mts (refactored from DCLabel method).

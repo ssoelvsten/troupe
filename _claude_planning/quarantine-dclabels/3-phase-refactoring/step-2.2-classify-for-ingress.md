@@ -1,6 +1,6 @@
-# Step 2.2: Add classifyForIngress() Method
+# Step 2.2: Add classifyForIngress() Function
 
-**Status**: NOT STARTED
+**Status**: COMPLETED
 
 **Depends on**: Step 2.1
 
@@ -8,14 +8,14 @@
 
 ## Objective
 
-Add a method to DCLabel that classifies an incoming label against a trust level into one of three cases:
-- `trusted`: Both I and C are within trust bounds
-- `full_overclaim`: Neither I nor C is within trust bounds
-- `integrity_overclaim`: C is within trust, but I exceeds trust
+Add a function to Ingress.mts that classifies an incoming label against a trust level into one of three cases:
+- `TRUSTED`: Both I and C are within trust bounds
+- `FULL_OVERCLAIM`: Neither I nor C is within trust bounds
+- `INTEGRITY_OVERCLAIM`: C is within trust, but I exceeds trust
 
 ## File to Modify
 
-`rt/src/levels/DCLabels/dclabel.mts`
+`rt/src/Ingress.mts`
 
 ## Context
 
@@ -27,48 +27,53 @@ From the specification, three cases:
 
 ## Implementation
 
-Add type and method to DCLabel:
+Add enum and function to Ingress.mts:
 
 ```typescript
-export type IngressClassification = 'trusted' | 'full_overclaim' | 'integrity_overclaim';
+/**
+ * Classification of a label for ingress quarantine decision.
+ */
+export enum IngressClassification {
+    /** Trust level covers this label - no quarantine needed */
+    TRUSTED = 'trusted',
+    /** Neither component within trust - full quarantine */
+    FULL_OVERCLAIM = 'full_overclaim',
+    /** Confidentiality OK, integrity exceeds trust */
+    INTEGRITY_OVERCLAIM = 'integrity_overclaim'
+}
 
 /**
- * Classify this label for ingress quarantine decision.
+ * Classify a label for ingress quarantine decision.
  *
- * Given a trust level <C_n, I_n>, determines how to handle this label:
- * - 'trusted': Trust level acts-for this label (no quarantine needed)
- * - 'full_overclaim': Neither component within trust (full quarantine)
- * - 'integrity_overclaim': Confidentiality within trust, integrity exceeds
+ * Given a trust level <C_n, I_n>, determines how to handle the incoming label:
+ * - TRUSTED: Trust level acts-for this label (no quarantine needed)
+ * - FULL_OVERCLAIM: Neither component within trust (full quarantine)
+ * - INTEGRITY_OVERCLAIM: Confidentiality within trust, integrity exceeds
  *
+ * @param label The incoming label to classify
  * @param trustLevel The receiving node's trust level for the sender
  * @returns Classification for quarantine decision
  */
-classifyForIngress(trustLevel: DCLabel): IngressClassification {
-    // Check if trust level covers each component
-    // C_n => C means trustLevel.confidentiality implies this.confidentiality
+export function classifyForIngress(label: DCLabel, trustLevel: DCLabel): IngressClassification {
     const confidentialityWithinTrust = implies(
         trustLevel.confidentiality,
-        this.confidentiality
+        label.confidentiality
     );
 
-    // I_n => I means trustLevel.integrity implies this.integrity
     const integrityWithinTrust = implies(
         trustLevel.integrity,
-        this.integrity
+        label.integrity
     );
 
     if (confidentialityWithinTrust && integrityWithinTrust) {
-        return 'trusted';
+        return IngressClassification.TRUSTED;
     }
 
     if (confidentialityWithinTrust && !integrityWithinTrust) {
-        return 'integrity_overclaim';
+        return IngressClassification.INTEGRITY_OVERCLAIM;
     }
 
-    // Either both exceed, or only confidentiality exceeds
-    // The spec only defines integrity_overclaim separately, so treat
-    // confidentiality-only overclaim as full_overclaim
-    return 'full_overclaim';
+    return IngressClassification.FULL_OVERCLAIM;
 }
 ```
 
@@ -80,11 +85,11 @@ make rt
 
 ## Completion Checklist
 
-- [ ] IngressClassification type added
-- [ ] classifyForIngress() method added to DCLabel class
-- [ ] `make rt` succeeds
-- [ ] Mark this step COMPLETED in INDEX.md
+- [x] IngressClassification enum added to Ingress.mts
+- [x] classifyForIngress() function added to Ingress.mts
+- [x] `make rt` succeeds
+- [x] Mark this step COMPLETED in INDEX.md
 
 ## Notes
 
-(Add any implementation notes here after completion)
+Completed 2026-01-24. Refactored from DCLabel method to standalone function in Ingress.mts. Changed from string union type to enum for better IDE support.

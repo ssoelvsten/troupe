@@ -4,7 +4,7 @@
 
 **Status**: APPROVED - Ready for implementation
 
-**Next Step**: Execute Step 1.1 (Create QuarantineConfig.mts)
+**Next Step**: Execute Step 3.1 (Modify checkLabel() for three-case ingress)
 
 ---
 
@@ -12,8 +12,8 @@
 
 | Phase | Status | Steps Done |
 |-------|--------|------------|
-| 1. Configuration | NOT STARTED | 0/2 |
-| 2. DCLabel Methods | NOT STARTED | 0/4 |
+| 1. Configuration | COMPLETED | 2/2 |
+| 2. DCLabel Methods | COMPLETED | 4/4 |
 | 3. Ingress Logic | NOT STARTED | 0/1 |
 | 4. Send Refactoring | NOT STARTED | 0/4 |
 | 5. Testing | PARTIAL (5.2 blocked) | 0/3 |
@@ -23,16 +23,16 @@
 ## Phase 1: Configuration and Types
 | Step | File | Status | Description |
 |------|------|--------|-------------|
-| 1.1 | [step-1.1-quarantine-config.md](step-1.1-quarantine-config.md) | NOT STARTED | Create QuarantineConfig.mts with IntegrityOnlyDistrustAction enum |
-| 1.2 | [step-1.2-cli-arg.md](step-1.2-cli-arg.md) | NOT STARTED | Add CLI argument for integrity-only-distrust setting |
+| 1.1 | [step-1.1-quarantine-config.md](step-1.1-quarantine-config.md) | COMPLETED | Create Ingress.mts with IntegrityOnlyDistrustAction enum |
+| 1.2 | [step-1.2-cli-arg.md](step-1.2-cli-arg.md) | COMPLETED | Add CLI argument for integrity-only-distrust setting |
 
 ## Phase 2: DCLabel Classification Methods
 | Step | File | Status | Description |
 |------|------|--------|-------------|
-| 2.1 | [step-2.1-is-regular-trust.md](step-2.1-is-regular-trust.md) | NOT STARTED | Add isRegularTrust() method to DCLabel |
-| 2.2 | [step-2.2-classify-for-ingress.md](step-2.2-classify-for-ingress.md) | NOT STARTED | Add classifyForIngress() method to DCLabel |
-| 2.3 | [step-2.3-quarantine-integrity.md](step-2.3-quarantine-integrity.md) | NOT STARTED | Add quarantineIntegrity() method to DCLabel |
-| 2.4 | [step-2.4-raise-integrity.md](step-2.4-raise-integrity.md) | NOT STARTED | Add raiseIntegrityTo() method to DCLabel |
+| 2.1 | [step-2.1-is-regular-trust.md](step-2.1-is-regular-trust.md) | COMPLETED | Add isRegularTrust() function to Ingress.mts |
+| 2.2 | [step-2.2-classify-for-ingress.md](step-2.2-classify-for-ingress.md) | COMPLETED | Add classifyForIngress() function to Ingress.mts |
+| 2.3 | [step-2.3-quarantine-integrity.md](step-2.3-quarantine-integrity.md) | REMOVED | ~~Add quarantineIntegrity() method~~ - contradicts spec, use full quarantine() |
+| 2.4 | [step-2.4-raise-integrity.md](step-2.4-raise-integrity.md) | REMOVED | ~~Add raiseIntegrityTo() method~~ - inline in deserialize.mts instead |
 
 ## Phase 3: Ingress Logic
 | Step | File | Status | Description |
@@ -130,6 +130,7 @@ When implementing changes, adapt the qecho example to test:
 ## Key Reference Files
 
 - Specification: `.experiments/quarantine-high-level-description.md`
+- Ingress policy: `rt/src/Ingress.mts`
 - DCLabel: `rt/src/levels/DCLabels/dclabel.mts`
 - Deserialize: `rt/src/deserialize.mts`
 - Send builtin: `rt/src/builtins/send.mts`

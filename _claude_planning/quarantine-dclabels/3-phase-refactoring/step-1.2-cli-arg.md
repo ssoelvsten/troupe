@@ -1,6 +1,6 @@
 # Step 1.2: Add CLI Argument for IntegrityOnlyDistrust
 
-**Status**: NOT STARTED
+**Status**: COMPLETED
 
 **Depends on**: Step 1.1
 
@@ -60,11 +60,15 @@ node rt/built/troupe.mjs --help  # Should show new arg (if help implemented)
 
 ## Completion Checklist
 
-- [ ] TroupeCliArg enum updated
-- [ ] troupe.mts parses the argument
-- [ ] `make rt` succeeds
-- [ ] Mark this step COMPLETED in INDEX.md
+- [x] TroupeCliArg enum updated
+- [x] troupe.mts parses the argument
+- [x] `make rt` succeeds
+- [x] Mark this step COMPLETED in INDEX.md
 
 ## Notes
 
-(Add any implementation notes here after completion)
+Completed 2026-01-24.
+- Added `IntegrityOnlyDistrust` to enum, `ParsedArgs` interface, and yargs options in TroupeCliArgs.mts
+- Used yargs `choices` for validation (raise_taint/quarantine)
+- Default is 'quarantine' (safer option)
+- Added import and configuration call in troupe.mts

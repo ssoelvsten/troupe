@@ -1,66 +1,41 @@
 # Step 2.4: Add raiseIntegrityTo() Method
 
-**Status**: NOT STARTED
+**Status**: REMOVED
 
 ---
 
-## Objective
+## Reason for Removal
 
-Add a method to DCLabel that raises the integrity component to match a given integrity level. This is used for integrity-only overclaim with RAISE_TAINT action.
+This step was removed because:
 
-## File to Modify
+1. **Misleading name**: "raiseIntegrityTo" suggests strengthening integrity, but we're actually constraining/lowering it to the trust level.
 
-`rt/src/levels/DCLabels/dclabel.mts`
+2. **Doesn't belong in DCLabel**: This is an ingress-specific operation. DCLabel is a general-purpose label class and shouldn't contain quarantine-ingress semantics.
 
-## Context
+3. **Simple enough to inline**: The operation is just:
+   ```typescript
+   new DCLabel(dcLevel.confidentiality, trustDC.integrity)
+   ```
+   This can be done inline in `deserialize.mts` where the ingress logic lives.
 
-From the specification:
-> If the setting is `RAISE_TAINT`, then we relabel I to I_n.
+## Correct Approach
 
-This means replacing the claimed integrity with the trust level's integrity.
-
-## Implementation
-
-Add to DCLabel class:
+In step-3.1 (three-case ingress logic), for `integrity_overclaim` with `RAISE_TAINT` action:
 
 ```typescript
-/**
- * Raise integrity to match the given integrity level.
- *
- * This produces a label where:
- * - Confidentiality: unchanged (original C)
- * - Integrity: replaced with trustIntegrity (I_n)
- *
- * Use case: Integrity-only overclaim with RAISE_TAINT action.
- * The claimed integrity is untrusted, so we "raise" (worsen) it to
- * the trust level's integrity, which is more conservative.
- *
- * @param trustIntegrity The trust level's integrity to use
- */
-raiseIntegrityTo(trustIntegrity: CNF): DCLabel {
-    return new DCLabel(
-        this.confidentiality,  // unchanged
-        trustIntegrity         // replaced with trust integrity
-    );
-}
+case 'integrity_overclaim':
+    const action = getIntegrityOnlyDistrustAction();
+    if (action === IntegrityOnlyDistrustAction.RAISE_TAINT) {
+        // Inline: constrain integrity to trust level
+        return new DCLabel(dcLevel.confidentiality, trustDC.integrity);
+    } else {
+        // QUARANTINE: full quarantine
+        this._ingressResult = IngressResult.QUARANTINE;
+        return dcLevel.quarantine(this.quarantineTag);
+    }
 ```
-
-## Semantics Note
-
-"Raise" here means making the integrity label less trusted (higher in the lattice toward untrusted). By replacing the claimed integrity with I_n, we're saying "we don't trust your integrity claim, so we'll use the integrity level we actually trust you for."
-
-## Verification
-
-```bash
-make rt
-```
-
-## Completion Checklist
-
-- [ ] raiseIntegrityTo() method added to DCLabel class
-- [ ] `make rt` succeeds
-- [ ] Mark this step COMPLETED in INDEX.md
 
 ## Notes
 
-(Add any implementation notes here after completion)
+- Removed 2026-01-24 to keep DCLabel as a clean general-purpose label class.
+- The inline approach is clearer about what's happening (constraining, not "raising").

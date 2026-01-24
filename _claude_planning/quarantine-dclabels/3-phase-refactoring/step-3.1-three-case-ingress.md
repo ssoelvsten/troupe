@@ -2,7 +2,7 @@
 
 **Status**: NOT STARTED
 
-**Depends on**: Steps 1.1, 2.1, 2.2, 2.3, 2.4
+**Depends on**: Steps 1.1, 2.1, 2.2 (steps 2.3 and 2.4 were REMOVED)
 
 ---
 
@@ -38,12 +38,18 @@ Implement three cases based on specification:
 
 ## Implementation
 
-Add import:
+Add imports:
 ```typescript
 import {
     getIntegrityOnlyDistrustAction,
-    IntegrityOnlyDistrustAction
-} from './QuarantineConfig.mjs';
+    IntegrityOnlyDistrustAction,
+    isRegularTrust,
+    classifyForIngress,
+    IngressClassification
+} from './Ingress.mjs';
+
+// Note: DCLabel is already imported for type assertions (as DCLabel).
+// The inline construction `new DCLabel(...)` uses this existing import.
 ```
 
 Modify `checkLabel()`:
@@ -60,32 +66,32 @@ private checkLabel(lev: Level): Level {
 
     // Check if trust level is regular (I_n <=> C_n)
     // If not regular, fall back to legacy behavior
-    if (!trustDC.isRegularTrust()) {
+    if (!isRegularTrust(trustDC)) {
         return this.checkLabelLegacy(lev);
     }
 
     // Classify the label against trust level
-    const classification = dcLevel.classifyForIngress(trustDC);
+    const classification = classifyForIngress(dcLevel, trustDC);
 
     switch (classification) {
-        case 'trusted':
+        case IngressClassification.TRUSTED:
             // Both I and C within trust - use original
             return lev;
 
-        case 'full_overclaim':
+        case IngressClassification.FULL_OVERCLAIM:
             // Neither I nor C within trust - quarantine both
             this._ingressResult = IngressResult.QUARANTINE;
             return dcLevel.quarantine(this.quarantineTag);
 
-        case 'integrity_overclaim':
+        case IngressClassification.INTEGRITY_OVERCLAIM:
             // C within trust, I exceeds - consult setting
             const action = getIntegrityOnlyDistrustAction();
 
             if (action === IntegrityOnlyDistrustAction.RAISE_TAINT) {
-                // Relabel I to I_n - not quarantine, but tainted
-                return dcLevel.raiseIntegrityTo(trustDC.integrity);
+                // Relabel I to I_n - constrain integrity to trust level (inline)
+                return new DCLabel(dcLevel.confidentiality, trustDC.integrity);
             } else {
-                // QUARANTINE: quarantine both I and C
+                // QUARANTINE: quarantine both I and C (per spec: "as in full overclaim")
                 this._ingressResult = IngressResult.QUARANTINE;
                 return dcLevel.quarantine(this.quarantineTag);
             }
@@ -152,7 +158,7 @@ Observe server output for:
 
 ## Completion Checklist
 
-- [ ] Import QuarantineConfig added
+- [ ] Import Ingress.mjs added
 - [ ] checkLabel() modified for three-case logic
 - [ ] checkLabelLegacy() added for backward compatibility
 - [ ] `make rt` succeeds

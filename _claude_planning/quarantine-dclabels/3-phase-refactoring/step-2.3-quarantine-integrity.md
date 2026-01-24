@@ -1,66 +1,28 @@
 # Step 2.3: Add quarantineIntegrity() Method
 
-**Status**: NOT STARTED
+**Status**: REMOVED
 
 ---
 
-## Objective
+## Reason for Removal
 
-Add a method to DCLabel that quarantines only the integrity component, leaving confidentiality unchanged. This is used for integrity-only overclaim with QUARANTINE action.
+This step was removed because it **contradicts the specification**.
 
-## File to Modify
+From `.experiments/quarantine-high-level-description.md`:
 
-`rt/src/levels/DCLabels/dclabel.mts`
+> If the setting is `QUARANTINE`, then we quarantine both I and C **as in the full overclaim**.
 
-## Context
+The spec explicitly says that for integrity-only overclaim with QUARANTINE action, we should do **full quarantine** (both components), not partial quarantine.
 
-For integrity-only overclaim with QUARANTINE setting, we want to quarantine the integrity but keep the confidentiality as-is (since it was within trust bounds).
+The `quarantineIntegrity()` method would produce `<C, I@n:q>` (only I quarantined), but the spec requires `<C@n:q, I@n:q>` (both quarantined).
 
-**Note**: After further review of the spec, the full overclaim case quarantines BOTH components. For integrity-only with QUARANTINE, the spec also says "quarantine both I and C as in the full overclaim." This step may not be needed if we just use the existing `quarantine()` method.
+**Correct approach**: Use the existing `quarantine()` method for both `full_overclaim` and `integrity_overclaim` with QUARANTINE action.
 
-Re-reading the spec:
-> If the setting is `QUARANTINE`, then we quarantine both I and C as in the full overclaim.
+## Original Implementation (Removed)
 
-So for QUARANTINE action, we use the existing `quarantine()` method. This step is only needed if we want partial quarantine (quarantine I only, keep C). Let's implement it for flexibility.
-
-## Implementation
-
-Add to DCLabel class:
-
-```typescript
-/**
- * Quarantine only the integrity component, keeping confidentiality unchanged.
- *
- * This produces a label where:
- * - Confidentiality: unchanged (original C)
- * - Integrity: quarantined (I@n:q)
- *
- * Use case: Integrity-only overclaim where we want partial quarantine.
- *
- * @param tag The quarantine tag (nodeId + quarantineId)
- */
-quarantineIntegrity(tag: QuarantineTag): DCLabel {
-    return new DCLabel(
-        this.confidentiality,  // unchanged
-        this.quarantineCNF(this.integrity, tag)  // quarantined
-    );
-}
-```
-
-## Verification
-
-```bash
-make rt
-```
-
-## Completion Checklist
-
-- [ ] quarantineIntegrity() method added to DCLabel class
-- [ ] `make rt` succeeds
-- [ ] Mark this step COMPLETED in INDEX.md
+The method was briefly added and then removed from `dclabel.mts`. It should NOT be re-added.
 
 ## Notes
 
-The spec says for QUARANTINE action, quarantine both. But having this method gives flexibility for future use or if the interpretation changes.
-
-(Add any implementation notes here after completion)
+- Removed 2026-01-24 after spec review revealed the implementation contradicted the specification.
+- The existing `quarantine()` method provides the correct full-quarantine behavior.

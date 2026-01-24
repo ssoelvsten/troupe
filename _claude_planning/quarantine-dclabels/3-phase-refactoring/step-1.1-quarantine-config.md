@@ -1,16 +1,16 @@
-# Step 1.1: Create QuarantineConfig.mts
+# Step 1.1: Create Ingress.mts
 
-**Status**: NOT STARTED
+**Status**: COMPLETED
 
 ---
 
 ## Objective
 
-Create a new configuration module that defines the `IntegrityOnlyDistrustAction` enum for handling integrity-only overclaim scenarios.
+Create a new ingress policy module that defines the `IntegrityOnlyDistrustAction` enum for handling integrity-only overclaim scenarios.
 
 ## File to Create
 
-`rt/src/QuarantineConfig.mts`
+`rt/src/Ingress.mts`
 
 ## Implementation
 
@@ -63,10 +63,10 @@ Should compile without errors.
 
 ## Completion Checklist
 
-- [ ] File created at `rt/src/QuarantineConfig.mts`
-- [ ] `make rt` succeeds
-- [ ] Mark this step COMPLETED in INDEX.md
+- [x] File created at `rt/src/Ingress.mts`
+- [x] `make rt` succeeds
+- [x] Mark this step COMPLETED in INDEX.md
 
 ## Notes
 
-(Add any implementation notes here after completion)
+Completed 2026-01-24. File created exactly as specified. Build succeeds.
