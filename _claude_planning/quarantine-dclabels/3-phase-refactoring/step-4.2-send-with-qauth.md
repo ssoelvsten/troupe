@@ -1,4 +1,4 @@
-# Step 4.2: Add sendMessageWithQuarantineAuth
+# Step 4.2: Consolidate sendMessageToRemote with qauth Support
 
 **Status**: NOT STARTED
 
@@ -8,7 +8,15 @@
 
 ## Objective
 
-Add a new runtime method `sendMessageWithQuarantineAuth` that handles sending messages with optional quarantine authority for reverse quarantine.
+Modify existing `sendMessageToRemote` and `rt_sendMessageNochecks` to accept optional quarantine authority. **No separate `sendMessageWithQuarantineAuth` function.**
+
+## Key Semantic Change
+
+**Before**: `actsFor(..., { node })` automatically coalesces with node-specific wildcard authority
+
+**After**:
+- 2-arg send: No automatic coalescing → fails for quarantined data
+- 3-arg send: Uses explicit qauth → enables quarantined data sends
 
 ## File to Modify
 
@@ -16,77 +24,39 @@ Add a new runtime method `sendMessageWithQuarantineAuth` that handles sending me
 
 ## Implementation
 
-Add new function:
+### Modify sendMessageToRemote
 
 ```typescript
-/**
- * Send a message with optional quarantine authority.
- *
- * If quarantineAuth is provided, it can be used to restore quarantined
- * labels when sending to a remote node (reverse quarantine).
- *
- * @param lRecipientPid Labeled recipient process ID
- * @param message The message to send
- * @param quarantineAuth Optional quarantine authority for reverse quarantine
- * @param ret Whether to return unit value (default true)
- */
-function rt_sendMessageWithQuarantineAuth(
-    lRecipientPid: LVal,
-    message: LVal,
-    quarantineAuth: Level | null,
-    ret = true
-) {
-    let recipientPid = lRecipientPid.val;
-
-    if (isLocalPid(recipientPid)) {
-        // Local send - pass quarantine auth to mailbox for metadata
-        __theMailbox.addMessage(
-            __nodeManager.getNodeId(),
-            lRecipientPid,
-            message,
-            $t().pc,
-            quarantineAuth
-        );
-        if (ret) {
-            return $t().returnImmediateLValue(__unit);
-        }
-    } else {
-        // Remote send - use quarantine auth for label restoration
-        return sendMessageToRemoteWithQuarantineAuth(
-            recipientPid,
-            message,
-            quarantineAuth
-        );
-    }
-}
+import { Authority } from './Authority.mjs';
 
 /**
- * Send message to remote node with quarantine authority.
+ * Send message to remote node.
+ *
+ * @param toPid The pid of the remote process
+ * @param message The data to send
+ * @param qauth Optional quarantine authority for sending quarantined data
  */
-function sendMessageToRemoteWithQuarantineAuth(
-    toPid: any,
-    message: LVal,
-    quarantineAuth: Level | null
-) {
+function sendMessageToRemote(toPid, message, qauth?: Authority) {
     let node = toPid.node.nodeId;
     let pid = toPid.pid;
 
-    // Serialize with quarantine authority for reverse quarantine
-    let { data, level } = serializeWithQuarantineAuth(
-        new MbVal(message, $t().pc),
-        $t().pc,
-        node,
-        quarantineAuth
-    );
+    let { data, level } = serialize(new MbVal(message, $t().pc), $t().pc, node);
 
     let trustLevel = nodeTrustLevel(node);
 
-    if (!actsFor(trustLevel, level, { node })) {
+    // Key change: only coalesce if qauth provided
+    // REMOVED: { node } option - no more automatic wildcard coalescing
+    let effectiveTrust = qauth
+        ? trustLevel.coalesce(qauth.authorityLevel)
+        : trustLevel;
+
+    if (!actsFor(effectiveTrust, level)) {  // <-- No { node } option!
         threadError(
-            "Illegal trust flow when sending information to a remote node",
-            false,
-            null,
-            ErrorKind.IFCCheck
+            "Illegal trust flow when sending information to a remote node\n" +
+            ` | the trust level of the recepient node: ${trustLevel.stringRep()}\n` +
+            (qauth ? ` | effective trust (with qauth): ${effectiveTrust.stringRep()}\n` : '') +
+            ` | the level of the information to send:  ${level.stringRep()}`,
+            false, null, ErrorKind.IFCCheck
         );
     } else {
         p2p.sendp2p(node, pid, data);
@@ -95,40 +65,58 @@ function sendMessageToRemoteWithQuarantineAuth(
 }
 ```
 
-Also add import for `serializeWithQuarantineAuth` from serialize.mts (to be added in Step 4.3).
-
-## Wire to RuntimeInterface
-
-In `rt/src/RuntimeInterface.mts`, add to interface:
+### Modify rt_sendMessageNochecks
 
 ```typescript
-sendMessageWithQuarantineAuth(
-    lRecipientPid: LVal,
-    message: LVal,
-    quarantineAuth: Level | null
-): any;
+function rt_sendMessageNochecks(lRecipientPid, message, qauth?: Authority, ret = true) {
+    let recipientPid = lRecipientPid.val;
+
+    if (isLocalPid(recipientPid)) {
+        __theMailbox.addMessage(__nodeManager.getNodeId(), lRecipientPid, message, $t().pc);
+        if (ret) {
+            return $t().returnImmediateLValue(__unit);
+        }
+    } else {
+        debug("* rt rt_send remote *");
+        return sendMessageToRemote(recipientPid, message, qauth);
+    }
+}
 ```
 
-And in the implementation object, add:
+### Wire to runtime object
+
+Ensure the updated function is accessible via `$r.sendMessageNoChecks`:
+
 ```typescript
-sendMessageWithQuarantineAuth: rt_sendMessageWithQuarantineAuth,
+sendMessageNoChecks = rt_sendMessageNochecks;
 ```
+
+## Behavioral Changes
+
+| Scenario | Before | After |
+|----------|--------|-------|
+| 2-arg send, non-quarantined | Works | Works (unchanged) |
+| 2-arg send, quarantined back to source | Works (auto wildcard) | **Fails** |
+| 3-arg send with qauth | N/A | Works |
 
 ## Verification
 
-After Step 4.3:
+After completing Step 4.3:
 ```bash
 make rt
 ```
 
 ## Completion Checklist
 
-- [ ] rt_sendMessageWithQuarantineAuth function added
-- [ ] sendMessageToRemoteWithQuarantineAuth function added
-- [ ] RuntimeInterface updated
+- [ ] sendMessageToRemote modified to accept optional qauth
+- [ ] rt_sendMessageNochecks modified to accept optional qauth
+- [ ] Import added for Authority
+- [ ] `{ node }` option removed from actsFor call
 - [ ] `make rt` succeeds (after Step 4.3)
 - [ ] Mark this step COMPLETED in INDEX.md
 
 ## Notes
 
-(Add any implementation notes here after completion)
+- Uses `Authority` type instead of `Level | null`
+- No separate function - consolidated into existing sendMessageToRemote
+- Automatic wildcard coalescing removed - explicit qauth required for quarantined data

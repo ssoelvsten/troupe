@@ -15,7 +15,7 @@
 | 1. Configuration | COMPLETED | 2/2 |
 | 2. DCLabel Methods | COMPLETED | 4/4 |
 | 3. Ingress Logic | NOT STARTED | 0/1 |
-| 4. Send Refactoring | NOT STARTED | 0/4 |
+| 4. Send Refactoring | NOT STARTED (REVISED) | 0/3 (4.3 removed) |
 | 5. Testing | PARTIAL (5.2 blocked) | 0/3 |
 
 ---
@@ -39,13 +39,16 @@
 |------|------|--------|-------------|
 | 3.1 | [step-3.1-three-case-ingress.md](step-3.1-three-case-ingress.md) | NOT STARTED | Modify checkLabel() for three-case quarantine logic |
 
-## Phase 4: Send Refactoring
+## Phase 4: Send Refactoring (REVISED)
+
+**Key semantic change**: Automatic wildcard coalescing in `actsFor(..., { node })` is removed. 2-arg send now fails for quarantined data; 3-arg send with explicit qauth required.
+
 | Step | File | Status | Description |
 |------|------|--------|-------------|
-| 4.1 | [step-4.1-send-tuple-arity.md](step-4.1-send-tuple-arity.md) | NOT STARTED | Extend send.mts to accept 2 or 3-tuple |
-| 4.2 | [step-4.2-send-with-qauth.md](step-4.2-send-with-qauth.md) | NOT STARTED | Add sendMessageWithQuarantineAuth to runtimeMonitored |
-| 4.3 | [step-4.3-serialize-with-qauth.md](step-4.3-serialize-with-qauth.md) | NOT STARTED | Add serializeWithQuarantineAuth function |
-| 4.4 | [step-4.4-runtime-interface.md](step-4.4-runtime-interface.md) | NOT STARTED | Wire up RuntimeInterface |
+| 4.1 | [step-4.1-send-tuple-arity.md](step-4.1-send-tuple-arity.md) | NOT STARTED | Add assertIsTupleWithArity, modify send.mts for 2/3-tuple |
+| 4.2 | [step-4.2-send-with-qauth.md](step-4.2-send-with-qauth.md) | NOT STARTED | Consolidate sendMessageToRemote with optional qauth |
+| 4.3 | [step-4.3-serialize-with-qauth.md](step-4.3-serialize-with-qauth.md) | NOT NEEDED | ~~serializeWithQuarantineAuth~~ - not required |
+| 4.4 | [step-4.4-runtime-interface.md](step-4.4-runtime-interface.md) | NOT STARTED | Update RuntimeInterface signature |
 
 ## Phase 5: Testing
 | Step | File | Status | Description |

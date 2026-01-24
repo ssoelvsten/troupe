@@ -1,113 +1,94 @@
-# Step 4.4: Wire Up RuntimeInterface
+# Step 4.4: Update RuntimeInterface
 
 **Status**: NOT STARTED
 
-**Depends on**: Steps 4.1, 4.2, 4.3
+**Depends on**: Steps 4.1, 4.2
 
 ---
 
 ## Objective
 
-Ensure all new methods are properly wired through the RuntimeInterface for access from builtins.
+Update `RuntimeInterface.mts` to add optional `qauth` parameter to existing `sendMessageNoChecks`.
 
-## Files to Modify
+**Note**: No separate `sendMessageWithQuarantineAuth` - just modify existing method signature.
 
-1. `rt/src/RuntimeInterface.mts` - Add interface definition
-2. `rt/src/runtimeMonitored.mts` - Ensure implementation is exported
+## File to Modify
+
+`rt/src/RuntimeInterface.mts`
 
 ## Implementation
 
-### 1. RuntimeInterface.mts
-
-Add to the interface:
+Modify existing signature:
 
 ```typescript
+import { Authority } from './Authority.mjs';
+
 export interface RuntimeInterface {
     // ... existing methods
 
-    /**
-     * Send message with optional quarantine authority for reverse quarantine.
-     */
-    sendMessageWithQuarantineAuth(
-        lRecipientPid: LVal,
+    sendMessageNoChecks(
+        toPid: any,
         message: LVal,
-        quarantineAuth: Level | null
+        qauth?: Authority,
+        ret?: boolean
     ): any;
 }
 ```
 
-### 2. runtimeMonitored.mts
-
-Ensure the implementation object includes:
-
-```typescript
-export const runtime: RuntimeInterface = {
-    // ... existing implementations
-
-    sendMessageWithQuarantineAuth: rt_sendMessageWithQuarantineAuth,
-};
-```
-
-Or if using a different pattern, ensure the method is accessible via `$r.sendMessageWithQuarantineAuth`.
+**Note**: Uses `Authority` type, not `Level | null`.
 
 ## Verification
 
-**IMPORTANT**: Local tests do NOT exercise the 3-tuple send with quarantine authority. The qauth parameter is only meaningful in multinode context.
-
-### Build Verification
+### Build
 ```bash
 make rt
 ```
 
-### 2-Tuple Backward Compatibility (Local Test)
-```bash
-# Create a simple local test for 2-tuple
-./local.sh tests/_unautomated/claude/send-2tuple-compat.trp
-```
+### 2-Tuple Backward Compatibility
 
 ```sml
-(* send-2tuple-compat.trp *)
+(* tests/_unautomated/claude/send-2tuple-compat.trp *)
 let me = self () in
 send (me, "hello");
 receive _ -> print "2-tuple send works"
 ```
 
-### 3-Tuple Send Verification with qecho Example
+```bash
+./local.sh tests/_unautomated/claude/send-2tuple-compat.trp
+```
 
-Modify `examples/network/quarantine-echo-01/qecho-server.trp` to use 3-tuple send:
+### 3-Tuple with qecho Example
+
+Modify `examples/network/quarantine-echo-01/qecho-server.trp`:
 
 ```sml
-(* In the ECHO handler, use 3-tuple send with quarantineAuth *)
 case datum of
     (("ECHO", msg, sender), {quarantineAuth,..}) =>
-        (* Use 3-tuple send to reply with quarantine authority *)
         send(sender, ("REPLY", msg), quarantineAuth)
 ```
 
-**Expected behavior:**
-- Server receives quarantined message with quarantineAuth
-- Server uses 3-tuple send to reply with the authority
-- Client should receive message with labels restored (reverse quarantine)
-
-### Run the Example
-
+Run:
 ```bash
-# Terminal 1: Start server (with modified qecho-server.trp)
-./network.sh examples/network/quarantine-echo-01/qecho-server.trp <server-args>
+# Terminal 1: Server
+./network.sh examples/network/quarantine-echo-01/qecho-server.trp <args>
 
-# Terminal 2: Start client
-./network.sh examples/network/quarantine-echo-01/qecho-client.trp <client-args>
+# Terminal 2: Client
+./network.sh examples/network/quarantine-echo-01/qecho-client.trp <args>
 ```
+
+### Verify 2-arg Send Fails for Quarantined
+
+Create test that receives quarantined data and tries 2-arg send - should fail with "Illegal trust flow" error.
 
 ## Completion Checklist
 
-- [ ] RuntimeInterface updated with sendMessageWithQuarantineAuth
-- [ ] Implementation wired in runtimeMonitored.mts
+- [ ] RuntimeInterface updated with optional qauth parameter
 - [ ] `make rt` succeeds
-- [ ] 2-tuple send backward compatibility verified (local test)
-- [ ] 3-tuple send verified with modified qecho example
+- [ ] 2-tuple send backward compatibility verified
+- [ ] 3-tuple send verified with qecho example
 - [ ] Mark this step COMPLETED in INDEX.md
 
 ## Notes
 
-(Add any implementation notes here after completion)
+- No separate `sendMessageWithQuarantineAuth` method - just optional parameter on existing method
+- Type is `Authority` not `Level | null`

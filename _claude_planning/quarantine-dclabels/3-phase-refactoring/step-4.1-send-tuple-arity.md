@@ -1,4 +1,4 @@
-# Step 4.1: Extend send.mts for 2/3-Tuple
+# Step 4.1: Add assertIsTupleWithArity and Modify send.mts
 
 **Status**: NOT STARTED
 
@@ -6,100 +6,100 @@
 
 ## Objective
 
-Modify the `send` builtin to accept either a 2-tuple `(pid, message)` or a 3-tuple `(pid, message, qauth)`.
+1. Add new `assertIsTupleWithArity` assertion that preserves blocking level semantics
+2. Modify `send` builtin to accept 2-tuple or 3-tuple
 
-## File to Modify
+## Files to Modify
 
-`rt/src/builtins/send.mts`
+1. `rt/src/Asserts.mts`
+2. `rt/src/builtins/send.mts`
 
-## Current Implementation
+## Key Design Decision
+
+**Why not manual arity checking?** The existing `assertIsNTuple(x, n)` raises the blocking level via `_thread().raiseBlockingThreadLev(x.lev)`. Manual arity checks would silently drop this IFC-critical behavior.
+
+## Implementation
+
+### Part A: Add to Asserts.mts
 
 ```typescript
-send = mkBase((larg) => {
-    // ...
-    assertIsNTuple(larg, 2);  // Only accepts 2-tuple
-    assertIsProcessId(larg.val[0]);
-    let arg = larg.val;
-    let lRecipientPid = arg[0];
-    let message = arg[1];
-    return $r.sendMessageNoChecks(lRecipientPid, message)
-}, "send");
+/**
+ * Assert x is a tuple with arity in the given set.
+ * Raises blocking level like assertIsNTuple.
+ */
+export function assertIsTupleWithArity(
+    x: any,
+    allowedArities: number[],
+    source: AssertionSource = AssertionSource.AssertInBuiltIn
+) {
+    _thread().raiseBlockingThreadLev(x.lev);  // Critical: preserve blocking level
+    if (!(Array.isArray(x.val) && isTupleFlagSet(x.val))) {
+        err("value " + __stringRep(x) + " is not a tuple", source);
+    }
+    if (!allowedArities.includes(x.val.length)) {
+        const aritiesStr = allowedArities.join(" or ");
+        err(`expected ${aritiesStr}-tuple, got ${x.val.length}-tuple`, source);
+    }
+}
 ```
 
-## New Implementation
+### Part B: Modify send.mts
 
 ```typescript
-import { assertIsAuthority } from './Asserts.mjs';
+import { UserRuntimeZero, Constructor, mkBase } from './UserRuntimeZero.mjs'
+import { assertNormalState, assertIsTupleWithArity, assertIsProcessId, assertIsAuthority } from '../Asserts.mjs'
+import { Authority } from '../Authority.mjs';
 
-send = mkBase((larg) => {
-    let $r = this.runtime
-    $r.$t.raiseCurrentThreadPCToBlockingLev();
-    assertNormalState("send")
-    $r.$t.raiseCurrentThreadPC(larg.lev);
+export function BuiltinSend<TBase extends Constructor<UserRuntimeZero>>(Base: TBase) {
+    return class extends Base {
+        send = mkBase((larg) => {
+            let $r = this.runtime
+            $r.$t.raiseCurrentThreadPCToBlockingLev();
+            assertNormalState("send")
+            $r.$t.raiseCurrentThreadPC(larg.lev);
 
-    // Accept 2-tuple or 3-tuple
-    const arity = larg.val.length;
-    if (arity !== 2 && arity !== 3) {
-        throw new TroupeError(
-            "send expects 2 or 3 arguments: (pid, message) or (pid, message, qauth)"
-        );
-    }
+            // New: accept 2 or 3-tuple
+            assertIsTupleWithArity(larg, [2, 3]);
+            assertIsProcessId(larg.val[0]);
 
-    assertIsProcessId(larg.val[0]);
-    let arg = larg.val;
+            let arg = larg.val;
+            let lRecipientPid = arg[0];
+            $r.$t.raiseCurrentThreadPC(lRecipientPid.lev);
+            let message = arg[1];
 
-    let lRecipientPid = arg[0];
-    $r.$t.raiseCurrentThreadPC(lRecipientPid.lev);
-    let message = arg[1];
-
-    // Extract optional quarantine authority
-    let quarantineAuth: Level | null = null;
-    if (arity === 3) {
-        let authArg = arg[2];
-        $r.$t.raiseCurrentThreadPC(authArg.lev);
-        assertIsAuthority(authArg.val);
-        quarantineAuth = authArg.val.authorityLevel;
-    }
-
-    // Use new method that supports quarantine authority
-    return $r.sendMessageWithQuarantineAuth(lRecipientPid, message, quarantineAuth);
-}, "send");
-```
-
-## Dependencies
-
-1. Need to ensure `assertIsAuthority` exists in `Asserts.mts`
-2. Need to add `sendMessageWithQuarantineAuth` to RuntimeInterface (Step 4.2)
-
-## Check Asserts.mts
-
-First check if `assertIsAuthority` exists. If not, add it:
-
-```typescript
-export function assertIsAuthority(v: any): asserts v is Authority {
-    if (!(v instanceof Authority)) {
-        throw new TroupeError(`Expected Authority, got ${typeof v}`);
+            if (arg.length === 2) {
+                // Standard 2-tuple send - no qauth
+                return $r.sendMessageNoChecks(lRecipientPid, message);
+            } else {
+                // 3-tuple send with quarantine authority
+                let authArg = arg[2];
+                // assertIsAuthority raises blocking level via raiseBlockingThreadLev
+                assertIsAuthority(authArg);
+                let qauth: Authority = authArg.val;
+                return $r.sendMessageNoChecks(lRecipientPid, message, qauth);
+            }
+        }, "send");
     }
 }
 ```
 
 ## Verification
 
-After completing Step 4.2:
+After completing Step 4.3:
 ```bash
 make rt
 ```
 
 ## Completion Checklist
 
-- [ ] assertIsAuthority exists or added to Asserts.mts
+- [ ] assertIsTupleWithArity added to Asserts.mts
 - [ ] send.mts modified to accept 2 or 3-tuple
 - [ ] Imports added for Authority and assertIsAuthority
-- [ ] `make rt` succeeds (after Step 4.2)
+- [ ] `make rt` succeeds (after Step 4.3)
 - [ ] Mark this step COMPLETED in INDEX.md
 
 ## Notes
 
-This step depends on Step 4.2 being completed for full compilation, as it calls a method that doesn't exist yet. Can stub the method first.
-
-(Add any implementation notes here after completion)
+- `assertIsTupleWithArity` replaces manual arity checking to preserve IFC semantics
+- `Authority` type used instead of `Level | null` - matches actual runtime type
+- No explicit PC raise for authArg - blocking level raised by assertIsAuthority (same pattern as downgrading.mts)
