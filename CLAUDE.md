@@ -396,3 +396,35 @@ Running tests takes time; to save on running them, run them and save the results
 ## New primitives should have tests
 
 When adding new primitives into the language, make sure to create one or more tests that would demonstrate the syntax, the expected behavior, expected error messages, etc. Keep these demo tests brief and down to the chase; propose to add them to the appropriate place in the test corpus.
+
+
+## Auto-structuring Large Plans
+
+Before finalizing any implementation plan, assess its complexity and structure accordingly:
+
+| Complexity | Criteria                            | Structure                                      |
+|------------|-------------------------------------|------------------------------------------------|
+| Small      | <3 tasks, single focus              | Inline in conversation                         |
+| Medium     | 3-4 tasks, 2-3 areas                | Single plan file with sections                 |
+| Large      | 4+ tasks, multiple areas/phases     | Multi-file structure in `_claude_planning/`    |
+
+**For large plans**, automatically create the following structure without being asked:
+
+```
+_claude_planning/<feature-name>/
+  index.md          # Overview, progress tracking, step links
+  step-1-<name>.md       # Self-contained step file
+  step-2-<name>.md
+  ...
+```
+
+**Requirements for multi-file plans:**
+1. **index.md**: Progress table with status indicators, links to all steps, decision log
+2. **Step files**: Each must be self-contained with enough context to execute in a fresh session
+3. **Progress tracking**: Use checkboxes and status indicators (Pending/In Progress/Complete/Blocked)
+
+**Templates are available at:** `_claude_planning/_template/`
+- `index.md` - Index file template
+- `step-N-template.md` - Step file template
+
+When creating a new large plan, copy and adapt these templates.

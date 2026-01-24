@@ -1,0 +1,164 @@
+# Step 3.1: Implement Three-Case Ingress Logic
+
+**Status**: NOT STARTED
+
+**Depends on**: Steps 1.1, 2.1, 2.2, 2.3, 2.4
+
+---
+
+## Objective
+
+Modify the `checkLabel()` method in `IngressDeserializer` to implement the three-case quarantine logic from the specification.
+
+## File to Modify
+
+`rt/src/deserialize.mts`
+
+## Current Behavior
+
+The current `checkLabel()` (around line 303) does:
+```typescript
+if (levels.actsFor(__trustLevel, lev)) {
+    return lev;  // Trusted, use original
+} else if (lev.isCorrupt()) {
+    // Drop
+} else {
+    return lev.quarantine(tag);  // Quarantine
+}
+```
+
+This is all-or-nothing: either fully trusted or fully quarantined.
+
+## New Behavior
+
+Implement three cases based on specification:
+1. **trusted**: Use original labels
+2. **full_overclaim**: Quarantine both C and I
+3. **integrity_overclaim**: Consult INTEGRITY_ONLY_DISTRUST setting
+
+## Implementation
+
+Add import:
+```typescript
+import {
+    getIntegrityOnlyDistrustAction,
+    IntegrityOnlyDistrustAction
+} from './QuarantineConfig.mjs';
+```
+
+Modify `checkLabel()`:
+```typescript
+private checkLabel(lev: Level): Level {
+    const dcLevel = lev as DCLabel;
+    const trustDC = this.__trustLevel as DCLabel;
+
+    // First check corruption (applies to all cases)
+    if (dcLevel.isCorrupt()) {
+        this._ingressResult = IngressResult.DROP;
+        throw new Error("Corrupt label detected");
+    }
+
+    // Check if trust level is regular (I_n <=> C_n)
+    // If not regular, fall back to legacy behavior
+    if (!trustDC.isRegularTrust()) {
+        return this.checkLabelLegacy(lev);
+    }
+
+    // Classify the label against trust level
+    const classification = dcLevel.classifyForIngress(trustDC);
+
+    switch (classification) {
+        case 'trusted':
+            // Both I and C within trust - use original
+            return lev;
+
+        case 'full_overclaim':
+            // Neither I nor C within trust - quarantine both
+            this._ingressResult = IngressResult.QUARANTINE;
+            return dcLevel.quarantine(this.quarantineTag);
+
+        case 'integrity_overclaim':
+            // C within trust, I exceeds - consult setting
+            const action = getIntegrityOnlyDistrustAction();
+
+            if (action === IntegrityOnlyDistrustAction.RAISE_TAINT) {
+                // Relabel I to I_n - not quarantine, but tainted
+                return dcLevel.raiseIntegrityTo(trustDC.integrity);
+            } else {
+                // QUARANTINE: quarantine both I and C
+                this._ingressResult = IngressResult.QUARANTINE;
+                return dcLevel.quarantine(this.quarantineTag);
+            }
+    }
+}
+
+/**
+ * Legacy behavior for non-regular trust levels.
+ * Uses simple actsFor check.
+ */
+private checkLabelLegacy(lev: Level): Level {
+    if (levels.actsFor(this.__trustLevel, lev)) {
+        return lev;
+    } else {
+        this._ingressResult = IngressResult.QUARANTINE;
+        return (lev as DCLabel).quarantine(this.quarantineTag);
+    }
+}
+```
+
+## Testing
+
+**IMPORTANT**: Local tests do NOT exercise quarantine functionality. Quarantine only occurs during multinode communication.
+
+### Build Verification
+```bash
+make rt
+```
+
+### Quarantine Verification with qecho Example
+
+Use the existing quarantine echo example:
+```
+examples/network/quarantine-echo-01/
+├── qecho-server.trp  # Receives quarantined data
+├── qecho-client.trp  # Sends labeled data
+```
+
+**To test partial quarantine:**
+1. Modify `qecho-client.trp` to send data with integrity-only overclaim
+2. Run server and client
+3. Observe that server receives data with appropriate classification
+
+**Adapt client for integrity-only test:**
+```sml
+(* Send message where C is within trust but I exceeds *)
+val test_msg = "Hello" raisedTo `<medium ; high>`
+(* If server trusts client at <medium ; medium>, this triggers integrity_overclaim *)
+```
+
+### Run the Example
+
+```bash
+# Terminal 1: Start server
+./network.sh examples/network/quarantine-echo-01/qecho-server.trp <server-args>
+
+# Terminal 2: Start client
+./network.sh examples/network/quarantine-echo-01/qecho-client.trp <client-args>
+```
+
+Observe server output for:
+- RAISE_TAINT mode: integrity should be relabeled to trust level
+- QUARANTINE mode: full quarantine with quarantineAuth in metadata
+
+## Completion Checklist
+
+- [ ] Import QuarantineConfig added
+- [ ] checkLabel() modified for three-case logic
+- [ ] checkLabelLegacy() added for backward compatibility
+- [ ] `make rt` succeeds
+- [ ] qecho example runs and shows correct quarantine behavior
+- [ ] Mark this step COMPLETED in INDEX.md
+
+## Notes
+
+(Add any implementation notes here after completion)
