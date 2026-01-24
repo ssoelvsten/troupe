@@ -50,13 +50,6 @@ export class Category {
     }
 
     /**
-     * Gets a label by its key.
-     */
-    getByKey(key: string): Label | undefined {
-        return this._labels.get(key);
-    }
-
-    /**
      * Creates the union of this category with another.
      */
     union(other: Category): Category {
