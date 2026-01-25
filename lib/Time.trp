@@ -1,0 +1,699 @@
+(* Time library - functional date/time manipulation *)
+
+import Result
+import Duration
+import Number
+import String
+import List
+
+let
+    (* Use Number library functions for integer operations *)
+    val intDiv = Number.intDiv
+    val posMod = Number.posMod
+
+    (* === Constants for Date Calculations === *)
+
+    (* Days per month (0-indexed: 0=Jan, 11=Dec) for non-leap years *)
+    val daysPerMonthNonLeap = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]
+    val daysPerMonthLeap    = [31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]
+
+    (* Cumulative days to start of month (0-indexed) for non-leap years *)
+    (* Jan=0, Feb=31, Mar=59, Apr=90, May=120, Jun=151, Jul=181, Aug=212, Sep=243, Oct=273, Nov=304, Dec=334 *)
+    val cumDaysNonLeap = [0, 31, 59, 90, 120, 151, 181, 212, 243, 273, 304, 334]
+    val cumDaysLeap    = [0, 31, 60, 91, 121, 152, 182, 213, 244, 274, 305, 335]
+
+    (* Average days per year in Gregorian calendar *)
+    val avgDaysPerYear = 365.2425
+
+    (* Precomputed epoch reference: days from year 0 to 1970-01-01 *)
+    (* = 1969*365 + 492 - 19 + 4 = 719162 *)
+    val epochDays1970 = 719162
+
+    (* Time unit constants in milliseconds *)
+    val msPerSecond = 1000
+    val msPerMinute = 60000
+    val msPerHour = 3600000
+    val msPerDay = 86400000
+
+    (* === Instant Type === *)
+    (* Internal representation: {tag = "Instant", epochMs = <milliseconds since epoch>} *)
+
+    (** Get current instant *)
+    fun now () = {tag = "Instant", epochMs = getTime ()}
+
+    (** Create instant from epoch milliseconds *)
+    fun fromEpochMillis ms = {tag = "Instant", epochMs = ms}
+
+    (** Get epoch milliseconds from instant *)
+    fun toEpochMillis t = t.epochMs
+
+    (** Add duration to instant *)
+    fun addToInstant t d = {tag = "Instant", epochMs = t.epochMs + d.ms}
+
+    (** Subtract duration from instant *)
+    fun subFromInstant t d = {tag = "Instant", epochMs = t.epochMs - d.ms}
+
+    (** Get duration between two instants *)
+    fun diff t1 t2 = Duration.fromMillis (t1.epochMs - t2.epochMs)
+
+    (** Compare two instants *)
+    fun compareInstant t1 t2 =
+        if t1.epochMs < t2.epochMs then -1
+        else if t1.epochMs > t2.epochMs then 1
+        else 0
+
+    (** Check if first instant is before second *)
+    fun isBefore t1 t2 = t1.epochMs < t2.epochMs
+
+    (** Check if first instant is after second *)
+    fun isAfter t1 t2 = t1.epochMs > t2.epochMs
+
+    (* === Utility Functions === *)
+
+    (** Sleep for a duration *)
+    fun sleepFor d = sleep d.ms
+
+    (** Measure execution time of a thunk.
+     *  Note: Uses millisecond precision. getNanoTime returns BigInt which
+     *  the runtime doesn't currently handle, so we use getTime instead. *)
+    fun measure f =
+        let val start = getTime ()
+            val result = f ()
+            val finish = getTime ()
+        in (result, Duration.fromMillis (finish - start)) end
+
+    (* === Phase 2: Date/Calendar Support === *)
+
+    (* --- Internal Helpers --- *)
+
+    (** Check if a year is a leap year *)
+    fun isLeapYear year =
+        if year mod 400 = 0 then true
+        else if year mod 100 = 0 then false
+        else year mod 4 = 0
+
+    (** Get number of days in a month (1-indexed) *)
+    fun daysInMonth year month =
+        let val table = if isLeapYear year then daysPerMonthLeap else daysPerMonthNonLeap
+        in List.nth table (month - 1)
+        end
+
+    (** Validate a date *)
+    fun isValidDate year month day =
+        month >= 1 andalso month <= 12 andalso
+        day >= 1 andalso day <= daysInMonth year month
+
+    (* --- Date Type --- *)
+    (* Representation: {tag = "Date", year = int, month = int, day = int} *)
+
+    (** Create a date from year, month, day. Assumes valid input. *)
+    fun dateFromYMD year month day =
+        {tag = "Date", year = year, month = month, day = day}
+
+    (** Create a date from year, month, day with validation. Returns Result. *)
+    fun tryDateFromYMD year month day =
+        if isValidDate year month day
+        then Result.ok {tag = "Date", year = year, month = month, day = day}
+        else Result.err "invalid date"
+
+    (** Get year from date *)
+    fun year d = d.year
+
+    (** Get month from date (1-12) *)
+    fun month d = d.month
+
+    (** Get day from date (1-31) *)
+    fun day d = d.day
+
+    (* --- Date/Instant Conversion Helpers --- *)
+
+    (* Days from year 0 to start of given year (Gregorian) *)
+    fun daysToYear y =
+        let val y1 = y - 1
+        in y1 * 365 + intDiv y1 4 - intDiv y1 100 + intDiv y1 400
+        end
+
+    (* Days from start of year to start of month (0-indexed result) - O(1) lookup *)
+    fun daysToMonth year month =
+        let val table = if isLeapYear year then cumDaysLeap else cumDaysNonLeap
+        in List.nth table (month - 1)
+        end
+
+    (* Total days from epoch (1970-01-01) to a date *)
+    fun dateToEpochDays d =
+        let val dateDays = daysToYear d.year + daysToMonth d.year d.month + d.day - 1
+        in dateDays - epochDays1970
+        end
+
+    (* Convert epoch days back to a date *)
+    fun epochDaysToDate days =
+        let val totalDays = days + epochDays1970
+            (* Find year using accurate Gregorian calendar approximation *)
+            fun findYear guess =
+                let val dty = daysToYear guess
+                    val dtyNext = daysToYear (guess + 1)
+                in if totalDays >= dty andalso totalDays < dtyNext
+                   then guess
+                   else if totalDays < dty
+                        then findYear (guess - 1)
+                        else findYear (guess + 1)
+                end
+            (* Better initial guess using average days per year (365.2425) *)
+            val initialGuess = 1970 + round (days / avgDaysPerYear)
+            val year = findYear initialGuess
+            val dayOfYear = totalDays - daysToYear year + 1
+            (* Find month using cumulative days table - dayOfYear is 1-indexed *)
+            val cumTable = if isLeapYear year then cumDaysLeap else cumDaysNonLeap
+            fun findMonth m =
+                if m >= 12 then (12, dayOfYear - List.nth cumTable 11)
+                else if dayOfYear <= List.nth cumTable m
+                     then (m, dayOfYear - List.nth cumTable (m - 1))
+                     else findMonth (m + 1)
+            val (month, day) = findMonth 1
+        in {tag = "Date", year = year, month = month, day = day}
+        end
+
+    (** Convert instant to date (UTC) *)
+    fun dateFromInstant instant =
+        let val epochDays = intDiv instant.epochMs msPerDay
+        in epochDaysToDate epochDays
+        end
+
+    (** Get today's date (UTC) *)
+    fun dateToday () = dateFromInstant (now ())
+
+    (* --- Day of Week --- *)
+
+    (** Get day of week (0=Sunday, 6=Saturday) *)
+    fun dayOfWeek d =
+        let val epochDays = dateToEpochDays d
+            (* 1970-01-01 was Thursday (4) *)
+        in (epochDays + 4) mod 7
+        end
+
+    (** Get day of year (1-366) *)
+    fun dayOfYear d = daysToMonth d.year d.month + d.day
+
+    (* --- Date Arithmetic --- *)
+
+    (* posMod imported from Number library *)
+
+    (** Add days to a date *)
+    fun addDays d n =
+        epochDaysToDate (dateToEpochDays d + n)
+
+    (** Add months to a date (clamps day if needed) *)
+    fun addMonths d n =
+        let val totalMonths = (d.year * 12 + d.month - 1) + n
+            val newYear = if totalMonths >= 0
+                          then intDiv totalMonths 12
+                          else intDiv (totalMonths - 11) 12
+            val newMonth = posMod totalMonths 12 + 1
+            val maxDay = daysInMonth newYear newMonth
+            val newDay = if d.day > maxDay then maxDay else d.day
+        in {tag = "Date", year = newYear, month = newMonth, day = newDay}
+        end
+
+    (** Add years to a date (clamps Feb 29 if needed) *)
+    fun addYears d n =
+        let val newYear = d.year + n
+            val maxDay = daysInMonth newYear d.month
+            val newDay = if d.day > maxDay then maxDay else d.day
+        in {tag = "Date", year = newYear, month = d.month, day = newDay}
+        end
+
+    (** Days between two dates (d1 - d2) *)
+    fun diffDays d1 d2 = dateToEpochDays d1 - dateToEpochDays d2
+
+    (* --- Date Comparison --- *)
+
+    (** Compare two dates: returns -1, 0, or 1 *)
+    fun compareDate d1 d2 =
+        let val days1 = dateToEpochDays d1
+            val days2 = dateToEpochDays d2
+        in if days1 < days2 then -1
+           else if days1 > days2 then 1
+           else 0
+        end
+
+    (** Check if first date is before second *)
+    fun dateIsBefore d1 d2 = dateToEpochDays d1 < dateToEpochDays d2
+
+    (** Check if first date is after second *)
+    fun dateIsAfter d1 d2 = dateToEpochDays d1 > dateToEpochDays d2
+
+    (* --- DateTime Type --- *)
+    (* Representation: {tag = "DateTime", year, month, day, hour, minute, second, ms} *)
+
+    (** Create a datetime from components. Assumes valid input. *)
+    fun dateTimeFromComponents year month day hour minute second ms =
+        {tag = "DateTime", year = year, month = month, day = day,
+         hour = hour, minute = minute, second = second, ms = ms}
+
+    (** Validate datetime components *)
+    fun isValidDateTime year month day hour minute second ms =
+        isValidDate year month day andalso
+        hour >= 0 andalso hour <= 23 andalso
+        minute >= 0 andalso minute <= 59 andalso
+        second >= 0 andalso second <= 59 andalso
+        ms >= 0 andalso ms <= 999
+
+    (** Create a datetime with validation. Returns Result. *)
+    fun tryDateTimeFromComponents year month day hour minute second ms =
+        if isValidDateTime year month day hour minute second ms
+        then Result.ok (dateTimeFromComponents year month day hour minute second ms)
+        else Result.err "invalid datetime"
+
+    (** Convert instant to datetime (UTC) *)
+    fun dateTimeFromInstant instant =
+        let val epochMs = instant.epochMs
+            val dayMs = posMod epochMs msPerDay
+            val epochDays = intDiv (epochMs - dayMs) msPerDay
+            val d = epochDaysToDate epochDays
+            val hour = intDiv dayMs msPerHour
+            val minute = intDiv (dayMs mod msPerHour) msPerMinute
+            val second = intDiv (dayMs mod msPerMinute) msPerSecond
+            val ms = dayMs mod msPerSecond
+        in {tag = "DateTime", year = d.year, month = d.month, day = d.day,
+            hour = hour, minute = minute, second = second, ms = ms}
+        end
+
+    (** Get current datetime (UTC) *)
+    fun dateTimeNow () = dateTimeFromInstant (now ())
+
+    (** Convert datetime to instant *)
+    fun dateTimeToInstant dt =
+        let (* Inline epoch days calculation to avoid intermediate record allocation *)
+            val dateDays = daysToYear dt.year + daysToMonth dt.year dt.month + dt.day - 1
+            val epochDays = dateDays - epochDays1970
+            val dayMs = dt.hour * msPerHour + dt.minute * msPerMinute + dt.second * msPerSecond + dt.ms
+        in {tag = "Instant", epochMs = epochDays * msPerDay + dayMs}
+        end
+
+    (** DateTime accessors - named with 'Of' suffix to avoid conflict with Duration constants *)
+    fun hourOf dt = dt.hour
+    fun minuteOf dt = dt.minute
+    fun secondOf dt = dt.second
+    fun millisecondOf dt = dt.ms
+
+    (** Extract date from datetime *)
+    fun dateOfDateTime dt =
+        {tag = "Date", year = dt.year, month = dt.month, day = dt.day}
+
+    (** Create datetime from date with time of day *)
+    fun dateTimeFromDate d hour minute second ms =
+        {tag = "DateTime", year = d.year, month = d.month, day = d.day,
+         hour = hour, minute = minute, second = second, ms = ms}
+
+    (** Compare two datetimes: returns -1, 0, or 1 *)
+    fun compareDateTime dt1 dt2 =
+        compareInstant (dateTimeToInstant dt1) (dateTimeToInstant dt2)
+
+    (** Check if first datetime is before second *)
+    fun dateTimeIsBefore dt1 dt2 =
+        isBefore (dateTimeToInstant dt1) (dateTimeToInstant dt2)
+
+    (** Check if first datetime is after second *)
+    fun dateTimeIsAfter dt1 dt2 =
+        isAfter (dateTimeToInstant dt1) (dateTimeToInstant dt2)
+
+    (* --- Month and Day Constants --- *)
+    val january = 1   val february = 2  val march = 3
+    val april = 4     val may = 5       val june = 6
+    val july = 7      val august = 8    val september = 9
+    val october = 10  val november = 11 val december = 12
+
+    val sunday = 0    val monday = 1    val tuesday = 2
+    val wednesday = 3 val thursday = 4  val friday = 5
+    val saturday = 6
+
+    (* === Phase 3: Formatting and Parsing === *)
+
+    (* --- Formatting Helpers --- *)
+
+    (* Pad a number with leading zeros to width n - uses String.padLeft *)
+    fun padZero n num = String.padLeft n "0" (intToString num)
+
+    (* --- ISO 8601 Formatting --- *)
+
+    (** Format date as ISO 8601: "YYYY-MM-DD" *)
+    fun formatDateISO d =
+        padZero 4 d.year ^ "-" ^ padZero 2 d.month ^ "-" ^ padZero 2 d.day
+
+    (** Format datetime as ISO 8601: "YYYY-MM-DDTHH:mm:ss.sssZ" *)
+    fun formatDateTimeISO dt =
+        padZero 4 dt.year ^ "-" ^ padZero 2 dt.month ^ "-" ^ padZero 2 dt.day ^ "T" ^
+        padZero 2 dt.hour ^ ":" ^ padZero 2 dt.minute ^ ":" ^ padZero 2 dt.second ^ "." ^
+        padZero 3 dt.ms ^ "Z"
+
+    (** Format instant as ISO 8601 datetime string *)
+    fun formatInstantISO instant = formatDateTimeISO (dateTimeFromInstant instant)
+
+    (* --- Parsing Helpers --- *)
+
+    (* Character codes for parsing *)
+    val code0 = 48  (* '0' *)
+    val code9 = 57  (* '9' *)
+    val codeDash = 45   (* '-' *)
+    val codeT = 84      (* 'T' *)
+    val codeColon = 58  (* ':' *)
+    val codeDot = 46    (* '.' *)
+    val codeZ = 90      (* 'Z' *)
+
+    (* Parse integer directly from char codes - no substring allocation.
+       Returns (value, success) tuple. Validates digits during parse. *)
+    fun parseIntDirect s start len =
+        let fun go i acc =
+                if i >= start + len then (acc, true)
+                else let val code = charCodeAtWithDefault (s, i, 0)
+                     in if code >= code0 andalso code <= code9
+                        then go (i + 1) (acc * 10 + (code - code0))
+                        else (0, false)
+                     end
+        in go start 0
+        end
+
+    (* Check single character at position by char code *)
+    fun checkCharCode s pos expected =
+        charCodeAtWithDefault (s, pos, 0) = expected
+
+    (* --- ISO 8601 Parsing --- *)
+
+    (** Parse ISO 8601 date: "YYYY-MM-DD" -> Result date string
+        Single-pass validation and parsing using char codes directly. *)
+    fun parseDateISO s =
+        if strlen s < 10 then Result.err "date too short"
+        else if not (checkCharCode s 4 codeDash andalso checkCharCode s 7 codeDash)
+             then Result.err "invalid format"
+        else let val (year, yOk) = parseIntDirect s 0 4
+                 val (month, mOk) = parseIntDirect s 5 2
+                 val (day, dOk) = parseIntDirect s 8 2
+             in if not (yOk andalso mOk andalso dOk) then Result.err "expected digits"
+                else if not (isValidDate year month day) then Result.err "invalid date"
+                else Result.ok {tag = "Date", year = year, month = month, day = day}
+             end
+
+    (** Parse ISO 8601 datetime: "YYYY-MM-DDTHH:mm:ss.sssZ" -> Result dateTime string
+        Single-pass validation and parsing using char codes directly. *)
+    fun parseDateTimeISO s =
+        if strlen s < 24 then Result.err "datetime too short"
+        else if not (checkCharCode s 4 codeDash andalso checkCharCode s 7 codeDash andalso
+                     checkCharCode s 10 codeT andalso checkCharCode s 13 codeColon andalso
+                     checkCharCode s 16 codeColon andalso checkCharCode s 19 codeDot andalso
+                     checkCharCode s 23 codeZ)
+             then Result.err "invalid format"
+        else let val (year, yOk) = parseIntDirect s 0 4
+                 val (month, moOk) = parseIntDirect s 5 2
+                 val (day, dOk) = parseIntDirect s 8 2
+                 val (hour, hOk) = parseIntDirect s 11 2
+                 val (minute, miOk) = parseIntDirect s 14 2
+                 val (second, sOk) = parseIntDirect s 17 2
+                 val (ms, msOk) = parseIntDirect s 20 3
+             in if not (yOk andalso moOk andalso dOk andalso hOk andalso miOk andalso sOk andalso msOk)
+                then Result.err "expected digits"
+                else if not (isValidDateTime year month day hour minute second ms)
+                then Result.err "invalid datetime"
+                else Result.ok {tag = "DateTime", year = year, month = month, day = day,
+                                hour = hour, minute = minute, second = second, ms = ms}
+             end
+
+    (** Parse ISO 8601 instant: same format as datetime *)
+    fun parseInstantISO s =
+        Result.map dateTimeToInstant (parseDateTimeISO s)
+
+    (* === Phase 4: Time Zones === *)
+
+    (* --- TimeZone Type --- *)
+    (* Representation: {tag = "TimeZone", offsetMinutes = int, name = string} *)
+
+    (** Create a timezone from offset in minutes from UTC *)
+    fun tzFromOffset minutes =
+        let val sign = if minutes >= 0 then "+" else "-"
+            val absMin = if minutes >= 0 then minutes else 0 - minutes
+            val h = intDiv absMin 60
+            val m = absMin mod 60
+            val name = "UTC" ^ sign ^ padZero 2 h ^ ":" ^ padZero 2 m
+        in {tag = "TimeZone", offsetMinutes = minutes, name = name}
+        end
+
+    (** Create a timezone from offset in hours from UTC *)
+    fun tzFromOffsetHours hours = tzFromOffset (hours * 60)
+
+    (** Get timezone offset in minutes *)
+    fun tzOffsetMinutes tz = tz.offsetMinutes
+
+    (** Get timezone offset in hours (truncated) *)
+    fun tzOffsetHours tz = intDiv tz.offsetMinutes 60
+
+    (** Get timezone name *)
+    fun tzName tz = tz.name
+
+    (* Common timezone constants - inline definitions to avoid initialization issues *)
+    val utc  = {tag = "TimeZone", offsetMinutes = 0,      name = "UTC"}
+    val gmt  = utc
+    val est  = {tag = "TimeZone", offsetMinutes = 0 - 300, name = "UTC-05:00"}
+    val edt  = {tag = "TimeZone", offsetMinutes = 0 - 240, name = "UTC-04:00"}
+    val cst  = {tag = "TimeZone", offsetMinutes = 0 - 360, name = "UTC-06:00"}
+    val cdt  = {tag = "TimeZone", offsetMinutes = 0 - 300, name = "UTC-05:00"}
+    val mst  = {tag = "TimeZone", offsetMinutes = 0 - 420, name = "UTC-07:00"}
+    val mdt  = {tag = "TimeZone", offsetMinutes = 0 - 360, name = "UTC-06:00"}
+    val pst  = {tag = "TimeZone", offsetMinutes = 0 - 480, name = "UTC-08:00"}
+    val pdt  = {tag = "TimeZone", offsetMinutes = 0 - 420, name = "UTC-07:00"}
+    val cet  = {tag = "TimeZone", offsetMinutes = 60,     name = "UTC+01:00"}
+    val cest = {tag = "TimeZone", offsetMinutes = 120,    name = "UTC+02:00"}
+    val jst  = {tag = "TimeZone", offsetMinutes = 540,    name = "UTC+09:00"}
+
+    (* --- ZonedDateTime Type --- *)
+    (* Representation: {tag = "ZonedDateTime", dateTime = dateTime, zone = timeZone} *)
+    (* Note: dateTime is stored in LOCAL time for the zone *)
+
+    (** Convert instant to zoned datetime in a specific timezone *)
+    fun instantToZoned instant tz =
+        let val utcMs = instant.epochMs
+            val localMs = utcMs + tz.offsetMinutes * msPerMinute
+            val localInstant = {tag = "Instant", epochMs = localMs}
+            val localDt = dateTimeFromInstant localInstant
+        in {tag = "ZonedDateTime", dateTime = localDt, zone = tz}
+        end
+
+    (** Convert zoned datetime to instant (absolute time) *)
+    fun zonedToInstant zdt =
+        let val localInstant = dateTimeToInstant zdt.dateTime
+            val utcMs = localInstant.epochMs - zdt.zone.offsetMinutes * msPerMinute
+        in {tag = "Instant", epochMs = utcMs}
+        end
+
+    (** Get current time in a specific timezone *)
+    fun zonedNow tz = instantToZoned (now ()) tz
+
+    (** Convert zoned datetime to a different timezone *)
+    fun toZone zdt newTz =
+        instantToZoned (zonedToInstant zdt) newTz
+
+    (** Extract as UTC datetime *)
+    fun toUTC zdt =
+        dateTimeFromInstant (zonedToInstant zdt)
+
+    (** Get the local datetime from a zoned datetime *)
+    fun zonedDateTime zdt = zdt.dateTime
+
+    (** Get the timezone from a zoned datetime *)
+    fun zonedTimeZone zdt = zdt.zone
+
+    (* --- ZonedDateTime Formatting --- *)
+
+    (** Format zoned datetime as ISO 8601 with offset: "YYYY-MM-DDTHH:mm:ss.sss+HH:MM" *)
+    fun formatZonedDateTimeISO zdt =
+        let val dt = zdt.dateTime
+            val tz = zdt.zone
+            val offsetMin = tz.offsetMinutes
+            val sign = if offsetMin >= 0 then "+" else "-"
+            val absOffset = if offsetMin >= 0 then offsetMin else 0 - offsetMin
+            val offH = intDiv absOffset 60
+            val offM = absOffset mod 60
+            val offsetStr = sign ^ padZero 2 offH ^ ":" ^ padZero 2 offM
+        in padZero 4 dt.year ^ "-" ^ padZero 2 dt.month ^ "-" ^ padZero 2 dt.day ^ "T" ^
+           padZero 2 dt.hour ^ ":" ^ padZero 2 dt.minute ^ ":" ^ padZero 2 dt.second ^ "." ^
+           padZero 3 dt.ms ^ offsetStr
+        end
+
+    (* === Phase 5: Scheduling === *)
+    (* Note: Troupe's sleep is blocking and there's no built-in way to cancel
+       sleeping processes. For cancellable operations, use the actor message-passing
+       pattern from timeout.trp directly. *)
+
+    (* --- Timer Type --- *)
+    (* Representation: {tag = "Timer", pid = processId, delay = duration} *)
+
+    (** Execute an action after a delay. Returns a timer handle with the spawned pid.
+        Note: The timer cannot be cancelled once started. *)
+    fun setTimeout delay action =
+        let val pid = spawn (fn () =>
+                let val _ = sleep delay.ms
+                in action ()
+                end)
+        in {tag = "Timer", pid = pid, delay = delay}
+        end
+
+    (** Execute an action at a specific instant. Returns a timer handle.
+        If the instant is in the past, executes immediately. *)
+    fun runAt instant action =
+        let val currentMs = getTime ()
+            val targetMs = instant.epochMs
+            val delayMs = if targetMs > currentMs then targetMs - currentMs else 0
+        in setTimeout (Duration.fromMillis delayMs) action
+        end
+
+    (* --- Interval Type --- *)
+    (* Representation: {tag = "Interval", pid = processId, period = duration} *)
+
+    (** Execute an action repeatedly at a fixed interval.
+        Returns an interval handle. The interval runs indefinitely.
+        Note: Cannot be cancelled - runs until the process exits. *)
+    fun setInterval period action =
+        let val pid = spawn (fn () =>
+                let fun loop () =
+                        let val _ = sleep period.ms
+                            val _ = action ()
+                        in loop ()
+                        end
+                in loop ()
+                end)
+        in {tag = "Interval", pid = pid, period = period}
+        end
+
+    (** Delay execution, then return. Like sleep but takes a Duration. *)
+    fun delay duration = sleep duration.ms
+
+    (** Get the pid from a timer handle *)
+    fun timerPid timer = timer.pid
+
+    (** Get the pid from an interval handle *)
+    fun intervalPid interval = interval.pid
+
+in [ (* Instant constructors *)
+     ("now", now)
+   , ("fromEpochMillis", fromEpochMillis)
+     (* Instant accessors *)
+   , ("toEpochMillis", toEpochMillis)
+     (* Instant operations *)
+   , ("addToInstant", addToInstant)
+   , ("subFromInstant", subFromInstant)
+   , ("diff", diff)
+   , ("compareInstant", compareInstant)
+   , ("isBefore", isBefore)
+   , ("isAfter", isAfter)
+     (* Utilities *)
+   , ("sleepFor", sleepFor)
+   , ("measure", measure)
+     (* Date predicates *)
+   , ("isLeapYear", isLeapYear)
+   , ("isValidDate", isValidDate)
+   , ("daysInMonth", daysInMonth)
+     (* Date constructors *)
+   , ("dateFromYMD", dateFromYMD)
+   , ("tryDateFromYMD", tryDateFromYMD)
+   , ("dateFromInstant", dateFromInstant)
+   , ("dateToday", dateToday)
+     (* Date accessors *)
+   , ("year", year)
+   , ("month", month)
+   , ("day", day)
+   , ("dayOfWeek", dayOfWeek)
+   , ("dayOfYear", dayOfYear)
+     (* Date arithmetic *)
+   , ("addDays", addDays)
+   , ("addMonths", addMonths)
+   , ("addYears", addYears)
+   , ("diffDays", diffDays)
+     (* Date comparison *)
+   , ("compareDate", compareDate)
+   , ("dateIsBefore", dateIsBefore)
+   , ("dateIsAfter", dateIsAfter)
+     (* DateTime predicates *)
+   , ("isValidDateTime", isValidDateTime)
+     (* DateTime constructors *)
+   , ("dateTimeFromComponents", dateTimeFromComponents)
+   , ("tryDateTimeFromComponents", tryDateTimeFromComponents)
+   , ("dateTimeFromInstant", dateTimeFromInstant)
+   , ("dateTimeNow", dateTimeNow)
+   , ("dateTimeToInstant", dateTimeToInstant)
+     (* DateTime accessors *)
+   , ("hourOf", hourOf)
+   , ("minuteOf", minuteOf)
+   , ("secondOf", secondOf)
+   , ("millisecondOf", millisecondOf)
+   , ("dateOfDateTime", dateOfDateTime)
+   , ("dateTimeFromDate", dateTimeFromDate)
+     (* DateTime comparison *)
+   , ("compareDateTime", compareDateTime)
+   , ("dateTimeIsBefore", dateTimeIsBefore)
+   , ("dateTimeIsAfter", dateTimeIsAfter)
+     (* Formatting *)
+   , ("formatDateISO", formatDateISO)
+   , ("formatDateTimeISO", formatDateTimeISO)
+   , ("formatInstantISO", formatInstantISO)
+     (* Parsing *)
+   , ("parseDateISO", parseDateISO)
+   , ("parseDateTimeISO", parseDateTimeISO)
+   , ("parseInstantISO", parseInstantISO)
+     (* TimeZone constructors *)
+   , ("tzFromOffset", tzFromOffset)
+   , ("tzFromOffsetHours", tzFromOffsetHours)
+     (* TimeZone accessors *)
+   , ("tzOffsetMinutes", tzOffsetMinutes)
+   , ("tzOffsetHours", tzOffsetHours)
+   , ("tzName", tzName)
+     (* TimeZone constants *)
+   , ("utc", utc)
+   , ("gmt", gmt)
+   , ("est", est)
+   , ("edt", edt)
+   , ("cst", cst)
+   , ("cdt", cdt)
+   , ("mst", mst)
+   , ("mdt", mdt)
+   , ("pst", pst)
+   , ("pdt", pdt)
+   , ("cet", cet)
+   , ("cest", cest)
+   , ("jst", jst)
+     (* ZonedDateTime operations *)
+   , ("instantToZoned", instantToZoned)
+   , ("zonedToInstant", zonedToInstant)
+   , ("zonedNow", zonedNow)
+   , ("toZone", toZone)
+   , ("toUTC", toUTC)
+   , ("zonedDateTime", zonedDateTime)
+   , ("zonedTimeZone", zonedTimeZone)
+   , ("formatZonedDateTimeISO", formatZonedDateTimeISO)
+     (* Scheduling *)
+   , ("setTimeout", setTimeout)
+   , ("runAt", runAt)
+   , ("setInterval", setInterval)
+   , ("delay", delay)
+   , ("timerPid", timerPid)
+   , ("intervalPid", intervalPid)
+     (* Month constants *)
+   , ("january", january)
+   , ("february", february)
+   , ("march", march)
+   , ("april", april)
+   , ("may", may)
+   , ("june", june)
+   , ("july", july)
+   , ("august", august)
+   , ("september", september)
+   , ("october", october)
+   , ("november", november)
+   , ("december", december)
+     (* Day constants *)
+   , ("sunday", sunday)
+   , ("monday", monday)
+   , ("tuesday", tuesday)
+   , ("wednesday", wednesday)
+   , ("thursday", thursday)
+   , ("friday", friday)
+   , ("saturday", saturday)
+   ]
+end

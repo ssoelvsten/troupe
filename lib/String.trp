@@ -68,6 +68,26 @@ let (** The maximum length of a string.
 
     (* TODO: `translateCode`/`translate'` where one maps over charCodes instead. *)
 
+    (*--- Padding ---*)
+
+    (** Pad string `s` on the left with character `c` to reach width `n`.
+     *  If `s` is already at least `n` characters, returns `s` unchanged. *)
+    fun padLeft n c s =
+        let val len = size s
+            fun repeat 0 = ""
+              | repeat k = c ^ repeat (k - 1)
+        in if len >= n then s else repeat (n - len) ^ s
+        end
+
+    (** Pad string `s` on the right with character `c` to reach width `n`.
+     *  If `s` is already at least `n` characters, returns `s` unchanged. *)
+    fun padRight n c s =
+        let val len = size s
+            fun repeat 0 = ""
+              | repeat k = c ^ repeat (k - 1)
+        in if len >= n then s else s ^ repeat (n - len)
+        end
+
 in [ ("maxSize", maxSize)
    , ("size", size)
    , ("sub", sub)
@@ -80,5 +100,7 @@ in [ ("maxSize", maxSize)
    , ("explode", explode)
    , ("map", map)
    , ("translate", translate)
+   , ("padLeft", padLeft)
+   , ("padRight", padRight)
    ]
 end
