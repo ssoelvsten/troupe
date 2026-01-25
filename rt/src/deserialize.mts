@@ -21,6 +21,13 @@ import { getCliArgs, TroupeCliArg } from './TroupeCliArgs.mjs';
 import { mkLogger } from './logger.mjs';
 import { DCLabel, createQuarantineAuthority, QuarantineTag } from './levels/DCLabels/dclabel.mjs';
 import { __nodeManager } from './NodeManager.mjs';
+import {
+    getIntegrityOnlyDistrustAction,
+    IntegrityOnlyDistrustAction,
+    isRegularTrust,
+    classifyForIngress,
+    IngressClassification
+} from './Ingress.mjs';
 
 const argv = getCliArgs();
 const logLevel = argv[TroupeCliArg.DebugQuarantine] ? 'debug' : 'info';
@@ -299,21 +306,74 @@ function constructCurrent(compilerOutput: string) {
             return this._quarantineTag !== null;
         }
 
-        /** Check label and return effective label (original if trusted, quarantine if not) */
+        /**
+         * Check label and return effective label based on three-case ingress logic.
+         *
+         * Cases:
+         * - TRUSTED: Both I and C within trust - use original label
+         * - FULL_OVERCLAIM: Neither I nor C within trust - quarantine both
+         * - INTEGRITY_OVERCLAIM: C within trust, I exceeds - consult CLI setting
+         */
         private checkLabel(lev: Level): Level {
-            if (levels.actsFor(__trustLevel, lev)) {
-                return lev;  // Trusted - use original
-            }
-            // Not trusted - check if corrupt before quarantining
-            if (lev.isCorrupt()) {
+            const dcLevel = lev as DCLabel;
+            const trustDC = __trustLevel as DCLabel;
+
+            // First check corruption (applies to all cases)
+            if (dcLevel.isCorrupt()) {
                 qdebug(`DROP: corrupt label ${lev.stringRep()}`);
                 throw new CorruptDataException();
             }
 
-            // Quarantine the label using the new quarantine mechanism
-            const quarantinedLabel = (lev as DCLabel).quarantine(this.quarantineTag);
+            // Check if trust level is regular (I_n <=> C_n)
+            // If not regular, fall back to legacy behavior
+            if (!isRegularTrust(trustDC)) {
+                return this.checkLabelLegacy(lev);
+            }
 
-            qdebug(`QUARANTINE: label ${lev.stringRep()} not trusted by ${__trustLevel.stringRep()} -> ${quarantinedLabel.stringRep()}`);
+            // Classify the label against trust level
+            const classification = classifyForIngress(dcLevel, trustDC);
+
+            switch (classification) {
+                case IngressClassification.TRUSTED:
+                    // Both I and C within trust - use original
+                    qdebug(`TRUSTED: label ${lev.stringRep()} within trust ${__trustLevel.stringRep()}`);
+                    return lev;
+
+                case IngressClassification.FULL_OVERCLAIM:
+                    // Neither I nor C within trust - quarantine both
+                    const quarantinedLabel = dcLevel.quarantine(this.quarantineTag);
+                    qdebug(`QUARANTINE (full): label ${lev.stringRep()} -> ${quarantinedLabel.stringRep()}`);
+                    return quarantinedLabel;
+
+                case IngressClassification.INTEGRITY_OVERCLAIM:
+                    // C within trust, I exceeds - consult setting
+                    const action = getIntegrityOnlyDistrustAction();
+
+                    if (action === IntegrityOnlyDistrustAction.RAISE_TAINT) {
+                        // Relabel I to I_n - constrain integrity to trust level
+                        const relabeled = new DCLabel(dcLevel.confidentiality, trustDC.integrity);
+                        qdebug(`RAISE_TAINT: label ${lev.stringRep()} -> ${relabeled.stringRep()}`);
+                        return relabeled;
+                    } else {
+                        // QUARANTINE: quarantine both I and C (per spec: "as in full overclaim")
+                        const quarantinedLabel = dcLevel.quarantine(this.quarantineTag);
+                        qdebug(`QUARANTINE (integrity): label ${lev.stringRep()} -> ${quarantinedLabel.stringRep()}`);
+                        return quarantinedLabel;
+                    }
+            }
+        }
+
+        /**
+         * Legacy behavior for non-regular trust levels.
+         * Uses simple actsFor check.
+         */
+        private checkLabelLegacy(lev: Level): Level {
+            if (levels.actsFor(__trustLevel, lev)) {
+                qdebug(`TRUSTED (legacy): label ${lev.stringRep()}`);
+                return lev;
+            }
+            const quarantinedLabel = (lev as DCLabel).quarantine(this.quarantineTag);
+            qdebug(`QUARANTINE (legacy): label ${lev.stringRep()} -> ${quarantinedLabel.stringRep()}`);
             return quarantinedLabel;
         }
 

@@ -4,7 +4,7 @@
 
 **Status**: APPROVED - Ready for implementation
 
-**Next Step**: Execute Step 3.1 (Modify checkLabel() for three-case ingress)
+**Next Step**: Execute Step 4.1 (Add assertIsTupleWithArity, modify send.mts)
 
 ---
 
@@ -14,7 +14,7 @@
 |-------|--------|------------|
 | 1. Configuration | COMPLETED | 2/2 |
 | 2. DCLabel Methods | COMPLETED | 4/4 |
-| 3. Ingress Logic | NOT STARTED | 0/1 |
+| 3. Ingress Logic | COMPLETED | 1/1 |
 | 4. Send Refactoring | NOT STARTED (REVISED) | 0/3 (4.3 removed) |
 | 5. Testing | PARTIAL (5.2 blocked) | 0/3 |
 
@@ -37,7 +37,7 @@
 ## Phase 3: Ingress Logic
 | Step | File | Status | Description |
 |------|------|--------|-------------|
-| 3.1 | [step-3.1-three-case-ingress.md](step-3.1-three-case-ingress.md) | NOT STARTED | Modify checkLabel() for three-case quarantine logic |
+| 3.1 | [step-3.1-three-case-ingress.md](step-3.1-three-case-ingress.md) | COMPLETED | Modify checkLabel() for three-case quarantine logic |
 
 ## Phase 4: Send Refactoring (REVISED)
 
