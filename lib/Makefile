@@ -17,6 +17,7 @@ build:
 	$(COMPILER) ./HashSet.trp -l
 	$(COMPILER) ./Duration.trp -l
 	$(COMPILER) ./Time.trp -l
+	$(COMPILER) ./Html.trp -l
   # Transition hack; 2025-12-14; AA 
 	$(COMPILER) ./Missing.trp -l 
   # Old stuff, here be dragons...

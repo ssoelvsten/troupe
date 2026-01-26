@@ -1,0 +1,244 @@
+(* Html.trp - HTML generation library for Troupe
+ *
+ * A functional, combinator-based approach to generating HTML documents.
+ *)
+
+import List
+import String
+
+let (* --- Escaping Functions --- *)
+
+    (* Escape HTML special characters for text content: &, <, > *)
+    fun escapeHtml s =
+        let fun escapeChar "&" = "&amp;"
+              | escapeChar "<" = "&lt;"
+              | escapeChar ">" = "&gt;"
+              | escapeChar c   = c
+        in String.translate escapeChar s end
+
+    (* Escape HTML special characters for attribute values: &, <, >
+     * Note: Double quote escaping not implemented due to Troupe lexer limitations.
+     * Attribute values should avoid double quotes. *)
+    fun escapeAttr s =
+        let fun escapeChar "&" = "&amp;"
+              | escapeChar "<" = "&lt;"
+              | escapeChar ">" = "&gt;"
+              | escapeChar c   = c
+        in String.translate escapeChar s end
+
+
+    (* --- Core Node Constructors --- *)
+
+    (* Create an element node with attributes (as a record) and children (as a list) *)
+    fun element name attrs children =
+        {tag = "Element", name = name, attrs = attrs, children = children}
+
+    (* Create a void element (self-closing) with attributes (as a record) *)
+    fun voidElement name attrs =
+        {tag = "VoidElement", name = name, attrs = attrs}
+
+    (* Create a text node (content will be escaped) *)
+    fun text content =
+        {tag = "Text", content = content}
+
+    (* Create a raw HTML node (content will NOT be escaped) *)
+    fun raw content =
+        {tag = "Raw", content = content}
+
+
+    (* --- Rendering Functions --- *)
+
+    (* Convert a value to string for use in HTML attributes.
+     * Strings are used as-is, other types use toString. *)
+    fun valueToString v =
+        if getType v = "string" then v
+        else toString v
+
+    (* Render attributes from a record to HTML string.
+     * Uses single quotes for attribute values due to Troupe string limitations. *)
+    fun renderAttrs attrs =
+        let val pairs = recordToList attrs
+            fun renderPair (name, value) = " " ^ name ^ "='" ^ escapeAttr (valueToString value) ^ "'"
+        in String.concat (List.map renderPair pairs) end
+
+    (* Render a single node to HTML string *)
+    fun render node =
+        let val nodeTag = node.tag
+        in if nodeTag = "Element" then
+               let val name = node.name
+                   val attrs = renderAttrs node.attrs
+                   val children = renderAll node.children
+               in "<" ^ name ^ attrs ^ ">" ^ children ^ "</" ^ name ^ ">" end
+           else if nodeTag = "VoidElement" then
+               let val name = node.name
+                   val attrs = renderAttrs node.attrs
+               in "<" ^ name ^ attrs ^ " />" end
+           else if nodeTag = "Text" then
+               escapeHtml node.content
+           else if nodeTag = "Raw" then
+               node.content
+           else
+               ""
+        end
+
+    (* Render a list of nodes to HTML string *)
+    and renderAll nodes = String.concat (List.map render nodes)
+
+
+    (* --- Convenience Tag Functions --- *)
+
+    (* Document Elements - defined first so document function can use them *)
+    fun html attrs children = element "html" attrs children
+    fun head attrs children = element "head" attrs children
+    fun body attrs children = element "body" attrs children
+    fun title attrs children = element "title" attrs children
+    fun script attrs children = element "script" attrs children
+    fun style attrs children = element "style" attrs children
+
+    (* Create a full HTML5 document with DOCTYPE *)
+    fun document headContent bodyContent =
+        "<!DOCTYPE html>" ^
+        render (html {} [
+            head {} headContent,
+            body {} bodyContent
+        ])
+
+    (* Container Elements *)
+    fun divElem attrs children = element "div" attrs children
+    fun span attrs children = element "span" attrs children
+    fun p attrs children = element "p" attrs children
+    fun section attrs children = element "section" attrs children
+    fun article attrs children = element "article" attrs children
+    fun header attrs children = element "header" attrs children
+    fun footer attrs children = element "footer" attrs children
+    fun main attrs children = element "main" attrs children
+    fun nav attrs children = element "nav" attrs children
+    fun aside attrs children = element "aside" attrs children
+
+    (* Headings *)
+    fun h1 attrs children = element "h1" attrs children
+    fun h2 attrs children = element "h2" attrs children
+    fun h3 attrs children = element "h3" attrs children
+    fun h4 attrs children = element "h4" attrs children
+    fun h5 attrs children = element "h5" attrs children
+    fun h6 attrs children = element "h6" attrs children
+
+    (* Text Formatting *)
+    fun strong attrs children = element "strong" attrs children
+    fun em attrs children = element "em" attrs children
+    fun code attrs children = element "code" attrs children
+    fun pre attrs children = element "pre" attrs children
+    fun blockquote attrs children = element "blockquote" attrs children
+
+    (* Lists *)
+    fun ul attrs children = element "ul" attrs children
+    fun ol attrs children = element "ol" attrs children
+    fun li attrs children = element "li" attrs children
+    fun dl attrs children = element "dl" attrs children
+    fun dt attrs children = element "dt" attrs children
+    fun dd attrs children = element "dd" attrs children
+
+    (* Tables *)
+    fun table attrs children = element "table" attrs children
+    fun thead attrs children = element "thead" attrs children
+    fun tbody attrs children = element "tbody" attrs children
+    fun tr attrs children = element "tr" attrs children
+    fun th attrs children = element "th" attrs children
+    fun td attrs children = element "td" attrs children
+
+    (* Forms *)
+    fun form attrs children = element "form" attrs children
+    fun label attrs children = element "label" attrs children
+    fun button attrs children = element "button" attrs children
+    fun select attrs children = element "select" attrs children
+    fun option attrs children = element "option" attrs children
+    fun textarea attrs children = element "textarea" attrs children
+
+    (* Void Elements *)
+    fun input attrs = voidElement "input" attrs
+    fun br attrs = voidElement "br" attrs
+    fun hr attrs = voidElement "hr" attrs
+    fun img attrs = voidElement "img" attrs
+    fun meta attrs = voidElement "meta" attrs
+    fun link attrs = voidElement "link" attrs
+
+    (* Links and Media *)
+    fun a attrs children = element "a" attrs children
+    fun iframe attrs children = element "iframe" attrs children
+
+in [ (* Escaping *)
+     ("escapeHtml", escapeHtml)
+   , ("escapeAttr", escapeAttr)
+     (* Core Constructors *)
+   , ("element", element)
+   , ("voidElement", voidElement)
+   , ("text", text)
+   , ("raw", raw)
+     (* Rendering *)
+   , ("render", render)
+   , ("renderAll", renderAll)
+   , ("document", document)
+     (* Container Elements *)
+   , ("divElem", divElem)
+   , ("span", span)
+   , ("p", p)
+   , ("section", section)
+   , ("article", article)
+   , ("header", header)
+   , ("footer", footer)
+   , ("main", main)
+   , ("nav", nav)
+   , ("aside", aside)
+     (* Headings *)
+   , ("h1", h1)
+   , ("h2", h2)
+   , ("h3", h3)
+   , ("h4", h4)
+   , ("h5", h5)
+   , ("h6", h6)
+     (* Text Formatting *)
+   , ("strong", strong)
+   , ("em", em)
+   , ("code", code)
+   , ("pre", pre)
+   , ("blockquote", blockquote)
+     (* Lists *)
+   , ("ul", ul)
+   , ("ol", ol)
+   , ("li", li)
+   , ("dl", dl)
+   , ("dt", dt)
+   , ("dd", dd)
+     (* Tables *)
+   , ("table", table)
+   , ("thead", thead)
+   , ("tbody", tbody)
+   , ("tr", tr)
+   , ("th", th)
+   , ("td", td)
+     (* Forms *)
+   , ("form", form)
+   , ("label", label)
+   , ("button", button)
+   , ("select", select)
+   , ("option", option)
+   , ("textarea", textarea)
+     (* Void Elements *)
+   , ("input", input)
+   , ("br", br)
+   , ("hr", hr)
+   , ("img", img)
+   , ("meta", meta)
+   , ("link", link)
+     (* Document Elements *)
+   , ("html", html)
+   , ("head", head)
+   , ("body", body)
+   , ("title", title)
+   , ("script", script)
+   , ("style", style)
+     (* Links and Media *)
+   , ("a", a)
+   , ("iframe", iframe)
+   ]
+end
