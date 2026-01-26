@@ -362,6 +362,7 @@ instance WellFormedIRCheck IRExpr where
                      , "random"
                      , "receive"
                      , "recordExtend"
+                     , "recordToList"
                      , "register"
                      , "_resetScheduler"
                      , "rcv"

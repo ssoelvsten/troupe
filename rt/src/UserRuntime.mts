@@ -32,6 +32,7 @@ import { RuntimeAssert } from './builtins/runtimeassert.mjs'
 import { BuiltinService } from './builtins/service.mjs'
 import { BuiltinString } from './builtins/string.mjs'
 import { BuiltinRecordReflection } from './builtins/recordReflection.mjs'
+import { BuiltinRecordToList } from './builtins/recordToList.mjs'
 import { BuiltinTypeInformation } from './builtins/types.mjs'
 import { BuiltinListToTuple } from './builtins/listToTuple.mjs'
 
@@ -68,7 +69,8 @@ export const UserRuntime =
     BuiltinDebugValue(
     BuiltinDebugUtils(
     BuiltinMath(
+    BuiltinRecordToList(
     BuiltinRecordReflection(
     BuiltinTypeInformation(
     BuiltinStdIo(UserRuntimeZero)
-    ))))))))))))))))))))))))))))))))
+    )))))))))))))))))))))))))))))))))
