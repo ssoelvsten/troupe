@@ -1,6 +1,6 @@
 # Step 4.1: Add assertIsTupleWithArity and Modify send.mts
 
-**Status**: NOT STARTED
+**Status**: COMPLETED
 
 ---
 
@@ -92,11 +92,17 @@ make rt
 
 ## Completion Checklist
 
-- [ ] assertIsTupleWithArity added to Asserts.mts
-- [ ] send.mts modified to accept 2 or 3-tuple
-- [ ] Imports added for Authority and assertIsAuthority
-- [ ] `make rt` succeeds (after Step 4.3)
-- [ ] Mark this step COMPLETED in INDEX.md
+- [x] assertIsTupleWithArity added to Asserts.mts
+- [x] send.mts modified to accept 2 or 3-tuple
+- [x] Imports added for Authority and assertIsAuthority
+- [x] `make rt` succeeds
+- [x] Mark this step COMPLETED in INDEX.md
+
+## Completion Notes (2026-01-25)
+
+All Phase 4 steps (4.1, 4.2, 4.4) were implemented together to maintain a working build.
+Also fixed Scheduler.mts call to pass `undefined, false` instead of just `false` (for ret parameter).
+2-tuple backward compatibility verified with test in `tests/_unautomated/claude/send-2tuple-compat.trp`.
 
 ## Notes
 

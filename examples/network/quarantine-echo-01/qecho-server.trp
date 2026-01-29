@@ -65,7 +65,7 @@ let
                                 (* val msg' = downgrade (msg, quarantineAuth, `<;>`) *)
                                 (* val _ = printWithLabels msg *)
                                 val _ = debugpc ()
-                                val _ = invokeWithTaint (levelOf msg) (fn () => send(sender, ("REPLY", msg)))
+                                val _ = invokeWithTaint (levelOf msg) (fn () => send(sender, ("REPLY", msg), quarantineAuth))
                                 val _ = print "SERVER: Sent reply"
                             in ()
                             end

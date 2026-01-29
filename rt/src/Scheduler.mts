@@ -110,7 +110,7 @@ export class Scheduler implements SchedulerInterface {
             let reason = TerminationStatus.OK == status ? statusVal : 
                 mkTuple ( [statusVal,  mkVal (errstr)] );
             let message = mkVal (mkTuple ([ mkVal("DONE"), refUUID, thisPid, reason]))             
-            this.rtObj.sendMessageNoChecks ( toPid, message , false) // false flag means no need to return in the process
+            this.rtObj.sendMessageNoChecks ( toPid, message , undefined, false) // false flag means no need to return in the process
         }
     }
 

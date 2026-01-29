@@ -246,26 +246,35 @@ async function receiveFromRemote(pid, jsonObj, fromNode) {
  * @param {*} message The data to send
  *
  */
-function sendMessageToRemote(toPid, message) {
+/**
+ * Send message to remote node.
+ *
+ * @param toPid The pid of the remote process
+ * @param message The data to send
+ * @param qauth Optional quarantine authority for sending quarantined data
+ */
+function sendMessageToRemote(toPid, message, qauth?: Authority) {
   let node = toPid.node.nodeId;
   let pid = toPid.pid;
-  // debug (`* rt *  ${toPid}  ${message.stringRep()}`);
 
   let { data, level } = serialize(new MbVal(message, $t().pc), $t().pc, node);
 
-  // debug (`* rt *  ${JSON.stringify(data)}`);
   let trustLevel = nodeTrustLevel(node);
 
-  // debug ("data level: " +  level.stringRep());
-  // debug ("remote trust level: " + trustLevel.stringRep());
+  // Key change: only coalesce if qauth provided
+  // REMOVED: { node } option - no more automatic wildcard coalescing
+  let effectiveTrust = qauth
+    ? trustLevel.coalesce(qauth.authorityLevel)
+    : trustLevel;
 
-  if (!actsFor(trustLevel, level, { node })) {
+  if (!actsFor(effectiveTrust, level)) {  // No { node } option!
     threadError("Illegal trust flow when sending information to a remote node\n" +
       ` | the trust level of the recepient node: ${trustLevel.stringRep()}\n` +
+      (qauth ? ` | effective trust (with qauth): ${effectiveTrust.stringRep()}\n` : '') +
       ` | the level of the information to send:  ${level.stringRep()}`, false, null, ErrorKind.IFCCheck);
   } else {
     p2p.sendp2p(node, pid, data)
-    return $t().returnImmediateLValue(__unit);   // we return unit to the call site at the thread level
+    return $t().returnImmediateLValue(__unit);
   }
 }
 
@@ -282,19 +291,18 @@ function rt_mkuuid() {
   return uuidval;
 }
 
-function rt_sendMessageNochecks(lRecipientPid, message, ret = true) {
+function rt_sendMessageNochecks(lRecipientPid, message, qauth?: Authority, ret = true) {
   let recipientPid = lRecipientPid.val;
-  // debug (`rt_sendMessageNoChecks ${message.stringRep()}`)
 
   if (isLocalPid(recipientPid)) {
     __theMailbox.addMessage(__nodeManager.getNodeId(), lRecipientPid, message, $t().pc);
 
     if (ret) {
-      return $t().returnImmediateLValue(__unit);      
+      return $t().returnImmediateLValue(__unit);
     }
   } else {
-    debug ("* rt rt_send remote *"/*, recipientPid, message*/);
-    return sendMessageToRemote(recipientPid, message)
+    debug ("* rt rt_send remote *");
+    return sendMessageToRemote(recipientPid, message, qauth);
   }
 }
 

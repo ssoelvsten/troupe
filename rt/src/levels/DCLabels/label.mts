@@ -170,9 +170,9 @@ export class QuarantinedLabel extends Label {
     }
 
     stringRep(): string {
-        // Format: principal@nodeId:shortQuarantineId
+        // Format: ~principal@nodeId:shortQuarantineId
         const shortQId = this.quarantineTag.quarantineId.substring(0, 8);
-        return `${this.principal}@${this.quarantineTag.nodeId}:${shortQId}`;
+        return `~${this.principal}@${this.quarantineTag.nodeId}:${shortQId}`;
     }
 
     toJSON(): LabelJSON {
@@ -234,7 +234,7 @@ export class QFalseLabel extends Label {
 
     stringRep(): string {
         const shortQId = this.quarantineTag.quarantineId.substring(0, 8);
-        return `#false@${this.quarantineTag.nodeId}:${shortQId}`;
+        return `~#false@${this.quarantineTag.nodeId}:${shortQId}`;
     }
 
     toJSON(): LabelJSON {
@@ -286,7 +286,7 @@ export class WildcardQFalseLabel extends Label {
     }
 
     stringRep(): string {
-        return `#wildcard@${this.nodeId}`;
+        return `~#wildcard@${this.nodeId}`;
     }
 
     toJSON(): LabelJSON {

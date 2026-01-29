@@ -156,6 +156,25 @@ export function assertIsNTuple(x: any, n: number, source: AssertionSource = Asse
     }
 }
 
+/**
+ * Assert x is a tuple with arity in the given set.
+ * Raises blocking level like assertIsNTuple.
+ */
+export function assertIsTupleWithArity(
+    x: any,
+    allowedArities: number[],
+    source: AssertionSource = AssertionSource.AssertInBuiltIn
+) {
+    _thread().raiseBlockingThreadLev(x.lev);  // Critical: preserve blocking level
+    if (!(Array.isArray(x.val) && isTupleFlagSet(x.val))) {
+        err("value " + __stringRep(x) + " is not a tuple", source);
+    }
+    if (!allowedArities.includes(x.val.length)) {
+        const aritiesStr = allowedArities.join(" or ");
+        err(`expected ${aritiesStr}-tuple, got ${x.val.length}-tuple`, source);
+    }
+}
+
 
 export function assertIsNTupleR3 (x:TroupeRawValue, lev:Level, tlev:Level, n:number, source: AssertionSource = AssertionSource.AssertInBuiltIn) {
     _thread().raiseBlockingThreadLev(lev);

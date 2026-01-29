@@ -1,6 +1,6 @@
 # Step 4.2: Consolidate sendMessageToRemote with qauth Support
 
-**Status**: NOT STARTED
+**Status**: COMPLETED
 
 **Depends on**: Step 4.1
 
@@ -108,12 +108,18 @@ make rt
 
 ## Completion Checklist
 
-- [ ] sendMessageToRemote modified to accept optional qauth
-- [ ] rt_sendMessageNochecks modified to accept optional qauth
-- [ ] Import added for Authority
-- [ ] `{ node }` option removed from actsFor call
-- [ ] `make rt` succeeds (after Step 4.3)
-- [ ] Mark this step COMPLETED in INDEX.md
+- [x] sendMessageToRemote modified to accept optional qauth
+- [x] rt_sendMessageNochecks modified to accept optional qauth
+- [x] Import added for Authority (already existed)
+- [x] `{ node }` option removed from actsFor call
+- [x] `make rt` succeeds
+- [x] Mark this step COMPLETED in INDEX.md
+
+## Completion Notes (2026-01-25)
+
+Implemented together with steps 4.1 and 4.4 to maintain a working build.
+- sendMessageToRemote now computes `effectiveTrust` only when qauth is provided
+- Error message includes effective trust info when qauth is used
 
 ## Notes
 
