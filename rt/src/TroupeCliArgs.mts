@@ -52,7 +52,6 @@ export enum TroupeCliArg {
     V1Labels = 'v1-labels',
     SuppressLocalInfoMessage = 'suppress-local-info-message',
     Explain = 'explain',
-    IntegrityOnlyDistrust = 'integrity-only-distrust',
 }
 
 export interface ParsedArgs {
@@ -82,7 +81,6 @@ export interface ParsedArgs {
     [TroupeCliArg.V1Labels]?: boolean;
     [TroupeCliArg.SuppressLocalInfoMessage]?: boolean;
     [TroupeCliArg.Explain]?: boolean;
-    [TroupeCliArg.IntegrityOnlyDistrust]?: string;
     [key: string]: any;
 }
 
@@ -152,12 +150,6 @@ export function getCliArgs(): ParsedArgs {
                 type: 'boolean',
                 default: false,
                 describe: 'Enable detailed explanations for runtime errors (shows flowsTo checks and other diagnostics)'
-            })
-            .option(TroupeCliArg.IntegrityOnlyDistrust, {
-                type: 'string',
-                choices: ['raise_taint', 'quarantine'],
-                default: 'quarantine',
-                describe: 'Action for integrity-only overclaim: raise_taint (relabel) or quarantine (full quarantine)'
             })
             .parseSync();
 

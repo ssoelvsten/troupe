@@ -22,8 +22,6 @@ import { mkLogger } from './logger.mjs';
 import { DCLabel, createQuarantineAuthority, QuarantineTag } from './levels/DCLabels/dclabel.mjs';
 import { __nodeManager } from './NodeManager.mjs';
 import {
-    getIntegrityOnlyDistrustAction,
-    IntegrityOnlyDistrustAction,
     isRegularTrust,
     classifyForIngress,
     IngressClassification
@@ -346,20 +344,10 @@ function constructCurrent(compilerOutput: string) {
                     return quarantinedLabel;
 
                 case IngressClassification.INTEGRITY_OVERCLAIM:
-                    // C within trust, I exceeds - consult setting
-                    const action = getIntegrityOnlyDistrustAction();
-
-                    if (action === IntegrityOnlyDistrustAction.RAISE_TAINT) {
-                        // Relabel I to I_n - constrain integrity to trust level
-                        const relabeled = new DCLabel(dcLevel.confidentiality, trustDC.integrity);
-                        qdebug(`RAISE_TAINT: label ${lev.stringRep()} -> ${relabeled.stringRep()}`);
-                        return relabeled;
-                    } else {
-                        // QUARANTINE: quarantine both I and C (per spec: "as in full overclaim")
-                        const quarantinedLabel = dcLevel.quarantine(this.quarantineTag);
-                        qdebug(`QUARANTINE (integrity): label ${lev.stringRep()} -> ${quarantinedLabel.stringRep()}`);
-                        return quarantinedLabel;
-                    }
+                    // C within trust, I exceeds - quarantine both (same as full overclaim)
+                    const quarantinedIntegrity = dcLevel.quarantine(this.quarantineTag);
+                    qdebug(`QUARANTINE (integrity): label ${lev.stringRep()} -> ${quarantinedIntegrity.stringRep()}`);
+                    return quarantinedIntegrity;
             }
         }
 

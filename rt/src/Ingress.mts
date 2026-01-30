@@ -1,62 +1,7 @@
 'use strict'
 
-import { getCliArgs, TroupeCliArg } from './TroupeCliArgs.mjs';
 import { DCLabel } from './levels/DCLabels/dclabel.mjs';
 import { implies } from './levels/DCLabels/cnf.mjs';
-
-/**
- * Actions for handling integrity-only overclaim during ingress.
- *
- * When receiving data where:
- * - Confidentiality (C) is within trust bounds
- * - Integrity (I) exceeds trust bounds
- *
- * Two options:
- * - RAISE_TAINT: Relabel I to I_n (the trust level's integrity)
- * - QUARANTINE: Quarantine both I and C
- */
-export enum IntegrityOnlyDistrustAction {
-    RAISE_TAINT = 'raise_taint',
-    QUARANTINE = 'quarantine'
-}
-
-let _configured = false;
-let _integrityOnlyDistrustAction: IntegrityOnlyDistrustAction = IntegrityOnlyDistrustAction.QUARANTINE;
-
-/**
- * Ensures configuration is loaded from CLI args on first access.
- * Uses lazy initialization pattern (similar to colorConfig.mts).
- */
-function ensureConfigured(): void {
-    if (_configured) return;
-
-    const argv = getCliArgs();
-    const value = argv[TroupeCliArg.IntegrityOnlyDistrust];
-
-    if (value === 'raise_taint') {
-        _integrityOnlyDistrustAction = IntegrityOnlyDistrustAction.RAISE_TAINT;
-    }
-    // else stays at default QUARANTINE (yargs default ensures this)
-
-    _configured = true;
-}
-
-/**
- * Get the configured action for integrity-only overclaim.
- */
-export function getIntegrityOnlyDistrustAction(): IntegrityOnlyDistrustAction {
-    ensureConfigured();
-    return _integrityOnlyDistrustAction;
-}
-
-/**
- * Set the action for integrity-only overclaim.
- * Primarily for testing purposes - normal usage reads from CLI args.
- */
-export function setIntegrityOnlyDistrustAction(action: IntegrityOnlyDistrustAction): void {
-    _integrityOnlyDistrustAction = action;
-    _configured = true;
-}
 
 /**
  * Check if a label has "regular" trust where I ⟺ C.
