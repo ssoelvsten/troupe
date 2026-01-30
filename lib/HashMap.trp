@@ -41,12 +41,23 @@ let (* NOTE: The map is implemented as a Hash Array Mapped Trie (HAMT), i.e. a p
     fun leaf_get n auth k =
         let val kL = levelOf k
             val n' = List.filter (fn (k',_) => (k = k') andalso (flowsTo (levelOf k', kL))) n
-            (* NOTE: Declassify success of filtering. *)
+            (* NOTE: Declassify success of filtering.
+             *
+             *       Using `List.map` directly on `n'@{a}` will taint each of its elements by
+             *       `a`. Doing so breaks the level of the respective elements.
+             *
+             *       So, we declassify the bucket to remove the keys without tainting the
+             *       respective elements.
+             *)
             val _ = blockdecl auth
+            val _ = fprintln ((getStdout auth), "!")
             val n'' = List.map (fn (_,v) => v) (declassify (n', auth, kL))
+            val _ = fprintln ((getStdout auth), "!-")
             (* NOTE: Declassify success of mapping. *)
             val _ = blockdecl auth
-        in n'' end
+            (* Finally, we re-raise the result to the level of the key.
+             *)
+        in n'' raisedTo kL end
 
     (** Remove key `k` and its associated value from a leaf `n`.
      *
@@ -54,14 +65,25 @@ let (* NOTE: The map is implemented as a Hash Array Mapped Trie (HAMT), i.e. a p
      * see a *deletion* in their operations history.
      *)
     fun leaf_unset n auth key =
-        let val keyL = levelOf key
-            val n' = List.filter (fn (k',_) => (key <> k')
-                                               orelse (false = (flowsTo (keyL, levelOf k')))) n
+        let (* NOTE: Using `List.filter` directly on `n@{a}` will taint each of its elements by
+             *       `a`. Doing so breaks the level of the respective elements.
+             *
+             *       On the other hand, `List.filter` also directly taints the list based on the
+             *       predicate within. Since we are filtering on `flowsTo` on each key, we directly
+             *       re-raise the list back to `@{a}`. This also raises it further to the level of
+             *       `key`.
+             *
+             * TODO: This does not remove taint from an element that no longer exists.
+             *)
+            val keyL = levelOf key
+            val _ = fprintln ((getStdout auth), "?")
+            val n'   = List.filter (fn (k',_) => (key <> k')
+                                                 orelse (false = (flowsTo (keyL, levelOf k'))))
+                                   (declassify (n, auth, `{}`))
+            val _ = fprintln ((getStdout auth), "?-")
             (* NOTE: Declassify success of filtering. *)
             val _ = blockdecl auth
-        in  (* NOTE: Declassify the bucket structure - but not its content. This implicitly also
-             *       declassifies whether there were matching keys for `k`. *)
-            declassify (n', auth, levelOf n)
+        in  n'
         end
 
     (** Set key `k` in `n` to value `v`. This removes all other entries with the same key which

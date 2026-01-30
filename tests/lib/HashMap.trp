@@ -284,6 +284,7 @@ let (* Hash based on the lowest ten bits only. This way we can easily force vari
                 val m = fromList [ (0 raisedTo alice, 42) ]
             in Unit.group "fromList [(0@{alice}, 42)]" [
                     Unit.it "is not null"           (Unit.isFalse    (null m))
+                  , Unit.it "SHOW"                  (Unit.isEq ("")  (toStringL m.1))
                   , Unit.it "has size 0@{}"         (Unit.isEq (0) (size m))
                   , Unit.it "has size 1@{alice}"    (Unit.isEq (1 raisedTo alice)
                                                                (size m))
@@ -322,6 +323,7 @@ let (* Hash based on the lowest ten bits only. This way we can easily force vari
                 val m = fromList [ (0, 21), (0 raisedTo alice, 42) ]
             in Unit.group "fromList [(0@{}, 21), (0@{alice}, 42)]" [
                     Unit.it "is not null"           (Unit.isFalse    (null m))
+                  , Unit.it "SHOW"                  (Unit.isEq ("")  (toStringL m.1))
                   , Unit.it "has size 1@{}"         (Unit.isEq (1) (size m))
                   , Unit.it "has size 1@{alice}"    (Unit.isEq (1 raisedTo alice)
                                                                (size m))
@@ -360,6 +362,7 @@ let (* Hash based on the lowest ten bits only. This way we can easily force vari
             val m = fromList [ (0 raisedTo alice, 42), (0, 21) ]
             in Unit.group "fromList [(0@{alice}, 42), (0@{}, 21)]" [
                     Unit.it "is not null"           (Unit.isFalse    (null m))
+                  , Unit.it "SHOW"                  (Unit.isEq ("")  (toStringL m.1))
                   , Unit.it "has size 1@{}"         (Unit.isEq (1) (size m))
                   , Unit.it "has size 1@{alice}"    (Unit.isEq (1 raisedTo alice)
                                                                (size m))
@@ -399,6 +402,7 @@ let (* Hash based on the lowest ten bits only. This way we can easily force vari
                 val m = fromList [ (0 raisedTo alice, 42), (0 raisedTo bob, 21) ]
             in Unit.group "fromList [(0@{alice}, 42), (0@{bob}, 21)]" [
                     Unit.it "is not null"            (Unit.isFalse    (null m))
+                  , Unit.it "SHOW"                  (Unit.isEq ("")  (toStringL m.1))
                   , Unit.it "has size 0@{}"          (Unit.isEq (1) (size m))
                   , Unit.it "has size 1@{alice}"     (Unit.isEq (1 raisedTo alice)
                                                                 (size m))
@@ -445,6 +449,7 @@ let (* Hash based on the lowest ten bits only. This way we can easily force vari
             val m = fromList [ (0 raisedTo alice, 42), (1024, 21) ]
             in Unit.group "fromList [(0@{alice}, 42), (1024@{}, 21)] (collision)" [
                     Unit.it "is not null"           (Unit.isFalse    (null m))
+                  , Unit.it "SHOW"                  (Unit.isEq ("")  (toStringL m.1))
                   , Unit.it "has size 1@{}"         (Unit.isEq (1) (size m))
                   , Unit.it "has size 1@{alice}"    (Unit.isEq (2 raisedTo alice)
                                                                (size m))
