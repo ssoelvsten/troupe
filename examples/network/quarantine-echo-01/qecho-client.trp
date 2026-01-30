@@ -23,8 +23,20 @@ let val _ = print "CLIENT: Starting echo client"
     val datum = ("ECHO", test_msg, self())
     val _ = printWithLabels datum
     val _ = send (echo, datum)
-    val response = rcvp (`{alice}`, [hn ("REPLY", x)  => x])
-    val _ = print "CLIENT: Received response with labels:"
+    (* Capture both message and metadata to get quarantine authority *)
+    val (response_raw, metadata) = rcvp (`{alice}`, [hn ("REPLY", x) | y => (x, y)])
+    val _ = print "CLIENT: Received response (raw) with labels:"
+    val _ = printWithLabels response_raw
+
+    (* Extract quarantine authority from metadata and use it to endorse *)
+    val {quarantineAuth, ..} = metadata
+    val _ = print "CLIENT: Got quarantine authority:"
+    val _ = printWithLabels quarantineAuth
+
+    (* Use the quarantine authority to remove integrity taint *)
+    (* Note: target level must preserve the confidentiality component (alice) *)
+    val response = endorse (response_raw, quarantineAuth, `<alice; alice>`)
+    val _ = print "CLIENT: Response after endorsement with labels:"
     val _ = printWithLabels response
 
     val _ = print "CLIENT: Echo test completed"
