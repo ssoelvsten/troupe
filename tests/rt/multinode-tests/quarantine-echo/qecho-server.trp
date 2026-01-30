@@ -1,0 +1,44 @@
+import Missing
+
+(* Quarantine Echo Server - Demonstrates receiving quarantined data *)
+(* Server has NULL trust for client, so incoming data is quarantined *)
+
+let
+    val _ = spawn(fn () =>
+        let val _ = sleep 30000
+        in exit(authority, 124) (* Timeout *)
+        end)
+
+    val _ = register("echo", self(), authority)
+    val _ = print "SERVER: Registered echo service"
+
+    (* Gate pattern: raise mbox, receive, lower mbox, downgrade *)
+    val c = raisembox(`<; #null-integrity>`)
+    val datum = rcv(
+        `{}`,
+        `<; #null-integrity>`,
+        [hn x | y => (x, y)]
+    )
+    val _ = lowermbox(c, authority)
+    val _ = blockdown authority
+
+    (* Downgrade the received data - matching original example exactly *)
+    val (x, y) = downgrade(datum, authority, `{}`)
+    val x' = downgrade(x, authority, `{}`)
+    val y' = downgrade(y, authority, `{}`)
+
+    val _ = print "SERVER: Received quarantined message"
+
+in case (x', y') of
+    (("ECHO", msg, sender), {quarantineAuth, ..}) =>
+        let val _ = print "SERVER: Sending reply with quarantine authority"
+            val _ = invokeWithTaint (levelOf msg) (fn () => send(sender, ("REPLY", msg), quarantineAuth))
+            val _ = sleep 1000
+            val _ = print "SERVER: Done"
+        in exit(authority, 0)
+        end
+  | _ =>
+        let val _ = print "SERVER: Unexpected message format"
+        in exit(authority, 1)
+        end
+end
