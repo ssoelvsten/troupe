@@ -14,12 +14,16 @@
       "expected_exit_code": 0
     },
     {
-      "id": "client", 
+      "id": "client",
       "script": "echo-client.trp",
       "port": 6790,
       "start_delay": 1,
       "expected_exit_code": 0
     }
+  ],
+  "trust": [
+    {"from": "server", "to": "client", "level": "bot"},
+    {"from": "client", "to": "server", "level": "bot"}
   ],
   "output": {
     "merge_strategy": "timestamp",

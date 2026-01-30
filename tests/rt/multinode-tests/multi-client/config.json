@@ -14,19 +14,25 @@
       "expected_exit_code": 0
     },
     {
-      "id": "client1", 
+      "id": "client1",
       "script": "client1.trp",
       "port": 6792,
       "start_delay": 1,
       "expected_exit_code": 0
     },
     {
-      "id": "client2", 
+      "id": "client2",
       "script": "client2.trp",
       "port": 6793,
       "start_delay": 1,
       "expected_exit_code": 0
     }
+  ],
+  "trust": [
+    {"from": "server", "to": "client1", "level": "bot"},
+    {"from": "server", "to": "client2", "level": "bot"},
+    {"from": "client1", "to": "server", "level": "bot"},
+    {"from": "client2", "to": "server", "level": "bot"}
   ],
   "output": {
     "merge_strategy": "timestamp",

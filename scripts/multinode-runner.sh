@@ -97,6 +97,102 @@ get_node_count() {
     jq -r '.nodes | length' "$config_file"
 }
 
+# Convert a trust level name to DC label JSON
+# Supported levels: "bot" or "{}" (public, full trust), "top" (secret, no trust),
+#                   "null" (public, no trust), "root" (secret, full trust)
+level_name_to_json() {
+    local level_name="$1"
+    case "$level_name" in
+        "bot"|"{}")
+            # IFC_BOT: public confidentiality, full/root integrity
+            echo '{"confidentiality": [], "integrity": [[]]}'
+            ;;
+        "top")
+            # IFC_TOP: secret confidentiality, no integrity
+            echo '{"confidentiality": [[]], "integrity": []}'
+            ;;
+        "null")
+            # TRUST_NULL: public confidentiality, no integrity (default for untrusted)
+            echo '{"confidentiality": [], "integrity": []}'
+            ;;
+        "root")
+            # TRUST_ROOT: secret confidentiality, full integrity
+            echo '{"confidentiality": [[]], "integrity": [[]]}'
+            ;;
+        *)
+            # Assume it's already a JSON object
+            echo "$level_name"
+            ;;
+    esac
+}
+
+# Generate trustmap files based on the trust configuration in config.json
+# Trust config format: {"trust": [{"from": "nodeA", "to": "nodeB", "level": "bot"}, ...]}
+generate_trustmaps() {
+    local test_dir="$1"
+    local config_file="$2"
+
+    # Check if trust configuration exists
+    local trust_count
+    trust_count=$(jq -r '.trust // [] | length' "$config_file")
+
+    if [[ "$trust_count" -eq 0 ]]; then
+        log "No trust configuration found, skipping trustmap generation"
+        return 0
+    fi
+
+    log "Generating trustmaps from $trust_count trust entries..."
+
+    # Create trustmaps directory
+    mkdir -p "$test_dir/trustmaps"
+
+    # Get all unique "from" nodes
+    local from_nodes
+    from_nodes=$(jq -r '.trust[].from' "$config_file" | sort -u)
+
+    for from_node in $from_nodes; do
+        local trustmap_file="$test_dir/trustmaps/$from_node-trustmap.json"
+        log "Generating trustmap for node $from_node"
+
+        # Build trustmap entries for this node
+        # For each trust entry where "from" matches, add an entry with the target's peer ID
+        local trustmap_entries="[]"
+
+        local trust_entries
+        trust_entries=$(jq -c ".trust[] | select(.from == \"$from_node\")" "$config_file")
+
+        while IFS= read -r entry; do
+            [[ -z "$entry" ]] && continue
+
+            local to_node level_name
+            to_node=$(echo "$entry" | jq -r '.to')
+            level_name=$(echo "$entry" | jq -r '.level')
+
+            # Get the peer ID for the target node from its identity file
+            local to_id_file="$test_dir/ids/$to_node.json"
+            if [[ ! -f "$to_id_file" ]]; then
+                error "Identity file not found for trust target node $to_node: $to_id_file"
+            fi
+
+            local peer_id
+            peer_id=$(jq -r '.id' "$to_id_file")
+
+            # Convert level name to JSON
+            local level_json
+            level_json=$(level_name_to_json "$level_name")
+
+            # Add entry to trustmap
+            trustmap_entries=$(echo "$trustmap_entries" | jq --arg id "$peer_id" --argjson level "$level_json" '. + [{"id": $id, "level": $level}]')
+
+            log "  $from_node trusts $to_node ($peer_id) at level $level_name"
+        done <<< "$trust_entries"
+
+        # Write trustmap file
+        echo "$trustmap_entries" > "$trustmap_file"
+        log "Written trustmap to $trustmap_file"
+    done
+}
+
 # Display standardized error message for node failures
 display_node_error() {
     local node_id="$1"
@@ -444,6 +540,9 @@ setup_network_identities() {
         --outfile "$aliases_file"; then
         error "Failed to generate aliases file"
     fi
+
+    # Generate trustmaps if trust configuration is present
+    generate_trustmaps "$test_dir" "$config_file"
 }
 
 ensure_relay_built() {
@@ -670,7 +769,14 @@ run_node() {
         "--aliases" "$aliases_file"
         "--port" "$port"
     )
-    
+
+    # Add trustmap if one exists for this node
+    local trustmap_file="$test_dir/trustmaps/$node_id-trustmap.json"
+    if [[ -f "$trustmap_file" ]]; then
+        cmd_args+=("--trustmap" "$trustmap_file")
+        log "Using trustmap: $trustmap_file"
+    fi
+
     # Add relay parameter if available
     if [[ -n "$RELAY_MULTIADDR" ]]; then
         cmd_args+=("--relay" "$RELAY_MULTIADDR")

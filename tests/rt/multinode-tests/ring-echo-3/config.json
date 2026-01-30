@@ -14,21 +14,21 @@
       "expected_exit_code": 0
     },
     {
-      "id": "intermediary1", 
+      "id": "intermediary1",
       "script": "intermediary1.trp",
       "port": 6790,
       "start_delay": 1,
       "expected_exit_code": 124
     },
     {
-      "id": "intermediary2", 
+      "id": "intermediary2",
       "script": "intermediary2.trp",
       "port": 6791,
       "start_delay": 1,
       "expected_exit_code": 124
     },
     {
-      "id": "intermediary3", 
+      "id": "intermediary3",
       "script": "intermediary3.trp",
       "port": 6792,
       "start_delay": 1,
@@ -41,6 +41,28 @@
       "start_delay": 4,
       "expected_exit_code": 0
     }
+  ],
+  "trust": [
+    {"from": "server", "to": "intermediary1", "level": "bot"},
+    {"from": "server", "to": "intermediary2", "level": "bot"},
+    {"from": "server", "to": "intermediary3", "level": "bot"},
+    {"from": "server", "to": "client", "level": "bot"},
+    {"from": "intermediary1", "to": "server", "level": "bot"},
+    {"from": "intermediary1", "to": "intermediary2", "level": "bot"},
+    {"from": "intermediary1", "to": "intermediary3", "level": "bot"},
+    {"from": "intermediary1", "to": "client", "level": "bot"},
+    {"from": "intermediary2", "to": "server", "level": "bot"},
+    {"from": "intermediary2", "to": "intermediary1", "level": "bot"},
+    {"from": "intermediary2", "to": "intermediary3", "level": "bot"},
+    {"from": "intermediary2", "to": "client", "level": "bot"},
+    {"from": "intermediary3", "to": "server", "level": "bot"},
+    {"from": "intermediary3", "to": "intermediary1", "level": "bot"},
+    {"from": "intermediary3", "to": "intermediary2", "level": "bot"},
+    {"from": "intermediary3", "to": "client", "level": "bot"},
+    {"from": "client", "to": "server", "level": "bot"},
+    {"from": "client", "to": "intermediary1", "level": "bot"},
+    {"from": "client", "to": "intermediary2", "level": "bot"},
+    {"from": "client", "to": "intermediary3", "level": "bot"}
   ],
   "output": {
     "merge_strategy": "timestamp",
