@@ -1,0 +1,358 @@
+(* Html.trp - HTML generation library for Troupe
+ *
+ * A functional, combinator-based approach to generating HTML documents.
+ *
+ * SECURITY NOTES:
+ * - All text content and attribute values are escaped to prevent XSS
+ * - Single quotes in attributes are escaped as &#39;
+ * - Script/style content escapes </ sequences to prevent tag injection
+ * - Dangerous URL schemes (javascript:, vbscript:, data:text/html) are blocked
+ *)
+
+import List
+import String
+import Result
+
+let (* --- Helper Functions --- *)
+
+    (* Check if string s starts with prefix p (case-sensitive) *)
+    fun startsWith prefix s =
+        let val prefixLen = String.size prefix
+            val sLen = String.size s
+        in if sLen < prefixLen then false
+           else String.substring(s, 0, prefixLen) = prefix
+        end
+
+    (* Convert a character to lowercase (ASCII only) *)
+    fun toLowerChar c =
+        let val code = String.subCode(c, 0)
+        in if code >= 65 andalso code <= 90  (* A-Z *)
+           then let (* Build lowercase char from code: a=97, A=65, so add 32 *)
+                    val lowerCode = code + 32
+                    (* Use simple mapping for common cases *)
+                    val chars = "abcdefghijklmnopqrstuvwxyz"
+                in String.sub(chars, code - 65) end
+           else c
+        end
+
+    (* Convert string to lowercase (ASCII only) *)
+    fun toLowerCase s = String.map toLowerChar s
+
+    (* Check if URL has a dangerous scheme *)
+    fun isDangerousUrl url =
+        let val lower = toLowerCase url
+        in startsWith "javascript:" lower orelse
+           startsWith "vbscript:" lower orelse
+           startsWith "data:text/html" lower
+        end
+
+    (* Sanitize URL - returns Result. Callers must handle dangerous URLs explicitly. *)
+    fun sanitizeUrl url =
+        if isDangerousUrl url
+        then Result.err {reason = "dangerous URL scheme", url = url}
+        else Result.ok url
+
+    (* List of attribute names that contain URLs *)
+    val urlAttrs = ["href", "src", "action", "formaction", "poster", "data", "cite", "background"]
+
+    (* Check if attribute name is a URL attribute *)
+    fun isUrlAttr name = List.elem name urlAttrs
+
+    (* --- Escaping Functions --- *)
+
+    (* Base escape function for common HTML entities: &, <, > *)
+    fun escapeBase c =
+        if c = "&" then "&amp;"
+        else if c = "<" then "&lt;"
+        else if c = ">" then "&gt;"
+        else c
+
+    (* Escape HTML special characters for text content: &, <, > *)
+    fun escapeHtml s = String.translate escapeBase s
+
+    (* Escape HTML special characters for attribute values: &, <, >, '
+     * Single quotes are escaped as &#39; since we use single quotes for attribute values.
+     * This prevents XSS via attribute value injection. *)
+    fun escapeAttr s =
+        let fun escapeChar c =
+                let val base = escapeBase c
+                in if base = c andalso String.subCode(c, 0) = 39  (* single quote *)
+                   then "&#39;"
+                   else base
+                end
+        in String.translate escapeChar s end
+
+    (* Escape content for script/style tags.
+     * HTML5 spec: script/style content ends at </script or </style (case-insensitive).
+     * We escape </ as <\/ which is valid in JavaScript/CSS and prevents tag injection.
+     * Note: This processes character-by-character, escaping < followed by / *)
+    fun escapeScriptContent s =
+        let val chars = String.explode s
+            fun escape [] acc = List.reverse acc
+              | escape c::[] acc = List.reverse (c::acc)
+              | escape c::next::rest acc =
+                  if c = "<" andalso next = "/"
+                  then escape rest ("/"::"\\"::"<"::acc)  (* </ becomes <\/ *)
+                  else escape (next::rest) (c::acc)
+        in String.concat (escape chars []) end
+
+    (* --- Core Node Constructors --- *)
+
+    (* Create an element node with attributes (as a record) and children (as a list) *)
+    fun element name attrs children =
+        {tag = "Element", name = name, attrs = attrs, children = children}
+
+    (* Create a void element (self-closing) with attributes (as a record) *)
+    fun voidElement name attrs =
+        {tag = "VoidElement", name = name, attrs = attrs}
+
+    (* Create a text node (content will be escaped) *)
+    fun text content =
+        {tag = "Text", content = content}
+
+    (* Create a raw HTML node (content will NOT be escaped) *)
+    fun raw content =
+        {tag = "Raw", content = content}
+
+    (* --- Factory Functions for Tag Wrappers --- *)
+
+    (* Factory for creating element tag functions *)
+    fun mkElement name = fn attrs => fn children => element name attrs children
+
+    (* Factory for creating void element tag functions *)
+    fun mkVoidElement name = fn attrs => voidElement name attrs
+
+
+    (* --- Rendering Functions --- *)
+
+    (* Convert a value to string for use in HTML attributes.
+     * Strings are used as-is, other types use toString. *)
+    fun valueToString v =
+        if getType v = "string" then v
+        else toString v
+
+    (* Render attributes from a record to HTML string.
+     * Uses single quotes for attribute values due to Troupe string limitations.
+     * URL attributes are sanitized to prevent javascript: and other dangerous schemes. *)
+    fun renderAttrs attrs =
+        let val pairs = recordToList attrs
+            fun renderPair (name, value) =
+                let val strVal = valueToString value
+                    val safeVal = if isUrlAttr name
+                                  then Result.unwrapOr (sanitizeUrl strVal) ""
+                                  else strVal
+                in " " ^ name ^ "='" ^ escapeAttr safeVal ^ "'"
+                end
+        in String.concat (List.map renderPair pairs) end
+
+    (* Check if element name is script or style (case-sensitive for simplicity) *)
+    fun isScriptOrStyle name = name = "script" orelse name = "style"
+
+    (* Render a node for use inside script/style tags.
+     * Uses escapeScriptContent instead of escapeHtml to prevent </script injection. *)
+    fun renderForScript node =
+        let val nodeTag = node.tag
+        in if nodeTag = "Text" orelse nodeTag = "Raw" then
+               escapeScriptContent node.content  (* Even raw content needs script escaping *)
+           else
+               (* SILENT: Non-text nodes inside script/style are ignored.
+                * Use only text() or raw() nodes as children of script/style elements. *)
+               ""
+        end
+
+    (* Render a list of nodes for use inside script/style tags *)
+    fun renderAllForScript nodes = String.concat (List.map renderForScript nodes)
+
+    (* Render a single node to HTML string *)
+    fun render node =
+        let val nodeTag = node.tag
+        in if nodeTag = "Element" then
+               let val name = node.name
+                   val attrs = renderAttrs node.attrs
+                   val children = if isScriptOrStyle name
+                                  then renderAllForScript node.children
+                                  else renderAll node.children
+               in "<" ^ name ^ attrs ^ ">" ^ children ^ "</" ^ name ^ ">" end
+           else if nodeTag = "VoidElement" then
+               let val name = node.name
+                   val attrs = renderAttrs node.attrs
+               in "<" ^ name ^ attrs ^ " />" end
+           else if nodeTag = "Text" then
+               escapeHtml node.content
+           else if nodeTag = "Raw" then
+               node.content
+           else
+               (* SILENT: Unknown node types are ignored.
+                * This should not occur if using provided constructors. *)
+               ""
+        end
+
+    (* Render a list of nodes to HTML string *)
+    and renderAll nodes = String.concat (List.map render nodes)
+
+
+    (* --- Convenience Tag Functions --- *)
+
+    (* Document Elements - defined first so document function can use them *)
+    fun html attrs children = element "html" attrs children
+    fun head attrs children = element "head" attrs children
+    fun body attrs children = element "body" attrs children
+    fun title attrs children = element "title" attrs children
+    fun script attrs children = element "script" attrs children
+    fun style attrs children = element "style" attrs children
+
+    (* Create a full HTML5 document with DOCTYPE *)
+    fun document headContent bodyContent =
+        "<!DOCTYPE html>" ^
+        render (html {} [
+            head {} headContent,
+            body {} bodyContent
+        ])
+
+    (* Container Elements *)
+    (* Named 'divElem' to avoid conflict with potential keywords *)
+    fun divElem attrs children = element "div" attrs children
+    fun span attrs children = element "span" attrs children
+    fun p attrs children = element "p" attrs children
+    fun section attrs children = element "section" attrs children
+    fun article attrs children = element "article" attrs children
+    fun header attrs children = element "header" attrs children
+    fun footer attrs children = element "footer" attrs children
+    fun main attrs children = element "main" attrs children
+    fun nav attrs children = element "nav" attrs children
+    fun aside attrs children = element "aside" attrs children
+
+    (* Headings *)
+    fun h1 attrs children = element "h1" attrs children
+    fun h2 attrs children = element "h2" attrs children
+    fun h3 attrs children = element "h3" attrs children
+    fun h4 attrs children = element "h4" attrs children
+    fun h5 attrs children = element "h5" attrs children
+    fun h6 attrs children = element "h6" attrs children
+
+    (* Text Formatting *)
+    fun strong attrs children = element "strong" attrs children
+    fun em attrs children = element "em" attrs children
+    fun code attrs children = element "code" attrs children
+    fun pre attrs children = element "pre" attrs children
+    fun blockquote attrs children = element "blockquote" attrs children
+
+    (* Lists *)
+    fun ul attrs children = element "ul" attrs children
+    fun ol attrs children = element "ol" attrs children
+    fun li attrs children = element "li" attrs children
+    fun dl attrs children = element "dl" attrs children
+    fun dt attrs children = element "dt" attrs children
+    fun dd attrs children = element "dd" attrs children
+
+    (* Tables *)
+    fun table attrs children = element "table" attrs children
+    fun thead attrs children = element "thead" attrs children
+    fun tbody attrs children = element "tbody" attrs children
+    fun tr attrs children = element "tr" attrs children
+    fun th attrs children = element "th" attrs children
+    fun td attrs children = element "td" attrs children
+
+    (* Forms *)
+    fun form attrs children = element "form" attrs children
+    fun label attrs children = element "label" attrs children
+    fun button attrs children = element "button" attrs children
+    fun select attrs children = element "select" attrs children
+    fun option attrs children = element "option" attrs children
+    fun textarea attrs children = element "textarea" attrs children
+
+    (* Void Elements *)
+    fun input attrs = voidElement "input" attrs
+    fun br attrs = voidElement "br" attrs
+    fun hr attrs = voidElement "hr" attrs
+    fun img attrs = voidElement "img" attrs
+    fun meta attrs = voidElement "meta" attrs
+    fun link attrs = voidElement "link" attrs
+
+    (* Links and Media *)
+    fun a attrs children = element "a" attrs children
+    fun iframe attrs children = element "iframe" attrs children
+
+in [ (* Escaping *)
+     ("escapeHtml", escapeHtml)
+   , ("escapeAttr", escapeAttr)
+   , ("escapeScriptContent", escapeScriptContent)
+     (* Security *)
+   , ("sanitizeUrl", sanitizeUrl)
+   , ("isDangerousUrl", isDangerousUrl)
+     (* Core Constructors *)
+   , ("element", element)
+   , ("voidElement", voidElement)
+   , ("text", text)
+   , ("raw", raw)
+     (* Factory Functions *)
+   , ("mkElement", mkElement)
+   , ("mkVoidElement", mkVoidElement)
+     (* Rendering *)
+   , ("render", render)
+   , ("renderAll", renderAll)
+   , ("document", document)
+     (* Container Elements *)
+   , ("divElem", divElem)
+   , ("span", span)
+   , ("p", p)
+   , ("section", section)
+   , ("article", article)
+   , ("header", header)
+   , ("footer", footer)
+   , ("main", main)
+   , ("nav", nav)
+   , ("aside", aside)
+     (* Headings *)
+   , ("h1", h1)
+   , ("h2", h2)
+   , ("h3", h3)
+   , ("h4", h4)
+   , ("h5", h5)
+   , ("h6", h6)
+     (* Text Formatting *)
+   , ("strong", strong)
+   , ("em", em)
+   , ("code", code)
+   , ("pre", pre)
+   , ("blockquote", blockquote)
+     (* Lists *)
+   , ("ul", ul)
+   , ("ol", ol)
+   , ("li", li)
+   , ("dl", dl)
+   , ("dt", dt)
+   , ("dd", dd)
+     (* Tables *)
+   , ("table", table)
+   , ("thead", thead)
+   , ("tbody", tbody)
+   , ("tr", tr)
+   , ("th", th)
+   , ("td", td)
+     (* Forms *)
+   , ("form", form)
+   , ("label", label)
+   , ("button", button)
+   , ("select", select)
+   , ("option", option)
+   , ("textarea", textarea)
+     (* Void Elements *)
+   , ("input", input)
+   , ("br", br)
+   , ("hr", hr)
+   , ("img", img)
+   , ("meta", meta)
+   , ("link", link)
+     (* Document Elements *)
+   , ("html", html)
+   , ("head", head)
+   , ("body", body)
+   , ("title", title)
+   , ("script", script)
+   , ("style", style)
+     (* Links and Media *)
+   , ("a", a)
+   , ("iframe", iframe)
+   ]
+end

@@ -51,6 +51,7 @@ export enum TroupeCliArg {
     NoColor = 'no-color',
     V1Labels = 'v1-labels',
     SuppressLocalInfoMessage = 'suppress-local-info-message',
+    SuppressMainThreadFinishedMessage = 'suppress-main-thread-finished-message',
     Explain = 'explain',
 }
 
@@ -80,6 +81,7 @@ export interface ParsedArgs {
     [TroupeCliArg.NoColor]?: boolean;
     [TroupeCliArg.V1Labels]?: boolean;
     [TroupeCliArg.SuppressLocalInfoMessage]?: boolean;
+    [TroupeCliArg.SuppressMainThreadFinishedMessage]?: boolean;
     [TroupeCliArg.Explain]?: boolean;
     [key: string]: any;
 }
@@ -144,6 +146,11 @@ export function getCliArgs(): ParsedArgs {
                 type: 'boolean',
                 default: false,
                 describe: 'Suppress info message when running in local-only mode'
+            })
+            .option(TroupeCliArg.SuppressMainThreadFinishedMessage, {
+                type: 'boolean',
+                default: false,
+                describe: 'Suppress "Main thread finished" message on program completion'
             })
             .option(TroupeCliArg.Explain, {
                 alias: 'e',

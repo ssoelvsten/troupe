@@ -1,0 +1,208 @@
+(* cal.trp - Unix cal-like calendar utility for Troupe *)
+(* Demonstrates the Time library with formatted calendar output *)
+
+import Time
+import List
+
+let
+    (* Get stdout handle for clean output *)
+    val stdout = getStdout authority
+
+    (* Print a line without quotes *)
+    fun puts s = fwrite (stdout, s ^ "\n")
+
+    (* === String Helpers === *)
+
+    (* Repeat a string n times *)
+    fun repeatStr s 0 = ""
+      | repeatStr s n = s ^ repeatStr s (n - 1)
+
+    (* Pad string on the left to reach width *)
+    fun padLeft width s =
+        let val len = strlen s
+            val padding = width - len
+        in if padding <= 0 then s
+           else repeatStr " " padding ^ s
+        end
+
+    (* Pad string on the right to reach width *)
+    fun padRight width s =
+        let val len = strlen s
+            val padding = width - len
+        in if padding <= 0 then s
+           else s ^ repeatStr " " padding
+        end
+
+    (* Center string in given width *)
+    fun centerString width s =
+        let val len = strlen s
+            val totalPad = width - len
+            val leftPad = floor (totalPad / 2)
+            val rightPad = totalPad - leftPad
+        in if totalPad <= 0 then s
+           else repeatStr " " leftPad ^ s ^ repeatStr " " rightPad
+        end
+
+    (* === Month Names === *)
+
+    val monthNames = ["January", "February", "March", "April", "May", "June",
+                      "July", "August", "September", "October", "November", "December"]
+
+    fun monthName m = List.nth monthNames (m - 1)
+
+    (* === Calendar Grid Generation === *)
+
+    (* Get day of week for first day of month (0=Sunday..6=Saturday) *)
+    fun firstDayOfMonth year month =
+        Time.dayOfWeek (Time.dateFromYMD year month 1)
+
+    (* Generate list of day strings for a month *)
+    (* Returns list like ["", "", "", "1", "2", ..., "31"] with leading blanks for alignment *)
+    fun generateMonthDays year month =
+        let val firstDay = firstDayOfMonth year month
+            val numDays = Time.daysInMonth year month
+            val blanks = List.map (fn _ => "") (List.range firstDay)
+            val days = List.map (fn d => intToString (d + 1)) (List.range numDays)
+        in List.append blanks days
+        end
+
+    (* Split list into chunks of size n *)
+    fun chunksOf n xs =
+        let fun go [] acc = List.reverse acc
+              | go xs acc =
+                let val chunk = List.sublist 0 n xs
+                    val rest = List.sublist n (List.length xs) xs
+                in go rest (chunk :: acc)
+                end
+        in go xs []
+        end
+
+    (* Pad a chunk to exactly n elements with empty strings *)
+    fun padChunk n xs =
+        let val len = List.length xs
+        in if len >= n then xs
+           else List.append xs (List.map (fn _ => "") (List.range (n - len)))
+        end
+
+    (* Format a single day cell (2 chars wide) *)
+    fun formatDay s = padLeft 2 s
+
+    (* Format a week row from list of day strings *)
+    fun formatWeekRow days =
+        let val paddedDays = padChunk 7 days
+            val formattedDays = List.map formatDay paddedDays
+            fun joinWithSpace [] = ""
+              | joinWithSpace (x::[]) = x
+              | joinWithSpace (x::xs) = x ^ " " ^ joinWithSpace xs
+        in joinWithSpace formattedDays
+        end
+
+    (* Generate all week rows for a month *)
+    fun generateWeekRows year month =
+        let val days = generateMonthDays year month
+            val weeks = chunksOf 7 days
+        in List.map formatWeekRow weeks
+        end
+
+    (* === Single Month Output === *)
+
+    val weekHeader = "Su Mo Tu We Th Fr Sa"
+    val monthWidth = 20  (* Width of a single month column *)
+
+    fun printMonth year month =
+        let val title = monthName month ^ " " ^ intToString year
+            val centeredTitle = centerString monthWidth title
+            val weeks = generateWeekRows year month
+            val _ = puts centeredTitle
+            val _ = puts weekHeader
+            fun printWeeks [] = ()
+              | printWeeks (w::ws) = (puts w; printWeeks ws)
+        in printWeeks weeks
+        end
+
+    (* === Year Output (3 months per row) === *)
+
+    (* Pad week rows to exactly 6 rows (max possible weeks in a month) *)
+    fun padWeekRows rows =
+        let val len = List.length rows
+            val emptyRow = repeatStr " " monthWidth
+        in if len >= 6 then rows
+           else List.append rows (List.map (fn _ => emptyRow) (List.range (6 - len)))
+        end
+
+    (* Generate a single month as list of strings (title, header, weeks) *)
+    fun monthToLines year month =
+        let val title = centerString monthWidth (monthName month)
+            val weeks = generateWeekRows year month
+            val paddedWeeks = padWeekRows weeks
+        in title :: weekHeader :: paddedWeeks
+        end
+
+    (* Combine three months side by side *)
+    fun combineMonths m1lines m2lines m3lines =
+        let fun combine3 [] [] [] = []
+              | combine3 (a::as_) (b::bs) (c::cs) =
+                (padRight monthWidth a ^ "  " ^ padRight monthWidth b ^ "  " ^ padRight monthWidth c)
+                :: combine3 as_ bs cs
+              | combine3 _ _ _ = []  (* shouldn't happen with padded lists *)
+        in combine3 m1lines m2lines m3lines
+        end
+
+    (* Print a row of 3 months *)
+    fun printMonthRow year m1 m2 m3 =
+        let val lines1 = monthToLines year m1
+            val lines2 = monthToLines year m2
+            val lines3 = monthToLines year m3
+            val combined = combineMonths lines1 lines2 lines3
+            fun printLines [] = ()
+              | printLines (l::ls) = (puts l; printLines ls)
+        in printLines combined
+        end
+
+    (* Print full year calendar *)
+    fun printYear year =
+        let val yearTitle = centerString 66 (intToString year)
+            val _ = puts ""
+            val _ = puts yearTitle
+            val _ = puts ""
+            val _ = printMonthRow year 1 2 3
+            val _ = puts ""
+            val _ = printMonthRow year 4 5 6
+            val _ = puts ""
+            val _ = printMonthRow year 7 8 9
+            val _ = puts ""
+            val _ = printMonthRow year 10 11 12
+        in ()
+        end
+
+    (* === Argument Parsing === *)
+
+    (* Parse args: [] -> current month, [year] -> year view, [month, year] -> specific month *)
+    fun parseArgs args =
+        let val today = Time.dateToday ()
+            val currentYear = Time.year today
+            val currentMonth = Time.month today
+        in case args of
+               [] => ("month", currentYear, currentMonth)
+             | [y] => ("year", stringToInt y, 0)
+             | [m, y] => ("month", stringToInt y, stringToInt m)
+             | _ => ("error", 0, 0)
+        end
+
+    fun printUsage () =
+        let val _ = puts "Usage: cal.trp [month year | year]"
+            val _ = puts "  cal.trp          - Display current month"
+            val _ = puts "  cal.trp 2026     - Display entire year 2026"
+            val _ = puts "  cal.trp 2 2026   - Display February 2026"
+        in ()
+        end
+
+    (* === Main === *)
+
+    val args = getCliArgs authority
+
+in case parseArgs args of
+       ("month", y, m) => printMonth y m
+     | ("year", y, _)  => printYear y
+     | _               => printUsage ()
+end
