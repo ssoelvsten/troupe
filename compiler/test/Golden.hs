@@ -17,6 +17,7 @@ import qualified Data.ByteString.Char8
 import System.Info
 import System.Environment (getEnv, getArgs, lookupEnv, getExecutablePath)
 import Data.List (isSuffixOf)
+import qualified ShellWords
 -- import qualified System.IO.Strict
 
 -- When having multiple optimizations / optional compiler stages or
@@ -55,19 +56,35 @@ ppTestConfig TestConfig{..} =
     (if tcNoColor then ", No color" else ", With color")
 
 
-getOptionalInput :: String -> IO String 
-getOptionalInput testfile = do 
+getOptionalInput :: String -> IO String
+getOptionalInput testfile = do
     inputExists <- doesFileExist $ testfile ++ ".input"
-    if inputExists then do 
+    if inputExists then do
         s <- readFile (testfile ++ ".input")
-        return s 
-    else 
-        return ""        
+        return s
+    else
+        return ""
+
+-- | Read optional per-test options from a .options file
+-- Uses ShellWords to parse shell-style arguments properly
+getOptionalOptions :: String -> IO [String]
+getOptionalOptions testfile = do
+    let optionsFile = testfile ++ ".options"
+    optionsExists <- doesFileExist optionsFile
+    if optionsExists then do
+        content <- readFile optionsFile
+        let filtered = unlines $ filter notComment $ lines content
+        case ShellWords.parse filtered of
+            Right args -> return args
+            Left _     -> return []  -- on parse error, return empty
+    else
+        return []
+  where notComment ('#':_) = False; notComment _ = True
 
 
 goldenFileName :: String -> TestConfig -> String
-goldenFileName troupeFile TestConfig{..} = 
-    if tcNoColor 
+goldenFileName troupeFile TestConfig{..} =
+    if tcNoColor
     then replaceExtension troupeFile ".nocolor.golden"
     else replaceExtension troupeFile ".golden"
 
@@ -76,18 +93,26 @@ mkRunArgs TestConfig{..} =
     (if tcRawOpt then [] else ["--no-rawopt"]) ++
     (if tcNoColor then ["--no-color"] else [])
 
+-- | Build the full argument list for ./local.sh
+mkLocalArgs :: String -> TestConfig -> IO [String]
+mkLocalArgs testname tc = do
+    extraArgs <- getOptionalOptions testname
+    return $ mkRunArgs tc ++ [testname] ++ extraArgs
+
 runLocal :: String -> TestConfig -> IO (ExitCode, String, String)
 runLocal testname tc = do
     input <- getOptionalInput testname
-    readProcessWithExitCode "./local.sh" (mkRunArgs tc ++ [testname]) input
+    args <- mkLocalArgs testname tc
+    readProcessWithExitCode "./local.sh" args input
 
 -- We use this to test the commands with timeouts.
 -- Observe the current value for the timeout is 2 seconds.
 
 runTimeout :: Int -> String -> TestConfig -> IO (ExitCode, String, String)
 runTimeout n testname tc = do
+    args <- mkLocalArgs testname tc
     let timeout = if os == "darwin" then "gtimeout" else "timeout"
-    readProcessWithExitCode timeout ([show n, "./local.sh"] ++ mkRunArgs tc ++ [testname]) ""
+    readProcessWithExitCode timeout ([show n, "./local.sh"] ++ args) ""
 
 
 runPositiveTimeout :: Int -> String -> TestConfig -> IO LBS.ByteString

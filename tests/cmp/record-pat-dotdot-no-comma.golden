@@ -1,2 +1,8 @@
-Parse Error:
-3:12 unexpected token TokenDotDot
+tests/cmp/record-pat-dotdot-no-comma.trp:3:12: parse error
+  3 |     val {a ..} = r
+    |            ^
+  unexpected '..'
+  expected one of: ',', '}'
+
+Suggestion: Possibly mismatched braces - check for missing '}'.
+

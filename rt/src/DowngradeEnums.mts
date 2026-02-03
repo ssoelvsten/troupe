@@ -10,13 +10,16 @@ export enum DowngradeKind {
 export enum DowngradeDimension {
 	CONFIDENTIALITY = 1,
 	INTEGRITY = 2,
+	BOTH = 3,  // Cross-dimensional downgrade (changes both confidentiality and integrity)
 }
 
 export enum DowngradeErrorReason {
 	INTEGRITY_MISMATCH = 1,
 	CONFIDENTIALITY_MISMATCH = 2,
 	INSUFFICIENT_AUTHORITY = 3,
-	BLOCKING_LEVEL_MISMATCH = 4
+	BLOCKING_LEVEL_MISMATCH = 4,
+	ROBUSTNESS_VIOLATION = 5,
+	TRANSPARENCY_VIOLATION = 6
 }
 
 export type SuccessfulDowngradeResult = {
@@ -42,6 +45,7 @@ export type ValidateDowngradeParams = {
 	levTo: Level;
 	authorityLevel: Level;
 	downgradeDimension: DowngradeDimension;
-	blockLevel?: Level ; 
+	blockLevel?: Level ;
 	operationDescription?: string;
+	pcLevel?: Level;  // PC level for NMIFC error messages
 };

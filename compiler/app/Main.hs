@@ -15,15 +15,21 @@ import qualified IROpt
 -- import qualified RetRewrite as Rewrite
 import qualified CPSOpt as CPSOpt
 import qualified IR2Raw
+import qualified Raw
 import qualified Raw2Stack
 import qualified Stack
 import qualified Stack2JS
 import qualified RawOpt
+import qualified PrettyPrint as PPrint
+import qualified Text.PrettyPrint.HughesPJ as PP
 -- import System.IO (isEOF)
 import qualified Data.ByteString.Char8 as BS
-import Data.ByteString.Base64 (decode)
+import qualified Data.ByteString.Base64 as B64
 import qualified Data.ByteString.Lazy.Char8 as BSLazyChar8
+import qualified Data.ByteString.Lazy as BL
+import qualified Data.Aeson as Aeson
 import System.IO
+import TroupeSourceMap (buildSourceMap)
 import System.Exit
 import ProcessImports
 import AddAmbientMethods
@@ -36,6 +42,7 @@ import System.Console.GetOpt
 import Data.List as List
 import Data.Maybe (fromJust)
 import System.FilePath
+import qualified Data.Text as T
 
 --------------------------------------------------------------------------------
 ----- COMPILER FLAGS -----------------------------------------------------------
@@ -49,6 +56,9 @@ data Flag
   | Verbose
   | Help
   | Debug
+  | SourceMap
+  | DebugPP
+  | PPPosFormat String
   deriving (Show, Eq)
 
 options :: [OptDescr Flag]
@@ -61,6 +71,9 @@ options =
   , Option ['l'] ["lib"]       (NoArg LibMode)            "compiling a library"
   , Option ['h'] ["help"]      (NoArg Help)               "print usage"
   , Option ['o'] ["output"]    (ReqArg OutputFile "FILE") "output FILE"
+  , Option ['m'] ["source-map"] (NoArg SourceMap)         "generate source map"
+  , Option []    ["debug-pp"]  (NoArg DebugPP)            "show positions in IR dumps"
+  , Option []    ["pp-pos-format"] (ReqArg PPPosFormat "FMT") "position format: inline|comment|bracket|none"
   ]
 
 --------------------------------------------------------------------------------
@@ -68,17 +81,25 @@ options =
 
 process :: [Flag] -> Maybe String -> String -> IO ExitCode
 process flags fname input = do
-  let ast    = parseProg input
+  let ast    = parseProg (maybe "" id fname) input
 
   let compileMode = if LibMode `elem` flags then Library else Normal
 
   let verbose = Verbose `elem` flags
       noRawOpt = NoRawOpt `elem` flags
       debugJS = Debug `elem` flags
+      sourceMapEnabled = SourceMap `elem` flags
+      debugPP = DebugPP `elem` flags
+      isPPPosFormatFlag (PPPosFormat _) = True
+      isPPPosFormatFlag _ = False
+      ppPosFormatStr = case List.find isPPPosFormatFlag flags of
+                         Just (PPPosFormat s) -> s
+                         _ -> "inline"
+      ppConfig = PPrint.mkPPConfig debugPP (PPrint.parsePosFormat ppPosFormatStr)
 
   case ast of
     Left err -> do
-      die $ "Parse Error:\n" ++ err
+      die err
 
     Right prog_parsed -> do
       let outPath = outFile flags (fromJust fname)
@@ -132,15 +153,15 @@ process flags fname input = do
           Right ir -> return ir 
           Left  s -> die $ "troupec: " ++ s
 
-      when verbose $ writeFileD "out/out.ir" (show ir)
+      when verbose $ writeFileD "out/out.ir" (PP.render $ PPrint.runPP ppConfig $ CCIR.ppProg ir)
 
-      let iropt = IROpt.iropt ir 
-      when verbose $ writeFileD "out/out.iropt" (show iropt)
+      let iropt = IROpt.iropt ir
+      when verbose $ writeFileD "out/out.iropt" (PP.render $ PPrint.runPP ppConfig $ CCIR.ppProg iropt)
 
       ------ RAW -------------------------------------------
       let raw = IR2Raw.prog2raw iropt
       when verbose $ printSep  "GENERATING RAW"
-      when verbose $ writeFileD "out/out.rawout" (show raw)
+      when verbose $ writeFileD "out/out.rawout" (PP.render $ PPrint.runPP ppConfig $ Raw.ppProg raw)
 
       ----- RAW OPT ----------------------------------------
       rawopt <- do
@@ -149,19 +170,39 @@ process flags fname input = do
         else do
           let opt = RawOpt.rawopt raw
           when verbose $ printSep  "OPTIMIZING RAW OPT"
-          when verbose $ writeFileD "out/out.rawopt" (show opt)
+          when verbose $ writeFileD "out/out.rawopt" (PP.render $ PPrint.runPP ppConfig $ Raw.ppProg opt)
           return opt
 
       ----- STACK ------------------------------------------
       let stack = Raw2Stack.rawProg2Stack rawopt
       when verbose $ printSep "GENERATING STACK"
-      when verbose $ writeFileD "out/out.stack" (show stack)
+      when verbose $ writeFileD "out/out.stack" (PP.render $ PPrint.runPP ppConfig $ Stack.ppProg stack)
 
       ----- JAVASCRIPT -------------------------------------
-      let stackjs = Stack2JS.stack2JSString compileMode
-                                            debugJS
-                                            (Stack.ProgramStackUnit stack)
-      writeFile outPath stackjs
+      let (stackjs, mappings) = Stack2JS.stack2JSWithMappings compileMode
+                                                              debugJS
+                                                              sourceMapEnabled
+                                                              (Stack.ProgramStackUnit stack)
+
+      ----- SOURCE MAP EMBEDDING ---------------------------
+      -- When source maps are enabled, replace the placeholder with actual source map JSON.
+      -- Also append the inline source map comment for Node.js --enable-source-maps compatibility.
+      let finalJs = if sourceMapEnabled
+                    then let mapJson = buildSourceMap outPath mappings
+                             mapJsonStr = BSLazyChar8.unpack (Aeson.encode mapJson)
+                             -- Replace placeholder with actual source map JSON using Data.Text.replace
+                             jsWithMap = T.unpack $ T.replace
+                                           (T.pack Stack2JS.sourceMapPlaceholderStr)
+                                           (T.pack mapJsonStr)
+                                           (T.pack stackjs)
+                             -- Also add inline comment for backwards compatibility
+                             mapBytes = BL.toStrict (Aeson.encode mapJson)
+                             mapBase64 = B64.encode mapBytes
+                             inlineComment = "\n//# sourceMappingURL=data:application/json;charset=utf-8;base64,"
+                                             ++ BS.unpack mapBase64 ++ "\n"
+                         in jsWithMap ++ inlineComment
+                    else stackjs
+      writeFile outPath finalJs
 
       -- case compileMode of Library -> ...
       case exports of Nothing -> return ()
@@ -216,7 +257,7 @@ fromStdinIR putStrLn format = do
     then let response = BS.drop (BS.length echo) input
           in do BS.putStrLn response
     else
-      case decode input of
+      case B64.decode input of
         Right bs ->
            case CCIR.deserialize bs
               of Right x -> do (putStrLn . format . ir2Stack) x

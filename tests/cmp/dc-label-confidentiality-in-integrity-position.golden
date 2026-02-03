@@ -1,0 +1,14 @@
+tests/cmp/dc-label-confidentiality-in-integrity-position.trp:1:34: parse error
+  (while parsing DC label)
+  1 | let val x = 60 raisedTo `<alice; #root-confidentiality>`
+    |                                  ^
+  unexpected '#root-confidentiality'
+  expected '>`' (DC label end)
+
+Suggestion: Confidentiality component in wrong position.
+  In DC labels, confidentiality comes BEFORE the semicolon,
+  and integrity comes AFTER.
+  Syntax: `< confidentiality ; integrity >`
+  You have a confidentiality component ('#root-confidentiality') in the
+  integrity position. Perhaps you meant to swap them?
+

@@ -9,7 +9,8 @@ module Raw where
 import qualified Basics
 import           RetCPS (VarName (..))
 import           IR ( Identifier(..)
-                    , VarAccess(..), HFN (..), Fields (..), Ident
+                    , VarAccess(..), HFN (..), Ident
+                    , LVarAccess
                     , ppId,ppFunCall,ppArgs
                     )
 import qualified IR (FunDef (..))
@@ -32,13 +33,21 @@ import qualified Data.ByteString           as BS
 
 import           Text.PrettyPrint.HughesPJ (hsep, nest, text, vcat, ($$), (<+>))
 import qualified Text.PrettyPrint.HughesPJ as PP
-import           TroupePositionInfo
+import           TroupePositionInfo (Located(..), getLoc, unLoc, noLoc, atLoc, PosInf(..), GetPosInfo(..))
+import           PrettyPrint (PP, PPConfig, runPP, runPPDefault, ppLocated, vcatMapPP, ShowDebug(..))
 
 
 -- | Variable names used for plain (unlabelled) values.
 newtype RawVar = RawVar Ident deriving (Eq, Show, Ord)
 instance Identifier RawVar where ppId (RawVar x) = text x
 
+-- Located type aliases
+type LRawInst = Located RawInst
+type LRawTerminator = Located RawTerminator
+type LFunDef = Located FunDef
+
+-- | Fields with Located VarAccess - preserves source positions for field values
+type LFields = [(Basics.FieldName, LVarAccess)]
 
 type ConstMap = Map RawVar C.Lit 
 
@@ -97,19 +106,22 @@ data RTAssertion
 -- it is there where instructions to handle the result are generated (AssignRaw and AssignLVal).
 -- What would be possible is to introduce a pre-processing which translates IR expressions into
 -- categorized expressions, which could then slightly simplify handling at IR2Raw.
+--
+-- NOTE: RawExpr now uses LVarAccess (Located VarAccess) to preserve source positions
+-- for variable references that come from labelled values.
 data RawExpr
   = Bin Basics.BinOp UseNativeBinop RawVar RawVar
   | Un Basics.UnaryOp RawVar
-  | ProjectLVal VarAccess LValField
+  | ProjectLVal LVarAccess LValField
   | ProjectState MonComponent
-  | Tuple [VarAccess]
-  | Record Fields
-  | WithRecord RawVar Fields 
+  | Tuple [LVarAccess]
+  | Record LFields
+  | WithRecord RawVar LFields
   | ProjField RawVar Basics.FieldName
   | ProjIdx RawVar Word
-  | List [VarAccess]
+  | List [LVarAccess]
   -- | Cons operation with the new head (labelled value) and the list (simple value).
-  | ListCons VarAccess RawVar
+  | ListCons LVarAccess RawVar
   | Const C.Lit
   -- | Reference to a definition in a library
   | Lib Basics.LibName Basics.VarName
@@ -142,19 +154,27 @@ data RawInst
   -- If this condition is invalidated by introducing new labels (like with the raisedTo instruction),
   -- this instruction must be added to ensure that the required join operations happen.
   | InvalidateSparseBit
-  | MkFunClosures [(VarName, VarAccess)] [(VarName, HFN)]
+  -- | Create function closures. Uses LVarAccess to preserve source positions for environment bindings.
+  | MkFunClosures [(VarName, LVarAccess)] [(VarName, HFN)]
   | RTAssertion RTAssertion
+  -- | Source position annotation for source map generation.
+  -- This instruction generates no code but carries position info that was preserved
+  -- when an instruction was eliminated during optimization (e.g., copy propagation).
+  -- The RawVar is the variable that the eliminated instruction was assigning to,
+  -- for debugging purposes.
+  | SourcePosAnnotation RawVar
    deriving (Eq, Show)
 
 -- | A block of instructions followed by a terminator, which can contain further 'RawBBTree's.
-data RawBBTree = BB [RawInst] RawTerminator deriving (Eq, Show)
+data RawBBTree = BB [LRawInst] LRawTerminator deriving (Eq, Show)
 
 data RawTerminator
   = TailCall RawVar
   | Ret
   | If RawVar RawBBTree RawBBTree
-  | LibExport VarAccess
-  | Error RawVar PosInf
+  -- | Uses LVarAccess to preserve source position for the exported value
+  | LibExport LVarAccess
+  | Error RawVar
   -- | Execute the first BB and then execute the second BB where
   -- PC is reset to the level before entering the first BB.
   | StackExpand RawBBTree RawBBTree
@@ -189,25 +209,25 @@ ppRTAssertion = ppRTAssertionCode ppFunCall
 
 type Consts = [(RawVar, C.Lit )]
 
--- Function definition
-data FunDef = FunDef 
-                    HFN          -- name of the function          
-                    Consts   
+-- Function definition (position is on the Located wrapper when used as LFunDef)
+data FunDef = FunDef
+                    HFN          -- name of the function
+                    Consts
                     RawBBTree    -- body
                     IR.FunDef    -- original definition for serialization
                 deriving (Eq)
 
--- An IR program is just a collection of atoms declarations 
+-- An IR program is just a collection of atoms declarations
 -- and function definitions
-data RawProgram = RawProgram C.Atoms [FunDef] 
+data RawProgram = RawProgram C.Atoms [LFunDef] 
 
 
 -----------------------------------------------------------
--- Serialization 
+-- Serialization
 -----------------------------------------------------------
-data RawUnit 
-  = FunRawUnit FunDef 
-  | AtomRawUnit C.Atoms 
+data RawUnit
+  = FunRawUnit LFunDef
+  | AtomRawUnit C.Atoms
   | ProgramRawUnit RawProgram 
 
 
@@ -237,19 +257,19 @@ data InstructionType
     deriving (Eq, Ord, Show)
 
 instructionType :: RawInst -> InstructionType
-instructionType i = case i of 
+instructionType i = case i of
   AssignRaw _ (Bin Basics.LatticeJoin _ _ _) -> LabelSpecificInstruction
   AssignRaw _ (ProjectState MonPC) -> LabelSpecificInstruction
   AssignRaw _ (ProjectState MonBlock) -> LabelSpecificInstruction
-  AssignRaw _ (ProjectState R0_Lev)  -> LabelSpecificInstruction
+  AssignRaw _ (ProjectState R0_Lev) -> LabelSpecificInstruction
   AssignRaw _ (ProjectState R0_TLev) -> LabelSpecificInstruction
   AssignLVal _ (ConstructLVal _ _ _) -> RegularInstruction RegConstructor
   AssignRaw _ (ProjectLVal _ _) -> RegularInstruction RegDestructor
   SetBranchFlag -> RegularInstruction RegConstructor
   InvalidateSparseBit -> RegularInstruction RegOther
-  SetState s _ -> 
-    case s of 
-      R0_Val -> RegularInstruction RegConstructor 
+  SetState s _ ->
+    case s of
+      R0_Val -> RegularInstruction RegConstructor
       R0_Lev -> RegularInstruction RegConstructor
       R0_TLev -> RegularInstruction RegConstructor
       MonPC -> LabelSpecificInstruction
@@ -262,17 +282,26 @@ instructionType i = case i of
 -- PRETTY PRINTING
 -----------------------------------------------------------
 
+ppProg :: RawProgram -> PP PP.Doc
 ppProg (RawProgram atoms funs) =
-  vcat $ (map ppFunDef funs)
+  vcatMapPP ppLFunDef funs
 
 instance Show RawProgram where
-  show = PP.render.ppProg
+  show = PP.render . runPPDefault . ppProg
 
-ppFunDef ( FunDef hfn consts insts  _ )
-  = vcat [ text "func" <+> ppFunCall (ppId hfn) [] <+> text "{"
-         , nest 2 (ppConsts consts )
-         , nest 2 (ppBB insts)
-         , text "}"]
+instance ShowDebug RawProgram where
+  showDebugWith cfg = PP.render . runPP cfg . ppProg
+
+ppFunDef :: FunDef -> PP PP.Doc
+ppFunDef ( FunDef hfn consts insts _ ) = do
+  bbDoc <- ppBB insts
+  pure $ vcat [ text "func" <+> ppFunCall (ppId hfn) [] <+> text "{"
+              , nest 2 (ppConsts consts )
+              , nest 2 bbDoc
+              , text "}"]
+
+ppLFunDef :: LFunDef -> PP PP.Doc
+ppLFunDef = ppLocated ppFunDef
 
 
 
@@ -310,40 +339,51 @@ ppRawExpr (ConstructLVal v lv lt) =
                                 ppId lv <+> text "," <+>
                                 ppId lt)
     
+-- | Pretty print LFields (fields with Located VarAccess)
+qqFields :: LFields -> PP.Doc
 qqFields fields =
   PP.hsep $ PP.punctuate (text ",") (map ppField fields)
-    where 
-      ppField (name, v) = 
-        PP.hcat [PP.text name, PP.text "=", ppId v]
+    where
+      ppField (name, lv) =
+        PP.hcat [PP.text name, PP.text "=", ppId lv]
 
-ppIR :: RawInst -> PP.Doc
-ppIR SetBranchFlag = text "<setbranchflag>"
-ppIR (AssignRaw vn st) = ppId vn <+> text "=(raw)" <+> ppRawExpr st
-ppIR (AssignLVal vn expr) = 
-  ppId vn <+> text "=(lval)" <+> ppRawExpr expr
--- ppIR (ConstructLVal x v lv lt) = 
---   ppId x <+> text 
-ppIR (RTAssertion a) = ppRTAssertion a
-ppIR (SetState comp v) = 
-  ppId comp <+> text "<-" <+> ppId v
-ppIR InvalidateSparseBit = text "<invalidate sparse bit>"
+ppIR :: RawInst -> PP PP.Doc
+ppIR SetBranchFlag = pure $ text "<setbranchflag>"
+ppIR (AssignRaw vn st) = pure $ ppId vn <+> text "=(raw)" <+> ppRawExpr st
+ppIR (AssignLVal vn expr) =
+  pure $ ppId vn <+> text "=(lval)" <+> ppRawExpr expr
+-- ppIR (ConstructLVal x v lv lt) =
+--   ppId x <+> text
+ppIR (RTAssertion a) = pure $ ppRTAssertion a
+ppIR (SetState comp v) =
+  pure $ ppId comp <+> text "<-" <+> ppId v
+ppIR InvalidateSparseBit = pure $ text "<invalidate sparse bit>"
+ppIR (SourcePosAnnotation r) = pure $ text "<source-pos>" <+> ppId r
 
-ppIR (MkFunClosures varmap fdefs) = 
+ppIR (MkFunClosures varmap fdefs) =
     let vs = hsepc $ ppEnvIds varmap
-        ppFdefs = map (\((VN x), HFN y) ->  text x <+> text "= mkClos" <+> text y ) fdefs 
-     in text "with env:=" <+> PP.brackets vs $$ nest 2 (vcat ppFdefs)
+        ppFdefs = map (\((VN x), HFN y) ->  text x <+> text "= mkClos" <+> text y ) fdefs
+     in pure $ text "with env:=" <+> PP.brackets vs $$ nest 2 (vcat ppFdefs)
     where ppEnvIds ls =
             map (\(a,b) -> (ppId a) PP.<+> text "->" <+> ppId b ) ls
           hsepc ls = PP.hsep (PP.punctuate (text ",") ls)
 
-    
--- ppIR (LevelOperations _ insts) = 
+-- | Pretty print a Located RawInst
+ppLRawInst :: LRawInst -> PP PP.Doc
+ppLRawInst = ppLocated ppIR
+
+
+-- ppIR (LevelOperations _ insts) =
 --  text "level operation" $$ nest 2 (vcat (map ppIR insts))
 
-ppTr (StackExpand bb1 bb2) = (text "call" $$ nest 4 (ppBB bb1)) $$ (ppBB bb2)
+ppTr :: RawTerminator -> PP PP.Doc
+ppTr (StackExpand bb1 bb2) = do
+  bb1Doc <- ppBB bb1
+  bb2Doc <- ppBB bb2
+  pure $ (text "call" $$ nest 4 bb1Doc) $$ bb2Doc
 
 
--- ppTr (AssertElseError va ir va2 _) 
+-- ppTr (AssertElseError va ir va2 _)
 --   = text "assert" <+> PP.parens (ppId va) <+>
 --     text "{" $$
 --     nest 2 (ppBB ir) $$
@@ -351,21 +391,30 @@ ppTr (StackExpand bb1 bb2) = (text "call" $$ nest 4 (ppBB bb1)) $$ (ppBB bb2)
 --     text "elseError" <+> (ppId va2)
 
 
-ppTr (If va ir1 ir2)
-  = text "if" <+> PP.parens (ppId va) <+>
+ppTr (If va ir1 ir2) = do
+  ir1Doc <- ppBB ir1
+  ir2Doc <- ppBB ir2
+  pure $ text "if" <+> PP.parens (ppId va) <+>
     text "{" $$
-    nest 4 (ppBB ir1) $$
+    nest 4 ir1Doc $$
     text "}" $$
     text "else {" $$
-    nest 4 (ppBB ir2) $$
+    nest 4 ir2Doc $$
     text "}"
-ppTr (TailCall va1 ) = ppFunCall (text "tail") [ppId va1]
-ppTr (Ret)  = text "ret"
-ppTr (LibExport va) = ppFunCall (text "export") [ppId va]
-ppTr (Error va _)  = (text "error ") <> (ppId va)
+ppTr (TailCall va1) = pure $ ppFunCall (text "tail") [ppId va1]
+ppTr Ret  = pure $ text "ret"
+ppTr (LibExport va) = pure $ ppFunCall (text "export") [ppId va]
+ppTr (Error va)  = pure $ (text "error ") PP.<> (ppId va)
 
+-- | Pretty print a Located RawTerminator
+ppLRawTr :: LRawTerminator -> PP PP.Doc
+ppLRawTr = ppLocated ppTr
 
-ppBB (BB insts tr) = vcat $ (map ppIR insts) ++ [ppTr tr]
+ppBB :: RawBBTree -> PP PP.Doc
+ppBB (BB insts tr) = do
+  instDocs <- mapM ppLRawInst insts
+  trDoc <- ppLRawTr tr
+  pure $ vcat $ instDocs ++ [trDoc]
 
 ppConsts consts = 
   vcat $ map ppConst consts 

@@ -4,7 +4,7 @@
   "coordination": "parallel",
   "network": {
     "relay_port": 5557,
-    "use_relay": true
+    "use_relay": "relay-only"
   },
   "nodes": [
     {
@@ -15,12 +15,16 @@
       "expected_exit_code": 0
     },
     {
-      "id": "target", 
+      "id": "target",
       "script": "target.trp",
       "port": 6795,
       "expected_exit_code": 0,
       "extra_argv": "--rspawn --stdiolev='{}'"
     }
+  ],
+  "trust": [
+    {"from": "spawner", "to": "target", "level": "bot"},
+    {"from": "target", "to": "spawner", "level": "bot"}
   ],
   "output": {
     "merge_strategy": "timestamp",

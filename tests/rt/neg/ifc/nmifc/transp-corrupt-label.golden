@@ -1,0 +1,12 @@
+2026-01-06T14:33:33.104Z [RTM] [32minfo[39m: Skipping network creation. Observe that all external IO operations will yield a runtime error.
+Runtime error in thread 6e9d6381-f5bb-4e45-98c3-1295e20a755b@{}%{}
+
+  29 |     val y = endorse (x, authority, `<alice&bob; #root-integrity>`)
+     |             ^
+
+>> NMIFC transparency violation for endorsement
+ | The confidentiality of the data and PC do not permit this endorsement.
+ | level of the data: {alice,bob} (corrupt: true)
+ | target level: <alice&bob;#root-integrity>
+ | PC level: {} (corrupt: false)
+>> at tests/rt/neg/ifc/nmifc/transp-corrupt-label.trp:29:13

@@ -1,5 +1,7 @@
 # No-Color Implementation
 
+> *This document was generated with Claude Code on 2025-12-28.*
+
 This document describes the implementation of the `--no-color` option in the Troupe programming language system, which provides explicit control over colored terminal output.
 
 ## Overview
@@ -97,25 +99,27 @@ if (isColorEnabled()) {
 }
 ```
 
-#### 5. Script Integration (`local.sh`)
+#### 5. Script Integration (`scripts/troupe-common.sh`)
 
-The local execution script separates compiler and runtime arguments:
+The shared argument parsing function in `troupe-common.sh` separates compiler and runtime arguments:
 
 ```bash
-for arg in "$@"; do
-    case "$arg" in
-        --no-color)
-            runtime_args="$runtime_args $arg"
-            ;;
-        *)
-            compiler_args="$compiler_args $arg"
-            ;;
-    esac
-done
-
-# Pass runtime args to the runtime
-eval "node --stack-trace-limit=1000 $TROUPE/rt/built/troupe.mjs -f=$tmp --localonly $runtime_args"
+troupe_parse_args() {
+    # ... initialization ...
+    for arg in "$@"; do
+        # ... other cases ...
+        case "$arg" in
+            # Runtime boolean options including --no-color
+            --no-color|--v1-labels|--no-v1-labels)
+                TROUPE_RUNTIME_ARGS="$TROUPE_RUNTIME_ARGS $arg"
+                ;;
+            # ... other cases ...
+        esac
+    done
+}
 ```
+
+This is used by `local.sh` and other execution scripts to route `--no-color` to the runtime.
 
 ### Testing Infrastructure
 
@@ -231,7 +235,8 @@ compiler/test/
 └── Golden.hs                  # Golden test infrastructure
 
 scripts/
-└── local.sh                   # Execution script with argument routing
+├── troupe-common.sh           # Shared argument parsing (routes --no-color)
+└── troupe-env.sh              # Environment setup
 ```
 
 ## Technical Details

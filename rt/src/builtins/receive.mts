@@ -116,7 +116,9 @@ export function BuiltinReceive<TBase extends Constructor<UserRuntimeZero>>(Base:
             $r.$t.threadError (errorMessage);
           }    
         
-          let is_clearance_a_leak = flowsTo( mclear.pc_at_creation, glb ($r.$t.pc, lowb.val))
+          let is_clearance_a_leak = 
+            flowsTo( mclear.pc_at_creation 
+                   , glb ($r.$t.pc, lowb.val))
       
           if (!is_clearance_a_leak)  {
             let errorMessage = 
@@ -124,7 +126,7 @@ export function BuiltinReceive<TBase extends Constructor<UserRuntimeZero>>(Base:
               ` | receive lower bound: ${lowb.val.stringRep()}\n` + 
               ` | pc level at the time of receive: ${$r.$t.pc.stringRep()}\n` +        
               ` | pc level at the time of raise: ${mclear.pc_at_creation.stringRep()}`  // we need better terminology for these       
-            $r.$t.threadError (errorMessage);
+            $r.$t.threadError (errorMessage)
           }
      
           let consume_l = lub (this.runtime.$t.pc, i.lev, lowb.lev, highb.lev, highb.val, mclear.boost_level)

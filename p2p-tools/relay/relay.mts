@@ -92,7 +92,8 @@ async function main () {
     ],
     streamMuxers: [
       yamux(),
-      mplex()
+      // mplex is deprecated - use only yamux for circuit relay compatibility
+      // mplex()
     ],
     services: {
       identify: identify(),
@@ -117,8 +118,10 @@ async function main () {
           This was rejected to allow for easier upgrading of the libp2p library.
         */
         reservations: {
-          defaultDurationLimit: 2147483647,
-          defaultDataLimit: BigInt(4294967295),
+          // Use large but safe values (1 hour, 1GB)
+          // Very large values like 2147483647 can cause protobuf encoding issues
+          defaultDurationLimit: 3600,
+          defaultDataLimit: BigInt(1073741824),
         }
       }),
     }

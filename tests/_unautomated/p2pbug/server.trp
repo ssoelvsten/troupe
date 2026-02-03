@@ -1,0 +1,32 @@
+(* Minimal server for P2P bug reproduction *)
+(* Registers a service and waits for one message *)
+
+let
+    val _ = print "SERVER: Starting echo server"
+    val _ = register("echo", self(), authority)
+    val _ = print "SERVER: Registered echo service"
+    val _ = print "SERVER: Waiting for client message..."
+
+    (* Timeout after 15 seconds *)
+    val timeout_pid = spawn(fn () =>
+        let val _ = sleep 15000
+        in print "SERVER: Timeout - no message received";
+           exit(authority, 1)
+        end)
+
+    (* Wait for exactly one message *)
+    val result = receive [
+        hn ("PING", sender) =>
+            let val _ = print "SERVER: Received PING from client"
+                val _ = send(sender, "PONG")
+                val _ = print "SERVER: Sent PONG reply"
+            in "success"
+            end
+    ]
+
+in if result = "success" then
+       (* Allow time for PONG to be delivered through circuit relay *)
+       (print "SERVER: Test passed"; sleep 1000; exit(authority, 0))
+   else
+       (print "SERVER: Test failed"; exit(authority, 1))
+end

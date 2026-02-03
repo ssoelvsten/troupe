@@ -1,2 +1,25 @@
-Parse Error:
-1:37 unexpected token TokenSemi
+Found 2 parse errors:
+
+tests/cmp/dc-label-multiple-semicolons.trp:1:37: parse error
+  (while parsing DC label)
+  1 | let val x = 10 raisedTo `<alice; bob; charlie>`
+    |                                     ^
+  unexpected ';'
+  expected '>`' (DC label end)
+
+Suggestion: Too many semicolons in DC label.
+  DC labels have exactly ONE semicolon separating confidentiality
+  and integrity components.
+  Syntax: `< confidentiality ; integrity >`
+
+----------------------------------------
+
+tests/cmp/dc-label-multiple-semicolons.trp:1:46: parse error
+  1 | let val x = 10 raisedTo `<alice; bob; charlie>`
+    |                                              ^
+  unexpected '>`' (DC label end)
+  expected one of: keyword 'in', keyword 'val', keyword 'fun'
+
+Suggestion: Missing 'in' keyword?
+  Syntax: let <declarations> in <expression> end
+

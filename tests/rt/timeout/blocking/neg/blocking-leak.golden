@@ -1,6 +1,11 @@
-2025-06-07T12:20:30.336Z [RTM] [32minfo[39m: Skipping network creation. Observe that all external IO operations will yield a runtime error.
-Runtime error in thread 4b736706-a88f-4118-b4ba-4f5899612be7@{}%{}
+2026-01-06T14:33:34.673Z [RTM] [32minfo[39m: Skipping network creation. Observe that all external IO operations will yield a runtime error.
+Runtime error in thread 861f6d22-2864-456b-bea4-15d93ef6f955@{}%{}
+
+  17 |                     val _ = adv i 
+     |                             ^
+
 >> Illegal flow in adv function:
  |    pc: {}
  | block: <secret;#root-integrity>
  | value: 2@{}%{}
+>> at tests/rt/timeout/blocking/neg/blocking-leak.trp:17:29

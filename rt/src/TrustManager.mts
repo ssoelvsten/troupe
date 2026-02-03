@@ -47,7 +47,7 @@ export function nodeTrustLevel(nodeid):Level {
     }
     if (_trustMap) {
         // console.log ("true");
-        return _trustMap[nodeid] ? _trustMap[nodeid] : levels.BOT;
+        return _trustMap[nodeid] ? _trustMap[nodeid] : levels.NULL;
     }
-    return levels.BOT;
+    return levels.NULL;
 }

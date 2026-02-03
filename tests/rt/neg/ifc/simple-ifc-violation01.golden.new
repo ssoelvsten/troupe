@@ -1,0 +1,6 @@
+Runtime error in thread 4e9a8550-7708-4978-a638-fd6f54342287@{}%{}
+>> Illegal flow in adv function:
+ |    pc: {#TOP}
+ | block: {#TOP}
+ | value: 1@{}%{}
+>> at tests/rt/neg/ifc/simple.trp:2:23

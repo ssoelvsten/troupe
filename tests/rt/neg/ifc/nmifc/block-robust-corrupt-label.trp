@@ -1,0 +1,32 @@
+(* NMIFC Robustness Violation Test: Blocking Level Declassification from Corrupt PC
+
+   This test demonstrates that NMIFC rejects blockdeclto when the PC is tainted
+   by a corrupt label.
+
+   Setup:
+   1. Create a value with corrupt label {alice,bob} = <alice & bob; alice | bob>
+   2. Branch on that value, which taints the PC with the corrupt label
+   3. Attempt blockdeclto - this should fail under NMIFC
+
+   Under NMIFC:
+   - Robustness requires the PC integrity to permit the declassification
+   - With corrupt PC, the robustness check fails
+
+   Without NMIFC: blockdeclto would succeed (only authority check).
+
+   Expected: Thread error - robustness violation
+
+   See: nmifc-summary.md for details on the robustness condition
+*)
+
+let val corruptValue = true raisedTo `{alice,bob}`
+    (* {alice,bob} = <alice & bob; alice | bob> -- a corrupt label *)
+
+    (* Branch on corrupt value, tainting the PC *)
+    val _ = if corruptValue then () else ()
+
+    (* Now PC is tainted with corrupt label *)
+    (* Attempt to declassify the blocking level - should fail under NMIFC *)
+    val _ = blockdeclto (authority, `<#null-confidentiality; alice|bob>`)
+in print "success"
+end

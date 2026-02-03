@@ -1,3 +1,8 @@
-2023-03-17T21:23:22.318Z [RTM] [32minfo[39m: Skipping network creation. Observe that all external IO operations will yield a runtime error.
-Runtime error in thread 6008575b-acc0-46fe-8c15-0e20ab5ed853@{}%{}
+2026-01-06T14:33:30.677Z [RTM] [32minfo[39m: Skipping network creation. Observe that all external IO operations will yield a runtime error.
+Runtime error in thread 39a7c5c0-0084-48a7-93d1-3932d9a16f81@{}%{}
+
+  1 | 1 < "" 
+    |   ^
+
 >> value "" is not a number
+>> at tests/rt/neg/core/comparison01.trp:1:3

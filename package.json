@@ -14,6 +14,7 @@
   "dependencies": {
     "@chainsafe/libp2p-noise": "^17.0.0",
     "@chainsafe/libp2p-yamux": "^8.0.0",
+    "@jridgewell/trace-mapping": "^0.3.31",
     "@libp2p/bootstrap": "^12.0.0",
     "@libp2p/circuit-relay-v2": "^4.0.0",
     "@libp2p/crypto": "^5.1.13",
@@ -30,7 +31,9 @@
     "@nodeutils/defaults-deep": "^1.1.0",
     "@types/node": "^22.15.21",
     "aggregate-error": "^5.0.0",
+    "archy": "^1.0.0",
     "chalk": "^5.4.1",
+    "cli-table3": "^0.6.5",
     "find-free-port": "^2.0.0",
     "it-length-prefixed": "^10.0.1",
     "libp2p": "^3.0.0",
@@ -44,9 +47,11 @@
     "@rollup/plugin-json": "^6.1.0",
     "@rollup/plugin-node-resolve": "^16.0.3",
     "@rollup/plugin-terser": "^0.4.4",
+    "@types/archy": "^0.0.36",
     "@types/ws": "^8.18.1",
     "@types/yargs": "^17.0.33",
     "rollup": "^4.41.0",
+    "source-map": "^0.7.6",
     "typescript": "^5.8.3"
   }
 }

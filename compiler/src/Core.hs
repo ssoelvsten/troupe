@@ -1,11 +1,17 @@
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DefaultSignatures #-}
+{-# LANGUAGE PatternSynonyms #-}
+{-# LANGUAGE TypeSynonymInstances #-}
+{-# LANGUAGE FlexibleInstances #-}
 
 
 module Core (   Lambda (..)
               , Term (..)
+              , LTerm
               , Decl (..)
+              , LDecl
               , FunDecl (..)
+              , LFields
               , Numeric(..)
               , Lit(..)
               , litEq
@@ -37,22 +43,30 @@ import           Text.PrettyPrint.HughesPJ (
    (<+>), ($$), text, hsep, vcat, nest, nest)
 import           ShowIndent
 
-import           TroupePositionInfo
-import           DCLabels (DCLabelExp, ppDCLabelExpLit, dcLabelEq, v1LabelEq)
+import           TroupePositionInfo (Located(..), getLoc, unLoc, noLoc, atLoc, PosInf(..), GetPosInfo(..))
+import           PrettyPrint (PP, PPConfig, runPP, runPPDefault, ppLocated, ShowDebug(..))
+import           DCLabels (DCLabelExp, ppDCLabelExpLit, dcLabelEq, v1LabelEq, v1LabelToDCLabelExp)
 
 --------------------------------------------------
 -- AST is the same as Direct, but lambda are unary (or nullary)
 
-data Lambda = Unary VarName Term
-            | Nullary Term
+-- | Located type aliases
+type LTerm = Located Term
+type LDecl = Located Decl
+type LFields = [(FieldName, LTerm)]
+-- | Located variable name - carries source position for variable bindings
+type LVarName = Located VarName
+
+data Lambda = Unary LVarName LTerm
+            | Nullary LTerm
   deriving (Eq)
 
 data Decl
-    = ValDecl VarName Term
+    = ValDecl VarName LTerm
     | FunDecs [FunDecl]
   deriving (Eq )
 
-data FunDecl = FunDecl VarName Lambda
+data FunDecl = FunDecl VarName Lambda PosInf  -- Keep PosInf for function definition position
   deriving (Eq)
 
 -- Numeric type represents integer and floating point numeric literals
@@ -72,7 +86,7 @@ instance Ord Numeric where
   compare (NumFloat x) (NumInt y) = compare x (fromInteger y)
 
 data Lit
-    = LNumeric Numeric PosInf
+    = LNumeric Numeric
     | LString String
     | LLabel String
     | LDCLabel DCLabelExp
@@ -82,7 +96,7 @@ data Lit
   deriving (Show, Generic)
 instance Serialize Lit
 instance Eq Lit where
-  (LNumeric n1 _) == (LNumeric n2 _) = n1 == n2
+  (LNumeric n1) == (LNumeric n2) = n1 == n2
   (LString s) == (LString s') = s == s'
   (LLabel l) == (LLabel l') = l == l'
   LUnit == LUnit = True
@@ -91,7 +105,7 @@ instance Eq Lit where
   (LDCLabel dc) == (LDCLabel dc') = dc == dc'
   _ == _ = False
 instance Ord Lit where
-  compare (LNumeric n1 _) (LNumeric n2 _) = compare n1 n2
+  compare (LNumeric n1) (LNumeric n2) = compare n1 n2
   compare (LString x) (LString y) = compare x y
   compare (LLabel x) (LLabel y) = compare x y
   compare LUnit LUnit = EQ
@@ -99,8 +113,8 @@ instance Ord Lit where
   compare (LAtom x) (LAtom y) = compare x y
   compare (LDCLabel x) (LDCLabel y) = compare x y
   -- Cross-type ordering (for canonical ordering of different literal types)
-  compare (LNumeric _ _) _ = LT
-  compare _ (LNumeric _ _) = GT
+  compare (LNumeric _) _ = LT
+  compare _ (LNumeric _) = GT
   compare (LString _) _ = LT
   compare _ (LString _) = GT
   compare (LLabel _) _ = LT
@@ -112,28 +126,31 @@ instance Ord Lit where
   compare (LAtom _) _ = LT
   compare _ (LAtom _) = GT
 
-instance GetPosInfo Lit where
-  posInfo (LNumeric _ p) = p
-  posInfo _ = NoPos
+-- Note: Lit no longer has embedded position info. Position comes from the
+-- Located wrapper around terms containing literals.
 
 -- | Semantic equality for literals, handling label normalization
 -- This is used for compile-time constant folding to ensure that
 -- semantically equivalent labels (e.g., `{alice, bob}` and `{bob, alice}`)
 -- are treated as equal.
 litEq :: Lit -> Lit -> Bool
-litEq (LNumeric n1 _) (LNumeric n2 _) = n1 == n2
+litEq (LNumeric n1) (LNumeric n2) = n1 == n2
 litEq (LString s) (LString s') = s == s'
 litEq (LLabel l) (LLabel l') = v1LabelEq l l'
 litEq LUnit LUnit = True
 litEq (LBool x) (LBool y) = x == y
 litEq (LAtom x) (LAtom y) = x == y
 litEq (LDCLabel dc) (LDCLabel dc') = dcLabelEq dc dc'
+-- Cross-syntax comparison: V1 labels vs DC labels
+litEq (LLabel l) (LDCLabel dc) = dcLabelEq (v1LabelToDCLabelExp l) dc
+litEq (LDCLabel dc) (LLabel l) = dcLabelEq dc (v1LabelToDCLabelExp l)
 litEq _ _ = False
 
 -- | Semantic inequality for literals
 litNeq :: Lit -> Lit -> Bool
 litNeq x y = not (litEq x y)
 
+-- Old Fields type kept for backward compatibility in pretty printing
 type Fields = [(FieldName, Term)]
 
 data VarAccess
@@ -144,24 +161,26 @@ data VarAccess
     -- | A predefined name (e.g. send, receive)
     | BaseName VarName
  deriving (Eq)
+
+-- | Core Term without embedded positions - positions are in Located wrapper
 data Term
     = Lit Lit
     | Var VarAccess
     | Abs Lambda
-    | App Term Term
-    | Let Decl Term
-    | If Term Term Term
-    | AssertElseError Term Term Term PosInf
-    | Tuple [Term]
-    | Record Fields 
-    | WithRecord Term Fields
-    | ProjField Term FieldName 
-    | ProjIdx Term Word
-    | List [Term]
-    | ListCons Term Term
-    | Bin BinOp Term Term
-    | Un UnaryOp Term
-    | Error Term PosInf
+    | App LTerm LTerm
+    | Let Decl LTerm
+    | If LTerm LTerm LTerm
+    | AssertElseError LTerm LTerm LTerm
+    | Tuple [LTerm]
+    | Record LFields
+    | WithRecord LTerm LFields
+    | ProjField LTerm FieldName
+    | ProjIdx LTerm Word
+    | List [LTerm]
+    | ListCons LTerm LTerm
+    | Bin BinOp LTerm LTerm
+    | Un UnaryOp LTerm
+    | Error LTerm
   deriving (Eq)
 
 
@@ -170,11 +189,14 @@ data Atoms = Atoms [AtomName]
 instance Serialize Atoms
 
 
-data Prog = Prog Imports Atoms Term
+data Prog = Prog Imports Atoms LTerm
   deriving (Eq, Show)
 
+-- Note: GetPosInfo instance for LTerm comes from TroupePositionInfo's
+-- instance GetPosInfo (Located a) which extracts position from Loc wrapper
 
-{-- 
+
+{--
 
 This module defines the Core front-level intermediate representation,
 and includes two phases of the compilation pipeline that involve that
@@ -193,25 +215,28 @@ The module also contains pretty printing for the Core representation.
 
 
 --------------------------------------------------
--- 1. Lowering 
+-- 1. Lowering
 --------------------------------------------------
 
-lowerProg (D.Prog imports atms term) = Prog imports (trans atms) (lower term)
+lowerProg (D.Prog imports atms lterm) = Prog imports (transAtoms atms) (lower lterm)
 
 
 
 -- the rest of the declarations in this part are not exported
 
-trans :: D.Atoms -> Atoms
-trans (D.Atoms atms) = Atoms atms
+transAtoms :: D.Atoms -> Atoms
+transAtoms (D.Atoms atms) = Atoms atms
 
-lowerLam (D.Lambda vs t) =
+-- | Lower a lambda, producing Located terms for nested abstractions
+lowerLam :: D.Lambda -> Lambda
+lowerLam (D.Lambda vs lt) =
   case vs of
-    [] -> Unary "$unit" (lower t)
-    x:xs -> Unary x (foldr (\x b -> (Abs (Unary x b))) (lower t) xs)
+    [] -> Unary (Loc NoPos "$unit") (lower lt)
+    lx:xs -> Unary lx (foldr (\lx' b -> Loc (getLoc lt) (Abs (Unary lx' b))) (lower lt) xs)
 
-
-lowerLit (D.LNumeric n pi) = LNumeric (lowerNumeric n) pi
+-- | Lower a literal. Position info is on the Located wrapper, not in the literal.
+lowerLit :: D.Lit -> Lit
+lowerLit (D.LNumeric n) = LNumeric (lowerNumeric n)
   where
     lowerNumeric (D.NumInt i) = NumInt i
     lowerNumeric (D.NumFloat f) = NumFloat f
@@ -222,10 +247,12 @@ lowerLit D.LUnit = LUnit
 lowerLit (D.LBool b) = LBool b
 lowerLit (D.LAtom n) = LAtom n
 
-lower :: D.Term -> Core.Term
-lower (D.Lit l) = Lit (lowerLit l)
-lower (D.Error t p) = Error (lower t) p
-lower (D.Var v) = Var (RegVar v)
+-- | Lower DirectWOPats.LTerm (Located Term) to Core.LTerm
+-- Position is now extracted from the Located wrapper
+lower :: D.LTerm -> LTerm
+lower (Loc pos (D.Lit l)) = Loc pos (Lit (lowerLit l))
+lower (Loc pos (D.Error lt)) = Loc pos (Error (lower lt))
+lower (Loc pos (D.Var v)) = Loc pos (Var (RegVar v))
   -- 2018-07-01: AA: note that we are mapping all vars to RegVar at
   -- this stage. This is a bit of a hack. A cleaner apporach is to
   -- have a separate intermediate representation. For now we save on
@@ -234,31 +261,31 @@ lower (D.Var v) = Var (RegVar v)
   -- names, which are lib names, and which are actually just regular
   -- variables.
 
-lower (D.Abs lam) = Abs (lowerLam lam)
+lower (Loc pos (D.Abs lam)) = Loc pos (Abs (lowerLam lam))
 
-lower (D.App e []) = Core.App (lower e) (Lit LUnit) -- does this form even exist?
-lower (D.App e es) = foldl Core.App (lower e) (map lower es)
-lower (D.Let decls e) =
-  foldr (\ decl t -> Let (lowerDecl decl) t) (lower e) decls
-  where lowerDecl (D.ValDecl vname e) = ValDecl vname (lower e)
+lower (Loc pos (D.App le [])) = Loc pos (Core.App (lower le) (Loc NoPos (Lit LUnit))) -- does this form even exist?
+lower (Loc pos (D.App le les)) = foldl (\acc lt -> Loc pos (Core.App acc (lower lt))) (lower le) les
+lower (Loc pos (D.Let decls le)) =
+  foldr (\decl t -> Loc pos (Let (lowerDecl decl) t)) (lower le) decls
+  where lowerDecl (D.ValDecl vname le') = ValDecl vname (lower le')
         lowerDecl (D.FunDecs decs) = FunDecs (map lowerFun decs)
-        lowerFun  (D.FunDecl v lam) = FunDecl v (lowerLam lam)
+        lowerFun  (D.FunDecl v lam funPos) = FunDecl v (lowerLam lam) funPos
 -- lower (D.Case t patTermLst) = Case (lower t) (map (\(p,t) -> (lowerDeclPat p, lower t)) patTermLst)
-lower (D.If e1 e2 e3) = If (lower e1) (lower e2) (lower e3)
-lower (D.AssertElseError e1 e2 e3 p) = AssertElseError (lower e1 ) (lower e2) (lower e3) p
-lower (D.Tuple terms) = Tuple (map lower terms)
-lower (D.Record fields) = Record (map (\(f, t) -> (f, lower t)) fields)
-lower (D.WithRecord  e fields) = WithRecord (lower e) (map (\(f, t) -> (f, lower t)) fields)
-lower (D.ProjField t f) = ProjField (lower t) f
-lower (D.ProjIdx t idx) = ProjIdx (lower t) idx
-lower (D.List terms) = List (map lower terms)
-lower (D.ListCons t1 t2) = ListCons (lower t1) (lower t2)
+lower (Loc pos (D.If le1 le2 le3)) = Loc pos (If (lower le1) (lower le2) (lower le3))
+lower (Loc pos (D.AssertElseError le1 le2 le3)) = Loc pos (AssertElseError (lower le1) (lower le2) (lower le3))
+lower (Loc pos (D.Tuple lterms)) = Loc pos (Tuple (map lower lterms))
+lower (Loc pos (D.Record lfields)) = Loc pos (Record (map (\(f, lt) -> (f, lower lt)) lfields))
+lower (Loc pos (D.WithRecord le lfields)) = Loc pos (WithRecord (lower le) (map (\(f, lt) -> (f, lower lt)) lfields))
+lower (Loc pos (D.ProjField lt f)) = Loc pos (ProjField (lower lt) f)
+lower (Loc pos (D.ProjIdx lt idx)) = Loc pos (ProjIdx (lower lt) idx)
+lower (Loc pos (D.List lterms)) = Loc pos (List (map lower lterms))
+lower (Loc pos (D.ListCons lt1 lt2)) = Loc pos (ListCons (lower lt1) (lower lt2))
 
 -- special casing shortcutting semantics; 2018-03-06;
-lower (D.Bin And e1 e2) = lower (D.If e1 e2 (D.Lit (D.LBool False)))
-lower (D.Bin Or e1 e2) = lower (D.If e1 (D.Lit (D.LBool True)) e2)
-lower (D.Bin op e1 e2) = Bin op (lower e1) (lower e2)
-lower (D.Un op e) = Un op (lower e)
+lower (Loc pos (D.Bin And le1 le2)) = lower (Loc pos (D.If le1 le2 (Loc NoPos (D.Lit (D.LBool False)))))
+lower (Loc pos (D.Bin Or le1 le2)) = lower (Loc pos (D.If le1 (Loc NoPos (D.Lit (D.LBool True))) le2))
+lower (Loc pos (D.Bin op le1 le2)) = Loc pos (Bin op (lower le1) (lower le2))
+lower (Loc pos (D.Un op le)) = Loc pos (Un op (lower le))
 
 
 --------------------------------------------------
@@ -375,70 +402,79 @@ lookforgen v m =
 extend :: VarName -> VarName -> Env -> Env
 extend v v' m = Map.insert v v' m
 
-rename :: Core.Term -> Env -> S Core.Term
-rename (Lit l) m = return (Lit l)
-rename (Error t p) m = do 
-      t' <- rename t m 
-      return $ Error t' p
-rename (Var (RegVar v)) m = do
-  v <- lookforgen v m
-  return $ Var v
+-- | Rename a Located Term, preserving the location
+rename :: LTerm -> Env -> S LTerm
+rename (Loc pos term) m = do
+  term' <- renameTerm pos term m
+  return $ Loc pos term'
 
+-- | Rename the inner Term given its position (for qualified access resolution)
+renameTerm :: PosInf -> Core.Term -> Env -> S Core.Term
+renameTerm _ (Lit l) _ = return (Lit l)
+renameTerm _ (Error t) m = do
+      t' <- rename t m
+      return $ Error t'
+renameTerm pos (Var (RegVar v)) m = do
+  v' <- lookforgen v m
+  return $ Var v'
 
-rename (Var x) m  = return $ Var x
-rename (Abs l) m =
-  liftM Abs $ renameLambda l m
-rename (App t1 t2) m = do
+renameTerm _ (Var x) _  = return $ Var x
+renameTerm _ (Abs l) m = do
+  l' <- renameLambda l m
+  return $ Abs l'
+renameTerm _ (App t1 t2) m = do
   t1' <- rename t1 m
   t2' <- rename t2 m
   return $ App t1' t2'
-rename (Let decl t) m = do
+renameTerm _ (Let decl t) m = do
   (m', decl') <- renameDecl decl m
   t' <- rename t m'
   return $ Let decl' t'
 
-rename (If t1 t2 t3) m = do
+renameTerm _ (If t1 t2 t3) m = do
   t1' <- rename t1 m
   t2' <- rename t2 m
   t3' <- rename t3 m
   return $ If t1' t2' t3'
 
-rename (AssertElseError t1 t2 t3 p) m = do  
+renameTerm _ (AssertElseError t1 t2 t3) m = do
   t1' <- rename t1 m
   t2' <- rename t2 m
   t3' <- rename t3 m
-  return $ AssertElseError t1' t2' t3' p
+  return $ AssertElseError t1' t2' t3'
 
 
-rename (Tuple terms) m =
-  Tuple <$> mapM (flip rename m) terms
+renameTerm _ (Tuple terms) m = do
+  terms' <- mapM (flip rename m) terms
+  return $ Tuple terms'
 
-rename (Record fields) m = 
-  Record <$> mapM renameField fields 
-     where renameField (f, t) = do 
-                   t' <- rename t m 
+renameTerm _ (Record fields) m = do
+  fields' <- mapM renameField fields
+  return $ Record fields'
+     where renameField (f, t) = do
+                   t' <- rename t m
                    return (f, t')
 
-rename (WithRecord e fields) m = do 
-  t' <- rename e m 
-  fs <- mapM renameField fields 
-  return $ WithRecord  t' fs
-  where renameField (f, t) = do 
-                   t' <- rename t m 
+renameTerm _ (WithRecord e fields) m = do
+  t' <- rename e m
+  fs <- mapM renameField fields
+  return $ WithRecord t' fs
+  where renameField (f, t) = do
+                   t' <- rename t m
                    return (f, t')
-  
-rename (ProjField t f) m = do
+
+renameTerm pos (ProjField lt f) m = do
   maybeQualified <- tryQualifiedAccess
   case maybeQualified of
     Just term -> return term
     Nothing   -> do
-      t' <- rename t m
-      return $ ProjField t' f
+      lt' <- rename lt m
+      return $ ProjField lt' f
   where
-    tryQualifiedAccess = case t of
+    tryQualifiedAccess = case lt of
       -- Check if this is a qualified module access (e.g., A.foo or Alias.foo)
       -- At this stage, vars are RegVar from lowering, so we check RegVar
-      Var (RegVar v) | not (Map.member v m) -> do
+      Loc _ (Var (RegVar v)) | not (Map.member v m) -> do
         (_, libExports) <- ask
         case Map.lookup (LibName v) libExports of
           Just (originalLib, exports) ->
@@ -448,28 +484,29 @@ rename (ProjField t f) m = do
               "Library '" ++ v ++ "' does not export '" ++ f ++ "'"
           Nothing -> return Nothing  -- Not a library access
       _ -> return Nothing
-rename (ProjIdx t idx) m = do
+renameTerm _ (ProjIdx t idx) m = do
   t' <- rename t m
   return $ ProjIdx t' idx
-rename (List terms) m =
-  List <$> mapM (flip rename m) terms
-rename (ListCons t1 t2) m = do
+renameTerm _ (List terms) m = do
+  terms' <- mapM (flip rename m) terms
+  return $ List terms'
+renameTerm _ (ListCons t1 t2) m = do
   t1' <- rename t1 m
   t2' <- rename t2 m
-  return $ ListCons  t1' t2'
-rename (Bin op t1 t2) m = do
+  return $ ListCons t1' t2'
+renameTerm _ (Bin op t1 t2) m = do
   t1' <- rename t1 m
   t2' <- rename t2 m
   return $ Bin op t1' t2'
-rename (Un op e) m = do
+renameTerm _ (Un op e) m = do
   e' <- rename e m
   return $ Un op e'
 
 renameLambda :: Core.Lambda -> Env -> S Core.Lambda
-renameLambda (Unary v t) m = do
+renameLambda (Unary lv@(Loc vpos v) t) m = do
   v' <- unique v
   t' <- rename t $ extend v v' m
-  return $ Unary v' t'
+  return $ Unary (Loc vpos v') t'
 renameLambda (Nullary t) m = do
   t' <- rename t m
   return $ Nullary t'
@@ -485,12 +522,12 @@ renameDecl (ValDecl v t) m = do
 
 renameDecl (FunDecs decs) m = do
   m' <- foldM ext_funDecl m decs
-  decs' <- mapM (\(FunDecl v l) -> liftM (FunDecl (lookforalpha v m')) (renameLambda l m')) decs
+  decs' <- mapM (\(FunDecl v l pos) -> liftM (\l' -> FunDecl (lookforalpha v m') l' pos) (renameLambda l m')) decs
   let decl' = (FunDecs decs')
   return (m', decl')
-  where ext_funDecl m (FunDecl v _) = do
+  where ext_funDecl m' (FunDecl v _ _) = do
           v' <- unique v
-          return $ extend v v' m
+          return $ extend v v' m'
 
 
 
@@ -501,17 +538,21 @@ renameDecl (FunDecs decs) m = do
 
 -- show is defined via pretty printing
 instance Show Term
-  where show t = PP.render (ppTerm 0 t)
+  where show t = PP.render (runPPDefault (ppTermInner 0 t))
 
 instance ShowIndent Prog where
-  showIndent k t = PP.render (nest k (ppProg t))
+  showIndent k t = PP.render (nest k (runPPDefault (ppProg t)))
+
+instance ShowDebug Prog where
+  showDebugWith cfg = PP.render . runPP cfg . ppProg
 --------------------------------------------------
 
 
 
 
-ppProg :: Prog -> PP.Doc
-ppProg (Prog (Imports imports) (Atoms atoms) term) =
+ppProg :: Prog -> PP PP.Doc
+ppProg (Prog (Imports imports) (Atoms atoms) term) = do
+  termDoc <- ppLTerm 0 term
   let ppAtoms =
         if null atoms
           then PP.empty
@@ -519,136 +560,163 @@ ppProg (Prog (Imports imports) (Atoms atoms) term) =
                (hsep $ PP.punctuate (text " |") (map text atoms))
 
       ppImports = if null imports then PP.empty else text "<<imports>>\n"
-  in ppImports $$ ppAtoms $$ ppTerm 0 term
+  pure $ ppImports $$ ppAtoms $$ termDoc
 
+-- | Pretty print a Located Term
+ppLTerm :: Precedence -> LTerm -> PP PP.Doc
+ppLTerm parentPrec = ppLocated (ppTermInner parentPrec)
 
-ppTerm :: Precedence -> Term -> PP.Doc
-ppTerm parentPrec t =
+-- | Pretty print a Term (inner, without location)
+ppTermInner :: Precedence -> Term -> PP PP.Doc
+ppTermInner parentPrec t = do
    let thisTermPrec = termPrec t
-   in PP.maybeParens (thisTermPrec < parentPrec )
-      $ ppTerm' t
+   doc <- ppTerm' t
+   pure $ PP.maybeParens (thisTermPrec < parentPrec) doc
 
    -- uncomment to pretty print explicitly; 2017-10-14: AA
    -- in PP.maybeParens (thisTermPrec < 10000)  $ ppTerm' t
 
-ppTerm' :: Term -> PP.Doc
-ppTerm' (Lit literal) = ppLit literal
+ppTerm' :: Term -> PP PP.Doc
+ppTerm' (Lit literal) = pure $ ppLit literal
 
-ppTerm' (Error t _) = text "error " PP.<> ppTerm' t
+ppTerm' (Error lt) = do
+  d <- ppLTerm 0 lt
+  pure $ text "error " PP.<> d
 
-ppTerm'  (Tuple ts) =
-  PP.parens $
-  PP.hcat $
-  PP.punctuate (text ",") (map (ppTerm 0) ts)
+ppTerm' (Tuple lts) = do
+  ds <- mapM (ppLTerm 0) lts
+  pure $ PP.parens $ PP.hcat $ PP.punctuate (text ",") ds
 
-ppTerm'  (List ts) =
-  PP.brackets $
-  PP.hcat $
-  PP.punctuate (text ",") (map (ppTerm 0) ts)
+ppTerm' (List lts) = do
+  ds <- mapM (ppLTerm 0) lts
+  pure $ PP.brackets $ PP.hcat $ PP.punctuate (text ",") ds
 
-ppTerm' (Record fs) = PP.braces $ qqFields fs
+ppTerm' (Record fs) = do
+  fDoc <- qqLFields fs
+  pure $ PP.braces fDoc
 
-ppTerm' (WithRecord e fs) = 
-    PP.braces $ PP.hsep [ ppTerm 0 e, text "with", qqFields fs]
+ppTerm' (WithRecord le fs) = do
+  leDoc <- ppLTerm 0 le
+  fsDoc <- qqLFields fs
+  pure $ PP.braces $ PP.hsep [leDoc, text "with", fsDoc]
 
-ppTerm' (ProjField t fn) =
-  ppTerm projPrec t PP.<> text "." PP.<> PP.text fn
+ppTerm' (ProjField lt fn) = do
+  d <- ppLTerm projPrec lt
+  pure $ d PP.<> text "." PP.<> PP.text fn
 
-ppTerm' (ProjIdx t idx) =
-  ppTerm projPrec t PP.<> text "." PP.<> PP.text (show idx)
-
-
-ppTerm' (ListCons hd tl) =
-   ppTerm consPrec hd PP.<> text "::" PP.<> ppTerm consPrec tl
-
-ppTerm' (Var (RegVar x)) = text x
-ppTerm' (Var (LibVar (LibName lib) var)) = text lib <+> text "." <+> text var
-ppTerm' (Var (BaseName v)) = text v
-ppTerm' (Abs lam) =
-  let (ppArgs, ppBody) = qqLambda lam
-  in text "fn" <+> ppArgs <+> text "=>" <+> ppBody
-
-ppTerm' (App t1 t2s) =
-    ppTerm appPrec t1
-          <+> (ppTerm argPrec t2s)
-
-ppTerm' (Let dec body) =
-  text "let" <+>
-  nest 3 (ppDecl dec) $$
-  text "in" <+>
-  nest 3 (ppTerm 0 body) $$
-  text "end"
+ppTerm' (ProjIdx lt idx) = do
+  d <- ppLTerm projPrec lt
+  pure $ d PP.<> text "." PP.<> PP.text (show idx)
 
 
-ppTerm' (If e0 e1 e2) =
-  text "if" <+>
-  ppTerm 0 e0 $$
-  text "then" <+>
-  ppTerm 0 e1 $$
-  text "else" <+>
-  ppTerm 0 e2
+ppTerm' (ListCons lhd ltl) = do
+  hdDoc <- ppLTerm consPrec lhd
+  tlDoc <- ppLTerm consPrec ltl
+  pure $ hdDoc PP.<> text "::" PP.<> tlDoc
 
-ppTerm' (AssertElseError e0 e1 e2 _) =
-  text "assert" <+>
-  ppTerm 0 e0 $$
-  text "then" <+>
-  ppTerm 0 e1 $$
-  text "elseError" <+>
-  ppTerm 0 e2
+ppTerm' (Var (RegVar x)) = pure $ text x
+ppTerm' (Var (LibVar (LibName lib) var)) = pure $ text lib <+> text "." <+> text var
+ppTerm' (Var (BaseName v)) = pure $ text v
+ppTerm' (Abs lam) = do
+  (ppArgs, ppBody) <- qqLambda lam
+  pure $ text "fn" <+> ppArgs <+> text "=>" <+> ppBody
+
+ppTerm' (App lt1 lt2) = do
+  d1 <- ppLTerm appPrec lt1
+  d2 <- ppLTerm argPrec lt2
+  pure $ d1 <+> d2
+
+ppTerm' (Let dec lbody) = do
+  decDoc <- ppDecl dec
+  bodyDoc <- ppLTerm 0 lbody
+  pure $ text "let" <+>
+    nest 3 decDoc $$
+    text "in" <+>
+    nest 3 bodyDoc $$
+    text "end"
+
+
+ppTerm' (If le0 le1 le2) = do
+  d0 <- ppLTerm 0 le0
+  d1 <- ppLTerm 0 le1
+  d2 <- ppLTerm 0 le2
+  pure $ text "if" <+>
+    d0 $$
+    text "then" <+>
+    d1 $$
+    text "else" <+>
+    d2
+
+ppTerm' (AssertElseError le0 le1 le2) = do
+  d0 <- ppLTerm 0 le0
+  d1 <- ppLTerm 0 le1
+  d2 <- ppLTerm 0 le2
+  pure $ text "assert" <+>
+    d0 $$
+    text "then" <+>
+    d1 $$
+    text "elseError" <+>
+    d2
 
 
 
-ppTerm' (Bin op t1 t2) =
+ppTerm' (Bin op lt1 lt2) = do
   let binOpPrec = opPrec op
-  in
-     ppTerm binOpPrec t1 <+>
-     text (show op) <+>
-     ppTerm binOpPrec t2
+  d1 <- ppLTerm binOpPrec lt1
+  d2 <- ppLTerm binOpPrec lt2
+  pure $ d1 <+> text (show op) <+> d2
 
-ppTerm' (Un op t) =
+ppTerm' (Un op lt) = do
   let unOpPrec = op1Prec op
-  in
-     text (show op) <+>
-     ppTerm unOpPrec t
+  d <- ppLTerm unOpPrec lt
+  pure $ text (show op) <+> d
 
 
-qqFields fs = PP.hcat $
-    PP.punctuate (text ",") (map ppField fs)
-     where ppField (name, t)  = 
-              PP.hcat [PP.text name, PP.text "=", ppTerm 0 t ]
+-- | Pretty print LFields (fields with Located terms)
+qqLFields :: LFields -> PP PP.Doc
+qqLFields fs = do
+  fieldDocs <- mapM ppField fs
+  pure $ PP.hcat $ PP.punctuate (text ",") fieldDocs
+     where ppField (name, lt) = do
+              d <- ppLTerm 0 lt
+              pure $ PP.hcat [PP.text name, PP.text "=", d]
 
-qqLambda :: Lambda -> (PP.Doc, PP.Doc)
-qqLambda (Unary arg body) =
-  ( text arg, ppTerm 0 body )
-qqLambda (Nullary body) =
-  ( text "()", ppTerm 0 body)
+qqLambda :: Lambda -> PP (PP.Doc, PP.Doc)
+qqLambda (Unary (Loc _ arg) lbody) = do
+  bodyDoc <- ppLTerm 0 lbody
+  pure (text arg, bodyDoc)
+qqLambda (Nullary lbody) = do
+  bodyDoc <- ppLTerm 0 lbody
+  pure (text "()", bodyDoc)
 
-ppDecl :: Decl -> PP.Doc
-ppDecl (ValDecl arg t) =
-  text "val" <+> text arg <+> text "="
-    <+> ppTerm 0 t
+ppDecl :: Decl -> PP PP.Doc
+ppDecl (ValDecl arg lt) = do
+  d <- ppLTerm 0 lt
+  pure $ text "val" <+> text arg <+> text "=" <+> d
 ppDecl (FunDecs fs) = ppFuns fs
   where
-    ppFunDecl prefix (FunDecl fname lam) =
+    ppFunDecl prefix (FunDecl fname lam _) =
       ppFunOptions (prefix ++ " " ++ fname) lam
 
-    ppFunOptions prefix lam =
-        let (ppArgs, ppBody) = qqLambda lam in
-        text prefix <+> ppArgs <+> text "=" <+> nest 2 ppBody
+    ppFunOptions prefix lam = do
+        (ppArgs, ppBody) <- qqLambda lam
+        pure $ text prefix <+> ppArgs <+> text "=" <+> nest 2 ppBody
 
 
-    ppFuns (doc:docs) =
+    ppFuns (doc:docs) = do
       let ppFirstFun = ppFunDecl "fun"
           ppOtherFun = ppFunDecl "and"
-      in ppFirstFun doc $$ vcat (map ppOtherFun docs)
+      firstDoc <- ppFirstFun doc
+      otherDocs <- mapM ppOtherFun docs
+      pure $ firstDoc $$ vcat otherDocs
 
 
-    ppFuns _ = PP.empty
+    ppFuns _ = pure PP.empty
 
 
 ppLit :: Lit -> PP.Doc
-ppLit (LNumeric (NumInt i) _)  = PP.integer i
-ppLit (LNumeric (NumFloat f) _) = PP.double f
+ppLit (LNumeric (NumInt i))  = PP.integer i
+ppLit (LNumeric (NumFloat f)) = PP.double f
 ppLit (LString s)   = PP.doubleQuotes (text s)
 ppLit (LLabel s)    = PP.braces (text s)
 ppLit LUnit         = text "()"
@@ -659,11 +727,11 @@ ppLit (LDCLabel dc) = ppDCLabelExpLit dc
 
 
 termPrec :: Term -> Precedence
-termPrec (Lit _)         = maxPrec
-termPrec (Tuple _)       = maxPrec
-termPrec (List _ )       = maxPrec
-termPrec (Var _)         = maxPrec
-termPrec (App _ _)       = appPrec
-termPrec (Bin op _ _)    = opPrec op
-termPrec (ListCons _ _)  = 200
-termPrec _               = 0
+termPrec (Lit _)           = maxPrec
+termPrec (Tuple _)         = maxPrec
+termPrec (List _)          = maxPrec
+termPrec (Var _)           = maxPrec
+termPrec (App _ _)         = appPrec
+termPrec (Bin op _ _)      = opPrec op
+termPrec (ListCons _ _)    = 200
+termPrec _                 = 0

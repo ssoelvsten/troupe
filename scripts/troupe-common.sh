@@ -39,21 +39,21 @@ troupe_parse_args() {
         else
             case "$arg" in
                 # Runtime boolean options (no value expected)
-                --debug|-d|--debugsandbox|--debugmailbox|--debugp2p)
+                --debug|-d|--debugsandbox|--debugmailbox|--debugp2p|--debugquarantine)
                     TROUPE_RUNTIME_ARGS="$TROUPE_RUNTIME_ARGS $arg"
                     ;;
-                --pini|--showStack|-ss|--rspawn|--localonly|-l|--persist|-P)
+                --pini|--nmifc|--showStack|-ss|--rspawn|--localonly|-l|--persist|-P)
                     TROUPE_RUNTIME_ARGS="$TROUPE_RUNTIME_ARGS $arg"
                     ;;
-                --no-color|--v1-labels|--no-v1-labels)
+                --no-color|--no-nmifc|--v1-labels|--no-v1-labels|--suppress-local-info-message|--suppress-main-thread-finished-message|--explain|-e|--relay-only|--disable-relay|--no-p2p-circuit)
                     TROUPE_RUNTIME_ARGS="$TROUPE_RUNTIME_ARGS $arg"
                     ;;
                 # Runtime options with embedded value (--option=value)
-                --trustmap=*|--id=*|--aliases=*|--stdiolev=*|--port=*|--relay=*|--v1-labels=*)
+                --trustmap=*|--id=*|--aliases=*|--stdiolev=*|--port=*|--relay=*|--v1-labels=*|--relay-fault-tolerance=*)
                     TROUPE_RUNTIME_ARGS="$TROUPE_RUNTIME_ARGS $arg"
                     ;;
                 # Runtime options expecting a separate value
-                --trustmap|-tm|--id|-i|--aliases|-a|--stdiolev|--port|--relay)
+                --trustmap|-tm|--id|-i|--aliases|-a|--stdiolev|--port|--relay|--relay-fault-tolerance)
                     TROUPE_RUNTIME_ARGS="$TROUPE_RUNTIME_ARGS $arg"
                     _expect_runtime_value=true
                     ;;

@@ -1,0 +1,31 @@
+{
+  "test_name": "quarantine-echo",
+  "timeout": 60,
+  "coordination": "parallel",
+  "network": {
+    "relay_port": 5555,
+    "use_relay": "both"
+  },
+  "nodes": [
+    {
+      "id": "server",
+      "script": "qecho-server.trp",
+      "port": 6789,
+      "expected_exit_code": 0
+    },
+    {
+      "id": "client",
+      "script": "qecho-client.trp",
+      "port": 6790,
+      "start_delay": 1,
+      "expected_exit_code": 0
+    }
+  ],
+  "trust": [
+    {"from": "client", "to": "server", "level": {"confidentiality": [["alice"]], "integrity": [["alice"]]}}
+  ],
+  "output": {
+    "merge_strategy": "timestamp",
+    "filter_patterns": ["uuid", "timestamp", "peer_id"]
+  }
+}

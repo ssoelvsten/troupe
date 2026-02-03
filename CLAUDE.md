@@ -36,11 +36,39 @@ In addition to the core language runtime  and the compiler, the codebase include
 make all
 
 # Build individual components
-make stack      # Build the compiler
+make compiler   # Build the compiler
 make rt         # Build the runtime
 make libs       # Compile standard libraries
 make service    # Compile service module
 ```
+
+### When to Rebuild
+
+Before running Troupe programs or tests, check for stale builds:
+
+**Compiler needs rebuilding if:**
+- Any `.hs` file in `compiler/src/` was modified
+- `bin/troupec` doesn't exist or isn't executable
+- Error: "troupec: command not found" or parse errors in valid code
+
+**Runtime needs rebuilding if:**
+- Any `.mts` file in `rt/src/` was modified
+- `rt/built/troupe.mjs` doesn't exist
+- Error: "Cannot find module" for runtime files
+
+**Libraries need rebuilding if:**
+- Compiler was rebuilt
+- Any `.trp` file in `lib/` was modified
+- Error: "Cannot find module" for library files
+
+| Changed                   | Command          |
+|---------------------------|------------------|
+| Haskell (`compiler/`)     | `make compiler`  |
+| TypeScript (`rt/src/`)    | `make rt`        |
+| Troupe libraries (`lib/`) | `make lib`       |
+| Everything                | `make all`       |
+
+**After git operations:** Always run `make all` after `git pull`, `git checkout`, or `git merge`.
 
 ### Running Tests
 
@@ -53,6 +81,10 @@ bin/golden
 
 # Run a test with specific pattern. Beware that slashes are not allowed in the patterns.
 bin/golden -p <the-pattern>
+
+# Quick mode: skip unoptimized pass for faster iteration
+bin/golden --quick
+bin/golden -p <the-pattern> --quick
 ```
 
 ### Running Troupe Programs
@@ -253,7 +285,7 @@ Update `/rt/src/UserRuntime.mts`:
 
 #### 4. Build and Test
 ```bash
-make stack      # Rebuild compiler
+make compiler   # Rebuild compiler
 make rt         # Rebuild runtime
 make test       # Run tests
 ```
@@ -318,4 +350,81 @@ When creating markdown tables, align columns for readability in raw view:
 - P2P initialization can be slow; use `--localonly` for local testing.
 - Test files may require specific `.input` files for stdin
 - Golden tests are sensitive to output formatting
+- Always use `/usr/bin/make` instead of `make` to avoid zsh function conflicts
 
+
+## What to do when a golden test fails
+
+In most cases the right thing to do is to locally run the file, i.e.,
+if the test `t.trp` fails, run `./local.sh t.trp` to see what the output is.
+
+Be careful making untested claims about information flow relationships between levels; 
+do use `debugpc()` functionality to see the present values of the pc and blocking labels
+for correct information.
+
+
+## Working on changes that affect the whole compiler pipeline
+
+When working on changes that affect the whole compiler, consider approaches that 
+would maintain a working compiler at each changed phase, so that changes can be
+modularly tested. 
+
+
+## Estimates 
+
+All estimates should be given in the degree of autonomy (as opposed to weeks that make little sense 
+for the agent-assisted development)
+
+
+## Choosing between the cleanest and the partial easy solutions.
+
+When choosing between the obviosuly clean but laborious approach and 
+a quick easy but partial solution, in this code base we almost always want to do the clean thing that is _right_! 
+
+
+## Note on backticks in the labels.
+
+Beware of the backticks in the syntax of the info flow labels that can have unfortunate 
+interactions with the shell. Example programs that use bacticks should probably not be
+created via echo, but saved in files.
+
+## Executing tests
+
+Running tests takes time; to save on running them, run them and save the results in a temp file and read that file for failures and status (instead of re-running them from scratch)
+
+
+## New primitives should have tests
+
+When adding new primitives into the language, make sure to create one or more tests that would demonstrate the syntax, the expected behavior, expected error messages, etc. Keep these demo tests brief and down to the chase; propose to add them to the appropriate place in the test corpus.
+
+
+## Auto-structuring Large Plans
+
+Before finalizing any implementation plan, assess its complexity and structure accordingly:
+
+| Complexity | Criteria                            | Structure                                      |
+|------------|-------------------------------------|------------------------------------------------|
+| Small      | <3 tasks, single focus              | Inline in conversation                         |
+| Medium     | 3-4 tasks, 2-3 areas                | Single plan file with sections                 |
+| Large      | 4+ tasks, multiple areas/phases     | Multi-file structure in `_claude_planning/`    |
+
+**For large plans**, automatically create the following structure without being asked:
+
+```
+_claude_planning/<feature-name>/
+  index.md          # Overview, progress tracking, step links
+  step-1-<name>.md       # Self-contained step file
+  step-2-<name>.md
+  ...
+```
+
+**Requirements for multi-file plans:**
+1. **index.md**: Progress table with status indicators, links to all steps, decision log
+2. **Step files**: Each must be self-contained with enough context to execute in a fresh session
+3. **Progress tracking**: Use checkboxes and status indicators (Pending/In Progress/Complete/Blocked)
+
+**Templates are available at:** `_claude_planning/_template/`
+- `index.md` - Index file template
+- `step-N-template.md` - Step file template
+
+When creating a new large plan, copy and adapt these templates.

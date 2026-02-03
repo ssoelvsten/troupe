@@ -1,3 +1,8 @@
-2025-06-23T20:37:17.913Z [RTM] [32minfo[39m: Skipping network creation. Observe that all external IO operations will yield a runtime error.
-Runtime error in thread 093a00bc-41ba-4939-8a92-17bc48aec482@{}%{}
+2026-01-06T14:33:29.289Z [RTM] [32minfo[39m: Skipping network creation. Observe that all external IO operations will yield a runtime error.
+Runtime error in thread 5a2f3966-f95f-432f-bd3b-2416df1a9354@{}%{}
+
+  1 | 5 mod 0
+    |       ^
+
 >> Division by zero error
+>> at tests/rt/neg/core/modulo_by_zero_01.trp:1:7

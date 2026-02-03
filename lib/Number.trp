@@ -75,6 +75,17 @@ let (*--- Constants ---*)
 
     (*--- Integer ---*)
 
+    (** Integer division: returns floor(a/b). More efficient than `floor (a / b)`. *)
+    fun intDiv a b = floor (a / b)
+
+    (** Euclidean (positive) modulo: always returns a non-negative result.
+     *  Unlike `mod`, which may return negative values for negative dividends,
+     *  `posMod a b` always returns a value in [0, b). *)
+    fun posMod a b =
+        let val r = a mod b
+        in if r < 0 then r + b else r
+        end
+
     (** Returns `x` with the fractional parts removed. *)
     fun isInt x = floor x = x
 
@@ -130,6 +141,8 @@ in [ ("maxInt", maxInt)
    , ("floor", floor)
    , ("round", round)
    , ("sqrt", sqrt)
+   , ("intDiv", intDiv)
+   , ("posMod", posMod)
    , ("isInt", isInt)
    , ("toInt", toInt)
    , ("toInt32", toInt32)

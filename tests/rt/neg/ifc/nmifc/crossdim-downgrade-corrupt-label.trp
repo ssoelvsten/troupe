@@ -1,0 +1,29 @@
+(* NMIFC Category D Test: Cross-Dimensional Downgrade with Corrupt Label - FAILS
+
+   This test demonstrates that `downgrade` fails with corrupt labels under NMIFC.
+
+   The `downgrade` primitive changes BOTH confidentiality and integrity.
+   Under NMIFC, both robustness AND transparency checks must pass.
+
+   The label {alice,bob} (V1 syntax) expands to <alice & bob; alice | bob>.
+   This is CORRUPT because (alice | bob) does NOT imply (alice & bob).
+
+   Test case: Downgrade from <alice & bob; alice | bob> to <TRUE; FALSE>
+
+   Under NMIFC:
+   - Robustness check: I_from ==> S_from = (alice | bob) ==> (alice & bob) = FALSE
+
+   The robustness check fails, so the downgrade is rejected.
+
+   Expected: Thread error - robustness violation
+
+   See: nmifc-summary.md for details on the robustness condition
+*)
+
+let val x = 42 raisedTo `{alice,bob}`
+    (* {alice,bob} = <alice & bob; alice | bob> -- a corrupt label *)
+
+    (* Attempt cross-dimensional downgrade - should fail robustness check *)
+    val y = downgrade (x, authority, `<#null-confidentiality; #root-integrity>`)
+in print y
+end

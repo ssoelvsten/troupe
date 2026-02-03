@@ -11,6 +11,11 @@ let logLevel = argv[TroupeCliArg.DebugMailbox] ? 'debug': 'info'
 import { mkLogger } from './logger.mjs'
 const logger = mkLogger('MBX', logLevel);
 const debug = x => logger.debug(x);
+
+// Quarantine-specific logger
+const qrnLogLevel = argv[TroupeCliArg.DebugQuarantine] ? 'debug' : 'info';
+const qrnLogger = mkLogger('QRN', qrnLogLevel);
+const qdebug = (x: string) => qrnLogger.debug(x);
 import  { HandlerState as SandboxStatus }  from  './SandboxStatus.mjs' ;
 import {lub,flowsTo} from './Level.mjs'
 import * as levels from './Level.mjs'
@@ -19,15 +24,22 @@ import { LVal, MbVal } from "./Lval.mjs";
 import { MailboxInterface } from "./MailboxInterface.mjs";
 import { Level } from "./Level.mjs";
 import { Thread } from "./Thread.mjs";
+import { Record } from "./Record.mjs";
+import { wrapQuarantineAuth } from "./QuarantineUtils.mjs";
 
 
-function createMessage(msg, fromNodeId, pc) {
-    let tuple:any = mkTuple ([msg, fromNodeId]);  
-    // tuple.isTuple = true; // hack! 2018-10-19: AA
-    // tuple._troupeType = TroupeType.TUPLE
-    // tuple.dataLevel = lub (msg.dataLevel, pc)
+function createMessage(msg, fromNodeId, pc, quarantineAuthLVal: LVal | null = null) {
+    // Create metadata record with senderNode field
+    // This enables the handler syntax: hn pattern | {senderNode=node} => ...
+    let metadataFields: [string, any][] = [["senderNode", fromNodeId]];
+    if (quarantineAuthLVal !== null) {
+        // Add quarantine authority to metadata (already an LVal containing Authority)
+        metadataFields.push(["quarantineAuth", quarantineAuthLVal]);
+    }
+    let metadata = Record.mkRecord(metadataFields);
+    let tuple: any = mkTuple([msg, new LVal(metadata, fromNodeId.lev)]);
     return new MbVal(tuple, pc);
-  }
+}
 
 
 export class MailboxProcessor implements MailboxInterface {
@@ -47,26 +59,39 @@ export class MailboxProcessor implements MailboxInterface {
 
 
 
-    addMessage(fromNodeId, toPid, message, pc) {        
+    addMessage(fromNode: string, toPid, message, pc, quarantineAuth: Level | null = null) {
 
         debug (`addMessage ${message.stringRep()} ${pc.stringRep()}`)
         let __sched = this.sched;
-    
+
         // check whether the recipient is alive
         if (!__sched.isAlive(toPid)) {
-            return;            
+            return;
         }
 
         // get the recipient thread
         let t = __sched.getThread (toPid);
 
-        // create the message 
-        let messageWithSenderId = createMessage(message, fromNodeId, pc);
+        // Construct fromNodeId using the receiving thread's creation-time PC
+        // This ensures the label reflects when the thread was created, not when
+        // the message was received
+        let metadataLev = lub(pc, t.pcAtCreation());
+        let fromNodeId = new LVal(fromNode, metadataLev);
+
+        // Create quarantine authority LVal if present
+        let quarantineAuthLVal = wrapQuarantineAuth(quarantineAuth, metadataLev);
+
+        if (quarantineAuthLVal !== null) {
+            qdebug(`MAILBOX: delivering quarantined message to pid=${toPid.val.pid} auth=${quarantineAuth!.stringRep()}`);
+        }
+
+        // create the message with optional quarantine authority
+        let messageWithSenderId = createMessage(message, fromNodeId, pc, quarantineAuthLVal);
 
         // add the message to the thread's mailbox
         t.addMessage (messageWithSenderId);
 
-        // unblock the thread if necessary        
+        // unblock the thread if necessary
         __sched.unblockThread(toPid);
     }
 

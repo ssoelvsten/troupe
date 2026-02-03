@@ -1,5 +1,6 @@
 import { UserRuntimeZero, Constructor, mkBase } from './UserRuntimeZero.mjs'
-import { assertNormalState, assertIsNTuple, assertIsProcessId } from '../Asserts.mjs'
+import { assertNormalState, assertIsTupleWithArity, assertIsProcessId, assertIsAuthority } from '../Asserts.mjs'
+import { Authority } from '../Authority.mjs';
 
 
 export function BuiltinSend<TBase extends Constructor<UserRuntimeZero>>(Base: TBase) {
@@ -9,20 +10,27 @@ export function BuiltinSend<TBase extends Constructor<UserRuntimeZero>>(Base: TB
             $r.$t.raiseCurrentThreadPCToBlockingLev();
             assertNormalState("send")
             $r.$t.raiseCurrentThreadPC(larg.lev);
-            assertIsNTuple(larg, 2);
-            assertIsProcessId(larg.val[0]);
-            let arg = larg.val;
-            // we need to check whether the recipient process is local
-            // if yes, then we just proceed by adding the message to the
-            // local mailbox; otherwise we need to proceed to serialization
-            // external call.
 
+            // Accept 2 or 3-tuple: (pid, msg) or (pid, msg, qauth)
+            assertIsTupleWithArity(larg, [2, 3]);
+            assertIsProcessId(larg.val[0]);
+
+            let arg = larg.val;
             let lRecipientPid = arg[0];
-            // debug ("* rt rt_send *", lRecipientPid);
-            $r.$t.raiseCurrentThreadPC(lRecipientPid.lev); // this feels a bit odd.
+            $r.$t.raiseCurrentThreadPC(lRecipientPid.lev);
             let message = arg[1];
 
-            return $r.sendMessageNoChecks(lRecipientPid, message)
+            if (arg.length === 2) {
+                // Standard 2-tuple send - no qauth
+                return $r.sendMessageNoChecks(lRecipientPid, message);
+            } else {
+                // 3-tuple send with quarantine authority
+                let authArg = arg[2];
+                // assertIsAuthority raises blocking level via raiseBlockingThreadLev
+                assertIsAuthority(authArg);
+                let qauth: Authority = authArg.val;
+                return $r.sendMessageNoChecks(lRecipientPid, message, qauth);
+            }
 
         }, "send");
     }

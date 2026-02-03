@@ -1,4 +1,42 @@
 # DONE
+## 2026-01-13
+
+
+- [x] NMIFC
+
+    Add internal methods
+    - [x] okToDeclassifyNMIFC and okToEndorseNMIFC
+
+    Make downgrades NMIFC-enforcing in the following order 
+
+    - [x] Value downgrades
+    - [x] Blocking label 
+    - [x] Mailboxes 
+
+    [x] Can we have NMIFC enforced by default? (If no, what does it mean for the meta-theory?)
+    - (yes it is now ON by default)
+
+
+## 2025-12-27
+
+- [x] Add `--no-v1-labels` / `--v1-labels` runtime options for label output format
+      (V1 uses `{}` syntax, non-V1 uses `<>` DC label syntax)
+
+- [x] Add `getCliArgs` builtin for accessing command-line arguments
+      (requires root authority, arguments passed after `--` separator)
+
+- [x] Add floating point literal support in compiler frontend
+
+- [x] Replace `DCLabOrConst` type alias with `LabelComponent` data type
+      (clearer than `Either LabelExp LabelConst`)
+
+- [x] Upgrade libp2p ecosystem to v3
+
+- [x] Refactor shell scripts: split `troupe-env.sh` (environment setup)
+      from `troupe-common.sh` (environment + argument parsing)
+
+- [x] Fix `troupe_parse_args()` to recognize all runtime options
+      (was causing CI/CD failures for multinode tests)
 
 ## 2025-06-30
 

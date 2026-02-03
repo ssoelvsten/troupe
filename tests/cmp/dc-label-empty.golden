@@ -1,2 +1,15 @@
-Parse Error:
-1:27 unexpected token TokenDCLabelRight
+tests/cmp/dc-label-empty.trp:1:27: parse error
+  (while parsing DC label)
+  1 | let val x = 42 raisedTo `<>`
+    |                           ^
+  unexpected '>`' (DC label end)
+  expected ';'
+
+Suggestion: Empty DC label is not allowed.
+  DC labels must have both confidentiality and integrity components.
+  Syntax: `< confidentiality ; integrity >`
+  Examples:
+    `< alice ; bob >`                               -- principal-based
+    `< #null-confidentiality ; #null-integrity >`   -- public data
+    `< #root-confidentiality ; #root-integrity >`   -- secret data
+

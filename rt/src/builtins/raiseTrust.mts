@@ -5,6 +5,7 @@ import { __unit } from '../UnitVal.mjs';
 import * as levels from '../Level.mjs'
 import { __nodeManager } from '../NodeManager.mjs';
 import { nodeTrustLevel, _trustMap } from '../TrustManager.mjs';
+import { ErrorKind } from '../TroupeError.mjs';
 
 const { lub, flowsTo } = levels
 
@@ -29,7 +30,7 @@ export function BuiltinRaiseTrust<TBase extends Constructor<UserRuntimeZero>>(Ba
                 flowsTo(this.runtime.$t.bl, levels.BOT);
             if (!ok_to_raise) {
                 this.runtime.$t.threadError("Cannot raise trust level when the process is tainted\n" +
-                    ` | blocking label: ${this.runtime.$t.bl.stringRep()}`)
+                    ` | blocking label: ${this.runtime.$t.bl.stringRep()}`, false, null, ErrorKind.IFCCheck)
             }
 
 

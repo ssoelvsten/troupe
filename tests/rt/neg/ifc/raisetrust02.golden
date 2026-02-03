@@ -1,4 +1,9 @@
-2023-03-17T21:23:23.048Z [RTM] [32minfo[39m: Skipping network creation. Observe that all external IO operations will yield a runtime error.
-Runtime error in thread b1632feb-feea-4727-9aa0-6905cc8c8bcf@{}%{}
+2026-01-06T14:33:32.478Z [RTM] [32minfo[39m: Skipping network creation. Observe that all external IO operations will yield a runtime error.
+Runtime error in thread e039a143-a56f-461e-b8b0-e3e123b8ba3f@{}%{}
+
+  1 | raiseTrust ("YYY", attenuate (authority, `{alice}`), `{alice}`) 
+    | ^
+
 >> Provided authority is not ROOT
  | level of the provided authority: {alice}
+>> at tests/rt/neg/ifc/raisetrust02.trp:1:1

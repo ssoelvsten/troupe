@@ -1,6 +1,6 @@
-import {levels, Level } from './levels/DCLabels/dclabel.mjs'
+import {levels, Level, QuarantineOptions } from './levels/DCLabels/dclabel.mjs'
 import { DowngradeResult, DowngradeKind, DowngradeDimension } from './DowngradeEnums.mjs'
-export { mkLevel, Level } from './levels/DCLabels/dclabel.mjs'
+export { mkLevel, Level, QuarantineOptions } from './levels/DCLabels/dclabel.mjs'
 
 
 // import {levels } from './levels/tagsets.mjs'
@@ -8,16 +8,20 @@ export { mkLevel, Level } from './levels/DCLabels/dclabel.mjs'
 
 export function lub(...x) { return levels.lub (...x) }
 export function glb(a,b)  { return levels.glb (a,b)  }
+export function coalesce(a:Level, b:Level): Level { return a.coalesce(b) }
 export function flowsTo (a:Level,b:Level) { return levels.flowsTo (a,b) }
-export function actsFor (a:Level,b:Level) { return levels.actsFor (a,b) }
+export function actsFor (a:Level, b:Level, options?: QuarantineOptions) { return levels.actsFor(a, b, options) }
 export function okToDowngrade (kind: DowngradeKind, dimension: DowngradeDimension) {
     return levels.okToDowngrade(kind, dimension);
 }
-export function okToDeclassify (from: Level, to:Level, auth: Level, bl: Level, isNMIFC: boolean): DowngradeResult {
-    return levels.okToDeclassify (from,to,auth, bl, isNMIFC);
+export function okToDeclassify (from: Level, to:Level, auth: Level, bl: Level, isNMIFC: boolean, pc?: Level): DowngradeResult {
+    return levels.okToDeclassify (from, to, auth, bl, isNMIFC, pc);
 }
-export function okToEndorse (from: Level, to:Level, auth: Level, bl: Level, isNMIFC: boolean): DowngradeResult {
-    return levels.okToEndorse (from,to,auth, bl, isNMIFC);
+export function okToEndorse (from: Level, to:Level, auth: Level, bl: Level, isNMIFC: boolean, pc?: Level): DowngradeResult {
+    return levels.okToEndorse (from, to, auth, bl, isNMIFC, pc);
+}
+export function okToCrossDimensionalDowngrade (from: Level, to:Level, auth: Level, bl: Level, isNMIFC: boolean, pc?: Level): DowngradeResult {
+    return levels.okToCrossDimensionalDowngrade (from, to, auth, bl, isNMIFC, pc);
 }
 export function fromSingleTag(x:string) { return levels.fromV1String(x)}
 

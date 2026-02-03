@@ -1,7 +1,7 @@
 import * as levels from './Level.mjs'
 import { DowngradeDimension, DowngradeKind, DowngradeResult, DowngradeErrorReason, ValidateDowngradeParams } from './DowngradeEnums.mjs';
 import { LVal, LValCopyAt } from './Lval.mjs';
-import { HandlerError, ImplementationError, StrThreadError } from './TroupeError.mjs';
+import { HandlerError, ImplementationError, StrThreadError, ErrorKind } from './TroupeError.mjs';
 import { getCliArgs, TroupeCliArg } from './TroupeCliArgs.mjs';
 import {
     getDowngradeErrorMessage,
@@ -16,6 +16,7 @@ const debug = x => logger.debug(x)
 let lub = levels.lub;
 let flowsTo = levels.flowsTo
 import { v4 as uuidv4} from 'uuid'
+import Table from 'cli-table3'
 
 import { TroupeType } from './TroupeTypes.mjs'
 import { RuntimeInterface } from './RuntimeInterface.mjs';
@@ -27,9 +28,10 @@ import { HnState } from './SandboxStatus.mjs';
 
 
 let isPiniMode = argv[TroupeCliArg.Pini]?true:false;
+let isNmifcMode = argv[TroupeCliArg.Nmifc]?true:false;
 
 
-export enum PCDeclassificationPurpose {
+export enum PCDowngradePurpose {
     Full="pcpush", 
     Pini="pinipush"
 }
@@ -180,9 +182,14 @@ export class SleepTimeout {
 }
 
 export class Thread {
-    tid: any;    
+    tid: any;
     pc: Level;
     bl: Level;
+
+    // NMIFC mode flag - read from CLI args
+    get isNmifcMode(): boolean {
+        return isNmifcMode;
+    }
 
 
     // registers 
@@ -218,8 +225,20 @@ export class Thread {
     callStack : any []
     _sp : number;
     sparseSlot : number; // slot on the stack holding the sparse bit (whether data is bounded by PC)
-    
+
     processDebuggingName: string;
+
+    // Source position of the last tail call, used for error reporting when
+    // errors occur inside runtime built-ins (where user code isn't on the JS stack)
+    lastCallSourcePos: string | null = null;
+
+    /**
+     * Current source map for the executing code.
+     * Set by function/continuation preambles in generated code.
+     * Used by error handlers to translate JS positions to Troupe positions.
+     * This is a V3 source map object (version, sources, mappings, etc.)
+     */
+    currentSourceMap: any | null = null;
 
     failureRate: number  = 0
     failureStartTime : number = 0
@@ -250,12 +269,23 @@ export class Thread {
 
 
 
-        ---> stack growth direction --->
+        Stack growth direction: downward (increasing indices)
 
-        |---------+-------------------+--------------+-----------------------------+---------------+-------------------------+--------------------|
-        | sp_prev | pc at return site | ret callback | mclear at the time of entry | branching bit | [escaping locals]       | sparse slot        |
-        |---------+-------------------+--------------+-----------------------------+---------------+-------------------------+--------------------|
-        | sp - 5  | sp - 4            | sp - 3       | sp - 2                      | sp - 1        | sp ... (sp + framesize) | sp + framesize + 1 |
+        +-----------------------------+-------------------+
+        | sp - 5                      | sp_prev           |
+        +-----------------------------+-------------------+
+        | sp - 4                      | pc at return site |
+        +-----------------------------+-------------------+
+        | sp - 3                      | ret callback      |
+        +-----------------------------+-------------------+
+        | sp - 2                      | mclear at entry   |
+        +-----------------------------+-------------------+
+        | sp - 1                      | branching bit     |
+        +-----------------------------+-------------------+
+        | sp ... (sp + framesize)     | [escaping locals] |
+        +-----------------------------+-------------------+
+        | sp + framesize + 1          | sparse slot       |
+        +-----------------------------+-------------------+
 
         
         The branching bit indicates whether the execution of this frame invoked any branch 
@@ -265,11 +295,19 @@ export class Thread {
 
         -- AA; 2020-02-12 
 
-        prev_sp | pc_at_ret_point | ret_cb | mclear | branch_bit |     <... locals ... > 
-                                                                ^
-                                                                |
-                                                                |
-                                                                sp
+        +-------------------+
+        | prev_sp           |
+        +-------------------+
+        | pc_at_ret_point   |
+        +-------------------+
+        | ret_cb            |
+        +-------------------+
+        | mclear            |
+        +-------------------+
+        | branch_bit        |
+        +-------------------+
+        | <... locals ...>  |  <-- sp
+        +-------------------+
        
         */ 
        
@@ -333,34 +371,210 @@ export class Thread {
     showStack ()  {
         console.log ("======== SHOW STACK ========= ")
         console.log (`sp = ${this._sp} sparseSlot = ${this.sparseSlot}`)
-        let j = this._sp - 1 
+        let j = this._sp - 1
         let stack = this.callStack
         while ( j > 0) {
             console.log (`-${j.toString().padStart(5,'-')} branch bit: ${stack[j--]}`)
-            let mclear = stack[j]            
+            let mclear = stack[j]
             console.log (` ${j.toString().padStart(5,' ')} mclear    : ${mclear?.stringRep()}`)
-            j -- 
+            j --
             let ret = stack [j]
-            let ret_string = ret?.debugname 
+            let ret_string = ret?.debugname
             if (!ret_string) {
                 ret_string = ret?.toString ()
             }
-            
+
             console.log (` ${j.toString().padStart(5,' ')} ret       : ${ret_string}`)
             j --
             console.log (` ${j.toString().padStart(5,' ')} pc_ret    : ${stack[j]?.stringRep()}`)
             j --
-            console.log (` ${j.toString().padStart(5,' ')} sp_prev   : ${stack[j]}`)
+            console.log     (` ${j.toString().padStart(5,' ')} sp_prev   : ${stack[j]}`)
+            console.log (` ${(j-1).toString().padStart(5,' ')} sparse    : ${stack[j-1]}`)
             let sp_prev = stack[j];
             j = sp_prev - 1 ;
         }
     }
 
+    showStackV2(options: { maxDepth?: number, showLocals?: boolean } = {}): string {
+        const { maxDepth = Infinity, showLocals = false } = options;
+
+        const boxChars = {
+            'top': '═', 'top-mid': '╤', 'top-left': '╔', 'top-right': '╗',
+            'bottom': '═', 'bottom-mid': '╧', 'bottom-left': '╚', 'bottom-right': '╝',
+            'left': '║', 'left-mid': '╟', 'mid': '─', 'mid-mid': '┼',
+            'right': '║', 'right-mid': '╢', 'middle': '│'
+        };
+
+        const lines: string[] = [];
+
+        // Metadata table - current thread state
+        const metaTable = new Table({
+            chars: boxChars,
+            style: { head: [], border: [] },
+            colWidths: [20, 58]
+        });
+
+        const truncate = (s: string, len: number) => s.length > len ? s.substring(0, len - 3) + '...' : s;
+
+        const tidStr = this.tidErrorStringRep();
+        const pcStr = this.pc?.stringRep?.() ?? 'undefined';
+        const blStr = this.bl?.stringRep?.() ?? 'undefined';
+        const r0LevStr = this.r0_lev?.stringRep?.() ?? 'undefined';
+        const r0TlevStr = this.r0_tlev?.stringRep?.() ?? 'undefined';
+        const r0ValStr = truncate(String(this.r0_val), 55);
+        const sparseVal = this.sparseSlot != null ? String(this.callStack[this.sparseSlot]) : 'N/A';
+
+        metaTable.push(
+            [{ colSpan: 2, content: 'STACK TRACE', hAlign: 'center' }],
+            ['Thread ID', truncate(tidStr, 55)],
+            ['Process Name', this.processDebuggingName ?? '(not set)'],
+            ['Current PC', truncate(pcStr, 55)],
+            ['Blocking Level', truncate(blStr, 55)],
+            ['SP / Sparse Slot', `${this._sp} / ${this.sparseSlot ?? 'N/A'} (value: ${sparseVal})`],
+            ['R0 val', r0ValStr],
+            ['R0 lev', truncate(r0LevStr, 55)],
+            ['R0 tlev', truncate(r0TlevStr, 55)],
+            ['Pini UUID', this.pini_uuid ?? '(null)']
+        );
+
+        lines.push('');
+        lines.push(metaTable.toString());
+
+        // Count total frames first
+        // Frame layout: sp_prev is at position (j - 4) when j points to branch_bit (sp - 1)
+        let totalFrames = 0;
+        let countJ = this._sp - 1;
+        while (countJ > 0) {
+            totalFrames++;
+            // j points to branch_bit; sp_prev is 4 positions before (SPOFFSET - BRANCHFLAGOFFSET = 5 - 1 = 4)
+            const spPrev = this.callStack[countJ - (SPOFFSET - BRANCHFLAGOFFSET)];
+            countJ = spPrev - 1;
+        }
+
+        if (totalFrames === 0) {
+            const emptyTable = new Table({
+                chars: boxChars,
+                style: { head: [], border: [] },
+                colWidths: [78]
+            });
+            emptyTable.push([{ content: '(stack is empty)', hAlign: 'center' }]);
+            lines.push(emptyTable.toString());
+            const output = lines.join('\n');
+            console.log(output);
+            return output;
+        }
+
+        // Frames - plain text format, no borders
+        lines.push(`STACK FRAMES (${totalFrames} total)`);
+        lines.push('─'.repeat(78));
+
+        let j = this._sp - 1;
+        let stack = this.callStack;
+        let frameNum = 0;
+        let prevFrameSp = this._sp;
+
+        while (j > 0 && frameNum < maxDepth) {
+            // Branch bit (at sp - 1)
+            const branchBitIdx = j;
+            const branchBit = stack[j--];
+            const branchStr = branchBit ? 'ON (raised)' : 'OFF';
+
+            // Mclear (at sp - 2)
+            const mclearIdx = j;
+            const mclear = stack[j--];
+            const mclearStr = truncate(mclear?.stringRep?.() ?? 'null', 57);
+
+            // Return callback (at sp - 3)
+            const retIdx = j;
+            const ret = stack[j--];
+            let retString = ret?.debugname ?? ret?.name;
+            if (!retString) {
+                const retToStr = ret?.toString?.() ?? 'null';
+                retString = truncate(retToStr, 57);
+            }
+
+            // PC at return (at sp - 4)
+            const pcRetIdx = j;
+            const pcRet = stack[j--];
+            const pcRetStr = truncate(pcRet?.stringRep?.() ?? 'undefined', 57);
+
+            // Previous SP (at sp - 5)
+            const spPrevIdx = j;
+            const spPrev = stack[j];
+
+            // Sparse bit (at position before this frame's data started)
+            const sparseIdx = j - 1;
+            const sparseBit = sparseIdx >= 0 ? String(stack[sparseIdx]) : 'N/A';
+
+            // Frame header
+            if (frameNum > 0) {
+                lines.push('─'.repeat(78));
+            }
+            lines.push(`Frame #${frameNum}`);
+
+            // Frame fields - aligned with padding
+            const field = (idx: number, name: string, value: string) => {
+                const label = `  [${idx}] ${name}`.padEnd(20);
+                return `${label}${value}`;
+            };
+
+            lines.push(field(branchBitIdx, 'Branch', branchStr));
+            lines.push(field(mclearIdx, 'Mclear', mclearStr));
+            lines.push(field(retIdx, 'Return', retString));
+            lines.push(field(pcRetIdx, 'PC@ret', pcRetStr));
+            lines.push(field(spPrevIdx, 'SP prev', String(spPrev)));
+            lines.push(field(sparseIdx, 'Sparse', sparseBit));
+
+            // Show locals if requested
+            if (showLocals) {
+                const localsStart = spPrev + CALLSIZE;
+                const localsEnd = prevFrameSp - CALLSIZE;
+                if (localsEnd > localsStart) {
+                    for (let k = localsStart; k < localsEnd; k++) {
+                        const localVal = stack[k];
+                        let repr: string;
+                        if (localVal?.stringRep) {
+                            repr = localVal.stringRep();
+                        } else if (localVal?.toString) {
+                            repr = localVal.toString();
+                        } else {
+                            repr = String(localVal);
+                        }
+                        lines.push(field(k, 'Local', truncate(repr, 57)));
+                    }
+                }
+            }
+
+            prevFrameSp = spPrev;
+            j = spPrev - 1;
+            frameNum++;
+        }
+
+        if (frameNum >= maxDepth && j > 0) {
+            lines.push('─'.repeat(78));
+            lines.push(`... (${totalFrames - maxDepth} more frames not shown)`);
+        }
+
+        lines.push('─'.repeat(78));
+        lines.push('');
+
+        const output = lines.join('\n');
+        console.log(output);
+        return output;
+    }
+
     
 
 
-    addMonitor (pid, r) {        
-        this.monitors[r.val] = {pid: pid, uuid: r} 
+    addMonitor (pid, r) {
+        this.monitors[r.val] = {pid: pid, uuid: r}
+    }
+
+    pcAtCreation(): Level {
+        // The initial frame is at the bottom of the call stack
+        // with structure: [sp_prev=0, pc, ret, mclear, branch_flag]
+        // The PC is at index 1 (CALLSIZE - PCOFFSET = 5 - 4 = 1)
+        return this.callStack[CALLSIZE - PCOFFSET];
     }
 
     private _validateDowngradeOrThrow(
@@ -368,12 +582,12 @@ export class Thread {
     ): void {
         const downgradeCheckResult: DowngradeResult =
             levels.okToDowngrade(params.downgradeKind, params.downgradeDimension)
-                 (params.levFrom, params.levTo, params.authorityLevel, params.blockLevel as Level);
+                 (params.levFrom, params.levTo, params.authorityLevel, params.blockLevel as Level, this.isNmifcMode, this.pc);
 
         if (downgradeCheckResult.kind === "FAILURE") {
             try {
                 const errorMessage = getDowngradeErrorMessage(params, downgradeCheckResult.reason);
-                this.threadError(errorMessage);
+                this.threadError(errorMessage, false, null, ErrorKind.IFCCheck);
             } catch (e) {
                 if (e instanceof ImplementationError) {
                     this.threadError(e.message, true);
@@ -511,7 +725,8 @@ export class Thread {
 
         if (branchFlag) {
             if (lclear != this.mailbox.mclear) {
-                this.threadError (`Mailbox clearance label is not restorted after being raised in a branch; stack depth = ${this._sp}` )
+                // this.showStackV2 ()
+                this.threadError (`Mailbox clearance label is not restorted after being raised in a branch; stack depth = ${this._sp}`, false, null, ErrorKind.IFCCheck)
             }
         }
         this.pc  = _STACK [_SP - PCOFFSET]; 
@@ -527,8 +742,9 @@ export class Thread {
         return uuidval;  
     }  
 
+    // TODO: deprecate(!) 2025-12-29; see comment below; AA
 
-    pcpinipush ( auth: any, purpose: PCDeclassificationPurpose | string, bl = this.bl )  {
+    pcpinipush ( auth: any, purpose: PCDowngradePurpose | string, bl = this.bl )  {
         let uid = uuidv4()
         let cap = this.mkVal (new Capability(uid,
                     { bl
@@ -545,19 +761,23 @@ export class Thread {
         return this.returnImmediateLValue(cap)
     }
 
-
+    // 2025-12-29: AA: this method 
+    // is problemamtic in the context of the 
+    // Stack representation that stores earlier 
+    // PC values in "regular" raw escaping variables
+    // TODO: deprecate (!)
     pcpop (cap_lval) {
         if (this.pini_uuid == null) {
-            this.threadError ("unmatched pcpop");
+            this.threadError ("unmatched pcpop", false, null, ErrorKind.IFCCheck);
         }
-       
-        let cap: Capability<any> = cap_lval.val;        
+
+        let cap: Capability<any> = cap_lval.val;
         let {bl, pc, auth, purpose} = cap.data;
-        
+
         // check the capability
-        if (this.pini_uuid != cap.uid || purpose != PCDeclassificationPurpose.Full) {
-            this.threadError ("Ill-scoped pinipush/pinipop");
-            return null; // does not schedule anything in this thread 
+        if (this.pini_uuid != cap.uid || purpose != PCDowngradePurpose.Full) {
+            this.threadError ("Ill-scoped pinipush/pinipop", false, null, ErrorKind.IFCCheck);
+            return null; // does not schedule anything in this thread
                          // effectively terminating/blocking the thread
         }
 
@@ -578,9 +798,10 @@ export class Thread {
             levTo,
             authorityLevel: auth.val.authorityLevel,
             downgradeKind: DowngradeKind.BLOCKING,
-            downgradeDimension: DowngradeDimension.CONFIDENTIALITY,
+            downgradeDimension: DowngradeDimension.BOTH,
             blockLevel: this.bl,
-            operationDescription: "pini declassification"
+            operationDescription: "pc downgrade",
+            pcLevel: this.pc
         });
         
         this.pc = pc;           
@@ -593,6 +814,26 @@ export class Thread {
             j = loop_sp - PCOFFSET 
         }            
         this.pini_uuid = cap.prev;
+        
+        this.invalidateSparseBit ()
+         // 2025-12-29; 
+         // thet above is poor man's attempt 
+         // to mitigate for the havoc thath the 
+         // stack traversal causes
+         // but ultimately a failure. 
+         // We should either have a very 
+         // complicated "pc map" for cross-call escaping 
+         // raw values that would need to be restored 
+         // or just not do this
+         // 
+         // This compounds to the problem of 
+         // PC pop + capabilities being a very 
+         // adhoc mechanism in the first place
+         // 
+         // Let's try to write all the interesting 
+         // programs we want to write without trying to
+         // fix this and eventually deprecate this 
+         // concept.
 
         return this.returnImmediateLValue (__unit); 
     }
@@ -601,20 +842,20 @@ export class Thread {
 
     pinipop (cap_lval) {
         if (this.pini_uuid == null) {
-            this.threadError ("unmatched pinipop");
+            this.threadError ("unmatched pinipop", false, null, ErrorKind.IFCCheck);
         }
 
         debug (`Current pc level is ${this.pc.stringRep()}`)
 
-        this.raiseBlockingThreadLev(this.pc); // maintaining the invariant that the blocking level is as high as the pc level       
-        
-        let cap: Capability<any> = cap_lval.val;        
-        let {bl, pc, auth, purpose} = cap.data;
-        
+        this.raiseBlockingThreadLev(this.pc); // maintaining the invariant that the blocking level is as high as the pc level
 
-        if (this.pini_uuid != cap.uid || purpose != PCDeclassificationPurpose.Pini) {            
-            this.threadError ("Ill-scoped pinipush/pinipop");
-            return; // does not schedule anything in this thread 
+        let cap: Capability<any> = cap_lval.val;
+        let {bl, pc, auth, purpose} = cap.data;
+
+
+        if (this.pini_uuid != cap.uid || purpose != PCDowngradePurpose.Pini) {
+            this.threadError ("Ill-scoped pinipush/pinipop", false, null, ErrorKind.IFCCheck);
+            return; // does not schedule anything in this thread
                     // effectively terminating the thread
         }
 
@@ -632,8 +873,9 @@ export class Thread {
             levTo,
             authorityLevel: auth.val.authorityLevel,
             downgradeKind: DowngradeKind.BLOCKING,
-            downgradeDimension: DowngradeDimension.CONFIDENTIALITY,
-            operationDescription: "pini declassification"
+            downgradeDimension: DowngradeDimension.BOTH,
+            operationDescription: "pini downgrading",
+            pcLevel: this.pc
         });
         
         // Logic from former onSuccess callback
@@ -648,19 +890,19 @@ export class Thread {
         // These are copy paste from declassify
         // we should recheck
         if (! flowsTo (this.pc, bl_to)) {
-            this.threadError ("The provided target blocking level is lower than the current pc\n" + 
+            this.threadError ("The provided target blocking level is lower than the current pc\n" +
                               ` | the current pc: ${this.pc.stringRep()}\n` +
-                              ` | target blocking level: ${bl_to.stringRep()}`)
+                              ` | target blocking level: ${bl_to.stringRep()}`, false, null, ErrorKind.IFCCheck)
         }
-        
+
 
         let ok_to_use = levels.flowsTo (auth.lev, bl_to);
         if (!ok_to_use) {
-            this.threadError ("The provided authority value is tainted\n" + 
+            this.threadError ("The provided authority value is tainted\n" +
                               ` | the level of the authority value: ${auth.lev.stringRep()}\n` +
-                              ` | target blocking level: ${bl_to.stringRep()}`)
+                              ` | target blocking level: ${bl_to.stringRep()}`, false, null, ErrorKind.IFCCheck)
         }
-        
+
         const current_bl = this.bl; // Capture this.bl as it's effectively levFrom
 
         this._validateDowngradeOrThrow({
@@ -670,30 +912,31 @@ export class Thread {
             downgradeKind: DowngradeKind.BLOCKING,
             downgradeDimension: DowngradeDimension.INTEGRITY,
             blockLevel: current_bl,
-            operationDescription: "blocking level integrity"
+            operationDescription: "blocking level integrity",
+            pcLevel: this.pc
         });
 
         this.bl = bl_to; // the actual downgrade
-        return this.returnImmediateLValue (__unit); 
+        return this.returnImmediateLValue (__unit);
 
     }
 
 
-    blockDeclassifyTo (auth, bl_to = this.pc) {        
+    blockDeclassifyTo (auth, bl_to = this.pc) {
         if (! flowsTo (this.pc, bl_to)) {
-            this.threadError ("The provided target blocking level is lower than the current pc\n" + 
+            this.threadError ("The provided target blocking level is lower than the current pc\n" +
                               ` | the current pc: ${this.pc.stringRep()}\n` +
-                              ` | target blocking level: ${bl_to.stringRep()}`)
+                              ` | target blocking level: ${bl_to.stringRep()}`, false, null, ErrorKind.IFCCheck)
         }
-        
+
 
         let ok_to_use = levels.flowsTo (auth.lev, bl_to);
         if (!ok_to_use) {
-            this.threadError ("The provided authority value is tainted\n" + 
+            this.threadError ("The provided authority value is tainted\n" +
                               ` | the level of the authority value: ${auth.lev.stringRep()}\n` +
-                              ` | target blocking level: ${bl_to.stringRep()}`)
+                              ` | target blocking level: ${bl_to.stringRep()}`, false, null, ErrorKind.IFCCheck)
         }
-        
+
         const current_bl = this.bl; // Capture this.bl as it's effectively levFrom
 
         this._validateDowngradeOrThrow({
@@ -703,11 +946,46 @@ export class Thread {
             downgradeKind: DowngradeKind.BLOCKING,
             downgradeDimension: DowngradeDimension.CONFIDENTIALITY,
             blockLevel: current_bl,
-            operationDescription: "blocking level declassification"
+            operationDescription: "blocking level declassification",
+            pcLevel: this.pc
         });
 
         this.bl = bl_to; // the actual downgrade
-        return this.returnImmediateLValue (__unit); 
+        return this.returnImmediateLValue (__unit);
+    }
+
+    // Cross-dimensional blocking level downgrade: changes both confidentiality and integrity
+    blockDowngradeTo (auth, bl_to = this.pc) {
+        if (! flowsTo (this.pc, bl_to)) {
+            this.threadError ("The provided target blocking level is lower than the current pc\n" +
+                              ` | the current pc: ${this.pc.stringRep()}\n` +
+                              ` | target blocking level: ${bl_to.stringRep()}`, false, null, ErrorKind.IFCCheck)
+        }
+
+
+        let ok_to_use = levels.flowsTo (auth.lev, bl_to);
+        if (!ok_to_use) {
+            this.threadError ("The provided authority value is tainted\n" +
+                              ` | the level of the authority value: ${auth.lev.stringRep()}\n` +
+                              ` | target blocking level: ${bl_to.stringRep()}`, false, null, ErrorKind.IFCCheck)
+        }
+
+        const current_bl = this.bl; // Capture this.bl as it's effectively levFrom
+
+        this._validateDowngradeOrThrow({
+            levFrom: current_bl,
+            levTo: bl_to,
+            authorityLevel: auth.val.authorityLevel,
+            downgradeKind: DowngradeKind.BLOCKING,
+            downgradeDimension: DowngradeDimension.BOTH,
+            blockLevel: current_bl,
+            operationDescription: "blocking level downgrade",
+            pcLevel: this.pc
+        });
+
+        this.bl = bl_to; // the actual downgrade
+        this.invalidateSparseBit ()
+        return this.returnImmediateLValue (__unit);
     }
 
     raiseBlockingThreadLev (l) {                
@@ -769,20 +1047,27 @@ export class Thread {
     }
 
 
-    threadError (s:string, internal = false) {
-        if ( this.handlerState.isNormal()) {  
+    threadError (s:string, internal = false, explainer = null, errorKind: ErrorKind = ErrorKind.DynTypeError) {
+        if ( this.handlerState.isNormal()) {
           if (internal)  {
             throw new ImplementationError(s)
           }
           else {
-            throw new StrThreadError(this, s);
+            throw new StrThreadError(this, s, explainer, errorKind);
           }
         } else {
           this.raiseCurrentThreadPC(this.handlerState.lev);
-          throw new HandlerError (this, s) //  "HandlerError" 
+          throw new HandlerError (this, s, errorKind)
         }
     }
-    
+   
+    threadErrorWithExplainer (s : string, explainer: () => string) {
+        if (getCliArgs()[TroupeCliArg.Explain] && explainer) {
+            this.threadError (s, false, explainer ());         
+        } else {
+            this.threadError (s);
+        }
+    }
     
     addMessage (message) {
         this.mailbox.newMessage (message);    
@@ -809,16 +1094,16 @@ export class Thread {
 
     lowerMboxClearance (cap_lval:any, auth:any) {
         if (this.mailbox.caps == null ) {
-            this.threadError ("unmatched lowering of mailbox clearance")
+            this.threadError ("unmatched lowering of mailbox clearance", false, null, ErrorKind.IFCCheck)
             return null; // threadError throws
         }
-        
-        let cap:Capability<MboxClearance> = cap_lval.val 
 
-        if (this.mailbox.caps != cap.uid ) {            
-            this.threadError ("Ill-scoped raise/lower of mailbox clearance:\n" + 
-                              `expected cap: ${this.mailbox.caps}\n` + 
-                              `provided cap: ${cap.uid}`)
+        let cap:Capability<MboxClearance> = cap_lval.val
+
+        if (this.mailbox.caps != cap.uid ) {
+            this.threadError ("Ill-scoped raise/lower of mailbox clearance:\n" +
+                              `expected cap: ${this.mailbox.caps}\n` +
+                              `provided cap: ${cap.uid}`, false, null, ErrorKind.IFCCheck)
             return null; // threadError throws
         }
 
@@ -830,9 +1115,9 @@ export class Thread {
 
         if (!levels.flowsTo (this.pc , this.mailbox.mclear.pc_at_creation)) {
             this.threadError ("Cannot lower mailbox when the pc more sensitive than the mailbox clearance level\n" +
-                              `| current thread's pc level: ${this.pc.stringRep()}\n` +                              
-                              `| mailbox clearance level: ${this.mailbox.mclear.pc_at_creation.stringRep()}`)
-            
+                              `| current thread's pc level: ${this.pc.stringRep()}\n` +
+                              `| mailbox clearance level: ${this.mailbox.mclear.pc_at_creation.stringRep()}`, false, null, ErrorKind.IFCCheck)
+
         }
 
         const currentMboxBoostLevel = this.mailbox.mclear.boost_level;
@@ -843,8 +1128,9 @@ export class Thread {
             levTo: targetMboxBoostLevel,
             authorityLevel: auth.val.authorityLevel,
             downgradeKind: DowngradeKind.MAILBOX,
-            downgradeDimension: DowngradeDimension.CONFIDENTIALITY,
-            blockLevel: this.bl
+            downgradeDimension: DowngradeDimension.BOTH,  // Cross-dimensional: changes both confidentiality and integrity
+            blockLevel: this.bl,
+            pcLevel: this.pc
         });       
         
         this.mailbox.mclear = cap.data; // restoring the clearance level

@@ -12,19 +12,19 @@ module RawDefUse (offsetMap
                  , iDefUse
                  ) where
 
-import Raw  
+import Raw
 import IR (SerializationUnit(..), HFN(..)
           , ppId, ppFunCall, ppArgs, Fields (..), Ident
           , serializeFunDef
           , serializeAtoms )
-import qualified IR           
-import qualified Stack 
+import qualified IR
+import qualified Stack
 import qualified Data.Maybe as Maybe
 import Data.Map.Lazy (Map, (!))
-import qualified Data.Map.Lazy as Map 
+import qualified Data.Map.Lazy as Map
 
 import Data.Set(Set)
-import qualified Data.Set as Set 
+import qualified Data.Set as Set
 
 import qualified Basics
 import qualified Core as C
@@ -39,7 +39,7 @@ import qualified Data.Text as T
 import Data.Text.Encoding
 import Data.ByteString.Lazy (ByteString)
 import Data.ByteString.Base64 (encode,decode)
-import TroupePositionInfo
+import TroupePositionInfo (Located(..), getLoc, unLoc, PosInf(..))
 import qualified Data.Aeson as Aeson
 import GHC.Generics (Generic)
 import           RetCPS (VarName (..))
@@ -183,6 +183,10 @@ instance Usable VarAccess b where
   use (VarLocal x) = use x
   use _ = use Env
 
+-- | Instance for Located VarAccess (LVarAccess) - extracts VarAccess and uses it
+instance Usable IR.LVarAccess b where
+  use (Loc _ va) = use va
+
 
 instance Trav a => Trav [a]
   where trav = mapM_ trav
@@ -218,25 +222,25 @@ clearZone = do
   else 
     return ()
 
-instance Trav RawTerminator where 
-  trav tr = 
-     case tr of 
-       TailCall r -> use r 
-       Ret -> return () 
-       If r bb1 bb2 -> do 
-         (c, z) <- getLocation 
-         use r 
-         setLocation $ (c, z + 2) 
-         trav bb1 
-         setLocation $ (c, z + 2) 
+-- Trav for Located RawTerminator
+instance Trav LRawTerminator where
+  trav ltr = case unLoc ltr of
+       TailCall r -> use r
+       Ret -> return ()
+       If r bb1 bb2 -> do
+         (c, z) <- getLocation
+         use r
+         setLocation $ (c, z + 2)
+         trav bb1
+         setLocation $ (c, z + 2)
          trav bb2
-       LibExport v -> use v 
-       Error r _ -> use r 
+       LibExport v -> use v
+       Error r -> use r
        StackExpand bb1 bb2 -> do
          trav bb1
-         modify (\s -> 
-                     let (c, _) = locInfo s 
-                         n =  1 + nCalls s                         
+         modify (\s ->
+                     let (c, _) = locInfo s
+                         n =  1 + nCalls s
                      in s { locInfo = (n, 0), nCalls = n })
          trav bb2 
 
@@ -257,25 +261,26 @@ setLocation b = modify (\st -> st {locInfo = b})
 -- maximum amount of information that may be accessed in the function 
 
 
-updateZone :: RawInst -> UseDefTraversal b ()
-updateZone i = do 
+-- updateZone now works with Located RawInst
+updateZone :: LRawInst -> UseDefTraversal b ()
+updateZone li = do
   (blockCounter, zoneCounter) <- getLocation
-  let zoneType = zoneCounter `mod` 2 == 0 
-      typeAsBool LabelSpecificInstruction = False 
-      typeAsBool _ = True 
-  if (typeAsBool.instructionType) i  /= zoneType then 
+  let zoneType = zoneCounter `mod` 2 == 0
+      typeAsBool LabelSpecificInstruction = False
+      typeAsBool _ = True
+  if (typeAsBool.instructionType.unLoc) li  /= zoneType then
       setLocation ( blockCounter, zoneCounter + 1 )
   else return ()
 
 
--- | Def-Use analysis: mark used variables
-instance Usable RawInst b where 
-  use i = do 
-     updateZone i
-     case i of 
-       AssignRaw x e -> use e 
-       AssignLVal x e -> use e 
-       SetState cmp x -> use x 
+-- | Def-Use analysis: mark used variables (for Located RawInst)
+instance Usable LRawInst b where
+  use li = do
+     updateZone li
+     case unLoc li of
+       AssignRaw x e -> use e
+       AssignLVal x e -> use e
+       SetState cmp x -> use x
        RTAssertion (AssertType r _) -> use r
        --  RTAssertion (AssertEqTypes _ x y) -> use [x,y]
        RTAssertion (AssertTypesBothStringsOrBothNumbers x y) -> use [x,y]
@@ -283,16 +288,17 @@ instance Usable RawInst b where
        RTAssertion (AssertTupleLengthGreaterThan r _) -> use r
        RTAssertion (AssertNotZero r) -> use r
        MkFunClosures xs _ -> use (snd (unzip xs))
-       -- Instructions without variables
+       -- Instructions without variables or no def-use analysis needed
        InvalidateSparseBit -> return ()
        SetBranchFlag -> return ()
+       SourcePosAnnotation _ -> return ()  -- No def-use for position annotations
 
 
--- | Mark variables that are defined.
-instance Definable RawInst b where 
-  define i = do 
-    updateZone i 
-    case i of 
+-- | Mark variables that are defined (for Located RawInst)
+instance Definable LRawInst b where
+  define li = do
+    updateZone li
+    case unLoc li of
        AssignRaw x _ -> define x
        AssignLVal x _ -> define x
        SetState cmp x -> return ()
@@ -300,36 +306,37 @@ instance Definable RawInst b where
        SetBranchFlag -> return ()
        InvalidateSparseBit -> return ()
        MkFunClosures _ ys -> mapM_ define (fst (unzip ys))
+       SourcePosAnnotation _ -> return ()  -- No def-use for position annotations
 
 
-instance Trav RawBBTree where 
-  trav (BB ii tr) = do 
+instance Trav RawBBTree where
+  trav (BB ii ltr) = do
     clearZone
-    (blockCounter, zz) <- getLocation    
+    (blockCounter, zz) <- getLocation
     mapM_ define ii
     setLocation (blockCounter, zz) -- reset
-    mapM_ use ii 
-    trav tr
+    mapM_ use ii
+    trav ltr
 
 
 class Trav a where 
    trav :: a -> Tr ()
 
 
-defUse :: FunDef -> DefUse 
-defUse (FunDef _ consts bb _) = 
-  let constVars = ( fst . unzip )consts 
-      insertConsts = mapM define constVars 
-      (defUse, _) = execRWS 
+defUse :: FunDef -> DefUse
+defUse (FunDef _ consts bb _) =
+  let constVars = ( fst . unzip )consts
+      insertConsts = mapM define constVars
+      (defUse, _) = execRWS
         (modify (__insertDefPure Env) >> insertConsts >> trav bb)
-        DefUseOps { 
+        DefUseOps {
                 __insertUse = __insertUsePure,
                 __insertDef = __insertDefPure
               }
-        (TraverseState 
-            {defUseMaps = DefUse 
+        (TraverseState
+            {defUseMaps = DefUse
                            { defs = Map.empty,
-                             uses = Map.empty, 
+                             uses = Map.empty,
                              escapingUses = Map.empty
                              },
             locInfo = (0,0),
@@ -338,20 +345,21 @@ defUse (FunDef _ consts bb _) =
   in defUseMaps defUse
 
 
-iDefUse :: RawInst -> (Set Assignable, Set Assignable)
-iDefUse i = 
-  let go = do 
-            -- insDef <- __insertDef <$> ask 
-            -- modify $  insDef Env             
-            define i
-            use i 
-      (defUse, _) = execRWS go 
+-- | iDefUse now works with Located RawInst
+iDefUse :: LRawInst -> (Set Assignable, Set Assignable)
+iDefUse li =
+  let go = do
+            -- insDef <- __insertDef <$> ask
+            -- modify $  insDef Env
+            define li
+            use li
+      (defUse, _) = execRWS go
         (DefUseOps {
-            __insertDef = \x state -> 
-                            let (inserts,uses) = defUseMaps state 
+            __insertDef = \x state ->
+                            let (inserts,uses) = defUseMaps state
                             in state {defUseMaps = (Set.insert x inserts, uses)},
-            __insertUse = \x state -> 
-                            let (inserts, uses) = defUseMaps state 
+            __insertUse = \x state ->
+                            let (inserts, uses) = defUseMaps state
                             in state {defUseMaps = (inserts, Set.insert x uses)}
         })
         (TraverseState {

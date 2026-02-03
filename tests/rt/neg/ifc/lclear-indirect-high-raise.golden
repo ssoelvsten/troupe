@@ -1,6 +1,11 @@
-2023-03-17T21:23:24.046Z [RTM] [32minfo[39m: Skipping network creation. Observe that all external IO operations will yield a runtime error.
-Runtime error in thread [main]861e6f6a-6f0d-4945-b036-e41d736b1cf3@{}%{}
+2026-01-06T14:33:34.580Z [RTM] [32minfo[39m: Skipping network creation. Observe that all external IO operations will yield a runtime error.
+Runtime error in thread [main]b0516878-a2e6-4b30-a433-dc44142ec61c@{}%{}
+
+  7 |    in rcv (`{}`, `{secret}`, [hn x => x])
+    |       ^
+
 >> PC level at the time of raising the mailbox clearance is too sensitive for this receive
  | receive lower bound: {}
  | pc level at the time of receive: {secret}
  | pc level at the time of raise: {secret}
+>> at tests/rt/neg/ifc/lclear-indirect-high-raise.trp:7:7

@@ -1,7 +1,13 @@
-.PHONY: rt trp-rt compiler lib p2p-tools
+.PHONY: rt trp-rt compiler lib p2p-tools npm clean test dist check-compiler
 
 # TODO: Rename to 'build/*' ?
 all: npm compiler rt trp-rt p2p-tools lib
+
+check-compiler:
+	@if [ ! -x ./bin/troupec ]; then \
+		echo "Error: Compiler not built. Run 'make compiler' first." >&2; \
+		exit 1; \
+	fi
 
 npm:
 	npm install
@@ -17,10 +23,10 @@ compiler:
 p2p-tools:
 	cd p2p-tools; tsc
 
-lib:
+lib: check-compiler
 	cd lib; $(MAKE) build
 
-trp-rt:
+trp-rt: check-compiler
 	cd trp-rt/; $(MAKE) build
 
 clean: clean/compiler clean/rt clean/trp-rt clean/p2p-tools clean/lib

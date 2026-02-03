@@ -56,6 +56,7 @@ the libp2p).
 // IMPORTS
 
 import type { PeerId } from '@libp2p/interface';
+import { FaultTolerance } from '@libp2p/interface';
 import { getCliArgs, TroupeCliArg } from '../TroupeCliArgs.mjs';
 import { tcp } from '@libp2p/tcp';
 import { webSockets } from '@libp2p/websockets';
@@ -84,6 +85,19 @@ const KEEP_ALIVE = 'KEEP_ALIVE'; // Tag for keeping connections alive
 import { Logger } from 'winston';
 import {v4 as uuidv4} from 'uuid';
 import { kadDHT } from '@libp2p/kad-dht';
+
+// USER-FACING ERRORS
+
+/**
+ * Error class for P2P errors that should be displayed to users without stack traces.
+ * Similar to CliValidationError for network-related user-facing errors.
+ */
+export class P2pUserError extends Error {
+    constructor(message: string) {
+        super(message);
+        this.name = 'P2pUserError';
+    }
+}
 
 // LOGGING AND DEBUGGING 
 
@@ -165,15 +179,31 @@ async function startp2p(nodeId, rt: any): Promise<String> {
     id = nodeListener.peerId;
 
   } catch (err) {
+    // Check if this is a relay-related address listening failure
+    // UnsupportedListenAddressesError occurs when libp2p cannot listen on configured addresses,
+    // typically because the relay server is unreachable (timeout)
+    if (err.name === 'UnsupportedListenAddressesError' && err.message) {
+      const relays = getRelays();
+      // Check if any configured relay address appears in the error message
+      const failedRelay = relays?.find(relay => err.message.includes(relay));
+      if (failedRelay) {
+        const message = `Relay server unreachable: ${failedRelay}\n` +
+          `The relay server did not respond in time. Workarounds:\n` +
+          `  --disable-relay             Disable relay functionality entirely\n` +
+          `  --relay-fault-tolerance=no-fatal  Continue startup even if relay fails`;
+        throw new P2pUserError(message);
+      }
+    }
     error(`Something wrong while creating Libp2p node: ${err}`);
     throw err;
   }
   
   // When a peer dials using the Troupe protocol, handle the connection
+  // runOnLimitedConnection is required for circuit relay connections
   await _node.handle(_PROTOCOL, async (stream, connection) => {
     debug(`Handling protocol dial from id: ${connection.remotePeer}`);
     setupConnection(connection.remotePeer, stream);
-  });
+  }, { runOnLimitedConnection: true });
 
   // When a node is discovered, save the address and report it on the debug logger
   _node.addEventListener('peer:discovery', async (evt) => {
@@ -210,11 +240,17 @@ async function startp2p(nodeId, rt: any): Promise<String> {
 
   // Make sure the relay is dialed and the connections are kept live
   // To use more than one relay, make sure to dial them all
-  const relays = getRelays();
-  if (relays && relays.length > 0) {
-    keepAliveRelay(relays[0]);
+  // Skip if --no-relay is set
+  const disableRelay = argv[TroupeCliArg.DisableRelay] || false;
+  if (disableRelay) {
+    debug("--disable-relay: Skipping relay connection setup");
   } else {
-    debug("No relay configured, skipping relay connection");
+    const relays = getRelays();
+    if (relays && relays.length > 0) {
+      keepAliveRelay(relays[0]);
+    } else {
+      debug("No relay configured, skipping relay connection");
+    }
   }
 
   return id.toString();
@@ -224,42 +260,92 @@ async function startp2p(nodeId, rt: any): Promise<String> {
  * Create the libp2p node that this peer will use.
  */
 async function createLibp2p(_options) {
-  const defaults = {
+  const relayOnly = argv[TroupeCliArg.RelayOnly] || false;
+  const noP2pCircuit = argv[TroupeCliArg.NoP2pCircuit] || false;
+  const disableRelay = argv[TroupeCliArg.DisableRelay] || false;
+  const relayFaultTolerance = argv[TroupeCliArg.RelayFaultTolerance] || 'fatal';
+
+  // Determine fault tolerance setting for transport manager
+  const faultTolerance = relayFaultTolerance === 'no-fatal'
+    ? FaultTolerance.NO_FATAL
+    : FaultTolerance.FATAL_ALL;
+
+  // Build listen addresses
+  const listenAddrs = [`/ip4/0.0.0.0/tcp/${__port}`];
+
+  // For circuit relay v2, we need to specify the exact relay address to listen on.
+  // Using just '/p2p-circuit' triggers relay discovery, but in relay-only mode
+  // discovery is disabled. By specifying the full relay address with /p2p-circuit,
+  // we tell the transport to make a reservation on that specific relay.
+  // Skip all circuit relay addresses if --disable-relay is set
+  if (!disableRelay && !noP2pCircuit) {
+    const relays = getRelays();
+    if (relays && relays.length > 0) {
+      // Use specific relay addresses (e.g., /ip4/.../p2p/RELAYID/p2p-circuit)
+      for (const relay of relays) {
+        listenAddrs.push(`${relay}/p2p-circuit`);
+        debug(`Adding circuit relay listen address: ${relay}/p2p-circuit`);
+      }
+    } else {
+      // No relays configured - skip circuit relay listen address
+      // Direct connectivity via TCP/mDNS will still work
+      debug('No relays configured, skipping /p2p-circuit listen address');
+    }
+  } else if (disableRelay) {
+    debug('--disable-relay: All relay functionality disabled');
+  } else {
+    debug('--no-p2p-circuit: Relay reservations disabled (for testing NO_RESERVATION handling)');
+  }
+
+  // Build transports list - exclude circuit relay transport if --disable-relay is set
+  const transports = disableRelay
+    ? [tcp(), webSockets()]
+    : [tcp(), webSockets(), circuitRelayTransport({})];
+
+  const defaults: any = {
     addresses: {
-      listen: [`/ip4/0.0.0.0/tcp/${__port}`]
+      listen: listenAddrs
     },
     connectionManager : {
       minConnections: 1,
       maxConnections: Infinity,
     },
-    transports: [
-      tcp(),
-      webSockets(),
-      circuitRelayTransport({})
-    ],
+    transportManager: {
+      faultTolerance: faultTolerance
+    },
+    transports: transports,
     streamMuxers: [
       yamux(),
-      mplex()
+      // mplex is deprecated and can cause issues with circuit relay protobuf decoding
+      // See: https://docs.libp2p.io/concepts/multiplex/mplex/
+      // mplex()
     ],
     connectionEncrypters: [
       noise(),
     ],
-    peerDiscovery: [
+    services: {
+      ping: ping(),
+      identify: identify(),
+    },
+  };
+
+  // Only enable DHT, mDNS, and bootstrap discovery if not in relay-only mode
+  if (relayOnly) {
+    debug('Relay-only mode: DHT, mDNS, and bootstrap discovery disabled');
+    defaults.peerDiscovery = [];
+    // No DHT service in relay-only mode
+  } else {
+    defaults.peerDiscovery = [
       bootstrap({
         list: bootstrappers
       }),
       mdns(),
-    ],
-    services: {
-      ping: ping(),
-      dht: kadDHT({
-        clientMode: false,  // Run as both client and server
-        protocol: '/ipfs/kad/1.0.0'
-      }),
-      identify: identify(),
-    },
-    
-  };
+    ];
+    defaults.services.dht = kadDHT({
+      clientMode: false,  // Run as both client and server
+      protocol: '/ipfs/kad/1.0.0'
+    });
+  }
 
   return create(defaultsDeep(_options, defaults));
 }
@@ -316,8 +402,9 @@ function dial(id: PeerId) {
         await getPeerInfo(id);
 
         // Dial using the Troupe protocol
+        // runOnLimitedConnection is required for circuit relay connections
         debug(`Trying to dial ${id}, attempt number ${i}`);
-        const stream = await _node.dialProtocol(id, _PROTOCOL);
+        const stream = await _node.dialProtocol(id, _PROTOCOL, { runOnLimitedConnection: true });
         debug("Dial successful");
 
         // Handle inputs and outputs
@@ -608,10 +695,10 @@ async function inputHandler(id, input) {
       );
       break;
 
-    case (MessageType.WHEREIS): 
+    case (MessageType.WHEREIS):
       debug("Received WHEREIS");
       // Get the runtime to find the peer
-      let runtimeAnswer = await _rt.whereisFromRemote(input.message);
+      let runtimeAnswer = await _rt.whereisFromRemote(input.message, id);
 
      // Reply with WHEREISOK
       pushWrap(id, {
@@ -703,11 +790,20 @@ async function dialRelay(relayAddr: string) {
     const connection = await _node.dial(relayId);
     debug(`Relay dialed`);
     _relayId = id;
-    debug(`Relay connected, keep alive counter is ${_keepAliveCounter++}`);
 
-    // In circuit relay v2, we don't need to send keep-alive messages
-    // The connection is maintained by libp2p automatically
-    // Just return null since we don't have a stream to return
+    // In circuit relay v2, the reservation is made automatically when we dial the relay
+    // because we have /p2p-circuit in our listen addresses (configured in createLibp2p).
+    // The circuitRelayTransport handles the HOP RESERVE protocol internally.
+    // Log the relay circuit addresses we're now reachable at.
+    const relayAddrs = _node.getMultiaddrs().filter(m => m.toString().includes('p2p-circuit'));
+    if (relayAddrs.length > 0) {
+      debug(`Relay reservation established - now reachable through relay ${id}`);
+      relayAddrs.forEach(addr => debug(`Relay address: ${addr.toString()}`));
+    } else {
+      debug(`Relay dialed but no circuit addresses yet - reservation may be pending`);
+    }
+
+    debug(`Relay connected, keep alive counter is ${_keepAliveCounter++}`);
     return null;
   } catch (err) {
     processExpectedNetworkErrors (err, "dial relay");
@@ -975,9 +1071,17 @@ function setupBlockingHealthChecker(period: number) {
 function processExpectedNetworkErrors(err, source="unknown") {
     debug(`Error source: ${source}`);
     if(err instanceof AggregateError) {
-      for(const e of err.errors ) {        
+      for(const e of err.errors ) {
         processExpectedNetworkErrors (e, source)
       }
+    } else if(err && err.constructor && err.constructor.name === 'ErrorEvent') {
+      // Handle ErrorEvent from native Node.js WebSocket (via undici)
+      // ErrorEvent doesn't have name/code properties, just a type property
+      // This occurs when WebSocket connections fail (e.g., connection refused, network error)
+      const target = err.target;
+      const url = target && target[Symbol.for('nodejs.url')] ? target[Symbol.for('nodejs.url')] : 'unknown';
+      error(`WebSocket connection failed to ${url}: ${err.message || 'connection error'}`);
+      // Treat as a recoverable network error - don't throw
     } else {
       if(err.name || err.code) {
         const errorId = err.name || err.code;
@@ -1030,6 +1134,28 @@ function processExpectedNetworkErrors(err, source="unknown") {
           case 'ERR_TIMEOUT':
             debug(`${err.toString()}`);
             break;
+          case 'InvalidMessageError':
+            // Check if this is a relay-related error (NO_RESERVATION, etc.)
+            if (err.message && err.message.includes('NO_RESERVATION')) {
+              debug(`Relay reservation not found: ${err.toString()}`);
+            } else if (err.message && err.message.includes('RESOURCE_LIMIT_EXCEEDED')) {
+              debug(`Relay resource limit exceeded: ${err.toString()}`);
+            } else if (err.message && err.message.includes('PERMISSION_DENIED')) {
+              debug(`Relay permission denied: ${err.toString()}`);
+            } else {
+              // Unknown InvalidMessageError - log as error but don't throw
+              error(`InvalidMessageError: ${err.toString()}`);
+            }
+            break;
+          case 'ReservationRefusedError':
+          case 'ERR_RESERVATION_REFUSED':
+            debug(`Relay reservation refused: ${err.toString()}`);
+            break;
+          case 'ConnectionFailedError':
+          case 'ERR_CONNECTION_FAILED':
+            debug(`Connection failed: ${err.toString()}`);
+            break;
+      
 
           default:
             error(`Unhandled error case with error identifier ${errorId}`)
@@ -1058,6 +1184,14 @@ export let p2p = {
     return whereisp2p(arg1, arg2)
   },
   stopp2p: async () => {
+    // End all pushables before stopping to allow _node.stop() to complete.
+    // Without ending pushables, the write pipelines block indefinitely.
+    for (const connection of _node.getConnections()) {
+      for (const stream of connection.streams) {
+        const p = (stream as any).p;
+        if (p) p.end();
+      }
+    }
     return await _node.stop()
   },
   processExpectedNetworkErrors: (arg1, arg2) => {

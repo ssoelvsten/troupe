@@ -1,0 +1,7 @@
+# Generated files
+keys/
+ids/
+aliases.json
+
+# Log files
+*.log

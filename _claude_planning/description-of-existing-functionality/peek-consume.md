@@ -1,5 +1,7 @@
 # Peek, Consume, and Guard Functions in Troupe's Mailbox System
 
+> *This document was generated with Claude Code on 2025-12-28.*
+
 ## Overview
 
 The `peek`, `consume`, and `guard` functions are core operations in Troupe's mailbox processing system, implementing selective message reception with information flow control. These functions work together to enable actors to safely examine, pattern match, and retrieve messages from their mailbox while maintaining security guarantees.
@@ -8,7 +10,7 @@ The `peek`, `consume`, and `guard` functions are core operations in Troupe's mai
 
 ### `peek` Function
 
-**Location**: `/rt/src/MailboxProcessor.mts:107-138`
+**Location**: `/rt/src/MailboxProcessor.mts` (search for `peek(`)
 
 The `peek` function non-destructively examines a message at a specific index within a security level interval:
 
@@ -31,7 +33,7 @@ peek(lev: Level, index: number, lowb: Level, highb: Level)
 
 ### `consume` Function
 
-**Location**: `/rt/src/MailboxProcessor.mts:140-174`
+**Location**: `/rt/src/MailboxProcessor.mts` (search for `consume(`)
 
 The `consume` function removes and returns a message at a specific index within a security level interval:
 
@@ -49,7 +51,7 @@ consume(lev: Level, index: number, lowb: Level, highb: Level)
 
 ### `guard` Function
 
-**Location**: `/rt/src/builtins/receive.mts:147-193`
+**Location**: `/rt/src/builtins/receive.mts` (search for `guard =`)
 
 The `guard` function provides safe pattern matching for message handlers with automatic rollback on failure or side effects:
 
@@ -125,7 +127,7 @@ The `guard` function enforces security through:
 
 ## Usage in Receive Operations
 
-The `rcv` function in `/trp-rt/service.trp:27-46` demonstrates the typical usage pattern:
+The `rcv` function in `/trp-rt/service.trp` demonstrates the typical usage pattern:
 
 ```troupe
 fun rcv (l1, l2, hns) = 
@@ -154,7 +156,7 @@ fun rcv (l1, l2, hns) =
 
 ### Guard Usage Details
 
-The `guard` call in line 38:
+The `guard` call:
 ```troupe
 let val (status, body) = guard (fn () => h v, l2, (1, ()))
 ```

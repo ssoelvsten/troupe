@@ -1,0 +1,32 @@
+(* NMIFC Transparency Violation Test: Blocking Level Endorsement from Corrupt PC
+
+   This test demonstrates that NMIFC rejects blockendorseto when the PC is tainted
+   by a corrupt label.
+
+   Setup:
+   1. Create a value with corrupt label {alice,bob} = <alice & bob; alice | bob>
+   2. Branch on that value, which taints the PC with the corrupt label
+   3. Attempt blockendorseto - this should fail under NMIFC
+
+   Under NMIFC:
+   - Transparency requires the PC confidentiality to permit the endorsement
+   - With corrupt PC, the transparency check fails
+
+   Without NMIFC: blockendorseto would succeed (only authority check).
+
+   Expected: Thread error - transparency violation
+
+   See: nmifc-summary.md for details on the transparency condition
+*)
+
+let val corruptValue = true raisedTo `{alice,bob}`
+    (* {alice,bob} = <alice & bob; alice | bob> -- a corrupt label *)
+
+    (* Branch on corrupt value, tainting the PC *)
+    val _ = if corruptValue then () else ()
+
+    (* Now PC is tainted with corrupt label *)
+    (* Attempt to endorse the blocking level - should fail under NMIFC *)
+    val _ = blockendorseto (authority, `<alice&bob; #root-integrity>`)
+in print "success"
+end

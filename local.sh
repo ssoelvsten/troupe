@@ -43,7 +43,7 @@ for arg in $TROUPE_COMPILER_ARGS; do
 done
 TROUPE_COMPILER_ARGS="$new_compiler_args"
 
-"$TROUPE_ROOT/bin/troupec" $TROUPE_COMPILER_ARGS --output="$tmp"
+"$TROUPE_ROOT/bin/troupec" $TROUPE_COMPILER_ARGS -m --output="$tmp"
 
 if [ $? -eq 0 ]; then
     eval "node --stack-trace-limit=1000 \"$TROUPE_ROOT/rt/built/troupe.mjs\" -f=\"$tmp\" --localonly $TROUPE_RUNTIME_ARGS $TROUPE_PROGRAM_ARGS"

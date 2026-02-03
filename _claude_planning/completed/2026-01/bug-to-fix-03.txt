@@ -1,0 +1,9 @@
+During compilation, we get the following warning. This needs fixing, because it affects the compilation output, both locally and in CICD. Analyze the issue, and propose a fix.
+
+/Users/aslan/Prime/Troupe/compiler/src/Stack2JS.hs:175:15: warning: [GHC-62161] [-Wincomplete-patterns]
+    Pattern match(es) are non-exhaustive
+    In a case alternative:
+        Patterns of type ‘StackUnit’ not matched: ProgramStackUnit _
+    |
+175 |       fname = case su of FunStackUnit (FunDef (HFN n) _ _ _ _) -> Just n
+    |               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^...

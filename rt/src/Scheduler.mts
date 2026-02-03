@@ -89,8 +89,10 @@ export class Scheduler implements SchedulerInterface {
 
         this.notifyMonitors ();
 
-        delete this.__alive[this.currentThreadId.val.toString()];            
-        console.log(">>> Main thread finished with value:", retVal.stringRep());
+        delete this.__alive[this.currentThreadId.val.toString()];
+        if (!argv[TroupeCliArg.SuppressMainThreadFinishedMessage]) {
+            console.log(">>> Main thread finished with value:", retVal.stringRep());
+        }
         if (persist) {
             this.rtObj.persist (retVal, persist )
             console.log ("Saved the result value in file", persist)
@@ -110,7 +112,7 @@ export class Scheduler implements SchedulerInterface {
             let reason = TerminationStatus.OK == status ? statusVal : 
                 mkTuple ( [statusVal,  mkVal (errstr)] );
             let message = mkVal (mkTuple ([ mkVal("DONE"), refUUID, thisPid, reason]))             
-            this.rtObj.sendMessageNoChecks ( toPid, message , false) // false flag means no need to return in the process
+            this.rtObj.sendMessageNoChecks ( toPid, message , undefined, false) // false flag means no need to return in the process
         }
     }
 

@@ -31,12 +31,12 @@ import Control.Monad.Identity ()
 
 import Data.Set (Set)
 
-import qualified Data.List 
-import qualified Data.Maybe 
+import qualified Data.List
+import qualified Data.Maybe
 
 import qualified Data.Set as Set
 import RetFreeVars as FreeVars
-import TroupePositionInfo
+import TroupePositionInfo (Located(..), getLoc, unLoc, noLoc, atLoc, PosInf(..), GetPosInfo(..))
 
 -- 2025-06-23: AA+cc
 -- Helper function to get the last occurrence of a key in an association list.
@@ -60,12 +60,12 @@ idSubst = Subst (Map.empty)
 instance Substitutable KLambda where
   apply subst@(Subst varmap) kl =
     case kl of
-      Unary vn kt ->
+      Unary lv@(Loc _ vn) lkt ->
         let subst' = Subst (Map.delete vn varmap)
-        in  Unary vn (apply subst' kt)
-      Nullary kt ->
+        in  Unary lv (apply subst' lkt)
+      Nullary lkt ->
         let subst' = Subst (varmap)
-        in Nullary (apply subst' kt)
+        in Nullary (apply subst' lkt)
 
 
 instance Substitutable SVal where
@@ -76,53 +76,66 @@ instance Substitutable SVal where
 instance Substitutable SimpleTerm where
   apply subst@(Subst varmap) simpleTerm =
     case simpleTerm of
-      Bin op v1 v2 -> Bin op (fwd v1) (fwd v2)
-      Un op v -> Un op (fwd v)
-      Tuple vs -> Tuple (map fwd vs)
-      Record fields -> Record $ fwdFields fields
-      WithRecord x fields -> WithRecord (fwd x) $ fwdFields fields
-      ProjField x f -> ProjField (fwd x) f
-      ProjIdx x idx -> ProjIdx (fwd x) idx
-      List vs -> List (map fwd vs)
-      ListCons v v' -> ListCons (fwd v) (fwd v')
+      -- Now using LVarName (Located VarName), need to preserve the Located wrapper
+      Bin op lv1 lv2 -> Bin op (fwdL lv1) (fwdL lv2)
+      Un op lv -> Un op (fwdL lv)
+      Tuple lvs -> Tuple (map fwdL lvs)
+      Record fields -> Record (fwdLFields fields)
+      WithRecord lx fields -> WithRecord (fwdL lx) (fwdLFields fields)
+      ProjField lx f -> ProjField (fwdL lx) f
+      ProjIdx lx idx -> ProjIdx (fwdL lx) idx
+      List lvs -> List (map fwdL lvs)
+      ListCons lv lv' -> ListCons (fwdL lv) (fwdL lv')
       ValSimpleTerm sv -> ValSimpleTerm (apply subst sv)
       Base v -> Base v
-      Lib l v -> Lib l v 
+      Lib l v -> Lib l v
     where fwd x = Map.findWithDefault x x varmap
-          fwdFields fields = map (\(f, x) -> (f, fwd x)) fields
+          -- Forward a Located VarName, preserving the position
+          fwdL (Loc pos vn) = Loc pos (fwd vn)
+          -- Forward fields with Located VarNames
+          fwdLFields fields = map (\(f, lx) -> (f, fwdL lx)) fields
+
+instance Substitutable LSimpleTerm where
+  apply subst (Loc p st) = Loc p (apply subst st)
 
 instance Substitutable ContDef where
-  apply subst@(Subst varmap) (Cont vn kt) =
+  apply subst@(Subst varmap) (Cont vn lkt) =
      let subst' = Subst (Map.delete vn varmap)
-     in Cont vn (apply subst' kt)
+     in Cont vn (apply subst' lkt)
 
 instance Substitutable FunDef where
   apply subst@(Subst varmap) (Fun vn klam) =
     let subst' = Subst (Map.delete vn varmap)
     in Fun vn (apply subst' klam)
 
+instance Substitutable (Located FunDef) where
+  apply subst (Loc p fd) = Loc p (apply subst fd)
+
 instance Substitutable KTerm where
   apply subst@(Subst varmap) kontTerm =
     case kontTerm of
-      LetSimple x st kt ->
-        LetSimple (vfwd x) (apply subst st) (apply subst kt)
-      LetRet kdef@(Cont _ _) kt ->
+      LetSimple x lst lkt ->
+        LetSimple (vfwd x) (apply subst lst) (apply subst lkt)
+      LetRet kdef@(Cont _ _) lkt ->
         let kdef' = apply subst kdef
-            kt'   = apply subst kt
-        in LetRet kdef' kt'
-      LetFun fdefs kt ->
-         let fnames = map (\(Fun v _) -> v) fdefs
+            lkt'   = apply subst lkt
+        in LetRet kdef' lkt'
+      LetFun lfdefs lkt ->
+         let fnames = map (\(Loc _ (Fun v _)) -> v) lfdefs
              subst' = Subst ( foldl (\m v -> Map.delete v m) varmap fnames)
-             kt' = apply subst' kt
-             fdefs' = map (apply subst') fdefs
-         in LetFun fdefs' kt'
+             lkt' = apply subst' lkt
+             lfdefs' = map (apply subst') lfdefs
+         in LetFun lfdefs' lkt'
       Halt v -> Halt (vfwd v)
-      KontReturn v  -> KontReturn (vfwd v)
+      KontReturn v -> KontReturn (vfwd v)
       ApplyFun fn argn -> ApplyFun (vfwd fn) (vfwd argn)
-      If v k1 k2 -> If (vfwd v) (apply subst k1) (apply subst k2)
-      AssertElseError v k1 z p -> AssertElseError (vfwd v) (apply subst k1) (vfwd z) p
-      Error x p -> Error (vfwd x) p
+      If v lk1 lk2 -> If (vfwd v) (apply subst lk1) (apply subst lk2)
+      AssertElseError v lk1 z -> AssertElseError (vfwd v) (apply subst lk1) (vfwd z)
+      Error x -> Error (vfwd x)
    where vfwd x = Map.findWithDefault x x varmap
+
+instance Substitutable LKTerm where
+  apply subst (Loc p kt) = Loc p (apply subst kt)
 
 
 type Census = Map VarName Integer
@@ -136,57 +149,69 @@ incUse :: VarName -> CensusCollector ()
 incUse x = modify $ Map.insertWith (+) x 1 
 
 instance CensusCollectible VarName where
-  updateCensus = incUse 
+  updateCensus = incUse
 
-instance CensusCollectible a => CensusCollectible [a] where 
+-- | Instance for Located VarName (extracts VarName from Located wrapper)
+instance CensusCollectible LVarName where
+  updateCensus (Loc _ vn) = incUse vn
+
+instance CensusCollectible a => CensusCollectible [a] where
   updateCensus = mapM_ updateCensus
 
-instance CensusCollectible SimpleTerm where 
-  updateCensus t = case t of 
+instance CensusCollectible SimpleTerm where
+  updateCensus t = case t of
       Bin _ v1 v2 -> updateCensus [v1,v2]
-      Un _ v -> updateCensus v 
-      ValSimpleTerm sv -> updateCensus sv 
-      Tuple vs -> updateCensus vs 
-      Record fs -> let (_,vs) = unzip fs in updateCensus vs 
+      Un _ v -> updateCensus v
+      ValSimpleTerm sv -> updateCensus sv
+      Tuple vs -> updateCensus vs
+      Record fs -> let (_,vs) = unzip fs in updateCensus vs
       WithRecord v fs -> updateCensus v >> (let (_,vs) = unzip fs in updateCensus vs )
       ProjField v _ -> updateCensus v
       ProjIdx v _ -> updateCensus v
       List vs -> updateCensus vs
       ListCons v vs -> updateCensus v >> updateCensus vs
-      Base _ -> return () 
+      Base _ -> return ()
       Lib _ _ -> return ()
 
-instance CensusCollectible KLambda where   
-  updateCensus kl = case kl of 
-      Unary _ kt -> updateCensus kt 
-      Nullary kt -> updateCensus kt 
+instance CensusCollectible LSimpleTerm where
+  updateCensus (Loc _ st) = updateCensus st
+
+instance CensusCollectible KLambda where
+  updateCensus kl = case kl of
+      Unary _ lkt -> updateCensus lkt
+      Nullary lkt -> updateCensus lkt
 
 instance CensusCollectible SVal where 
   updateCensus sv = case sv of 
     KAbs kl -> updateCensus kl 
     Lit _ -> return ()
 
-instance CensusCollectible ContDef where 
-  updateCensus (Cont _ kt) = updateCensus kt 
+instance CensusCollectible ContDef where
+  updateCensus (Cont _ lkt) = updateCensus lkt
 
-instance CensusCollectible FunDef where 
-  updateCensus (Fun _ kl) = updateCensus kl 
+instance CensusCollectible FunDef where
+  updateCensus (Fun _ kl) = updateCensus kl
 
-instance CensusCollectible KTerm where 
-  updateCensus t = case t of 
-    LetSimple _ st kt -> updateCensus st >> updateCensus kt 
-    LetFun fs kt -> updateCensus fs >> updateCensus kt 
-    LetRet ct kt -> updateCensus ct >> updateCensus kt 
+instance CensusCollectible (Located FunDef) where
+  updateCensus (Loc _ fd) = updateCensus fd
+
+instance CensusCollectible KTerm where
+  updateCensus t = case t of
+    LetSimple _ lst lkt -> updateCensus lst >> updateCensus lkt
+    LetFun lfs lkt -> updateCensus lfs >> updateCensus lkt
+    LetRet ct lkt -> updateCensus ct >> updateCensus lkt
     KontReturn x -> updateCensus x
     ApplyFun v u -> updateCensus [v,u]
-    If v k1 k2 -> updateCensus v >> updateCensus [k1,k2]
-    AssertElseError v k u _ -> updateCensus [v,u] >> updateCensus k 
-    Error v _ -> updateCensus v 
+    If v lk1 lk2 -> updateCensus v >> updateCensus [lk1,lk2]
+    AssertElseError v lk u -> updateCensus [v,u] >> updateCensus lk
+    Error v -> updateCensus v
     Halt v -> updateCensus v
 
-  
-getCensus :: KTerm -> Census 
-getCensus k = execState (updateCensus k) Map.empty
+instance CensusCollectible LKTerm where
+  updateCensus (Loc _ kt) = updateCensus kt
+
+getCensus :: LKTerm -> Census
+getCensus lk = execState (updateCensus lk) Map.empty
 
 
 
@@ -231,22 +256,29 @@ class Simplifiable a where
 instance Simplifiable a => Simplifiable [a] where 
   simpl = mapM simpl
 
-instance Simplifiable FunDef where 
-  simpl (Fun arg kl) = simpl kl  >>= return . Fun arg
+instance Simplifiable FunDef where
+  simpl (Fun arg kl) = simpl kl  >>= \kl' -> return $ Fun arg kl'
 
-instance Simplifiable ContDef where 
-  simpl (Cont v kt) = simpl kt >>= return . Cont v
-    
-instance Simplifiable KLambda where 
-  simpl (Unary v k) = simpl k >>= return . Unary v 
-  simpl (Nullary k) = simpl k >>= return . Nullary
+instance Simplifiable (Located FunDef) where
+  simpl (Loc p fd) = simpl fd >>= \fd' -> return $ Loc p fd'
 
-look :: VarName -> Opt Term 
-look x = do 
-  m <- __env_of_state <$> get 
+instance Simplifiable ContDef where
+  simpl (Cont v lkt) = simplLKTerm lkt >>= return . Cont v
+
+instance Simplifiable KLambda where
+  simpl (Unary lv lk) = simplLKTerm lk >>= return . Unary lv
+  simpl (Nullary lk) = simplLKTerm lk >>= return . Nullary
+
+look :: VarName -> Opt Term
+look x = do
+  m <- __env_of_state <$> get
   return $ Map.findWithDefault Unknown
-              -- (error $ "cannot find binding for name" ++ (show x)) 
+              -- (error $ "cannot find binding for name" ++ (show x))
               x m
+
+-- | Look up a Located VarName (extracts VarName from Located wrapper)
+lookL :: LVarName -> Opt Term
+lookL (Loc _ vn) = look vn
 
 censusInfo :: VarName -> Opt Integer
 censusInfo x = do 
@@ -254,49 +286,54 @@ censusInfo x = do
   return $ Map.findWithDefault 0 x census
 
 
-fields x = do 
-    w <- look x 
-    case w of 
-      St (Record xs) -> return xs 
-      St (WithRecord y ys) ->  do
-        xs <- fields y 
-        return $ xs ++ ys 
+-- | Get fields from a record, taking LVarName
+fields :: LVarName -> Opt LFields
+fields lx = do
+    w <- lookL lx
+    case w of
+      St (Record xs) -> return xs
+      St (WithRecord ly ys) -> do
+        xs <- fields ly
+        return $ xs ++ ys
       _ -> return []
 
 
-isRecordTerm (St (Record _)) = True 
-isRecordTerm (St (WithRecord _ _ )) = True 
+isRecordTerm (St (Record _)) = True
+isRecordTerm (St (WithRecord _ _)) = True
 isRecordTerm _ = False
 
-recordEquiv r1 r2 = do 
-  f1 <- fields r1 
-  f2 <- fields r2 
-  let f1' = sort f1 
-      f2' = sort f2 
+recordEquiv :: LVarName -> LVarName -> Opt Bool
+recordEquiv r1 r2 = do
+  f1 <- fields r1
+  f2 <- fields r2
+  let f1' = sort f1
+      f2' = sort f2
   return (f1' == f2')
 
 
 
-data ResOrSubst a = ResultSimplified a | ResultSubst VarName 
+data ResOrSubst a = ResultSimplified a | ResultSubst VarName
 simplifySimpleTerm :: SimpleTerm -> Opt (ResOrSubst SimpleTerm)
-simplifySimpleTerm t = 
-  let _ret = return. ResultSimplified 
-      _subst = return . ResultSubst 
+simplifySimpleTerm t =
+  let _ret = return. ResultSimplified
+      _subst = return . ResultSubst
+      -- Helper to substitute with LVarName (extracts VarName from Located wrapper)
+      _substL (Loc _ vn) = _subst vn
       _nochange = _ret t
-  in case t of     
-  Bin op oper1 oper2 -> do 
-    u <- look oper1 
-    v <- look oper2
-    case op of 
-      Basics.HasField -> case v of 
-           St (ValSimpleTerm  (Lit (C.LString s))) -> do 
-             fs <- fields oper1 
-             case lookup s fs of 
-               Just _ -> _ret $ __trueLit 
+  in case t of
+  Bin op oper1 oper2 -> do
+    u <- lookL oper1
+    v <- lookL oper2
+    case op of
+      Basics.HasField -> case v of
+           St (ValSimpleTerm  (Lit (C.LString s))) -> do
+             fs <- fields oper1
+             case lookup s fs of
+               Just _ -> _ret $ __trueLit
                Nothing -> _nochange
            _ -> _nochange
 
-      -- Basics.Eq | (isLit u && isLit v) -> 
+      -- Basics.Eq | (isLit u && isLit v) ->
                     -- _ret $ lit $ C.LBool (litVal u == litVal v) -- slightly more general case
       Basics.Eq | u == v  && (u /= Unknown) -> _ret $ __trueLit
       Basics.Eq | (isLit u && isLit v) -> _ret $ lit $ C.LBool (C.litEq (litVal u) (litVal v))
@@ -305,13 +342,13 @@ simplifySimpleTerm t =
             if e then _ret $ __trueLit
                  else _nochange
       Basics.Neq | isLit u && isLit v -> _ret $ lit $ C.LBool (C.litNeq (litVal u) (litVal v))
-      
+
       _ -> case (u, v) of
-              (St (ValSimpleTerm (Lit (C.LNumeric (NumInt n1) _))),
-               St (ValSimpleTerm (Lit (C.LNumeric (NumInt n2) _)))) ->
-                    let ii f = _ret $ lit (C.LNumeric (NumInt (f n1 n2)) NoPos )
-                        bb f = _ret $ lit (C.LBool (f n1 n2)) 
-                      in case op of 
+              (St (ValSimpleTerm (Lit (C.LNumeric (NumInt n1)))),
+               St (ValSimpleTerm (Lit (C.LNumeric (NumInt n2))))) ->
+                    let ii f = _ret $ lit (C.LNumeric (NumInt (f n1 n2)))
+                        bb f = _ret $ lit (C.LBool (f n1 n2))
+                      in case op of
                             Basics.Plus  -> ii (+)
                             Basics.Minus -> ii (-)
                             Basics.Mult  -> ii (*)
@@ -319,15 +356,15 @@ simplifySimpleTerm t =
                             Basics.Lt -> bb (<)
                             Basics.Ge -> bb (>=)
                             Basics.Gt -> bb (>)
-                            _ -> _nochange 
+                            _ -> _nochange
 
-        
-              _ -> _nochange 
+
+              _ -> _nochange
   Un op operand -> do
-    v <- look operand 
+    v <- lookL operand
     -- TODO should write out all cases
-    case (op,v) of 
-        (Basics.IsTuple, St (Tuple _))          -> _ret __trueLit 
+    case (op,v) of
+        (Basics.IsTuple, St (Tuple _))          -> _ret __trueLit
         (Basics.IsTuple, St (Record _))         -> _ret __falseLit
         (Basics.IsTuple, St (WithRecord _ _))   -> _ret __falseLit
         (Basics.IsTuple, St (List _))           -> _ret __falseLit
@@ -336,7 +373,7 @@ simplifySimpleTerm t =
 
 
         (Basics.IsRecord, St (Record _))        -> _ret __trueLit
-        (Basics.IsRecord, St (WithRecord _ _))  -> _ret __trueLit 
+        (Basics.IsRecord, St (WithRecord _ _))  -> _ret __trueLit
         (Basics.IsRecord, St (Tuple _))         -> _ret __falseLit
         (Basics.IsRecord, St (List _))          -> _ret __falseLit
         (Basics.IsRecord, St (ListCons _ _))    -> _ret __falseLit
@@ -356,7 +393,7 @@ simplifySimpleTerm t =
 
         -- Not: double negation elimination (not (not x) -> x)
         (Basics.Not, St (Un Basics.Not innerVar)) ->
-            _subst innerVar
+            _substL innerVar
 
         -- Not: negated comparisons
         (Basics.Not, St (Bin Basics.Eq v1 v2))  -> _ret $ Bin Basics.Neq v1 v2
@@ -367,43 +404,43 @@ simplifySimpleTerm t =
         (Basics.Not, St (Bin Basics.Ge v1 v2))  -> _ret $ Bin Basics.Lt v1 v2
 
         (Basics.TupleLength, St (Tuple xs)) ->
-            _ret $ lit (C.LNumeric (NumInt (fromIntegral (length xs))) NoPos)
+            _ret $ lit (C.LNumeric (NumInt (fromIntegral (length xs))))
         -- 2023-08 Revision: Added this case
         (Basics.ListLength, St (List xs)) ->
-            _ret $ lit (C.LNumeric (NumInt (fromIntegral (length xs))) NoPos)
-            
-   
-       
+            _ret $ lit (C.LNumeric (NumInt (fromIntegral (length xs))))
+
+
+
         _ -> _nochange
-  ProjField x s ->  do 
+  ProjField x s ->  do
     fs <- fields x
-    case lookupLast s fs of 
-      Just y -> _subst y 
+    case lookupLast s fs of
+      Just y -> _substL y
       Nothing -> _nochange
   ProjIdx x idx -> do
-    t <- look x
-    case t of
+    t' <- lookL x
+    case t' of
       St (Tuple vs) | fromIntegral (length vs) > idx ->
-        _subst (vs !! fromIntegral idx)
+        _substL (vs !! fromIntegral idx)
       _ -> _nochange
 
 
   ValSimpleTerm (KAbs klam) -> do
         klam' <- withResetRetState $ simpl klam
-        _ret $ ValSimpleTerm $ KAbs klam'
+        _ret $ ValSimpleTerm (KAbs klam')
 {--
-  List _ -> _nochange 
+  List _ -> _nochange
   ListCons _ _ -> _nochange
   Base _ -> _nochange
-  Lib _ _ -> _nochange 
+  Lib _ _ -> _nochange
         --}
   _ -> _nochange
 
-  where 
-    lit l = ValSimpleTerm  (Lit l)
-    isLit (St (ValSimpleTerm (Lit _))) = True 
-    isLit _ = False 
-    litVal (St (ValSimpleTerm (Lit (C.LNumeric n _)))) = (C.LNumeric n NoPos)
+  where
+    lit l = ValSimpleTerm (Lit l)
+    isLit (St (ValSimpleTerm (Lit _))) = True
+    isLit _ = False
+    litVal (St (ValSimpleTerm (Lit (C.LNumeric n)))) = (C.LNumeric n)
     litVal (St (ValSimpleTerm (Lit x))) = x
     litVal _ = error "incorrect application of litVal"
     __trueLit = lit (C.LBool True)
@@ -421,151 +458,164 @@ state_info = do
   return $ "ret\n"  ++ (show r)
 
 
-failFree :: SimpleTerm -> Bool -- 2021-05-19; AA; hack  
-failFree st = case st of 
+failFree :: SimpleTerm -> Bool -- 2021-05-19; AA; hack
+failFree st = case st of
   Bin op _ _ ->  op `elem` [Basics.Eq, Basics.Neq] -- Equality comparisons are safe (return boolean)
   Un _ _ -> False  -- Unary operations can fail (e.g., head on empty list, arithmetic on non-numbers)
-  ValSimpleTerm _ -> True 
-  Tuple _ -> True 
-  Record _ -> True 
-  WithRecord _ _ -> True 
+  ValSimpleTerm _ -> True
+  Tuple _ -> True
+  Record _ -> True
+  WithRecord _ _ -> True
   ProjField _ _ -> False  -- Field projection can fail if field doesn't exist
   ProjIdx _ _ -> False    -- Index projection can fail if index out of bounds
-  List _ -> True 
+  List _ -> True
   ListCons _ _ -> False   -- List cons can fail if second arg is not a list
   Base _ -> False         -- Base function calls can have side effects or fail
-  Lib _ _ -> False        -- Library function calls can have side effects or fail 
+  Lib _ _ -> False        -- Library function calls can have side effects or fail
 
-instance Simplifiable KTerm where 
-  simpl k = do 
-    --s <- state_info     
-    -- trace ("simpl-kterm\n" ++ (s) ++ "\n" ++ "~~~\n" ++(show k)++ ("\n----"))  $ 
-    case k of 
-      LetSimple x st kt -> do 
-        _cse <- __cse_map_of_reader <$> ask 
-        case Map.lookup st _cse of 
-          Just w -> simpl $ subst x w kt 
-          Nothing -> do 
-            x_uses <- censusInfo x 
-            case (x_uses, st) of 
-              (0, _) | failFree st  -> simpl kt 
-              (1, ValSimpleTerm (KAbs klambda@(Unary _ _ ))) 
-                | isApplied x kt ->  do
+-- Helper to unwrap LKTerm for simpl
+simplLKTerm :: LKTerm -> Opt LKTerm
+simplLKTerm (Loc p k) = do
+    k' <- simplKTerm k
+    return $ Loc p k'
+
+-- The main simplification for KTerm
+simplKTerm :: KTerm -> Opt KTerm
+simplKTerm k = do
+    --s <- state_info
+    -- trace ("simpl-kterm\n" ++ (s) ++ "\n" ++ "~~~\n" ++(show k)++ ("\n----"))  $
+    case k of
+      LetSimple x (Loc stp st) lkt -> do
+        _cse <- __cse_map_of_reader <$> ask
+        case Map.lookup st _cse of
+          Just w -> simplLKTerm (apply (Subst (Map.singleton x w)) lkt) >>= return . unLoc
+          Nothing -> do
+            x_uses <- censusInfo x
+            case (x_uses, st) of
+              (0, _) | failFree st  -> simplLKTerm lkt >>= return . unLoc
+              (1, ValSimpleTerm (KAbs klambda@(Unary _ _)))
+                | isApplied x lkt ->  do
                       bindenv x (St st)
-                      simpl kt          -- remove the let-declaration
-                                        -- expecting the substitution down the 
-                                        -- road in the application case 
+                      simplLKTerm lkt >>= return . unLoc  -- remove the let-declaration
+                                        -- expecting the substitution down the
+                                        -- road in the application case
                                         -- 2021-05-17; AA
-              _  -> do      
-                w <- simplifySimpleTerm st 
-                case w of 
+              _  -> do
+                w <- simplifySimpleTerm st
+                case w of
                   ResultSimplified st' -> do
                       bindenv x (St st')
-                      kt' <- local (\r -> r { __cse_map_of_reader = Map.insert st' x _cse } ) (simpl kt)
-                      return $ LetSimple x st' kt' 
-                  ResultSubst w ->                 
-                      simpl $ subst x w kt 
-      LetFun fdefs kt -> do 
-        -- binddef fdefs 
-        fdefs' <- withResetRetState $ simpl fdefs 
-        kt' <- simpl kt 
-        return $ LetFun fdefs' kt' 
-      LetRet ret kt -> do 
-        ret_now <- __rewrite_ret_of_reader <$> ask 
-        ret' <- simpl ret 
-        if hasUniqueReturn kt 
-          then withRetState ret' (simpl kt)
-          else do           
-            kt' <- withResetRetState (simpl kt)
-            return $ LetRet ret' kt' 
+                      lkt' <- local (\r -> r { __cse_map_of_reader = Map.insert st' x _cse } ) (simplLKTerm lkt)
+                      return $ LetSimple x (Loc stp st') lkt'
+                  ResultSubst w ->
+                      simplLKTerm (apply (Subst (Map.singleton x w)) lkt) >>= return . unLoc
+      LetFun lfdefs lkt -> do
+        -- binddef fdefs
+        lfdefs' <- withResetRetState $ simpl lfdefs
+        lkt' <- simplLKTerm lkt
+        return $ LetFun lfdefs' lkt'
+      LetRet ret lkt -> do
+        ret_now <- __rewrite_ret_of_reader <$> ask
+        ret' <- simpl ret
+        if hasUniqueReturn lkt
+          then withRetState ret' (simplLKTerm lkt) >>= return . unLoc
+          else do
+            lkt' <- withResetRetState (simplLKTerm lkt)
+            return $ LetRet ret' lkt'
       KontReturn x -> do
-        ret <- __rewrite_ret_of_reader <$> ask 
-        case ret of 
+        ret <- __rewrite_ret_of_reader <$> ask
+        case ret of
           Nothing -> return $ KontReturn x
-          Just (Cont y kt) -> return $ subst y x kt 
-      ApplyFun x y -> do 
+          Just (Cont y lkt) -> return $ unLoc $ apply (Subst (Map.singleton y x)) lkt
+      ApplyFun x y -> do
         x_uses <- censusInfo x
-        case x_uses of 
+        case x_uses of
           1 -> do v <- look x
-                  case v of 
-                    (St (ValSimpleTerm (KAbs (Unary arg body)))) -> do 
-                      simpl $ subst arg y body
+                  case v of
+                    (St (ValSimpleTerm (KAbs (Unary (Loc _ arg) lbody)))) -> do
+                      simplLKTerm (apply (Subst (Map.singleton arg y)) lbody) >>= return . unLoc
                     _ -> return k
           _ -> return k
-      If x k1 k2 -> do
+      If x lk1 lk2 -> do
         v <- look x
         case v of
           St (ValSimpleTerm (Lit (C.LBool b))) ->
-            simpl (if b then k1 else k2)
+            simplLKTerm (if b then lk1 else lk2) >>= return . unLoc
           -- If-branch swap: if (not y) k1 k2 -> if y k2 k1
-          St (Un Basics.Not innerVar) -> do
-            k1' <- withResetRetState $ simpl k1
-            k2' <- withResetRetState $ simpl k2
-            return $ If innerVar k2' k1'  -- swapped branches
+          St (Un Basics.Not (Loc _ innerVarName)) -> do
+            lk1' <- withResetRetState $ simplLKTerm lk1
+            lk2' <- withResetRetState $ simplLKTerm lk2
+            return $ If innerVarName lk2' lk1'  -- swapped branches
           _ -> do
-            k1' <- withResetRetState $ simpl k1
-            k2' <- withResetRetState $ simpl k2
-            return $ If x k1' k2'
-      AssertElseError x kt y pos -> do
-        v <- look x 
-        case v of 
+            lk1' <- withResetRetState $ simplLKTerm lk1
+            lk2' <- withResetRetState $ simplLKTerm lk2
+            return $ If x lk1' lk2'
+      AssertElseError x lkt y -> do
+        v <- look x
+        case v of
           St (ValSimpleTerm (Lit (C.LBool b)))->
-            simpl (if b then kt else (Error y pos))
+            simplLKTerm (if b then lkt else noLoc (Error y)) >>= return . unLoc
           _ -> do
-              k' <- simpl kt 
-              return $ AssertElseError x k' y pos 
-      Error _  _ -> return k 
-      Halt _ -> return k 
+              lk' <- simplLKTerm lkt
+              return $ AssertElseError x lk' y
+      Error _ -> return k
+      Halt _ -> return k
+
+instance Simplifiable KTerm where
+  simpl = simplKTerm
+
+instance Simplifiable LKTerm where
+  simpl = simplLKTerm
 
 
 
-hasUniqueReturn :: KTerm -> Bool 
-hasUniqueReturn k = 
-  case k of 
-    KontReturn _              -> True 
-    LetSimple _ _ k'          -> hasUniqueReturn k' 
-    LetFun _ k'               -> hasUniqueReturn k'
-    ApplyFun _ _              -> False 
-    If _ _ _                  -> False
-    AssertElseError _ k _ _   -> hasUniqueReturn k 
-    Halt _                    -> True 
-    Error _ _                 -> True     
-    LetRet (Cont _ k') _      -> hasUniqueReturn k'
+hasUniqueReturn :: LKTerm -> Bool
+hasUniqueReturn (Loc _ k) =
+  case k of
+    KontReturn _            -> True
+    LetSimple _ _ lk'        -> hasUniqueReturn lk'
+    LetFun _ lk'             -> hasUniqueReturn lk'
+    ApplyFun _ _            -> False
+    If _ _ _                -> False
+    AssertElseError _ lk' _  -> hasUniqueReturn lk'
+    Halt _                  -> True
+    Error _                 -> True
+    LetRet (Cont _ lk') _    -> hasUniqueReturn lk'
 
-isApplied :: VarName -> KTerm -> Bool 
-isApplied f k = 
-  case k of 
-    KontReturn _ -> False 
-    LetSimple _  _ k' -> isApplied f k' 
-    LetFun fdefs k' -> 
-       or $ (isApplied f k') :
-            [ isApplied f k | Fun _ kl <- fdefs, let k = kTermOfLambda kl]
-    ApplyFun g _ -> g == f 
-    If _ k1 k2 -> isApplied f k1 || isApplied f k2
-    AssertElseError  _ k _ _ -> isApplied f k 
-    Halt _ -> False 
-    Error _ _ -> False 
-    LetRet (Cont _ k') k'' -> isApplied f k' || isApplied f k'' 
-   where kTermOfLambda (Unary _ k) = k
-         kTermOfLambda (Nullary k) = k
+isApplied :: VarName -> LKTerm -> Bool
+isApplied f (Loc _ k) =
+  case k of
+    KontReturn _ -> False
+    LetSimple _  _ lk' -> isApplied f lk'
+    LetFun lfdefs lk' ->
+       or $ (isApplied f lk') :
+            [ isApplied f lk'' | Loc _ (Fun _ kl) <- lfdefs, let lk'' = lkTermOfLambda kl]
+    ApplyFun g _ -> g == f
+    If _ lk1 lk2 -> isApplied f lk1 || isApplied f lk2
+    AssertElseError  _ lk' _ -> isApplied f lk'
+    Halt _ -> False
+    Error _ -> False
+    LetRet (Cont _ lk') lk'' -> isApplied f lk' || isApplied f lk''
+   where lkTermOfLambda (Unary _ lk') = lk'
+         lkTermOfLambda (Nullary lk') = lk'
     
 
-iter :: KTerm -> KTerm
-iter kt = 
-      let census = getCensus kt
-          (kt', _, _) = runRWS (simpl kt) 
+iter :: LKTerm -> LKTerm
+iter lkt =
+      let census = getCensus lkt
+          (lkt', _, _) = runRWS (simpl lkt)
                           OptReader {
                              __census_of_reader = census,
                              __rewrite_ret_of_reader = Nothing,
-                             __cse_map_of_reader = Map.empty 
+                             __cse_map_of_reader = Map.empty
 
                           }
                           OptState { __env_of_state = Map.empty
                           }
-      in if kt == kt' then kt
-                      else -- trace ((show kt) ++ ("\n------\n") ++ (show kt') ++ "\n========\n") 
-                           iter kt' 
+      in if lkt == lkt' then lkt
+                      else -- trace ((show lkt) ++ ("\n------\n") ++ (show lkt') ++ "\n========\n")
+                           iter lkt'
 
 rewrite :: Prog -> Prog
-rewrite (Prog atoms kterm) = 
- Prog atoms (iter kterm)
+rewrite (Prog atoms lkterm) =
+ Prog atoms (iter lkterm)

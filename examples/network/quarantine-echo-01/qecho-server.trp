@@ -1,0 +1,76 @@
+import Missing
+(* Quarantine Echo Server - Demonstrates trust-based level downgrading *)
+(* The server does NOT trust the client, so received information will be downgraded *)
+
+let
+    val _ = spawn (fn () =>
+        let val _ = sleep (10000000)
+            val _ = print "Server timeout exit"
+        in exit (authority, 124)
+        end)
+
+    fun serverDone() = 
+        sleep (1000); 
+        print "Server done";
+        exit (authority, 0)
+
+    val _ = register ("echo", self(), authority)
+
+    fun gate () = 
+        let 
+            val _ = debugMbox()
+                
+            (* --------------------------------------------- 
+                this pattern should corresopnd to the notion 
+                of gates in the IFC literature
+                --------------------------------------------
+            *)
+
+            val c = raisembox (`<; #null-integrity>`)
+            val datum =
+                rcv ( `{}`
+                    , `<; #null-integrity>`  (** [⊥, NULL] *)
+                    , [ hn x | y => let val _ = debugValue y in (x,y) end ]) 
+            
+            val _ = lowermbox (c, authority) 
+            val _ = blockdown authority
+            val (x,y) = 
+                 downgrade (datum, authority, `{}`)
+            val x' = downgrade (x, authority, `{}`)
+            val y' = downgrade (y, authority, `{}`)
+            val _ = debugpc ()
+        in (x', y')
+        end 
+
+            (* ---------- end of the gate pattern -------- *)
+
+
+    fun loop i =
+        if i > 0 then serverDone() else 
+        let val _ = print "SERVER: waiting for messages..."
+            val _ = sleep (3000)
+            
+            val datum = gate ()
+            val _ = debugValue datum
+ 
+            val _ = 
+              case datum of 
+                  (("ECHO", msg, sender), {quarantineAuth,..} )  =>
+                            let val _ = print "SERVER: Received echo request"
+                                val _ = print "SERVER: Sending node id"
+                                (* val _ = print senderNode *)
+                                (* Print the message with its label to see the downgraded level *)
+                                val _ = print "SERVER: Received msg with labels:"
+                                val _ = printWithLabels msg
+                                (* val msg' = downgrade (msg, quarantineAuth, `<;>`) *)
+                                (* val _ = printWithLabels msg *)
+                                val _ = debugpc ()
+                                val _ = invokeWithTaint (levelOf msg) (fn () => send(sender, ("REPLY", msg), quarantineAuth))
+                                val _ = print "SERVER: Sent reply"
+                            in ()
+                            end
+                | _ => ()
+        in loop (i+1)
+        end
+in loop 0 
+end

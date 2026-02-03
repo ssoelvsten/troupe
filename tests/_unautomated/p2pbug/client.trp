@@ -1,0 +1,32 @@
+(* Minimal client for P2P bug reproduction *)
+(* Tries to find server via whereis - this is where the bug manifests *)
+
+let
+    val _ = print "CLIENT: Starting echo client"
+    val _ = sleep 1000  (* Give server time to register *)
+
+    (* Timeout after 10 seconds - the bug causes this to trigger *)
+    val timeout_pid = spawn(fn () =>
+        let val _ = sleep 10000
+        in print "CLIENT: Timeout - could not find server (BUG REPRODUCED)";
+           exit(authority, 124)  (* 124 = timeout exit code *)
+        end)
+
+    val _ = print "CLIENT: Looking for server via whereis..."
+
+    (* THIS IS WHERE THE BUG MANIFESTS *)
+    (* whereis hangs because peer discovery fails *)
+    val server = whereis("@server", "echo")
+
+    val _ = print "CLIENT: Found echo server!"
+    val _ = send(server, ("PING", self()))
+    val _ = print "CLIENT: Sent PING, waiting for PONG..."
+
+    val response = receive [hn "PONG" => "success"]
+    val _ = print "CLIENT: Received PONG"
+
+in if response = "success" then
+       (print "CLIENT: Test passed"; exit(authority, 0))
+   else
+       (print "CLIENT: Test failed"; exit(authority, 1))
+end
