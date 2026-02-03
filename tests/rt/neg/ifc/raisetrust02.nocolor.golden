@@ -1,0 +1,4 @@
+2025-06-24T21:28:37.676Z [RTM] info: Skipping network creation. Observe that all external IO operations will yield a runtime error.
+Runtime error in thread 03fdec4a-5d33-473f-aeeb-27e99e500c7b@{}%{}
+>> Provided authority is not ROOT
+ | level of the provided authority: {alice}

@@ -1,0 +1,6 @@
+case {score = 85, grade = "B"} of 
+    {score = s, grade = g} => 
+        if s >= 90 then "A"
+        else if s >= 80 then "B" 
+        else "C"
+  | _ => "F"

@@ -1,15 +1,14 @@
-import * as levels from "./options.mjs";
-import yargs from "yargs";
+import * as levels from './Level.mjs';
+import { getCliArgs, TroupeCliArg } from "./TroupeCliArgs.mjs";
 import * as fs from 'node:fs';
 import { Level } from "./Level.mjs";
 import { __nodeManager } from "./NodeManager.mjs";
 const { readFile } = fs.promises
 
 
-import { hideBin } from 'yargs/helpers';
-const argv:any = yargs(hideBin(process.argv)).parse()
+const argv = getCliArgs();
 
-let logLevel = argv.debug ? 'debug' : 'info';
+let logLevel = argv[TroupeCliArg.Debug] ? 'debug' : 'info';
 import { mkLogger } from './logger.mjs'
 const logger = mkLogger('RTM', logLevel);
 
@@ -30,8 +29,8 @@ async function loadTrustMap(trustMapFile) {
 
 
 export async function initTrustMap() {
-    if (argv.trustmap) {
-        await loadTrustMap(argv.trustmap);
+    if (argv[TroupeCliArg.Trustmap]) {
+        await loadTrustMap(argv[TroupeCliArg.Trustmap]);
     } else {
         let default_trustmap = "trustmap.json"
         if (fs.existsSync(default_trustmap)) {
@@ -44,11 +43,11 @@ export async function initTrustMap() {
 
 export function nodeTrustLevel(nodeid):Level {
     if (__nodeManager.isLocalNode(nodeid)) {
-        return levels.TOP
+        return levels.ROOT
     }
     if (_trustMap) {
         // console.log ("true");
-        return _trustMap[nodeid] ? _trustMap[nodeid] : levels.BOT;
+        return _trustMap[nodeid] ? _trustMap[nodeid] : levels.NULL;
     }
-    return levels.BOT;
+    return levels.NULL;
 }

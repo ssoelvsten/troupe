@@ -6,7 +6,7 @@ in functions. Built-in functions wrapped in a lambda should be serializable.
 *)
 
 
-let val _ = save ("serialize06", fn () => random ) (* random is a built-in *)
+let val _ = save (authority, "serialize06", fn () => random ) (* random is a built-in *)
     val f = restore ("serialize06")
     val g = f () 
     val r = g () 

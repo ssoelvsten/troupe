@@ -1,0 +1,26 @@
+let 
+    val timeout_pid = spawn(fn () => 
+        let val _ = sleep 10000
+        in exit(authority, 124)
+        end)
+    
+    fun echo_server() =
+        let val _ = print "SERVER: Starting echo server"
+            val _ = register("echo", self(), authority)
+            val _ = print "SERVER: Registered echo service"
+            
+            val result = receive [
+                hn ("ECHO", msg, client_pid) => 
+                    let val _ = print ("SERVER: Received echo request: " ^ msg)
+                        val _ = print "SERVER: Replying directly to client"
+                        val _ = send(client_pid, ("ECHO_REPLY", "Echo: " ^ msg, self()))
+                        val _ = sleep 500
+                    in "success"
+                    end
+            ]
+            
+        in exit(authority, 0)
+        end
+
+in echo_server()
+end

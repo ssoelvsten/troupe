@@ -1,6 +1,6 @@
 import { UserRuntimeZero, Constructor, mkBase, mkService } from './UserRuntimeZero.mjs'
 import { assertNormalState, assertIsNTuple, assertIsLevel, assertIsList, assertIsAtom, assertIsNumber, assertIsUnit, assertIsFunction } from '../Asserts.mjs'
-import { flowsTo, lub, glb, BOT } from '../options.mjs';
+import { flowsTo, lub, glb, BOT } from '../Level.mjs';
 import { RuntimeInterface } from '../RuntimeInterface.mjs';
 import { ReceiveTaintAction } from '../ReceiveTaintAction.mjs';
 import { LVal } from '../Lval.mjs';
@@ -8,6 +8,7 @@ import { mkTuple } from '../ValuesUtil.mjs';
 import { __unit } from '../UnitVal.mjs';
 import SandboxStatus from '../SandboxStatus.mjs';
 import { Thread } from '../Thread.mjs';
+import { debug } from 'console';
 
 
 
@@ -115,7 +116,9 @@ export function BuiltinReceive<TBase extends Constructor<UserRuntimeZero>>(Base:
             $r.$t.threadError (errorMessage);
           }    
         
-          let is_clearance_a_leak = flowsTo( mclear.pc_at_creation, glb ($r.$t.pc, lowb.val))
+          let is_clearance_a_leak = 
+            flowsTo( mclear.pc_at_creation 
+                   , glb ($r.$t.pc, lowb.val))
       
           if (!is_clearance_a_leak)  {
             let errorMessage = 
@@ -123,13 +126,11 @@ export function BuiltinReceive<TBase extends Constructor<UserRuntimeZero>>(Base:
               ` | receive lower bound: ${lowb.val.stringRep()}\n` + 
               ` | pc level at the time of receive: ${$r.$t.pc.stringRep()}\n` +        
               ` | pc level at the time of raise: ${mclear.pc_at_creation.stringRep()}`  // we need better terminology for these       
-            $r.$t.threadError (errorMessage);
+            $r.$t.threadError (errorMessage)
           }
-      
-
-          return this.runtime.__mbox.consume (
-              lub (this.runtime.$t.pc, i.lev, lowb.lev, highb.lev, highb.val, mclear.boost_level), 
-              i.val, lowb.val, highb.val )
+     
+          let consume_l = lub (this.runtime.$t.pc, i.lev, lowb.lev, highb.lev, highb.val, mclear.boost_level)
+          return this.runtime.__mbox.consume ( consume_l, i.val, lowb.val, highb.val )
         })
 
         _blockThread = mkBase ((arg) => {
@@ -207,77 +208,5 @@ export function BuiltinReceive<TBase extends Constructor<UserRuntimeZero>>(Base:
           return this.runtime.$service.rcv()
         }, "rcv")
 
-        /*
-        rcv = mkBase((arg) => {
-            assertNormalState("rcv");
-            assertIsNTuple(arg, 3);
-            assertIsLevel(arg.val[0])
-            assertIsLevel(arg.val[1])
-            assertIsList(arg.val[2])
-            let lowb = arg.val[0]
-            let highb = arg.val[1]
-            let handlers = arg.val[2]
-            return _receiveFromMailbox(this.runtime, lowb, highb, handlers);
-        })
-        */
-        /*
-        rcvp = mkBase((arg) => {
-            assertNormalState("rcvp")
-            assertIsNTuple(arg, 2)
-            assertIsLevel(arg.val[0])
-            assertIsList(arg.val[1])
-            let lev = arg.val[0]
-            let handlers = arg.val[1];
-            return _receiveFromMailbox(this.runtime, lev, lev, handlers)
-        })
-        */
-
-        /*
-        receive = mkBase((handlers) => {
-            assertNormalState("receive")
-            assertIsList(handlers)
-            // shortcutting level checks because they are guaranteed 
-            // to hold when both low and upper bound is pc; 2020-02-08; AA
-
-            let l = new LVal (this.runtime.$t.pc, this.runtime.$t.pc, BOT )
- 
-            return this.runtime.__mbox.rcv(this.runtime.$t.pc,
-                     this.runtime.$t.pc, handlers,
-                     this.runtime.$t.mailbox.mclear.boost_level);
-        })
-        */
-
-
-        /* 
-        rcvlim = mkBase((arg) => {
-            assertNormalState("receive")
-            assertIsNTuple(arg, 3)
-            assertIsLevel(arg.val[0])
-            assertIsAtom (arg.val[1])
-            assertIsList (arg.val[2])
-
-            
-            let taintAction;
-            
-            switch (arg.val[1].val.atom) {
-              case "KEEP": taintAction = ReceiveTaintAction.KEEP; break;
-              case "DROP": taintAction = ReceiveTaintAction.DROP; break;
-              default : this.runtime.$t.threadError("Invalid taint action argument")
-            }
-            let handlers = arg.val[2]
-            this.runtime.$t.raiseCurrentThreadPC(arg.val[0].lev)
-            let taintLimit = arg.val[0].val 
-
-            assertIsList(handlers)
-            // shortcutting level checks because they are guaranteed 
-            // to hold when both low and upper bound is pc; 2020-02-08; AA
-
-            return this.runtime.__mbox.rcv(this.runtime.$t.pc,
-                      this.runtime.$t.pc, handlers,
-                      this.runtime.$t.mailbox.mclear.boost_level,
-                      taintLimit, taintAction
-                      );
-        })
-        */
     }
 }

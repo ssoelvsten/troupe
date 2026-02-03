@@ -1,6 +1,11 @@
-2023-03-17T21:23:23.868Z [RTM] [32minfo[39m: Skipping network creation. Observe that all external IO operations will yield a runtime error.
-Runtime error in thread 1d69b8a9-6861-492b-b46c-ee3854853c30@{}%{}
+2026-01-06T14:33:34.508Z [RTM] [32minfo[39m: Skipping network creation. Observe that all external IO operations will yield a runtime error.
+Runtime error in thread 4d594cbe-670d-45b5-8f88-989d1f6ae2f7@{}%{}
+
+  3 |     val y = declassify (x, authAlice, `{}`)
+    |             ^
+
 >> Not enough authority for declassification
- | level of the data: {alice}
- | level of the authority: {bob}
+ | level of the data: <alice;#root-integrity>
+ | level of the authority: <bob;#root-integrity>
  | target level of the declassification: {}
+>> at tests/rt/neg/ifc/notenoughauthority.trp:3:13

@@ -1,0 +1,24 @@
+(* Target Node for Cross-Spawn Test *)
+(* This node waits to host spawned processes *)
+
+let 
+    val timeout_pid = spawn(fn () => 
+        let val _ = sleep 10000
+        in exit(authority, 124)
+        end)
+    
+    fun target_node() =
+        let val _ = print "TARGET: Starting target node"
+            val _ = print "TARGET: Ready to host spawned processes"
+            
+            (* The target node doesn't need to do anything special *)
+            (* Remote spawning will automatically create processes here *)
+            (* We just wait for the test to complete *)
+            val _ = sleep 2000  (* Wait for spawned process to complete *)
+            
+        in (print "TARGET: Test completed";
+            exit(authority, 0))
+        end
+
+in target_node()
+end

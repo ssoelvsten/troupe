@@ -1,0 +1,8 @@
+tests/cmp/record-pat-triple-dot.trp:3:15: parse error
+  3 |     val {a, ...} = r
+    |               ^
+  unexpected '.'
+  expected '}'
+
+Suggestion: Mismatched braces - missing '}'?
+

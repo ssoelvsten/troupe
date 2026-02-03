@@ -1,0 +1,1 @@
+listToTuple [10 raisedTo `<alice ; bob>`, 20 raisedTo `<charlie ; alice>`]

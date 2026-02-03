@@ -1,5 +1,5 @@
-let val x = 42 raisedTo `{alice}`
-    val authAlice = attenuate (authority, `{bob}`)
+let val x = 42 raisedTo `<alice;#root-integrity>`
+    val authAlice = attenuate (authority, `<bob;#root-integrity>`)
     val y = declassify (x, authAlice, `{}`)
 in y 
 end

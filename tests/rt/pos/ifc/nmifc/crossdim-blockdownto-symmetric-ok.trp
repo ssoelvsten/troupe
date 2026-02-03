@@ -1,0 +1,36 @@
+(* NMIFC Category D Test: Cross-Dimensional Block Downgrade with Symmetric Labels
+
+   This test demonstrates that the `blockdownto` primitive works correctly
+   with symmetric (non-corrupt) blocking levels under NMIFC mode.
+
+   The `blockdownto` primitive allows changing the blocking level in BOTH
+   confidentiality and integrity dimensions in a single operation.
+
+   Test scenario:
+   1. Branch on a value labeled {alice} to raise BL to {alice} = <alice; alice>
+      (Note: PC stays at BOT, only BL is raised by branching)
+   2. Use blockdownto to lower BL back to BOT in both dimensions
+
+   Under NMIFC with PC = BOT and BL = {alice}:
+   - Robustness check for declassification: I_bl ==> S_bl = alice ==> alice = TRUE
+   - Transparency check for endorsement: I_bl ==> I_to \/ S_bl = alice ==> FALSE \/ alice = TRUE
+
+   Both checks pass, so the blockdownto succeeds.
+
+   Expected output: done
+
+   See: nmifc-summary.md for details on NMIFC conditions
+*)
+
+let
+    (* Create value with symmetric label {alice} = <alice; alice> *)
+    val symmetricAlice = true raisedTo `{alice}`
+
+    (* Branch on it to raise BL to {alice}. PC stays at BOT. *)
+    val _ = if symmetricAlice then () else ()
+    (* Now: PC = BOT, BL = {alice} = <alice; alice> *)
+
+    (* Cross-dimensional downgrade of blocking level to BOT *)
+    val _ = blockdownto (authority, `<#null-confidentiality; #root-integrity>`)
+in print "done"
+end

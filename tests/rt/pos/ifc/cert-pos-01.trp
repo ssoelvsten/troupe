@@ -1,0 +1,3 @@
+let val x = 1    
+in cert(x) 
+end

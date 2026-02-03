@@ -1,11 +1,16 @@
-2023-03-17T21:23:23.433Z [RTM] [32minfo[39m: Skipping network creation. Observe that all external IO operations will yield a runtime error.
->>> Main thread finished with value: (6a126aef-158f-41f6-a33e-216ff07ad8fc@{}%{}, 834aa8b7-e3ef-46c7-9258-65e563c896d6@{}%{})@{}%{}
-PID:6a126aef-158f-41f6-a33e-216ff07ad8fc@{}%{}     PC:{}                BL:{alice,bob}       HNNORMAL             _sp:20               
-PID:6a126aef-158f-41f6-a33e-216ff07ad8fc@{}%{}     PC:{}                BL:{alice}           HNNORMAL             _sp:20               
-PID:6a126aef-158f-41f6-a33e-216ff07ad8fc@{}%{}     PC:{}                BL:{alice,bob}       HNNORMAL             _sp:20               
-Runtime error in thread 6a126aef-158f-41f6-a33e-216ff07ad8fc@{}%{}
+2026-01-06T14:33:33.822Z [RTM] [32minfo[39m: Skipping network creation. Observe that all external IO operations will yield a runtime error.
+>>> Main thread finished with value: (065058c4-2210-443d-83af-172ba605bc40@{}%{}, ecee46b1-18f9-4061-a455-c12f121d7f80@{}%{})@{}%{}
+PID:065058c4-2210-443d-83af-172ba605bc40@{}%{}     PC:{}                BL:<alice&bob;#root-integrity> HNNORMAL             _sp:21               
+PID:065058c4-2210-443d-83af-172ba605bc40@{}%{}     PC:{}                BL:<alice;#root-integrity> HNNORMAL             _sp:21               
+PID:065058c4-2210-443d-83af-172ba605bc40@{}%{}     PC:{}                BL:<alice&bob;#root-integrity> HNNORMAL             _sp:21               
+Runtime error in thread 065058c4-2210-443d-83af-172ba605bc40@{}%{}
+
+  24 |         in ladv (`<alice;#root-integrity>`, ()) 
+     |                   ^
+
 >> Illegal flow in adv function:
  |    pc: {}
- | block: {alice,bob}
- | l_adv: {alice}@{}%{} 
+ | block: <alice&bob;#root-integrity>
+ | l_adv: <alice;#root-integrity>@{}%{} 
  | value: ()@{}%{}
+>> at tests/rt/neg/ifc/lclear-msc-thesis-example-neg-01.trp:24:12

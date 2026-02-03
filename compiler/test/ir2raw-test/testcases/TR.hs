@@ -9,8 +9,8 @@ import TroupePositionInfo
 
 
 mkP :: IRTerminator -> IRProgram
-mkP tr = IRProgram (Core.Atoms []) [FunDef (HFN "main") (VN "arg") [] body]
-  where body = BB [] tr
+mkP tr = IRProgram (Core.Atoms []) [Loc NoPos (FunDef (HFN "main") (mkVN "arg") [] body)]
+  where body = BB [] (mkLTerm tr)
 
 tcs :: [(String, IRProgram)]
 tcs = map (second mkP)
@@ -27,18 +27,18 @@ tcs = map (second mkP)
   -- NOTE: We use libexport as terminator because it generates least extra code
   ( "If"
   , If (mkV "x")
-       (BB [Assign (VN "b1") (Base "v1") ] (LibExport (mkV "b1")))
-       (BB [Assign (VN "b2") (Base "v2") ] (LibExport (mkV "b2")))
+       (BB [mkLInst (Assign (VN "b1") (Base "v1"))] (mkLTerm (LibExport (mkV "b1"))))
+       (BB [mkLInst (Assign (VN "b2") (Base "v2"))] (mkLTerm (LibExport (mkV "b2"))))
   ),
-  ( "Call"
-  , Call (VN "x")
-       (BB [Assign (VN "b1") (Base "v1") ] (LibExport (mkV "b1")))
-       (BB [Assign (VN "b2") (Base "v2") ] (LibExport (mkV "b2")))
+  ( "StackExpand"
+  , StackExpand (VN "x")
+       (BB [mkLInst (Assign (VN "b1") (Base "v1"))] (mkLTerm (LibExport (mkV "b1"))))
+       (BB [mkLInst (Assign (VN "b2") (Base "v2"))] (mkLTerm (LibExport (mkV "b2"))))
   ),
   ( "AssertElseError"
-  , AssertElseError (mkV "x") (BB [Assign (VN "b") (Base "v")] (LibExport (mkV "b"))) (mkV "verr") NoPos
+  , AssertElseError (mkV "x") (BB [mkLInst (Assign (VN "b") (Base "v"))] (mkLTerm (LibExport (mkV "b")))) (mkV "verr")
   ),
   ( "Error"
-  , Error (mkV "verr") NoPos
+  , Error (mkV "verr")
   )
   ]

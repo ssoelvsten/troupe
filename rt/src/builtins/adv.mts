@@ -1,10 +1,46 @@
 import { UserRuntimeZero, Constructor, mkBase } from './UserRuntimeZero.mjs'
 import { LVal } from '../Lval.mjs';
-import * as levels from '../options.mjs'
+import * as levels from '../Level.mjs'
 import { assertIsNTuple, assertNormalState } from '../Asserts.mjs';
 import { __unit } from '../UnitVal.mjs';
+import { getCliArgs, TroupeCliArg } from '../TroupeCliArgs.mjs';
+import { ErrorKind } from '../TroupeError.mjs';
 
 const {lub, flowsTo} = levels
+const argv = getCliArgs();
+
+/* 
+
+       ┌────────┐       
+       │  TOP   │       
+       └────────┘       
+            Λ           
+           ╱ ╲          
+          ╱   ╲         
+         ╱     ╲        
+        ╱       ╲       
+       ╱         ╲      
+      ╱           ╲     
+     ╱             ╲    
+┌────────┐    ┌────────┐
+│  NULL  │    │  ROOT  │
+└────────┘    └────────┘
+     ╲             ╱    
+      ╲           ╱     
+       ╲         ╱      
+        ╲       ╱       
+         ╲     ╱        
+          ╲   ╱         
+           ╲ ╱          
+            V           
+       ┌────────┐       
+       │  BOT   │       
+       └────────┘       
+
+
+*/ 
+
+
 
 export function BuiltinAdv <TBase extends Constructor<UserRuntimeZero>>(Base: TBase) {
     return class extends Base {
@@ -16,18 +52,44 @@ export function BuiltinAdv <TBase extends Constructor<UserRuntimeZero>>(Base: TB
 
         adv = mkBase((x) => {
             assertNormalState("baseDisclose");
+            
+            // Check if running in network mode (i.e., NOT local-only)
+            if (!argv[TroupeCliArg.LocalOnly]) {
+                this.runtime.$t.threadError("adv function is disabled in network mode.");
+            }
+            
             // assert that
-            // pc ⊔ x.lev ⊑ LOW
-            let __sched = this.runtime.__sched
+            // pc ⊔ x.lev ⊑ NULL
 
-            if (!flowsTo(lub(this.runtime.$t.bl, x.lev), levels.BOT)) {
+            if (!flowsTo(lub(this.runtime.$t.bl, x.dlev), levels.NULL)) {
                 this.runtime.$t.
                 threadError("Illegal flow in adv function:\n" +
                     ` |    pc: ${this.runtime.$t.pc.stringRep()}\n` +
                     ` | block: ${this.runtime.$t.bl.stringRep()}\n` +
-                    ` | value: ${x.stringRep()}`)
+                    ` | value: ${x.stringRep()}`, false, null, ErrorKind.IFCCheck)
             }
             return this.runtime.ret(__unit);
+        })
+
+        cert = mkBase ((x) =>{
+            assertNormalState("baseCertify");
+            
+            // Check if running in network mode (i.e., NOT local-only)
+            if (!argv[TroupeCliArg.LocalOnly]) {
+                this.runtime.$t.threadError("cert function is disabled in network mode.");
+            }
+            
+            // assert that
+            // pc ⊔ x.lev ⊑ ROOT
+
+            if (!flowsTo(lub(this.runtime.$t.bl, x.dlev), levels.ROOT)) {
+                this.runtime.$t.
+                threadError("Illegal flow in cert function:\n" +
+                    ` |    pc: ${this.runtime.$t.pc.stringRep()}\n` +
+                    ` | block: ${this.runtime.$t.bl.stringRep()}\n` +
+                    ` | value: ${x.stringRep()}`, false, null, ErrorKind.IFCCheck)
+            }
+            return this.runtime.ret(__unit);            
         })
 
         ladv = mkBase((x) => {
@@ -44,7 +106,7 @@ export function BuiltinAdv <TBase extends Constructor<UserRuntimeZero>>(Base: TB
                     ` |    pc: ${this.runtime.$t.pc.stringRep()}\n` +
                     ` | block: ${this.runtime.$t.bl.stringRep()}\n` +
                     ` | l_adv: ${l_adv.stringRep()} \n` +
-                    ` | value: ${value.stringRep()}`)
+                    ` | value: ${value.stringRep()}`, false, null, ErrorKind.IFCCheck)
             }
             return this.runtime.ret(__unit);
         })

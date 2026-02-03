@@ -1,0 +1,4 @@
+(* Test that runtime options and CLI args both work together *)
+let val args = getCliArgs authority
+in print args
+end

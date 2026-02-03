@@ -1,0 +1,30 @@
+(* Client 2 for Multi-Client Test *)
+
+let 
+    val timeout_pid = spawn(fn () => 
+        let val _ = sleep 10000
+        in exit(authority, 124)
+        end)
+    
+    fun client2() = 
+        let val _ = print "CLIENT2: Starting"
+            val _ = sleep 1000  (* Slightly different delay *)
+            
+            val echo_server = whereis("@server", "echo")
+            val _ = print "CLIENT2: Found echo server"
+            
+            val test_msg = "Message from Client 2"
+            val _ = print ("CLIENT2: Sending: " ^ test_msg)
+            val _ = send(echo_server, ("ECHO", test_msg, self()))
+            
+            val response = receive [hn ("REPLY", x) => x]
+            val _ = print ("CLIENT2: Received: " ^ response)
+            
+        in if response = test_msg then
+            (print "CLIENT2: Test successful"; exit(authority, 0))
+           else
+            (print "CLIENT2: Test failed"; exit(authority, 1))
+        end
+
+in client2()
+end

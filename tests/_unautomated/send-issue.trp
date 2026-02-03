@@ -1,0 +1,11 @@
+(* 2025-05-13; AA ; letting this hang here for now
+   not sure if this a real issue
+
+   TODO: clarify this
+*)
+let val secret = 1 raisedTo `{alice}`
+    val pid = spawn (fn () => receive [hn x => printWithLabels x ])
+in send (pid, secret);
+   adv (0);
+   debugpc ()
+end 

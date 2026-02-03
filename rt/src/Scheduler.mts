@@ -10,13 +10,13 @@ import { LVal } from './Lval.mjs'
 import {ProcessID, pid_equals} from './process.mjs'
 import SandboxStatus from './SandboxStatus.mjs'
 import  {ThreadError, TroupeError} from './TroupeError.mjs'
-import  {lub} from './options.mjs'
-// import * as levels from './options'
-import yargs from 'yargs';
-import { hideBin } from 'yargs/helpers';
-const argv:any = yargs(hideBin(process.argv)).parse()
+import  {lub} from './Level.mjs'
+import { getCliArgs, TroupeCliArg } from './TroupeCliArgs.mjs';
 
-const showStack = argv.showStack
+import {SYSTEM_PROCESS_STRING} from './Constants.mjs'
+const argv = getCliArgs();
+
+const showStack = argv[TroupeCliArg.ShowStack]
 import { mkLogger } from './logger.mjs'
 const logger = mkLogger('scheduler');
 const info = x => logger.info(x)
@@ -89,8 +89,10 @@ export class Scheduler implements SchedulerInterface {
 
         this.notifyMonitors ();
 
-        delete this.__alive[this.currentThreadId.val.toString()];            
-        console.log(">>> Main thread finished with value:", retVal.stringRep());
+        delete this.__alive[this.currentThreadId.val.toString()];
+        if (!argv[TroupeCliArg.SuppressMainThreadFinishedMessage]) {
+            console.log(">>> Main thread finished with value:", retVal.stringRep());
+        }
         if (persist) {
             this.rtObj.persist (retVal, persist )
             console.log ("Saved the result value in file", persist)
@@ -110,7 +112,7 @@ export class Scheduler implements SchedulerInterface {
             let reason = TerminationStatus.OK == status ? statusVal : 
                 mkTuple ( [statusVal,  mkVal (errstr)] );
             let message = mkVal (mkTuple ([ mkVal("DONE"), refUUID, thisPid, reason]))             
-            this.rtObj.sendMessageNoChecks ( toPid, message , false) // false flag means no need to return in the process
+            this.rtObj.sendMessageNoChecks ( toPid, message , undefined, false) // false flag means no need to return in the process
         }
     }
 
@@ -180,14 +182,16 @@ export class Scheduler implements SchedulerInterface {
     }
 
 
-    createNewProcessIDAtLevel(pcArg) {
-        let pid = uuidv4();
+    createNewProcessIDAtLevel(pcArg, isSystem = false) {
+        let pid = isSystem ? SYSTEM_PROCESS_STRING : uuidv4();
         let pidObj = new ProcessID(this.rt_uuid, pid, this.__node);
         return new LVal(pidObj, pcArg);
     }
 
-    scheduleNewThreadAtLevel (thefun, arg, levpc, levblock, ismain = false, persist=null) {
-        let newPid = this.createNewProcessIDAtLevel(levpc);
+
+
+    scheduleNewThreadAtLevel (thefun, arg, levpc, levblock, ismain = false, persist=null, isSystem = false) {
+        let newPid = this.createNewProcessIDAtLevel(levpc, isSystem);
 
         let halt = ismain ?  ()=> { this.halt (persist) } : 
                              () => { this.done () };

@@ -1,0 +1,5 @@
+let val r0 = {x = 0}
+    val r1 = {r0 with y = 1}
+    val r2 = {r1 with z = 2}
+in r2
+end

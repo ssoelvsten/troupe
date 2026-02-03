@@ -1,11 +1,8 @@
 import { UserRuntimeZero, Constructor, mkBase } from './UserRuntimeZero.mjs'
-import { LVal } from '../Lval.mjs';
-import * as options from '../options.mjs'
-import { assertNormalState, assertIsNTuple, assertIsAuthority, assertIsNumber, assertIsTopAuthority } from '../Asserts.mjs'
+import { assertNormalState, assertIsNTuple, assertIsAuthority, assertIsNumber, assertIsRootAuthority } from '../Asserts.mjs'
 import { __unit } from '../UnitVal.mjs';
+import { setExitInitiated } from '../runtimeMonitored.mjs';
 
-const levels = options;
-const { lub, flowsTo } = levels
 
 export function BuiltinExit <TBase extends Constructor<UserRuntimeZero>>(Base: TBase) {
     return class extends Base {
@@ -15,7 +12,8 @@ export function BuiltinExit <TBase extends Constructor<UserRuntimeZero>>(Base: T
             assertIsNTuple(arg, 2);
             assertIsAuthority(arg.val[0]);
             assertIsNumber(arg.val[1]);
-            assertIsTopAuthority(arg.val[0]);
+            assertIsRootAuthority(arg.val[0]);
+            setExitInitiated();  // Prevent compiler exit handler from interfering
             (async () => {
                 await $r.cleanup()
                 process.exit(arg.val[1].val);
@@ -26,7 +24,7 @@ export function BuiltinExit <TBase extends Constructor<UserRuntimeZero>>(Base: T
         _resetScheduler = mkBase((arg) => {
             assertNormalState("exit");
             assertIsAuthority(arg);
-            assertIsTopAuthority(arg);
+            assertIsRootAuthority(arg);
             this.runtime.__sched.resetScheduler ()
             return this.runtime.ret(__unit)
             

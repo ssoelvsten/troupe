@@ -1,0 +1,3 @@
+case {} of 
+    {} => "empty record"
+  | _ => "not empty"

@@ -55,8 +55,9 @@ the libp2p).
 
 // IMPORTS
 
-import { PeerId } from '@libp2p/interface-peer-id';
-import yargs from 'yargs';
+import type { PeerId } from '@libp2p/interface';
+import { FaultTolerance } from '@libp2p/interface';
+import { getCliArgs, TroupeCliArg } from '../TroupeCliArgs.mjs';
 import { tcp } from '@libp2p/tcp';
 import { webSockets } from '@libp2p/websockets';
 import { mplex } from '@libp2p/mplex';
@@ -64,7 +65,8 @@ import { yamux } from '@chainsafe/libp2p-yamux';
 import { noise } from '@chainsafe/libp2p-noise';
 import defaultsDeep from '@nodeutils/defaults-deep';
 import { Libp2p, createLibp2p as create } from 'libp2p';
-import { createFromJSON, createEd25519PeerId } from '@libp2p/peer-id-factory';
+import { keys } from '@libp2p/crypto';
+import { peerIdFromPrivateKey } from '@libp2p/peer-id';
 import { peerIdFromString } from '@libp2p/peer-id';
 import { bootstrap } from '@libp2p/bootstrap';
 import { mdns } from '@libp2p/mdns';
@@ -74,22 +76,35 @@ import map from 'it-map';
 import { fromString as uint8ArrayFromString } from 'uint8arrays/from-string';
 import { toString as uint8ArrayToString } from 'uint8arrays/to-string';
 import { pushable } from 'it-pushable';
-import p2pconfig from './p2pconfig.mjs';
+import p2pconfig, { setCliRelays, getRelays } from './p2pconfig.mjs';
 import { multiaddr } from '@multiformats/multiaddr';
-import { identifyService } from 'libp2p/identify';
-import { circuitRelayTransport } from 'libp2p/circuit-relay';
-import { KEEP_ALIVE } from '@libp2p/interface-peer-store/tags';
+import { identify } from '@libp2p/identify';
+import { circuitRelayTransport } from '@libp2p/circuit-relay-v2';
+import { ping } from '@libp2p/ping';
+const KEEP_ALIVE = 'KEEP_ALIVE'; // Tag for keeping connections alive
 import { Logger } from 'winston';
 import {v4 as uuidv4} from 'uuid';
 import { kadDHT } from '@libp2p/kad-dht';
 
+// USER-FACING ERRORS
+
+/**
+ * Error class for P2P errors that should be displayed to users without stack traces.
+ * Similar to CliValidationError for network-related user-facing errors.
+ */
+export class P2pUserError extends Error {
+    constructor(message: string) {
+        super(message);
+        this.name = 'P2pUserError';
+    }
+}
+
 // LOGGING AND DEBUGGING 
 
-import { hideBin } from 'yargs/helpers';
-const argv:any = yargs(hideBin(process.argv)).parse()
+const argv = getCliArgs();
 
-let logLevel = argv.debugp2p? 'debug':'info';
-let __port = argv.port || 0;
+let logLevel = argv[TroupeCliArg.DebugP2p]? 'debug':'info';
+let __port = argv[TroupeCliArg.Port] || 0;
 
 let logger: Logger;
 (async() => {
@@ -138,13 +153,20 @@ const bootstrappers = [
  * the connections to relays.
  */
 async function startp2p(nodeId, rt: any): Promise<String> {
-  // Load or create a peer id
-  let id : PeerId = await obtainPeerId(nodeId);
+  // Set CLI relays if provided
+  const cliRelays = argv[TroupeCliArg.Relay];
+  if (cliRelays) {
+    setCliRelays(Array.isArray(cliRelays) ? cliRelays : [cliRelays]);
+  }
+
+  // Load or create a private key
+  let privateKey = await obtainPrivateKey(nodeId);
+  let id: PeerId;
 
   // Create the libp2p node
   try {
     let nodeListener: Libp2p = await createLibp2p({
-      peerId: id,
+      privateKey: privateKey,
     });
 
     await nodeListener.start();
@@ -152,17 +174,36 @@ async function startp2p(nodeId, rt: any): Promise<String> {
     // Save the libp2p node and runtime objects
     _node = nodeListener;
     _rt = rt;
+    
+    // Get the peer ID from the node
+    id = nodeListener.peerId;
 
   } catch (err) {
+    // Check if this is a relay-related address listening failure
+    // UnsupportedListenAddressesError occurs when libp2p cannot listen on configured addresses,
+    // typically because the relay server is unreachable (timeout)
+    if (err.name === 'UnsupportedListenAddressesError' && err.message) {
+      const relays = getRelays();
+      // Check if any configured relay address appears in the error message
+      const failedRelay = relays?.find(relay => err.message.includes(relay));
+      if (failedRelay) {
+        const message = `Relay server unreachable: ${failedRelay}\n` +
+          `The relay server did not respond in time. Workarounds:\n` +
+          `  --disable-relay             Disable relay functionality entirely\n` +
+          `  --relay-fault-tolerance=no-fatal  Continue startup even if relay fails`;
+        throw new P2pUserError(message);
+      }
+    }
     error(`Something wrong while creating Libp2p node: ${err}`);
     throw err;
   }
   
   // When a peer dials using the Troupe protocol, handle the connection
-  await _node.handle(_PROTOCOL, async ({ connection, stream }) => {
+  // runOnLimitedConnection is required for circuit relay connections
+  await _node.handle(_PROTOCOL, async (stream, connection) => {
     debug(`Handling protocol dial from id: ${connection.remotePeer}`);
     setupConnection(connection.remotePeer, stream);
-  });
+  }, { runOnLimitedConnection: true });
 
   // When a node is discovered, save the address and report it on the debug logger
   _node.addEventListener('peer:discovery', async (evt) => {
@@ -199,7 +240,18 @@ async function startp2p(nodeId, rt: any): Promise<String> {
 
   // Make sure the relay is dialed and the connections are kept live
   // To use more than one relay, make sure to dial them all
-  keepAliveRelay(p2pconfig.relays[0]);
+  // Skip if --no-relay is set
+  const disableRelay = argv[TroupeCliArg.DisableRelay] || false;
+  if (disableRelay) {
+    debug("--disable-relay: Skipping relay connection setup");
+  } else {
+    const relays = getRelays();
+    if (relays && relays.length > 0) {
+      keepAliveRelay(relays[0]);
+    } else {
+      debug("No relay configured, skipping relay connection");
+    }
+  }
 
   return id.toString();
 }
@@ -208,73 +260,129 @@ async function startp2p(nodeId, rt: any): Promise<String> {
  * Create the libp2p node that this peer will use.
  */
 async function createLibp2p(_options) {
-  const defaults = {
+  const relayOnly = argv[TroupeCliArg.RelayOnly] || false;
+  const noP2pCircuit = argv[TroupeCliArg.NoP2pCircuit] || false;
+  const disableRelay = argv[TroupeCliArg.DisableRelay] || false;
+  const relayFaultTolerance = argv[TroupeCliArg.RelayFaultTolerance] || 'fatal';
+
+  // Determine fault tolerance setting for transport manager
+  const faultTolerance = relayFaultTolerance === 'no-fatal'
+    ? FaultTolerance.NO_FATAL
+    : FaultTolerance.FATAL_ALL;
+
+  // Build listen addresses
+  const listenAddrs = [`/ip4/0.0.0.0/tcp/${__port}`];
+
+  // For circuit relay v2, we need to specify the exact relay address to listen on.
+  // Using just '/p2p-circuit' triggers relay discovery, but in relay-only mode
+  // discovery is disabled. By specifying the full relay address with /p2p-circuit,
+  // we tell the transport to make a reservation on that specific relay.
+  // Skip all circuit relay addresses if --disable-relay is set
+  if (!disableRelay && !noP2pCircuit) {
+    const relays = getRelays();
+    if (relays && relays.length > 0) {
+      // Use specific relay addresses (e.g., /ip4/.../p2p/RELAYID/p2p-circuit)
+      for (const relay of relays) {
+        listenAddrs.push(`${relay}/p2p-circuit`);
+        debug(`Adding circuit relay listen address: ${relay}/p2p-circuit`);
+      }
+    } else {
+      // No relays configured - skip circuit relay listen address
+      // Direct connectivity via TCP/mDNS will still work
+      debug('No relays configured, skipping /p2p-circuit listen address');
+    }
+  } else if (disableRelay) {
+    debug('--disable-relay: All relay functionality disabled');
+  } else {
+    debug('--no-p2p-circuit: Relay reservations disabled (for testing NO_RESERVATION handling)');
+  }
+
+  // Build transports list - exclude circuit relay transport if --disable-relay is set
+  const transports = disableRelay
+    ? [tcp(), webSockets()]
+    : [tcp(), webSockets(), circuitRelayTransport({})];
+
+  const defaults: any = {
     addresses: {
-      listen: [`/ip4/0.0.0.0/tcp/${__port}`]
+      listen: listenAddrs
     },
     connectionManager : {
       minConnections: 1,
       maxConnections: Infinity,
     },
-    transports: [
-      tcp(),
-      webSockets(),
-      circuitRelayTransport({
-        discoverRelays: 1,
-      })
-    ],
+    transportManager: {
+      faultTolerance: faultTolerance
+    },
+    transports: transports,
     streamMuxers: [
       yamux(),
-      mplex()
+      // mplex is deprecated and can cause issues with circuit relay protobuf decoding
+      // See: https://docs.libp2p.io/concepts/multiplex/mplex/
+      // mplex()
     ],
-    connectionEncryption: [
+    connectionEncrypters: [
       noise(),
     ],
-    peerDiscovery: [
+    services: {
+      ping: ping(),
+      identify: identify(),
+    },
+  };
+
+  // Only enable DHT, mDNS, and bootstrap discovery if not in relay-only mode
+  if (relayOnly) {
+    debug('Relay-only mode: DHT, mDNS, and bootstrap discovery disabled');
+    defaults.peerDiscovery = [];
+    // No DHT service in relay-only mode
+  } else {
+    defaults.peerDiscovery = [
       bootstrap({
         list: bootstrappers
       }),
       mdns(),
-    ],
-    services: {
-      dht: kadDHT(),
-      identify: identifyService(),
-    },
-    
-  };
+    ];
+    defaults.services.dht = kadDHT({
+      clientMode: false,  // Run as both client and server
+      protocol: '/ipfs/kad/1.0.0'
+    });
+  }
 
   return create(defaultsDeep(_options, defaults));
 }
 
 /**
- * Obtain this node's peer id.
- * Create it from a JSON object if possible,
+ * Obtain this node's private key.
+ * Create it from a protobuf if possible,
  * otherwise generate a fresh one.
  */
-async function obtainPeerId(nodeId): Promise<PeerId> {    
-  let id: PeerId = null;
-  if(nodeId) {
-    // Load the id from a JSON file if possible
+async function obtainPrivateKey(nodeId): Promise<any> {    
+  let privateKey: any = null;
+  if(nodeId && nodeId.privKey) {
+    // Load the private key from the nodeId object
     try {
-      id = await createFromJSON(nodeId);
+      // Convert base64pad private key string to Uint8Array
+      const privKeyBytes = Uint8Array.from(Buffer.from(nodeId.privKey.trim(), 'base64'));
+      privateKey = await keys.privateKeyFromProtobuf(privKeyBytes);
+      const id = await peerIdFromPrivateKey(privateKey);
       debug(`Loaded id from file: ${id.toString()}`);
     } catch (err) {
-      error(`Error creating peer id from json: ${err}`);
+      error(`Error creating private key from protobuf: ${err}`);
       throw err;    
     }
   } else {
-    // Otherwise create a fresh id
+    // Otherwise create a fresh key pair
     try {
-      debug("Creating new peer id...");
-      id = await createEd25519PeerId();
-      debug("Created new peer id");
+      debug("Creating new key pair...");
+      privateKey = await keys.generateKeyPair('Ed25519');
+      const id = await peerIdFromPrivateKey(privateKey);
+      debug(`Created new id: ${id.toString()}`);
     } catch (err) {
-      error(`Error creating new peer id: ${err}`);
+      error(`Error creating key pair: ${err}`);
       throw err;
     }
   }
 
-  return id;
+  return privateKey;
 }
 
 // DIAL
@@ -294,8 +402,9 @@ function dial(id: PeerId) {
         await getPeerInfo(id);
 
         // Dial using the Troupe protocol
+        // runOnLimitedConnection is required for circuit relay connections
         debug(`Trying to dial ${id}, attempt number ${i}`);
-        const stream = await _node.dialProtocol(id, _PROTOCOL);
+        const stream = await _node.dialProtocol(id, _PROTOCOL, { runOnLimitedConnection: true });
         debug("Dial successful");
 
         // Handle inputs and outputs
@@ -372,6 +481,7 @@ async function getPeerInfo(id: PeerId): Promise<void> {
   if(_relayId) {
     // Try to contact the node through a relay
     // To use several relays, cycle through them and add them all
+    debug(`Adding circuit relay address for ${id}: /p2p/${_relayId}/p2p-circuit/p2p/${id.toString()}`);
     await _node.peerStore.merge(id, {
       multiaddrs: [
         multiaddr(`/p2p/${_relayId}/p2p-circuit/p2p/${id.toString()}`)
@@ -452,36 +562,53 @@ function setupConnection(peerId: PeerId, stream): void {
   debug(`setupConnection with ${id}`);
   const p = pushable({ objectMode : true });
 
-  // Setup the pipe to send and receive messages
-  pipe (p,
-        (source) => map(source, (json) => JSON.stringify(json)),
-        (source) => map(source, (string : string) => uint8ArrayFromString(string, 'utf8')),
-        (source) => lp.encode(source),
-        stream,
-        (source) => lp.decode(source),
-        (source) => map(source, (buf) => uint8ArrayToString(buf.subarray())),
-        (source) => map(source, (string : string) => JSON.parse(string)),
-        async (source) => {
-          try {
-            for await (const message of source) {
-              // Send any input to the input handler
-              inputHandler(id, message);
-            }
-          } catch (err) {
-            processExpectedNetworkErrors(err, "setupConnection/pipe");
-          }
+  // In libp2p v3, streams are AsyncIterable for reading and use .send() for writing
+  // We need to set up separate read and write pipelines
 
-          // Hangs up when the connection closes
-          debug(`Hanging up connection to ${id}`);                
-          try {
-            await _node.hangUp(peerId);
-          } catch (err) {
-            processExpectedNetworkErrors(err, "setupConnection/hang-up");
-          }
-
-          // Resends any unacknowledged WHEREIS and SPAWN requests for this peer
-          reissueUnacknowledged(id);
+  // Write pipeline: pushable -> encode -> send to stream
+  pipe(
+    p,
+    (source) => map(source, (json) => JSON.stringify(json)),
+    (source) => map(source, (string: string) => uint8ArrayFromString(string, 'utf8')),
+    (source) => lp.encode(source),
+    async (source) => {
+      try {
+        for await (const data of source) {
+          stream.send(data);
         }
+      } catch (err) {
+        processExpectedNetworkErrors(err, "setupConnection/write-pipe");
+      }
+    }
+  );
+
+  // Read pipeline: stream -> decode -> handle messages
+  pipe(
+    stream,
+    (source) => lp.decode(source),
+    (source) => map(source, (buf) => uint8ArrayToString(buf.subarray())),
+    (source) => map(source, (string: string) => JSON.parse(string)),
+    async (source) => {
+      try {
+        for await (const message of source) {
+          // Send any input to the input handler
+          inputHandler(id, message);
+        }
+      } catch (err) {
+        processExpectedNetworkErrors(err, "setupConnection/read-pipe");
+      }
+
+      // Hangs up when the connection closes
+      debug(`Hanging up connection to ${id}`);
+      try {
+        await _node.hangUp(peerId);
+      } catch (err) {
+        processExpectedNetworkErrors(err, "setupConnection/hang-up");
+      }
+
+      // Resends any unacknowledged WHEREIS and SPAWN requests for this peer
+      reissueUnacknowledged(id);
+    }
   );
 
   stream.p = p; // Storing a reference to the pushable on the stream
@@ -568,10 +695,10 @@ async function inputHandler(id, input) {
       );
       break;
 
-    case (MessageType.WHEREIS): 
+    case (MessageType.WHEREIS):
       debug("Received WHEREIS");
       // Get the runtime to find the peer
-      let runtimeAnswer = await _rt.whereisFromRemote(input.message);
+      let runtimeAnswer = await _rt.whereisFromRemote(input.message, id);
 
      // Reply with WHEREISOK
       pushWrap(id, {
@@ -622,36 +749,18 @@ async function keepAliveRelay(relayAddr: string) {
   let id = relayAddr.split('/').pop();
   debug(`Relay id is ${id}`);
 
-  let timeout = _KEEPALIVE;
-  async function keepAlive() {
-    try {
-      // Push a keep-alive message to the relay.
-      debug(`Get a pushable for relay: ${id}`);
-      let peerId = peerIdFromString(id);
-      let p = await getPushable(peerId, relayAddr);
-
-      // If getPushable fails the pushable may be null
-      if(p) {
-        debug(`Pushing keep alive request to ${_relayId}`);
-        p.push(`Keep alive request ${_keepAliveCounter++}`);
-
-        // Reset the timeout once we are connected to the relay.
-        timeout = _KEEPALIVE;
-      } else {
-        // If there is no pushable, increase the timeout
-        timeout = timeout < 600e3 ? timeout * 2 : timeout;
-        debug(`Pushable found was null; we will retry again in ${timeout/1000} seconds`);
-      }
-      
-    } catch (err) {
-      // Exponential backoff with 10 min limit.
-      timeout = timeout < 600e3 ? timeout * 2 : timeout;
-      processExpectedNetworkErrors(err, "relay");
-      debug(`Error reaching the relay server; we will retry again in ${timeout/1000} seconds`);
-    }             
-    setTimeout(keepAlive, timeout);
+  // In circuit relay v2, we just need to dial the relay once
+  // The connection will be maintained automatically by libp2p
+  try {
+    await dialRelay(relayAddr);
+    debug(`Successfully connected to relay ${id}`);
+  } catch (err) {
+    error(`Failed to connect to relay: ${err}`);
+    processExpectedNetworkErrors(err, "relay");
+    
+    // Retry after a delay if connection fails
+    setTimeout(() => keepAliveRelay(relayAddr), 30000);
   }
-  keepAlive();
 }
 
 /**
@@ -676,24 +785,26 @@ async function dialRelay(relayAddr: string) {
       }
     });
 
-    // Dial the relay
+    // Dial the relay - in circuit relay v2, we just dial without a specific protocol
     debug(`Added relay address`);
-    const stream = await _node.dialProtocol(relayId, _RELAY_PROTOCOL);
-    debug(`Got relay stream`);
+    const connection = await _node.dial(relayId);
+    debug(`Relay dialed`);
     _relayId = id;
-    debug(`Relay dialed, keep alive counter is ${_keepAliveCounter++}`);
 
-    // Set up sending messages to the relay
-    const p = pushable({ objectMode : true });
-    pipe (p,
-          (source) => map(source, (string: string) => uint8ArrayFromString(string)),
-          (source) => lp.encode(source),
-          stream.sink);
-    
-    // Save the pushable and return the stream
-    (stream as any).p = p; // Storing a reference to the pushable on the stream
-                           // We rely on the p2p library to keep track of streams
-    return stream;
+    // In circuit relay v2, the reservation is made automatically when we dial the relay
+    // because we have /p2p-circuit in our listen addresses (configured in createLibp2p).
+    // The circuitRelayTransport handles the HOP RESERVE protocol internally.
+    // Log the relay circuit addresses we're now reachable at.
+    const relayAddrs = _node.getMultiaddrs().filter(m => m.toString().includes('p2p-circuit'));
+    if (relayAddrs.length > 0) {
+      debug(`Relay reservation established - now reachable through relay ${id}`);
+      relayAddrs.forEach(addr => debug(`Relay address: ${addr.toString()}`));
+    } else {
+      debug(`Relay dialed but no circuit addresses yet - reservation may be pending`);
+    }
+
+    debug(`Relay connected, keep alive counter is ${_keepAliveCounter++}`);
+    return null;
   } catch (err) {
     processExpectedNetworkErrors (err, "dial relay");
   }
@@ -960,51 +1071,94 @@ function setupBlockingHealthChecker(period: number) {
 function processExpectedNetworkErrors(err, source="unknown") {
     debug(`Error source: ${source}`);
     if(err instanceof AggregateError) {
-      for(const e of err.errors ) {        
+      for(const e of err.errors ) {
         processExpectedNetworkErrors (e, source)
       }
+    } else if(err && err.constructor && err.constructor.name === 'ErrorEvent') {
+      // Handle ErrorEvent from native Node.js WebSocket (via undici)
+      // ErrorEvent doesn't have name/code properties, just a type property
+      // This occurs when WebSocket connections fail (e.g., connection refused, network error)
+      const target = err.target;
+      const url = target && target[Symbol.for('nodejs.url')] ? target[Symbol.for('nodejs.url')] : 'unknown';
+      error(`WebSocket connection failed to ${url}: ${err.message || 'connection error'}`);
+      // Treat as a recoverable network error - don't throw
     } else {
-      if(err.code) {
-        switch (err.code) {
+      if(err.name || err.code) {
+        const errorId = err.name || err.code;
+        switch (errorId) {
+          case 'NetworkUnreachableError':
           case 'ENETUNREACH':
             debug(`${err.toString()}`)
             break;
+          case 'NotFoundError':
           case 'ENOTFOUND':
             debug(`${err.toString()}`)
             break;
+          case 'ConnectionResetError':
           case 'ECONNRESET':
             debug(`${err.toString()}`)
             break;
+          case 'TransportDialFailedError':
           case 'ERR_TRANSPORT_DIAL_FAILED':
             debug(`${err.toString()}`)
             break;
+          case 'AbortError':
           case 'ABORT_ERR':
             debug(`${err.toString()}`)
             break;
+          case 'ConnectionRefusedError':
           case 'ECONNREFUSED':
             debug(`${err.toString()}`)
             break;
+          case 'HopRequestFailedError':
           case 'ERR_HOP_REQUEST_FAILED':
             debug(`${err.toString()}`)
             break;
+          case 'NoDialMultiaddrsError':
           case 'ERR_NO_DIAL_MULTIADDRS':
             debug(`${err.toString()}`)
             break;
+          case 'EncryptionFailedError':
           case 'ERR_ENCRYPTION_FAILED':
             debug(`${err.toString()}`)
             break;
+          case 'NoValidAddressesError':
           case 'ERR_NO_VALID_ADDRESSES':
             debug(`${err.toString()}`)
             break;
+          case 'StreamResetError':
           case 'ERR_MPLEX_STREAM_RESET':
             debug(`${err.toString()}`)
             break;
+          case 'TimeoutError':
           case 'ERR_TIMEOUT':
             debug(`${err.toString()}`);
             break;
+          case 'InvalidMessageError':
+            // Check if this is a relay-related error (NO_RESERVATION, etc.)
+            if (err.message && err.message.includes('NO_RESERVATION')) {
+              debug(`Relay reservation not found: ${err.toString()}`);
+            } else if (err.message && err.message.includes('RESOURCE_LIMIT_EXCEEDED')) {
+              debug(`Relay resource limit exceeded: ${err.toString()}`);
+            } else if (err.message && err.message.includes('PERMISSION_DENIED')) {
+              debug(`Relay permission denied: ${err.toString()}`);
+            } else {
+              // Unknown InvalidMessageError - log as error but don't throw
+              error(`InvalidMessageError: ${err.toString()}`);
+            }
+            break;
+          case 'ReservationRefusedError':
+          case 'ERR_RESERVATION_REFUSED':
+            debug(`Relay reservation refused: ${err.toString()}`);
+            break;
+          case 'ConnectionFailedError':
+          case 'ERR_CONNECTION_FAILED':
+            debug(`Connection failed: ${err.toString()}`);
+            break;
+      
 
           default:
-            error(`Unhandled error case with error code ${err.code}`)
+            error(`Unhandled error case with error identifier ${errorId}`)
             throw err;
         }
       } else {
@@ -1030,6 +1184,14 @@ export let p2p = {
     return whereisp2p(arg1, arg2)
   },
   stopp2p: async () => {
+    // End all pushables before stopping to allow _node.stop() to complete.
+    // Without ending pushables, the write pipelines block indefinitely.
+    for (const connection of _node.getConnections()) {
+      for (const stream of connection.streams) {
+        const p = (stream as any).p;
+        if (p) p.end();
+      }
+    }
     return await _node.stop()
   },
   processExpectedNetworkErrors: (arg1, arg2) => {

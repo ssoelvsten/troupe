@@ -1,0 +1,5 @@
+let val x = 10 / 2
+    val y = 15 mod 4 
+    val z = 17 div 3 in
+(x, y, z)
+end

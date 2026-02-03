@@ -1,0 +1,11 @@
+(* Test for Issue #110: Label equality checking *)
+(* Two logically equivalent label orderings should be equal *)
+
+let val x = `{alice, bob}` = `{alice, bob}`
+    val y = `{alice, bob}` = `{bob, alice}`
+    val _ = print ("Same order:     ", x)
+    val _ = print ("Different order:", y)
+in
+(* Both should be true if labels are compared logically *)
+()
+end

@@ -1,0 +1,26 @@
+let
+    val timeout_pid = spawn(fn () => 
+        let val _ = sleep 10000
+        in exit(authority, 124)
+        end)
+    
+    fun proxy_server() =
+        let val _ = print "INTERMEDIARY: Starting proxy service"
+            val _ = register("proxy", self(), authority)
+            val _ = print "INTERMEDIARY: Registered proxy service"
+            
+            fun proxy_loop() =
+                receive [
+                    hn ("FORWARD_ECHO", msg, client_pid, server_node) =>
+                        let val _ = print ("INTERMEDIARY: Forwarding message to " ^ server_node)
+                            val echo_service = whereis(server_node, "echo")
+                            val _ = send(echo_service, ("ECHO", msg, client_pid))
+                            val _ = print "INTERMEDIARY: Message forwarded"
+                        in proxy_loop()
+                        end
+                ]
+        in proxy_loop()
+        end
+
+in proxy_server()
+end

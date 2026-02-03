@@ -1,0 +1,5 @@
+2025-12-28T13:27:29.641Z [RTM] [32minfo[39m: Skipping network creation. Observe that all external IO operations will yield a runtime error.
+"blockdeclto succeeded"
+"blockendorseto succeeded"
+PID:3e58e19a-b24a-49b8-858b-d621b9e93ab7@{}%{}     PC:{}                BL:{}                HNNORMAL             _sp:19               
+>>> Main thread finished with value: ()@{}%{}

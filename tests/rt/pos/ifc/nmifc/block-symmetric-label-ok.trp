@@ -1,0 +1,47 @@
+(* NMIFC Positive Test: Blocking Level Downgrade with Symmetric Labels
+
+   This test demonstrates that NMIFC allows blockdeclto and blockendorseto
+   when the blocking level is at a non-corrupt label.
+
+   A symmetric label like {alice} expands to <alice; alice>.
+   This is NOT corrupt because alice ==> alice is trivially true.
+
+   Flow:
+   1. Branch on {alice} to raise BL to {alice} = <alice; alice> (non-corrupt)
+   2. blockdeclto to <TRUE; alice> - robustness check passes
+   3. blockendorseto to <TRUE; ROOT> - transparency check passes
+
+   Under NMIFC (with PC = BOT after branch):
+   - Robustness check for blockdeclto: I_bl ==> S_bl = alice ==> alice = TRUE
+   - Transparency check for blockendorseto: I_bl ==> I_to ∨ (S_bl ∧ S_pc)
+     = alice ==> FALSE ∨ (TRUE ∧ TRUE) = alice ==> TRUE = TRUE
+
+   Both operations should succeed.
+
+   Expected output:
+   blockdeclto succeeded
+   blockendorseto succeeded
+
+   See: nmifc-summary.md for details on the non-corruption condition
+*)
+
+let
+    (* Create value with symmetric label {alice} = <alice; alice> *)
+    val symmetricAlice = true raisedTo `{alice}`
+
+    (* Branch on it to raise PC and BL to {alice} *)
+    val _ = if symmetricAlice then () else ()
+
+    (* blockdeclto: downgrade confidentiality from alice to TRUE, keep integrity as alice *)
+    (* BL: {alice} = <alice;alice> -> <TRUE;alice> *)
+    val _ = blockdeclto (authority, `<#null-confidentiality;alice>`)
+    val _ = print "blockdeclto succeeded"
+
+    (* blockendorseto: downgrade integrity from alice to ROOT, keep confidentiality as TRUE *)
+    (* BL: <TRUE;alice> -> <TRUE;ROOT> *)
+    val _ = blockendorseto (authority, `<#null-confidentiality;#root-integrity>`)
+    val _ = print "blockendorseto succeeded"
+
+    val _ = debugpc ()
+in ()
+end

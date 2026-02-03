@@ -1,0 +1,18 @@
+(* Test that DC labels allow optional whitespace between backtick and angle brackets *)
+
+let val label1 = `< ; attacker>`       (* no whitespace - original syntax *)
+    val label2 = ` < ; attacker>`      (* whitespace after opening backtick *)
+    val label3 = `<; attacker > `      (* whitespace before closing backtick *)
+    val label4 = ` < ; attacker > `    (* whitespace on both sides *)
+    val label5 = `   <  ;  attacker  >   `  (* multiple whitespace chars *)
+in
+    print label1;
+    print label2;
+    print label3;
+    print label4;
+    print label5;
+    print (label1 = label2);
+    print (label2 = label3);
+    print (label3 = label4);
+    print (label4 = label5)
+end

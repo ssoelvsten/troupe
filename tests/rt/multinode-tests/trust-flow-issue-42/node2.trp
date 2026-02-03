@@ -1,0 +1,15 @@
+(* Trust Flow Test - Node 2 *)
+(* Target node that should not receive any spawn due to trust flow violation *)
+
+let val _ = print "NODE2: Started and waiting"
+    val timeout_pid = spawn(fn () => 
+        let val _ = sleep 4000
+        in print "NODE2: Timeout - no spawn received (expected)"; exit(authority, 0)
+        end)
+in
+    receive [ hn x => 
+        let val _ = print "NODE2: ERROR - Received unexpected spawn"
+        in exit(authority, 1)
+        end
+    ]
+end

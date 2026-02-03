@@ -1,8 +1,9 @@
 'use strict'
 import * as fs from 'node:fs'
-import * as levels from './levels/tagsets.mjs';
+import * as levels from './Level.mjs';
 const { readFile } = fs.promises
 
+import { getTroupeRoot } from './troupeRoot.mjs'
 import { mkLogger } from './logger.mjs'
 const logger = mkLogger('lib')
 
@@ -28,7 +29,7 @@ export async function loadLibsAsync(obj, rtObj) {
         // 1. Find the file -- note that we load all the libs from a default
         //    location
 
-        let filename = process.env.TROUPE + "/lib/out/" + lib + ".js"
+        let filename = getTroupeRoot() + "/lib/out/" + lib + ".js"
 
         // 2. Load the file -- note that this is an asynchronous operation
         let input = await readFile(filename, 'utf8')

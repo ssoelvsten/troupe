@@ -10,9 +10,9 @@ import { RuntimeInterface } from './RuntimeInterface.mjs'
 import { LVal, MbVal } from './Lval.mjs'
 import { ProcessID } from './process.mjs';
 import { UserRuntime } from './UserRuntime.mjs'
-import * as levels from './options.mjs'
+import * as levels from './Level.mjs'
 import * as DS from './deserialize.mjs'
-import { p2p } from './p2p/p2p.mjs'
+import { p2p, P2pUserError } from './p2p/p2p.mjs'
 import { closeReadline } from './builtins/stdio.mjs';
 import { __theRegister } from './builtins/whereis.mjs';
 import { assertIsFunction } from './Asserts.mjs'
@@ -22,33 +22,51 @@ import { setRuntimeObject } from './SysState.mjs';
 import { initTrustMap, nodeTrustLevel, _trustMap } from './TrustManager.mjs';
 import { serialize } from './serialize.mjs';
 import { Thread } from './Thread.mjs';
+import { ErrorKind } from './TroupeError.mjs';
 
 import { Console } from 'node:console'
 
-const { flowsTo, lub, glb } = levels
-import yargs from 'yargs'
+const { flowsTo, actsFor, lub, glb } = levels
+import { getCliArgs, TroupeCliArg } from './TroupeCliArgs.mjs';
+import { configureColors, isColorEnabled } from './colorConfig.mjs';
+import { mkLogger } from './logger.mjs'
+import { getTroupeRoot } from './troupeRoot.mjs'
+import { Record } from './Record.mjs';
+import { level } from 'winston';
+import { shouldDrop, extractQuarantineAuth } from './QuarantineUtils.mjs';
 
 const readFile = fs.promises.readFile
 const rt_uuid = runId
-import { hideBin } from 'yargs/helpers';
-const argv:any = yargs(hideBin(process.argv)).parse()
+const argv = getCliArgs();
 
+// Configure colors before any chalk or logger usage
+configureColors();
 
-let logLevel = argv.debug ? 'debug': 'info'
-import { mkLogger } from './logger.mjs'
+let logLevel = argv[TroupeCliArg.Debug] ? 'debug': 'info'
 const logger = mkLogger('RTM', logLevel);
 
 const info = x => logger.info(x)
 const debug = x => logger.debug(x)
 const error = x => logger.error(x)
 
+// Quarantine-specific logger
+const qrnLogLevel = argv[TroupeCliArg.DebugQuarantine] ? 'debug' : 'info';
+const qrnLogger = mkLogger('QRN', qrnLogLevel);
+const qdebug = (x: string) => qrnLogger.debug(x);
+
 let __p2pRunning = false;
+
+// Flag to prevent compiler exit handler from interfering with intended exit code
+export let __exitInitiated = false;
+export function setExitInitiated() {
+    __exitInitiated = true;
+}
 
 
 let rt_xconsole = 
       new Console({ stdout: process.stdout
                   , stderr: process.stderr
-                  , colorMode:true
+                  , colorMode: isColorEnabled()
                  });
 
 function $t():Thread { return __sched.__currentThread }; // returns the current thread
@@ -62,14 +80,18 @@ async function spawnAtNode(nodeid, f) {
 
   // TODO: 2018-09-24: AA: do the information flow check
 
-  let { data, level } = serialize(f, lub($t().pc, nodeid.lev));
+  let { data, level } = serialize(f, lub($t().pc, nodeid.lev), node.nodeId);
 
   let trustLevel = nodeTrustLevel(node.nodeId);
+  let theThread = $t();
 
-  if (!flowsTo(level, trustLevel)) {
-    threadError("Illegal trust flow when spawning on a remote node\n" +
+  if (!actsFor(trustLevel, level, { node: node.nodeId })) {
+    theThread.throwInSuspended("Illegal trust flow when spawning on a remote node\n" +
       ` | the trust level of the recepient node: ${trustLevel.stringRep()}\n` +
       ` | the level of the information in spawn: ${level.stringRep()}`)
+     __sched.scheduleThread(theThread);
+     __sched.resumeLoopAsync();  
+     return;
   }
 
 
@@ -83,11 +105,21 @@ async function spawnAtNode(nodeid, f) {
   //--------------------------------------------------
 
 
-  let theThread = $t();
 
   try {
     let body1 = await p2p.spawnp2p(node.nodeId, data);
-    let body = await DS.deserialize(nodeTrustLevel(node.nodeId), body1)
+    let result = await DS.deserialize(nodeTrustLevel(node.nodeId), body1, node.nodeId)
+
+    // For spawn responses, DROP means we can't trust the pid we got back
+    if (shouldDrop(result)) {
+      error(`Dropping corrupt spawn response from ${node.nodeId}`);
+      theThread.throwInSuspended("Corrupt spawn response from remote node");
+      __sched.scheduleThread(theThread);
+      __sched.resumeLoopAsync();
+      return;
+    }
+
+    let body = result.value!;
     let pid = new ProcessID(body.val.uuid, body.val.pid, body.val.node);
     theThread.returnSuspended(new LVal(pid, body.lev));
 
@@ -106,7 +138,7 @@ async function spawnAtNode(nodeid, f) {
   }
 }
 
-let _allowRemoteSpawn = (argv.rspawn) && (argv.rspawn == "true")
+let _allowRemoteSpawn = argv[TroupeCliArg.RSpawn];
 function remoteSpawnOK() {
   return _allowRemoteSpawn;
 }
@@ -135,7 +167,16 @@ async function spawnFromRemote(jsonObj, fromNode) {
 
   let nodeLev = nodeTrustLevel(fromNode);
 
-  let lf = await DS.deserialize(nodeLev, jsonObj)
+  let result = await DS.deserialize(nodeLev, jsonObj, fromNode)
+
+  // For spawn requests, DROP means we reject the spawn
+  if (shouldDrop(result)) {
+    debug(`Rejecting spawn from ${fromNode} due to corrupt data`);
+    // Return null to indicate failure - the caller will handle this
+    return null;
+  }
+
+  let lf = result.value!;
   let f = lf.val;
   let newPid =
     __sched.scheduleNewThreadAtLevel(
@@ -149,7 +190,7 @@ async function spawnFromRemote(jsonObj, fromNode) {
   // 2018-09-19: AA: because we need to send some info back, we have to invoke
   // serialization.
 
-  let serObj = serialize(newPid, levels.BOT).data
+  let serObj = serialize(newPid, levels.BOT, fromNode).data
   __sched.resumeLoopAsync();
   return (serObj);
 }
@@ -167,17 +208,32 @@ async function spawnFromRemote(jsonObj, fromNode) {
  */
 async function receiveFromRemote(pid, jsonObj, fromNode) {
   debug(`* rt receiveFromremote *  ${JSON.stringify(jsonObj)}`)
-  let data = await DS.deserialize(nodeTrustLevel(fromNode), jsonObj)
+
+  const result = await DS.deserialize(nodeTrustLevel(fromNode), jsonObj, fromNode);
+
+  // Handle ingress check result
+  if (shouldDrop(result)) {
+    debug(`Dropping corrupt message from ${fromNode}`);
+    qdebug(`DROP: message from ${fromNode} contained corrupt data`);
+    return;  // Silent drop
+  }
+
+  const data = result.value!;
   debug(`* rt receiveFromremote *  ${fromNode} ${data.stringRep()}`);
 
-  // TODO: 2018-07-23: do we need to do some more raising
-  // about the level of the fromNode?; AA
-
-  let fromNodeId = __sched.mkVal(fromNode);
   let toPid = new LVal(new ProcessID(rt_uuid, pid, __nodeManager.getLocalNode()), data.lev);
-  __theMailbox.addMessage(fromNodeId, toPid, data.val, data.lev);
-  __sched.resumeLoopAsync();
 
+  // Pass quarantine authority if present
+  const quarantineAuth = extractQuarantineAuth(result);
+
+  if (quarantineAuth !== null) {
+    qdebug(`QUARANTINE: message from ${fromNode} quarantined with auth ${quarantineAuth.stringRep()}`);
+  }
+
+  // Pass raw fromNode; addMessage will construct the labeled value using
+  // the receiving thread's creation-time PC
+  __theMailbox.addMessage(fromNode, toPid, data.val, data.lev, quarantineAuth);
+  __sched.resumeLoopAsync();
 }
 
 
@@ -190,26 +246,35 @@ async function receiveFromRemote(pid, jsonObj, fromNode) {
  * @param {*} message The data to send
  *
  */
-function sendMessageToRemote(toPid, message) {
+/**
+ * Send message to remote node.
+ *
+ * @param toPid The pid of the remote process
+ * @param message The data to send
+ * @param qauth Optional quarantine authority for sending quarantined data
+ */
+function sendMessageToRemote(toPid, message, qauth?: Authority) {
   let node = toPid.node.nodeId;
   let pid = toPid.pid;
-  // debug (`* rt *  ${toPid}  ${message.stringRep()}`);  
 
-  let { data, level } = serialize(new MbVal(message, $t().pc), $t().pc);
+  let { data, level } = serialize(new MbVal(message, $t().pc), $t().pc, node);
 
-  // debug (`* rt *  ${JSON.stringify(data)}`);
   let trustLevel = nodeTrustLevel(node);
 
-  // debug ("data level: " +  level.stringRep());
-  // debug ("remote trust level: " + trustLevel.stringRep());
+  // Key change: only coalesce if qauth provided
+  // REMOVED: { node } option - no more automatic wildcard coalescing
+  let effectiveTrust = qauth
+    ? trustLevel.coalesce(qauth.authorityLevel)
+    : trustLevel;
 
-  if (!flowsTo(level, trustLevel)) {
+  if (!actsFor(effectiveTrust, level)) {  // No { node } option!
     threadError("Illegal trust flow when sending information to a remote node\n" +
       ` | the trust level of the recepient node: ${trustLevel.stringRep()}\n` +
-      ` | the level of the information to send:  ${level.stringRep()}`);
+      (qauth ? ` | effective trust (with qauth): ${effectiveTrust.stringRep()}\n` : '') +
+      ` | the level of the information to send:  ${level.stringRep()}`, false, null, ErrorKind.IFCCheck);
   } else {
     p2p.sendp2p(node, pid, data)
-    return $t().returnImmediateLValue(__unit);   // we return unit to the call site at the thread level
+    return $t().returnImmediateLValue(__unit);
   }
 }
 
@@ -226,20 +291,18 @@ function rt_mkuuid() {
   return uuidval;
 }
 
-function rt_sendMessageNochecks(lRecipientPid, message, ret = true) {
+function rt_sendMessageNochecks(lRecipientPid, message, qauth?: Authority, ret = true) {
   let recipientPid = lRecipientPid.val;
-  // debug (`rt_sendMessageNoChecks ${message.stringRep()}`)
 
   if (isLocalPid(recipientPid)) {
-    let nodeId = __sched.mkVal(__nodeManager.getNodeId());
-    __theMailbox.addMessage(nodeId, lRecipientPid, message, $t().pc);
+    __theMailbox.addMessage(__nodeManager.getNodeId(), lRecipientPid, message, $t().pc);
 
     if (ret) {
-      return $t().returnImmediateLValue(__unit);      
+      return $t().returnImmediateLValue(__unit);
     }
   } else {
-    debug ("* rt rt_send remote *"/*, recipientPid, message*/);
-    return sendMessageToRemote(recipientPid, message)
+    debug ("* rt rt_send remote *");
+    return sendMessageToRemote(recipientPid, message, qauth);
   }
 }
 
@@ -273,12 +336,12 @@ let rt_debug = function (s) {
 
 
 
-async function whereisFromRemote(k) {
+async function whereisFromRemote(k, fromNode) {
   __sched.resumeLoopAsync()
   // TODO: 2018-10-20: make use of the levels as they were
   // recorded during the registration (instead of the bottom here )
   if (__theRegister[k]) {
-    let serObj = serialize(__theRegister[k], levels.BOT).data
+    let serObj = serialize(__theRegister[k], levels.BOT, fromNode).data
     return serObj
   }
 }
@@ -288,15 +351,16 @@ async function whereisFromRemote(k) {
 function rt_mkLabel(x) {
   // debug ("mkLabel", x, x === "secret");
 
-  return new LVal(levels.mkLevel(x), $t().pc);
+  
+  return new LVal(levels.fromSingleTag(x), $t().pc);
 
 }
 
 
 
 
-function threadError(s, internal = false) {
-  return $t().threadError(s, internal);
+function threadError(s, internal = false, explainer = null, errorKind: ErrorKind = ErrorKind.DynTypeError) {
+  return $t().threadError(s, internal, explainer, errorKind);
 }
 
 let rt_threadError = threadError;
@@ -419,7 +483,7 @@ bulletProofSigint();
 
 
 async function loadServiceCode() {
-  let input = await fs.promises.readFile(process.env.TROUPE + '/trp-rt/out/service.js', 'utf8')
+  let input = await fs.promises.readFile(getTroupeRoot() + '/trp-rt/out/service.js', 'utf8')
   let S: any = new Function('rt', input)
   let service = new S(__userRuntime);
 
@@ -439,35 +503,44 @@ async function loadServiceCode() {
 
 
 async function getNetworkPeerId(rtHandlers) {
-  const nodeIdFile = argv.id as string;
+  const nodeIdFile = argv[TroupeCliArg.Id] as string;
+
+  // Parse node ID from file if provided
+  let nodeId = null;
   if (nodeIdFile) {
     try {
-      let nodeIdObj = await readFile(nodeIdFile, 'utf-8')
-      process.on('unhandledRejection', (e) => p2p.processExpectedNetworkErrors(e, "unhandledRejection"))
-      // process.on ('unhandledRejection', up => {console.log ("Unhandled rejection"); console.error (up)})
-      // process.on ('uncaughtException', up => {console.log ("Uncaught exception"); console.error (up)})
-      process.on('uncaughtException', (e) => p2p.processExpectedNetworkErrors(e, "uncaughtException"))
-      return await p2p.startp2p(JSON.parse(nodeIdObj), rtHandlers);
+      const nodeIdObj = await readFile(nodeIdFile, 'utf-8')
+      nodeId = JSON.parse(nodeIdObj);
     } catch (err) {
-      logger.error("cannot load id file")
+      logger.error(`cannot load id file: ${nodeIdFile}`)
       process.exit(1);
     }
-  } else {
-    try {
-      if (argv.localonly || argv.persist) {
-        info("Skipping network creation. Observe that all external IO operations will yield a runtime error.")
-        if (argv.persist) {
-          info("Running with persist flag.")
-        }
-        return null//  OBS: 2018-07-22: we are jumping over the network creation
-      } else {
-        return await p2p.startp2p(null, rtHandlers);
-      }
-    } catch (err) {
-      logger.error("uncaught exception in the runtime")
-      console.error(err.stack);;
-      process.exit(1);
+  }
+
+  // Handle local-only or persist modes (skip network creation)
+  if (argv[TroupeCliArg.LocalOnly] || argv[TroupeCliArg.Persist]) {
+    if (!argv[TroupeCliArg.SuppressLocalInfoMessage]) {
+      info("Skipping network creation. Observe that all external IO operations will yield a runtime error.")
     }
+    if (argv[TroupeCliArg.Persist]) {
+      info("Running with persist flag.")
+    }
+    return null // OBS: 2018-07-22: we are jumping over the network creation
+  }
+
+  // Start P2P network
+  try {
+    process.on('unhandledRejection', (e) => p2p.processExpectedNetworkErrors(e, "unhandledRejection"))
+    process.on('uncaughtException', (e) => p2p.processExpectedNetworkErrors(e, "uncaughtException"))
+    return await p2p.startp2p(nodeId, rtHandlers);
+  } catch (err) {
+    if (err instanceof P2pUserError) {
+      logger.error(err.message);
+    } else {
+      logger.error("p2p network initialization failed")
+      console.error(err.stack);
+    }
+    process.exit(1);
   }
 }
 
@@ -497,7 +570,21 @@ export async function start(f) {
 
   await loadServiceCode()
   await __userRuntime.linkLibs(f)
-  let mainAuthority = new LVal(new Authority(levels.TOP), levels.BOT);
+  let mainAuthority = new LVal(new Authority(levels.ROOT), levels.BOT);
+
+  if (__p2pRunning) {
+    let service_arg = 
+      new LVal ( new Record([ ["authority", mainAuthority], 
+                              ["options", __unit]]), 
+              levels.BOT);
+    __sched.scheduleNewThreadAtLevel(__service['service']
+          , service_arg
+          , levels.TOP
+          , levels.BOT
+          , false
+          , null
+          , true);
+  }
 
   __sched.scheduleNewThreadAtLevel(
     () => f.main ({__dataLevel:levels.BOT})
@@ -506,7 +593,7 @@ export async function start(f) {
     , levels.BOT
     , levels.BOT
     , true
-    , argv.persist
+    , argv[TroupeCliArg.Persist]
   )
   __sched.loop()
 }

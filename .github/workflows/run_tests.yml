@@ -2,38 +2,139 @@ name: Build project and run tests
 on: [pull_request, push]
 jobs:
   build_and_test:
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     if: github.repository_owner == 'TroupeLang' 
     env:
         STACK_OPTS: "--system-ghc"
         TROUPE: ${{github.workspace}}
         TERM: "xterm-color"
     steps:
-      - name: install missing dependency for ghc
-        # https://gitlab.haskell.org/ghc/ghc/-/issues/15444
+      - uses: actions/checkout@v4
+      
+      # Install apt packages
+      - name: Install apt packages
         run: |
           sudo apt-get update
           sudo apt-get install -y libnuma-dev diffutils
-      - uses: actions/checkout@v3
-      - uses: haskell/actions/setup@v2
+      
+      # Cache GHC installation
+      - name: Cache GHC
+        uses: actions/cache@v3
         with:
-          ghc-version: '9.2.7' # Exact version of ghc to use
+          path: |
+            ~/.ghcup
+            /opt/ghc
+            /usr/local/.ghcup
+          key: ${{ runner.os }}-ghc-9.12.2
+      
+      - uses: haskell-actions/setup@v2
+        with:
+          ghc-version: '9.12.2' # Exact version of ghc to use
           # cabal-version: 'latest'. Omitted, but defaults to 'latest'
           enable-stack: true
           # stack-version: 'latest'
-#      - run: |
-#          echo "STACK_OPTS=--system-ghc" >> $GITHUB_ENV
-#          echo "TROUPE=$GITHUB_WORKSPACE" >> $GITHUB_ENV
-#          echo "TERM=xterm-color" >> $GITHUB_ENV
+      
+      # Cache Stack dependencies (after GHC setup)
+      - name: Cache Stack
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.stack
+            compiler/.stack-work
+            .stack-work
+          key: ${{ runner.os }}-stack-${{ hashFiles('compiler/stack.yaml', 'compiler/package.yaml', 'compiler/stack.yaml.lock', 'compiler/*.cabal') }}
+          restore-keys: |
+            ${{ runner.os }}-stack-
+      
+      # Cache global npm packages (TypeScript)
+      - name: Cache global npm packages
+        uses: actions/cache@v3
+        with:
+          path: ~/.npm-global
+          key: ${{ runner.os }}-npm-global-typescript
+      
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+      
+      # Set up global npm directory BEFORE installing packages
+      - name: Setup npm global directory
+        run: |
+          mkdir -p ~/.npm-global
+          npm config set prefix '~/.npm-global'
+          echo "$HOME/.npm-global/bin" >> $GITHUB_PATH
+          export PATH="$HOME/.npm-global/bin:$PATH"
+      
+      # Cache compiled artifacts
+      - name: Cache build artifacts
+        uses: actions/cache@v3
+        with:
+          path: |
+            bin/troupec
+            rt/built
+            p2p-tools/built
+            lib/*.js
+            trp-rt/*.js
+          key: ${{ runner.os }}-build-${{ hashFiles('compiler/**/*.hs', 'rt/src/**/*.mts', 'p2p-tools/**/*.ts', 'lib/**/*.trp', 'trp-rt/**/*.trp') }}
+          restore-keys: |
+            ${{ runner.os }}-build-
+      
       - name: compile the compiler
-        run: make stack
-      - uses: actions/setup-node@v2
-      - run: yarn install
+        run: |
+          make compiler
+          # Build and install the golden test runner
+          cd compiler
+          stack build :golden $(STACK_OPTS)
+          stack install :golden $(STACK_OPTS) --local-bin-path ../bin/
+          cd ..
+      
+      - name: Install npm dependencies
+        run: |
+          npm ci
+          npm install -g typescript
+      - name: make p2p-tools 
+        run: make p2p-tools
       - name: compile the runtime
-        run: make rt
-      - name: compile libs
-        run: make libs
-      - name: compile service
-        run: make service
-      - name: unit tests
+        run: |
+          make rt
+          # Verify runtime was built successfully
+          if [ ! -f rt/built/troupe.mjs ]; then
+            echo "ERROR: Runtime build failed - rt/built/troupe.mjs not found"
+            echo "Checking rt/built directory:"
+            ls -la rt/built/ || echo "rt/built directory does not exist"
+            exit 1
+          fi
+          echo "Runtime built successfully, troupe.mjs found"
+      - name: compile lib
+        run: make lib
+      - name: compile trp-rt
+        run: make trp-rt
+      - name: run basic test
+        run: ./local.sh tests/rt/pos/core/fib10.trp
+      - name: run ci network test
+        run: make test/ci-network
+      - name: run ci relay test
+        run: make test/ci-relay
+      - name: run single multinode test with debug
+        run: |
+          echo "Running basic-echo multinode test with verbose output..."
+          ./scripts/multinode-runner.sh -v tests/rt/multinode-tests/basic-echo/config.json || {
+            echo "Test failed with exit code: $?"
+            echo "Checking for common issues..."
+            ls -la p2p-tools/built/ || echo "p2p-tools/built not found"
+            ls -la p2p-tools/relay/ || echo "relay directory not found"
+            which tsc || echo "TypeScript compiler not found"
+            exit 1
+          }
+      - name: run all tests
         run: make test
+      - name: Upload test logs on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-logs
+          path: |
+            /tmp/troupe-multinode-*/
+            /tmp/tmp.*/
+          retention-days: 7

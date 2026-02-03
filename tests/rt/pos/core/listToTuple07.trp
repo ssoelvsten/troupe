@@ -1,0 +1,6 @@
+let 
+    fun f x = x + 1
+    fun g x = x * 2
+in
+    listToTuple [f, g]
+end

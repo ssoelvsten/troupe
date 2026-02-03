@@ -24,6 +24,7 @@ import           Control.Monad.Except
 import IR as CCIR
 
 import Control.Monad.Identity
+import TroupePositionInfo (Located(..), getLoc, unLoc, PosInf(..), GetPosInfo(..))
 
 data VarLevel = VarNested Integer
                 deriving (Eq, Ord, Show)
@@ -45,9 +46,9 @@ type CC = RWS
             FreshCounter                  -- state:  the counter for fresh name generation
 
 
-type CCEnv   = (CompileMode, C.Atoms, NestingLevel, Map VarName VarLevel)
+type CCEnv   = (CompileMode, C.Atoms, NestingLevel, Map VarName VarLevel, Maybe VarName)
 type Frees   = [(VarName, NestingLevel)]
-type FunDefs = [CCIR.FunDef]
+type FunDefs = [CCIR.LFunDef]
 type ConstEntry = (VarName, C.Lit)
 type ConstTracking = [(ConstEntry, NestingLevel)]
 
@@ -55,15 +56,16 @@ type ConstTracking = [(ConstEntry, NestingLevel)]
 ------------------------------------------------------------
 -- Auxiliary functions
 ------------------------------------------------------------
-consBB:: CCIR.IRInst -> CCIR.IRBBTree -> CCIR.IRBBTree
+consBB:: CCIR.LIRInst -> CCIR.IRBBTree -> CCIR.IRBBTree
 consBB i (BB insts t) = BB (i:insts) t
 
 insVar :: VarName -> CCEnv -> CCEnv
-insVar vn (compileMode, atms, lev, vmap) =
+insVar vn (compileMode, atms, lev, vmap, fname) =
     ( compileMode
     , atms
     , lev
     , Map.insert vn (VarNested lev) vmap
+    , fname
     )
 
 insVars :: [VarName] -> CCEnv -> CCEnv
@@ -72,52 +74,69 @@ insVars vars ccenv =
 
 
 askLev = do
-  (_, _, lev, _) <- ask
+  (_, _, lev, _, _) <- ask
   return lev
 
 
-incLev (compileMode, atms, lev, vmap) =
-    (compileMode, atms, lev + 1, vmap)
+incLev fname (compileMode, atms, lev, vmap, _) =
+    (compileMode, atms, lev + 1, vmap, (Just fname))
 
 
--- this helper function looks up the variable name 
+-- this helper function looks up the variable name
 -- in the enviroment and checks if it should be declared as free
 -- or local
 
 transVar :: VarName -> CC VarAccess
-transVar v@(VN vname) = do 
-  (_, C.Atoms atms, lev, vmap) <- ask
-  case Map.lookup v vmap of 
-    Just (VarNested lev') -> 
-      if lev' < lev 
-      then do 
-        tell $ ([], [(v, lev')], []) -- collecting info about free vars 
-        return $ VarEnv v 
-      else 
-        return $ VarLocal v 
-    Nothing -> 
-      if vname `elem` atms
-         then return $ VarLocal v 
-         else error $ "undeclared variable: " ++ (show v)
+transVar v@(VN vname) = do
+  (_, C.Atoms atms, lev, vmap, maybe_fname) <- ask
+  case maybe_fname of
+    Just fname | fname == v  -> return $ VarFunSelfRef
+    _ ->
+      case Map.lookup v vmap of
+        Just (VarNested lev') ->
+          if lev' < lev
+          then do
+            tell $ ([], [(v, lev')], []) -- collecting info about free vars
+            return $ VarEnv v
+          else
+            return $ VarLocal v
+        Nothing ->
+          if vname `elem` atms
+            then return $ VarLocal v
+            else error $ "undeclared variable: " ++ (show v)
 
+-- | Translate a Located VarName (LVarName) to Located VarAccess (LVarAccess)
+-- Preserves the source position from the input
+transLVar :: CPS.LVarName -> CC CCIR.LVarAccess
+transLVar (Loc pos vn) = do
+  va <- transVar vn
+  return $ Loc pos va
 
-transVars = mapM transVar         
+transVars :: [CPS.VarName] -> CC [CCIR.VarAccess]
+transVars = mapM transVar
+
+-- | Translate a list of Located VarNames to Located VarAccesses
+transLVars :: [CPS.LVarName] -> CC [CCIR.LVarAccess]
+transLVars = mapM transLVar         
 
 isDeclaredEarlierThan lev (_, l)  = l < lev
 
-transFunDec (VN fname) (CPS.Unary var kt) = do   
+-- Translate function declaration to LFunDef (Located FunDef)
+-- The function definition position goes on the Located wrapper
+transFunDec f@(VN fname) (CPS.Unary (Loc varPos var) lkt) pos = do
   lev <- askLev
   let filt = isDeclaredEarlierThan lev
-  (bb, (_, frees, consts_wo_levs)) <- 
+  (bb, (_, frees, consts_wo_levs)) <-
       censor (\(a,b,c ) -> (a, filter filt b, filter (\(_, l) -> l == lev ) c))
-     $ listen 
-        $ local ((insVar var) . incLev)
-           $ cpsToIR kt
+     $ listen
+        $ local ((insVar var) . (incLev f))
+           $ cpsToIR lkt
   let consts = (fst.unzip) consts_wo_levs
-  tell ([FunDef (HFN fname) var consts bb], [], [])
+  -- Wrap FunDef with Located, using pos for function definition position
+  tell ([Loc pos (FunDef (HFN fname) (Loc varPos var) consts bb)], [], [])
   return (nub frees)
 
-transFunDec (VN _) (CPS.Nullary _) = error "not implemented"
+transFunDec (VN _) (CPS.Nullary _) _ = error "not implemented"
 
 -- state accessors
 
@@ -128,128 +147,156 @@ incState = do
   return x
 
 
-mkEnvBindings fv = do
+mkEnvBindings :: PosInf -> Frees -> CC [(VarName, LVarAccess)]
+mkEnvBindings pos fv = do
   lev <- askLev
   let (freeVars', boundVars) = Data.List.partition (\(_, l) -> l <= lev - 1 ) fv
-  let envVars = (map (\(v,_) -> (v, VarLocal v)) boundVars)
-                      ++ (map (\(v,_) -> (v, VarEnv v)) freeVars')
+  let envVars = (map (\(v,_) -> (v, Loc pos (VarLocal v))) boundVars)
+                      ++ (map (\(v,_) -> (v, Loc pos (VarEnv v))) freeVars')
   return envVars
 
 ------------------------------------------------------------
 -- Main translation
 ------------------------------------------------------------
 
-transFields fields = do 
-          let (ff, vv) = unzip fields 
-          lst' <- transVars vv 
+-- | Translate CPS LFields (with LVarName) to IR LFields (with LVarAccess)
+transLFields :: CPS.LFields -> CC CCIR.LFields
+transLFields fields = do
+          let (ff, lvv) = unzip fields
+          lst' <- transLVars lvv
           return $ zip ff lst'
 
-cpsToIR :: CPS.KTerm -> CC CCIR.IRBBTree
-cpsToIR (CPS.LetSimple vname@(VN ident) st kt) = do 
+-- | cpsToIR translates CPS terms to IR, producing proper Located IR types.
+-- Positions from CPS Located wrappers are used to wrap IR constructs.
+cpsToIR :: CPS.LKTerm -> CC CCIR.IRBBTree
+cpsToIR (Loc pos (CPS.LetSimple vname@(VN ident) (Loc stPos st) lkt)) = do
     i <-
-      let _assign arg = return $ Just $ CCIR.Assign vname arg in
-      case st of 
-        CPS.Base base -> _assign  $ Base base
+      -- Helper to create Located Assign instruction
+      let _assign arg = return $ Just $ Loc stPos (CCIR.Assign vname arg) in
+      case st of
+        CPS.Base base -> _assign $ Base base
         CPS.Lib lib base -> _assign (Lib lib base)
-        CPS.Bin binop v1 v2 -> do
-          v1' <- transVar v1 
-          v2' <- transVar v2
-          _assign (Bin binop v1' v2')
-        CPS.Un unop v -> do 
-          v' <- transVar v
-          _assign (Un unop v')
-        CPS.Tuple lst -> do 
-          lst' <- transVars lst 
-          _assign (Tuple lst')
+        -- Now using transLVar to translate LVarName to LVarAccess
+        CPS.Bin binop lv1 lv2 -> do
+          lv1' <- transLVar lv1
+          lv2' <- transLVar lv2
+          return $ Just $ Loc stPos $ CCIR.Assign vname (Bin binop lv1' lv2')
+        CPS.Un unop lv -> do
+          lv' <- transLVar lv
+          return $ Just $ Loc stPos $ CCIR.Assign vname (Un unop lv')
+        CPS.Tuple lst -> do
+          lst' <- transLVars lst
+          return $ Just $ Loc stPos $ CCIR.Assign vname (Tuple lst')
         CPS.Record fields -> do
-          fields' <- transFields fields
-          _assign (Record fields')
-        CPS.WithRecord x fields -> do
-          x' <- transVar x 
-          fields' <- transFields fields
-          _assign $ WithRecord x' fields'
-        CPS.ProjField x f -> do
-          x' <- transVar x 
-          _assign (ProjField x' f)
-        CPS.ProjIdx x idx -> do
-          x' <- transVar x 
-          _assign (ProjIdx x' idx)
-        CPS.List lst -> do 
-          lst' <- transVars lst 
-          _assign (List lst')
-        CPS.ListCons v1 v2 -> do 
-          v1' <- transVar v1 
-          v2' <- transVar v2 
-          _assign (ListCons v1' v2')
-        CPS.ValSimpleTerm (CPS.Lit lit) -> do lev <- askLev  
+          fields' <- transLFields fields
+          return $ Just $ Loc stPos $ CCIR.Assign vname (Record fields')
+        CPS.WithRecord lv fields -> do
+          lv' <- transLVar lv
+          fields' <- transLFields fields
+          return $ Just $ Loc stPos $ CCIR.Assign vname (WithRecord lv' fields')
+        CPS.ProjField lv f -> do
+          lv' <- transLVar lv
+          return $ Just $ Loc stPos $ CCIR.Assign vname (ProjField lv' f)
+        CPS.ProjIdx lv idx -> do
+          lv' <- transLVar lv
+          return $ Just $ Loc stPos $ CCIR.Assign vname (ProjIdx lv' idx)
+        CPS.List lst -> do
+          lst' <- transLVars lst
+          return $ Just $ Loc stPos $ CCIR.Assign vname (List lst')
+        CPS.ListCons lv1 lv2 -> do
+          lv1' <- transLVar lv1
+          lv2' <- transLVar lv2
+          return $ Just $ Loc stPos $ CCIR.Assign vname (ListCons lv1' lv2')
+        CPS.ValSimpleTerm (CPS.Lit lit) -> do lev <- askLev
                                               tell ([],[],[((vname, lit), lev)])
-                                              return Nothing 
-        CPS.ValSimpleTerm (CPS.KAbs klam) -> do 
-          freeVars <- transFunDec vname klam          
-          envBindings <- mkEnvBindings freeVars
-          return $ Just $ CCIR.MkFunClosures envBindings [(vname, HFN ident)]          
-        
-    t <- local (insVar vname) (cpsToIR kt)   
-    return $ case i of 
+                                              return Nothing
+        CPS.ValSimpleTerm (CPS.KAbs klam) -> do
+          freeVars <- transFunDec vname klam stPos
+          envBindings <- mkEnvBindings stPos freeVars
+          return $ Just $ Loc stPos $ CCIR.MkFunClosures envBindings [(vname, HFN ident)]
+
+    t <- local (insVar vname) (cpsToIR lkt)
+    return $ case i of
       Just i' -> i' `consBB` t
-      Nothing -> t 
+      Nothing -> t
 
-cpsToIR (CPS.LetRet (CPS.Cont arg kt') kt) = do
-    t  <- cpsToIR kt
-    t' <- local (insVar arg) (cpsToIR kt')
-    return $ CCIR.BB [] $ Call arg t t'
-cpsToIR (CPS.LetFun fdefs kt) = do 
-    let vnames_orig = map (\(CPS.Fun fname _) -> fname) fdefs
+cpsToIR (Loc pos (CPS.LetRet (CPS.Cont arg lkt') lkt)) = do
+    t  <- cpsToIR lkt
+    t' <- local (insVar arg) (cpsToIR lkt')
+    return $ CCIR.BB [] $ Loc pos $ StackExpand arg t t'
+
+cpsToIR (Loc _pos (CPS.LetFun lfdefs lkt)) = do
+    let vnames_orig = map (\(Loc _ (CPS.Fun fname _)) -> fname) lfdefs
     let localExt = local (insVars vnames_orig)
-    t <- localExt (cpsToIR kt) -- translate the body
+    t <- localExt (cpsToIR lkt) -- translate the body
 
-    frees <- mapM (\(CPS.Fun fname klam) -> 
-                        localExt (transFunDec fname klam)) 
-                fdefs
+    frees <- mapM (\(Loc funPos (CPS.Fun fname klam)) ->
+                        localExt (transFunDec fname klam funPos))
+                lfdefs
 
-    let freeVars = (nub.concat) frees 
+    let freeVars = (nub.concat) frees
     lev <- askLev
     let vnames_orig' = map (\x -> (x, lev)) vnames_orig
-    envBindings <- mkEnvBindings (freeVars \\ vnames_orig')
+    -- Use the position of the first function definition for the closure instruction
+    let funDeclPos = case lfdefs of
+          (Loc p _ : _) -> p
+          [] -> NoPos
+    envBindings <- mkEnvBindings funDeclPos (freeVars \\ vnames_orig')
     let fnBindings = map (\x@(VN i) -> (x, HFN i)) vnames_orig
-    return $ (CCIR.MkFunClosures envBindings fnBindings) `consBB` t
+    return $ (Loc funDeclPos $ CCIR.MkFunClosures envBindings fnBindings) `consBB` t
 
 -- Special Halt continuation, for exiting program
-cpsToIR (CPS.Halt v) = do 
+-- Note: Halt takes a plain VarName, so we use pos for the LVarAccess wrapper
+cpsToIR (Loc pos (CPS.Halt v)) = do
     v' <- transVar v
-    (compileMode,_ , _ , _ ) <- ask 
-    let constructor =
+    let lv' = Loc pos v'  -- Wrap VarAccess with position to create LVarAccess
+    (compileMode,_ , _ , _, _ ) <- ask
+    let terminator =
           case compileMode of
-              Normal -> CCIR.Ret
               -- Compiling library, then generate export instruction
-              Export -> CCIR.LibExport
+              CompileMode.Library -> Loc pos $ CCIR.LibExport lv'
+              -- Otherwise, keep it as a simple return
+              _                   -> Loc pos $ CCIR.Ret lv'
 
-    return $ CCIR.BB [] $ constructor v'
+    return $ CCIR.BB [] terminator
 
-cpsToIR (CPS.KontReturn v) = do 
-  v' <- transVar v 
-  return $ CCIR.BB [] $ CCIR.Ret v'
+-- Note: KontReturn takes a plain VarName, so we use pos for the LVarAccess wrapper
+cpsToIR (Loc pos (CPS.KontReturn v)) = do
+  v' <- transVar v
+  let lv' = Loc pos v'  -- Wrap VarAccess with position to create LVarAccess
+  return $ CCIR.BB [] $ Loc pos $ CCIR.Ret lv'
 
-cpsToIR (CPS.ApplyFun fname v) = do 
-  fname' <- transVar fname 
-  v'     <- transVar v 
-  return $ CCIR.BB [] $ CCIR.TailCall fname' v'
+-- Note: ApplyFun takes plain VarNames, so we use pos for the LVarAccess wrappers
+cpsToIR (Loc pos (CPS.ApplyFun fname v)) = do
+  fname' <- transVar fname
+  v'     <- transVar v
+  let lfname' = Loc pos fname'  -- Wrap VarAccess with position
+  let lv' = Loc pos v'          -- Wrap VarAccess with position
+  return $ CCIR.BB [] $ Loc pos $ CCIR.TailCall lfname' lv'
 
-cpsToIR (CPS.If v kt1 kt2) = do 
-  v' <- transVar v 
-  bb1 <- cpsToIR kt1 
-  bb2 <- cpsToIR kt2 
-  return $ CCIR.BB [] $ CCIR.If v' bb1 bb2
+-- Note: If takes a plain VarName, so we use pos for the LVarAccess wrapper
+cpsToIR (Loc pos (CPS.If v lkt1 lkt2)) = do
+  v' <- transVar v
+  let lv' = Loc pos v'  -- Wrap VarAccess with position
+  bb1 <- cpsToIR lkt1
+  bb2 <- cpsToIR lkt2
+  return $ CCIR.BB [] $ Loc pos $ CCIR.If lv' bb1 bb2
 
-cpsToIR (CPS.AssertElseError v kt1 z p) = do 
-  v' <- transVar v 
-  z' <- transVar z 
-  bb <- cpsToIR kt1 
-  return $ CCIR.BB [] $ CCIR.AssertElseError v' bb z' p
+-- AssertElseError and Error: position comes from Located wrapper
+-- Note: AssertElseError takes plain VarNames, so we use pos for the LVarAccess wrappers
+cpsToIR (Loc pos (CPS.AssertElseError v lkt1 z)) = do
+  v' <- transVar v
+  z' <- transVar z
+  let lv' = Loc pos v'  -- Wrap VarAccess with position
+  let lz' = Loc pos z'  -- Wrap VarAccess with position
+  bb <- cpsToIR lkt1
+  return $ CCIR.BB [] $ Loc pos $ CCIR.AssertElseError lv' bb lz'
 
-cpsToIR (CPS.Error v p) = do 
-  v' <- transVar v 
-  return $ CCIR.BB [] $ CCIR.Error v' p
+-- Note: Error takes a plain VarName, so we use pos for the LVarAccess wrapper
+cpsToIR (Loc pos (CPS.Error v)) = do
+  v' <- transVar v
+  let lv' = Loc pos v'  -- Wrap VarAccess with position
+  return $ CCIR.BB [] $ Loc pos $ CCIR.Error lv'
   
 
 
@@ -259,26 +306,32 @@ cpsToIR (CPS.Error v p) = do
 ------------------------------------------------------------
 
 closureConvert :: CompileMode -> CPS.Prog -> Except String CCIR.IRProgram
-closureConvert compileMode (CPS.Prog (C.Atoms atms) t) =
+closureConvert compileMode (CPS.Prog (C.Atoms atms) lkt) =
   let atms' = C.Atoms atms
       initEnv = ( compileMode
                 , atms'
                 , 0 -- initial nesting counter
                 , Map.empty
+                , Nothing -- top level code has no function name
                 )
       initState = 0
-      (bb, (fdefs, _, consts_wo_levs)) = evalRWS (cpsToIR t) initEnv initState
+      (bb, (fdefs, _, consts_wo_levs)) = evalRWS (cpsToIR lkt) initEnv initState
       (argumentName, toplevel) =
          case compileMode of
-           Normal -> ("$$authorityarg", "main") -- passing authority through the argument to main 
-           Export -> ("$$dummy", "export")
+           -- Top level function of a library is named 'export'
+           CompileMode.Library     -> ("$$dummy", "export")
+           -- Passing authority through the argument to main
+           _                       -> ("$$authorityarg", "main")
+
 
       -- obs that our 'main' may have two names depending on the compilation mode; 2018-07-02; AA
       consts = (fst.unzip) consts_wo_levs
-      main = FunDef (HFN toplevel) (VN argumentName) consts bb
+      -- The main entry point is compiler-generated, so it has no source position
+      -- Wrap FunDef with Located (NoPos since it's compiler-generated)
+      main = Loc NoPos $ FunDef (HFN toplevel) (Loc NoPos (VN argumentName)) consts bb
 
       irProg = CCIR.IRProgram (C.Atoms atms) $ fdefs++[main]
-    in do CCIR.wfIRProg irProg 
+    in do CCIR.wfIRProg irProg
           return irProg
     -- then irProg
     --                       else error "the generated IR is not well-formed"

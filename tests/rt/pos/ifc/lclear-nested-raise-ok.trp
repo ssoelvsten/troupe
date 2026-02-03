@@ -1,11 +1,11 @@
 (* positive; the receives respect the pc-level of the raisembox *)
 let val main = self () 
-    val _ = spawn (fn () => if (1 raisedTo `{secret}` > 0) then send (main, 1) else ())
+    val _ = spawn (fn () => if (1 raisedTo `<secret;#root-integrity>` > 0) then send (main, 1) else ())
 in 
-if true raisedTo `{secret}` then 
-  let val c = raisembox (`{topsecret}`)
-      val y = rcv (`{secret}`, `{secret, topsecret}`, [hn x=> x])
-      val _ = lowermbox (c, attenuate (authority, `{topsecret}`))
+if true raisedTo `<secret;#root-integrity>` then 
+  let val c = raisembox (`<topsecret;#root-integrity>`)
+      val y = rcv (`<secret;#root-integrity>`, `<secret & topsecret;#root-integrity>`, [hn x=> x])
+      val _ = lowermbox (c, attenuate (authority, `<topsecret;#root-integrity>`))
   in y
   end 
 else 

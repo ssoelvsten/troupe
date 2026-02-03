@@ -1,0 +1,44 @@
+(* NMIFC Positive Test: Symmetric (Non-Corrupt) Labels
+
+   This test demonstrates that NMIFC allows declassification and endorsement
+   from symmetric (non-corrupt) labels when the target label is valid.
+
+   A symmetric label like {alice} expands to <alice; alice>.
+   This is NOT corrupt because alice ==> alice is trivially true.
+
+   For declassify: integrity must be preserved
+   - From {alice} = <alice; alice> we can declassify to <TRUE; alice>
+     (only confidentiality changes, integrity stays alice)
+
+   For endorse: confidentiality must be preserved
+   - From {alice} = <alice; alice> we can endorse to <alice; FALSE>
+     (only integrity changes, confidentiality stays alice)
+
+   Under NMIFC with PC = BOT and sufficient authority:
+   - Robustness check for declassify: I_from ==> S_from = alice ==> alice = TRUE
+   - Transparency check for endorse: I_from ==> I_to \/ S_from = alice ==> FALSE \/ alice = TRUE
+
+   Both operations should succeed.
+
+   Expected output:
+   42
+   100
+
+   See: nmifc-summary.md for details on the non-corruption condition
+*)
+
+let val x = 42 raisedTo `{alice}`
+    (* {alice} = <alice; alice> -- a symmetric, non-corrupt label *)
+
+    (* Declassify: change confidentiality from alice to TRUE, keep integrity as alice *)
+    val y = declassify (x, authority, `<#null-confidentiality;alice>`)
+    val _ = print y
+
+    val z = 100 raisedTo `{bob}`
+    (* {bob} = <bob; bob> -- a symmetric, non-corrupt label *)
+
+    (* Endorse: change integrity from bob to FALSE (trusted), keep confidentiality as bob *)
+    val w = endorse (z, authority, `<bob;#root-integrity>`)
+    val _ = print w
+in ()
+end

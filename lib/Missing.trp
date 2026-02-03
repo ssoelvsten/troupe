@@ -1,0 +1,12 @@
+(** 2025-12-14; AA:
+    Some missing functionality that should find better home *)
+
+let
+    (** Invokes the function `f` with the pc tainted by `lev`.
+        Returns the result of `f()` if the tainted branch is taken,
+        otherwise returns unit. *)
+    fun invokeWithTaint lev f = if true raisedTo lev then f() else ()
+
+in [ ("invokeWithTaint", invokeWithTaint)
+   ]
+end

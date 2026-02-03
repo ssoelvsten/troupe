@@ -4,7 +4,7 @@ import { isListFlagSet, isTupleFlagSet, mkTuple, mkList } from '../ValuesUtil.mj
 import { LVal, LValCopyAt, LCopyVal } from '../Lval.mjs'
 import { Nil, Cons, RawList } from '../RawList.mjs'
 import { loadLibsAsync } from '../loadLibsAsync.mjs';
-import * as levels from '../options.mjs'
+import * as levels from '../Level.mjs'
 import { BaseFunctionWithExplicitArg, ServiceFunction } from '../BaseFunction.mjs'
 import { Atom } from '../Atom.mjs'
 import { __unit } from '../UnitVal.mjs'
@@ -17,13 +17,14 @@ import { Thread } from '../Thread.mjs'
 import { TroupeRawValue } from '../TroupeRawValue.mjs'
 import { RawTuple } from '../RawTuple.mjs'
 import { Level } from '../Level.mjs'
+import { rawAssertNotZero } from '../Asserts.mjs'
 
 // import { builtin_sandbox } from './builtins/sandox'
 
 export type Constructor<T = {}> = new (...args: any[]) => T;
 
 
-const {lub, lubs} = levels
+const {lub} = levels
 
 class RtEnv {
     _is_rt_env: boolean;
@@ -88,6 +89,10 @@ export class UserRuntimeZero {
     }
 
 
+    debug (x) {
+        this.runtime.debug(x);
+    }
+
     ret (x) {
         this.runtime.ret (x)
     }
@@ -104,11 +109,11 @@ export class UserRuntimeZero {
 
     // SpecialRT
     rawErrorPos(x: TroupeRawValue, pos: string) {
+        // Set the source position so StrThreadError can use it consistently
         if (pos != '') {
-            this.runtime.$t.threadError(x + " at " + pos);
-        } else {
-            this.runtime.$t.threadError("" + x);
+            this.runtime.$t.lastCallSourcePos = pos;
         }
+        this.runtime.$t.threadError("" + x);
     }
 
     // ComplexRT
@@ -127,6 +132,9 @@ export class UserRuntimeZero {
     intdiv(x: number, y: number): number {
         return Math.trunc(x / y)
     }
+
+    // SimpleRT
+    rawAssertNotZero = rawAssertNotZero
 
     // ComplexRT
     raw_indexTuple(x: TroupeRawValue, y: number): LVal {
@@ -178,6 +186,11 @@ export class UserRuntimeZero {
         return x.length
     }
 
+    // SimpleRT
+    raw_recordSize(x: Record): number {
+        return x.__obj.size
+    }
+
     // ComplexRT
     head(x: RawList): LVal {
         return x.head;
@@ -189,8 +202,12 @@ export class UserRuntimeZero {
     }
 
     // SimpleRT
-    mkLabel(x: string): Level {
-        return levels.mkLevel(x)
+    mkV1Label(x: string): Level {
+        return levels.mkV1Level(x)
+    }
+
+    mkDCLabel(x:any):Level {
+        return levels.mkLevel(x);
     }
 
     /**

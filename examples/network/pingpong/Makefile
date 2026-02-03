@@ -1,5 +1,5 @@
-MKID=node $(TROUPE)/rt/built/p2p/mkid.mjs
-MKALIASES=node $(TROUPE)/rt/built/p2p/mkaliases.js
+MKID=node $(TROUPE)/p2p-tools/built/mkid.mjs
+MKALIASES=node $(TROUPE)/p2p-tools/built/mkaliases.js
 START=$(TROUPE)/network.sh
 
 zero.listener:

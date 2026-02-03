@@ -1,0 +1,12 @@
+2026-01-06T14:33:33.133Z [RTM] [32minfo[39m: Skipping network creation. Observe that all external IO operations will yield a runtime error.
+Runtime error in thread 2fc02aec-3c6b-46f2-8356-2ea273b96c13@{}%{}
+
+  30 |     val y = declassify (x, authority, `<#null-confidentiality; alice|bob>`)
+     |             ^
+
+>> NMIFC robustness violation for declassification
+ | The integrity of the data and PC do not permit this declassification.
+ | level of the data: {alice,bob} (corrupt: true)
+ | target level: <#null-confidentiality;alice|bob>
+ | PC level: {} (corrupt: false)
+>> at tests/rt/neg/ifc/nmifc/robust-corrupt-label.trp:30:13

@@ -10,13 +10,13 @@ import qualified Basics
 
 
 mkP :: IRInst -> IRProgram
-mkP inst = IRProgram (Core.Atoms []) [FunDef (HFN "main") (VN "arg") [] body]
-  where body = BB [inst] (LibExport (mkV "r"))
+mkP inst = IRProgram (Core.Atoms []) [Loc NoPos (FunDef (HFN "main") (mkVN "arg") [] body)]
+  where body = BB [mkLInst inst] (mkLTerm (LibExport (mkV "r")))
 
 tcs :: [(String, IRProgram)]
 tcs = map (second mkP)
   [ ( "AssignSimple"
-    , Assign (VN "r") (Const $ Core.LInt 123 NoPos)
+    , Assign (VN "r") (Const $ Core.LNumeric (Core.NumInt 123))
     )
   ,
     ( "AssignOp"

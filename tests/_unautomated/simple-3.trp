@@ -1,0 +1,5 @@
+let val x = 42 raisedTo `{alice}` 
+     val d = declassify 
+ in d (x, (), {}) (* type error that originates from within the runtime
+                            , () is not an authority *)
+end

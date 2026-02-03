@@ -1,0 +1,5 @@
+(* Test: .. as field name - should fail *)
+let val r = {a = 1, b = 2, c = 3}
+    val {.. = x, b} = r
+in b
+end

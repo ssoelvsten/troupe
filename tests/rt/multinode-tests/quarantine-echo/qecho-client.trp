@@ -1,0 +1,40 @@
+(* Quarantine Echo Client - Sends labeled data to server *)
+(* Client trusts server, so server's response can be endorsed *)
+
+let
+    val _ = spawn(fn () =>
+        let val _ = sleep 30000
+        in exit(authority, 124) (* Timeout *)
+        end)
+
+    val _ = print "CLIENT: Starting"
+    val _ = sleep 200
+
+    (* Find server and endorse the reference *)
+    val echo_raw = whereis("@server", "echo")
+    val alice_auth = attenuate(authority, `{alice}`)
+    val echo = endorse(echo_raw, alice_auth, `<; alice>`)
+    val _ = print "CLIENT: Found echo server"
+
+    (* Send message labeled at {alice} *)
+    val test_msg = "Hello" raisedTo `{alice}`
+    val _ = send(echo, ("ECHO", test_msg, self()))
+    val _ = print "CLIENT: Sent labeled message"
+    val _ = print "CLIENT: Waiting for response..."
+
+    (* Receive response with metadata - quarantined messages need rcvp *)
+    val (response_raw, metadata) = rcvp(`{alice}`, [hn ("REPLY", x) | y => (x, y)])
+    val _ = print "CLIENT: Received response"
+    val _ = printWithLabels response_raw
+
+    (* Extract quarantine authority and endorse the response *)
+    val {quarantineAuth, ..} = metadata
+    val response = endorse(response_raw, quarantineAuth, `<alice; alice>`)
+    val _ = print "CLIENT: After endorsement:"
+    val _ = printWithLabels response
+
+in if response = test_msg then
+    (print "CLIENT: Test passed"; exit(authority, 0))
+   else
+    (print "CLIENT: Test failed - response mismatch"; exit(authority, 1))
+end

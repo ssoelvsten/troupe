@@ -11,5 +11,5 @@ we wrap the resume kont in a lambda; this should still fail
 
 let fun f() =_debug (1); sleep (2000); _debug (2)
     val (2, resume) = sandbox (1000, f)
-in  save ("serialize05", fn () => resume)
+in  save (authority,"serialize05", fn () => resume)
 end

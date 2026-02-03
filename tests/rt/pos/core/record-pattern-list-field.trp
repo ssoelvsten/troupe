@@ -1,0 +1,4 @@
+case {items = [1,2,3], total = 6} of 
+    {items = x::xs, total = t} => x + t
+  | {items = [], total = t} => t
+  | _ => 0

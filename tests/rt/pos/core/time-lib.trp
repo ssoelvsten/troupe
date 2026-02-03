@@ -1,0 +1,28 @@
+import Time
+import Duration
+
+(* Test duration creation and conversion *)
+let val d1 = Duration.fromSeconds 5
+    val d2 = Duration.fromMinutes 1
+in
+    print (Duration.toMillis d1);   (* Should print 5000 *)
+    print (Duration.toSeconds d2);  (* Should print 60 *)
+
+    (* Test duration operations *)
+    print (Duration.toMillis (Duration.addDuration d1 d1));  (* 10000 *)
+    print (Duration.compareDuration d1 d2);  (* -1 *)
+
+    (* Test constants *)
+    print (Duration.toMillis Duration.second);   (* 1000 *)
+    print (Duration.toMillis Duration.minute);   (* 60000 *)
+
+    (* Test instant operations *)
+    let val t1 = Time.now ()
+        val _ = Time.sleepFor (Duration.fromMillis 100)
+        val t2 = Time.now ()
+        val elapsed = Time.diff t2 t1
+    in
+        print (Duration.toMillis elapsed >= 100);  (* true *)
+        print (Time.isBefore t1 t2)            (* true *)
+    end
+end

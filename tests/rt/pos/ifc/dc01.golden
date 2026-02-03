@@ -1,0 +1,2 @@
+2026-01-19T16:40:06.735Z [RTM] [32minfo[39m: Skipping network creation. Observe that all external IO operations will yield a runtime error.
+>>> Main thread finished with value: 14@<alice&bob;(alice|bob|charlie)&(bob|charlie|dorothy)>%{}

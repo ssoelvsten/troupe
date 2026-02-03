@@ -36,7 +36,7 @@ by the runtime module.
 
 ### Step 3. Install Troupe top-level scripts
 
-Type `make stack` (in the repository's root) to compile Troupe's bin scripts
+Type `make compiler` (in the repository's root) to compile Troupe's bin scripts
 
 ### Step 4. Install Troupe standard library
 
@@ -48,14 +48,40 @@ Type
 
 ### Step 5. Running the test suite
 
-#### Utilities for testing
+#### OS X specific utilities for testing
 
-On OS X, make sure to have `gtimeout` and `greadlink` utilities. These can be installed via `brew install coreutils`.
+On OS X, make sure to have `gtimeout`, `greadlink`, and GNU `diff` utilities. 
+
+- `gtimeout` and `greadlink` can be installed via `brew install coreutils`
+- GNU `diff` can be installed via `brew install diffutils`
+
+The GNU diff is required because Troupe's test suite relies on specific diff features not available in the default macOS diff. After installation, verify that GNU diff is available:
+
+```bash
+diff --version
+```
+
+Expected output:
+```
+diff (GNU diffutils) 3.10
+Copyright (C) 2023 Free Software Foundation, Inc.
+License GPLv3+: GNU GPL version 3 or later <https://gnu.org/licenses/gpl.html>.
+This is free software: you are free to change and redistribute it.
+There is NO WARRANTY, to the extent permitted by law.
+
+Written by Paul Eggert, Mike Haertel, David Hayes,
+Richard Stallman, and Len Tower.
+```
 
 #### Checking the installation
 
 Check that the installation works by running the local test suite: `$TROUPE/bin/golden`
 (alternatively `make test` in this directory).
+
+#### Multinode tests
+
+Multinode tests are located in `tests/rt/multinode-tests/` and can be run using the script:
+`scripts/run-multinode-tests.sh`
 
 
 ## Setting up a development environment
@@ -117,13 +143,17 @@ Use `Ctrl-k m` ("Change language mode") to set the current file's language mode 
 
 The current user guide is accessible [here](https://troupe.cs.au.dk/userguide.pdf).
 
+### Note on DC Labels
+
+All DC label tags are normalized to lowercase. For example, `` `<Alice ; Bob>` `` is equivalent to `` `<alice ; bob>` ``. This normalization is applied both at compile time (by the lexer) and at runtime.
+
 ## Building and running
 ### Building
 
 The following commands build specific parts of the project and install the results to the `bin`, `rt/built` and `lib` directories.
 
 - `make all`: build everything (use this whenever significant changes have been made to the project, to be sure that everything is up-to-date)
-- `make` / `make stack`: build the compiler
+- `make` / `make compiler`: build the compiler
 - `make rt`: build the runtime (into the `rt/built` directory)
 - `make libs`: compile Troupe's built-in libraries (into the `lib` directory)
 - `make service` compile the service module placeholder
@@ -139,10 +169,56 @@ For programs that do not require network access, there is a convenient script
 `local.sh` that prompts the Troupe runtime to skip initialization of the p2p
 infrastructure or key generation (which otherwise takes a few seconds).
 
+### Passing command-line arguments to Troupe programs
+
+To pass arguments to a Troupe program, use `--` to separate runtime options from program arguments:
+
+```bash
+./local.sh myprogram.trp -- arg1 arg2 arg3
+./network.sh myprogram.trp -- arg1 "argument with spaces" arg3
+```
+
+Arguments after `--` are accessible in the Troupe program using the `getCliArgs` built-in function, which requires root authority:
+
+```sml
+let val args = getCliArgs authority
+in print args   (* ["arg1", "arg2", "arg3"] *)
+end
+```
+
+Note: CLI arguments are treated as sensitive data and are labeled at the highest security level (ROOT). Only code with root authority can access them.
+
 ### Building and naming the snapshot
 
 Script `dev-utils/build.sh` runs `make` and copies the executables to `../bin/<current git HEAD hash>`.
 This is useful when wanting to compile some snapshots to compare how different versions behave.
+
+## Source Maps
+
+The Troupe compiler can generate source maps to help with debugging by mapping generated JavaScript code back to the original Troupe source.
+
+### Generating Source Maps
+
+Use the `-m` or `--source-map` flag when compiling:
+
+```bash
+bin/troupec -m myprogram.trp -o myprogram.js
+```
+
+This generates both `myprogram.js` and `myprogram.js.map`.
+
+### Inspecting Source Maps
+
+A tool is provided for inspecting generated source maps:
+
+```bash
+npx ts-node rt/src/tools/inspect-sourcemap.ts <file.js.map>
+```
+
+This displays:
+- Source map metadata (file, sources, version)
+- All decoded mappings grouped by source file
+- Line/column mappings from generated to original code
 
 ## Networking
 
@@ -157,7 +233,7 @@ in a runtime error.
 
 
 ### Generating new persistent IDs
-See [rt/src/p2p/mkid.js](rt/src/p2p/mkid.js).
+See [p2p-tools/mkid.mts](p2p-tools/mkid.mts).
 
 ### Auto-created IDs
 

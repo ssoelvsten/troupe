@@ -1,6 +1,6 @@
 import {ClosureType, TroupeType} from './TroupeTypes.mjs'
 import {TroupeAggregateRawValue} from './TroupeRawValue.mjs'
-import * as levels from './options.mjs' 
+import * as levels from './Level.mjs' 
 import { getRuntimeObject } from './SysState.mjs'
 
 export function BaseFunctionWithExplicitArg(f, name = null) : TroupeAggregateRawValue{
@@ -10,7 +10,7 @@ export function BaseFunctionWithExplicitArg(f, name = null) : TroupeAggregateRaw
     return f (thread.arg_as_lval);
   }
   closure.env = null;
-  closure.fun = f  
+  closure.fun = f // TODO: 2025-07-28;AA (this is likely redundant) 
   closure._troupeType = TroupeType.CLOSURE; 
   closure._closureType = ClosureType.BUILTINFN;
   closure.stringRep = () => {
@@ -28,7 +28,7 @@ export function BaseFunctionWithExplicitArg(f, name = null) : TroupeAggregateRaw
 export function ServiceFunction (f, name=null) : TroupeAggregateRawValue {  
   let closure : any = () => f ();
   closure.env = null;
-  closure.fun = f  
+  closure.fun = f // TODO: 2025-07-28;AA (this is likely redundant)  
   closure._troupeType = TroupeType.CLOSURE; 
   closure._closureType = ClosureType.SERVICEFN;
   closure.stringRep = () => {

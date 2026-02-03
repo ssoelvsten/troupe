@@ -1,0 +1,17 @@
+{
+    "compilerOptions": {
+        "outDir": "./built",
+        "allowJs": true,
+        "moduleResolution": "node16",
+        "module": "Node16",
+        "target": "ES2022",
+        "esModuleInterop": true,
+        "skipLibCheck": true,
+        "incremental": true,
+        "lib": ["ESNext"],
+    },
+    "include": [
+        "./*.ts",
+        "./*.mts"
+    ]
+}

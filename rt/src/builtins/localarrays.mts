@@ -1,10 +1,10 @@
 import {UserRuntimeZero, Constructor, mkBase} from './UserRuntimeZero.mjs'
 import { LVal } from '../Lval.mjs';
-import * as options from '../options.mjs'
-import { assertIsUnit, assertIsNumber, assertIsNTuple, assertIsLevel, assertIsLocalObject } from '../Asserts.mjs'
+import {lub, flowsTo} from '../Level.mjs'
+import { assertIsNumber, assertIsNTuple, assertIsLevel, assertIsLocalObject } from '../Asserts.mjs'
 import { LocalObject } from '../LocalObject.mjs';
 import { __unit } from '../UnitVal.mjs';
-let {lub, flowsTo} = options;
+import { ErrorKind } from '../TroupeError.mjs';
 
 
 
@@ -19,9 +19,9 @@ export function BuiltinLocalArrays <TBase extends Constructor<UserRuntimeZero>> 
             assertIsLevel (lev)
             let l1 = lub(lev.lev, size.lev, this.runtime.$t.bl)
             if (!flowsTo (l1, lev.val)) {
-                this.runtime.$t.threadError (`The declared array level is too low:\n` + 
+                this.runtime.$t.threadError (`The declared array level is too low:\n` +
                                              `| array declared level is: ${lev.val.stringRep()}\n` +
-                                             `| the level of the information affecting the array creation: ${l1.stringRep()}`)
+                                             `| the level of the information affecting the array creation: ${l1.stringRep()}`, false, null, ErrorKind.IFCCheck)
             }
             let rawArray = new Array (size.val)
             let obj = { size, lev: lev.val, rawArray, def }

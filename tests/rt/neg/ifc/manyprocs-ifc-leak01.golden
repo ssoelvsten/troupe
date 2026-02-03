@@ -1,0 +1,22 @@
+2026-01-06T14:33:34.574Z [RTM] [32minfo[39m: Skipping network creation. Observe that all external IO operations will yield a runtime error.
+Runtime error in thread a37e98b8-6463-43e8-be09-5e2aaf8cc97c@{}%{}
+
+  15 |             val _ = adv i
+     |                     ^
+
+>> Illegal flow in adv function:
+ |    pc: {}
+ | block: {#TOP}
+ | value: 5@{}%{}
+>> at tests/rt/neg/ifc/manyprocs-ifc-leak01.trp:15:21
+(6@{}%{}, "x"@{}%{})@{}%{}
+Runtime error in thread f78543d8-5c91-4251-866d-f60400530aea@{}%{}
+
+  13 |               in adv i
+     |                  ^
+
+>> Illegal flow in adv function:
+ |    pc: {}
+ | block: {#TOP}
+ | value: 6@{}%{}
+>> at tests/rt/neg/ifc/manyprocs-ifc-leak01.trp:13:18

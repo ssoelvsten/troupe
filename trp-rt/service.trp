@@ -1,12 +1,11 @@
 (* Node service process and runtime functionality *)
 
-import lists
 datatype Atoms = STDOUT   
                | SPAWN 
                | SPAWNOK
 
 
-let fun service (authority, options) = 
+let fun service ({authority, options, ..}) = 
     let val stdout = getStdout (authority)
         fun loop () = 
               let val _ = receive 
@@ -18,14 +17,33 @@ let fun service (authority, options) =
                                     end
                             , hn (SPAWN, _, _, _) when true <> options.spawnAllowed => ()  
                             *)
+                           , hn (SPAWN, f, n, pid_caller) => 
+                               (* TODO: implement checks for remote spawns *)
+                               let val pid_spawned = spawn f 
+                                in send (pid_caller, (SPAWNOK, n, pid_spawned)) 
+                                end 
+                           , hn _ => () 
                            ]
               in loop ()
               end 
     in loop () 
     end 
 
+
+    fun spawn ( nodeid, f ) = 
+      let val p = _getSystemProcess (nodeid) 
+          val n = mkuuid () 
+          val _ = send (p, (SPAWN, f, n, self ()))
+      in receive [ hn (SPAWNOK, n', pid) when n = n' => pid] 
+      end
+
+
     fun rcv (l1, l2, hns) = 
-        if hns = [] then _blockThread () 
+        if hns = [] then _blockThread () (* TODO: consider making this an argumeent, 
+                                                  maybe the other functions, too
+                                                  not sure they should be ambiently 
+                                                  available
+                                          *)
         else
           let fun work i = 
                 let val v = peek (i, l1, l2) 
@@ -58,5 +76,6 @@ in [("service", service)
    ,("rcv", rcv)
    ,("rcvp", rcvp)
    ,("receive", receive)
+   ,("spawn", spawn)
    ]
 end

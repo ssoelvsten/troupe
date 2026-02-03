@@ -1,0 +1,92 @@
+{
+  "test_name": "ring-echo-5",
+  "timeout": 120,
+  "coordination": "parallel",
+  "network": {
+    "relay_port": 5555,
+    "use_relay": "relay-only"
+  },
+  "nodes": [
+    {
+      "id": "server",
+      "script": "echo-server.trp",
+      "port": 6789,
+      "expected_exit_code": 0
+    },
+    {
+      "id": "intermediary1",
+      "script": "intermediary1.trp",
+      "port": 6790,
+      "start_delay": 1,
+      "expected_exit_code": 124
+    },
+    {
+      "id": "intermediary2",
+      "script": "intermediary2.trp",
+      "port": 6791,
+      "start_delay": 1,
+      "expected_exit_code": 124
+    },
+    {
+      "id": "intermediary3",
+      "script": "intermediary3.trp",
+      "port": 6792,
+      "start_delay": 1,
+      "expected_exit_code": 124
+    },
+    {
+      "id": "intermediary4",
+      "script": "intermediary4.trp",
+      "port": 6793,
+      "start_delay": 1,
+      "expected_exit_code": 124
+    },
+    {
+      "id": "intermediary5",
+      "script": "intermediary5.trp",
+      "port": 6794,
+      "start_delay": 1,
+      "expected_exit_code": 124
+    },
+    {
+      "id": "client",
+      "script": "echo-client.trp",
+      "port": 6795,
+      "start_delay": 5,
+      "expected_exit_code": 0
+    }
+  ],
+  "trust": [
+    {"from": "server", "to": "intermediary1", "level": "bot"},
+    {"from": "server", "to": "intermediary2", "level": "bot"},
+    {"from": "server", "to": "intermediary3", "level": "bot"},
+    {"from": "server", "to": "intermediary4", "level": "bot"},
+    {"from": "server", "to": "intermediary5", "level": "bot"},
+    {"from": "server", "to": "client", "level": "bot"},
+    {"from": "intermediary1", "to": "server", "level": "bot"},
+    {"from": "intermediary1", "to": "intermediary2", "level": "bot"},
+    {"from": "intermediary1", "to": "client", "level": "bot"},
+    {"from": "intermediary2", "to": "server", "level": "bot"},
+    {"from": "intermediary2", "to": "intermediary1", "level": "bot"},
+    {"from": "intermediary2", "to": "intermediary3", "level": "bot"},
+    {"from": "intermediary2", "to": "client", "level": "bot"},
+    {"from": "intermediary3", "to": "server", "level": "bot"},
+    {"from": "intermediary3", "to": "intermediary2", "level": "bot"},
+    {"from": "intermediary3", "to": "intermediary4", "level": "bot"},
+    {"from": "intermediary3", "to": "client", "level": "bot"},
+    {"from": "intermediary4", "to": "server", "level": "bot"},
+    {"from": "intermediary4", "to": "intermediary3", "level": "bot"},
+    {"from": "intermediary4", "to": "intermediary5", "level": "bot"},
+    {"from": "intermediary4", "to": "client", "level": "bot"},
+    {"from": "intermediary5", "to": "server", "level": "bot"},
+    {"from": "intermediary5", "to": "intermediary4", "level": "bot"},
+    {"from": "intermediary5", "to": "client", "level": "bot"},
+    {"from": "client", "to": "server", "level": "bot"},
+    {"from": "client", "to": "intermediary1", "level": "bot"},
+    {"from": "client", "to": "intermediary5", "level": "bot"}
+  ],
+  "output": {
+    "merge_strategy": "timestamp",
+    "filter_patterns": ["uuid", "timestamp", "peer_id"]
+  }
+}

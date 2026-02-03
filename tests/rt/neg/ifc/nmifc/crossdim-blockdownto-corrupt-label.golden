@@ -1,0 +1,12 @@
+2026-01-06T14:33:33.123Z [RTM] [32minfo[39m: Skipping network creation. Observe that all external IO operations will yield a runtime error.
+Runtime error in thread 0cc05a9f-1312-45d6-8413-e0708b4b939b@{}%{}
+
+  36 |     val _ = blockdownto (authority, `<#null-confidentiality; #root-integrity>`)
+     |             ^
+
+>> NMIFC robustness violation for blocking level downgrade
+ | The integrity of the data and PC do not permit this declassification.
+ | current blocking level: {alice,bob} (corrupt: true)
+ | target level: {}
+ | PC level: {} (corrupt: false)
+>> at tests/rt/neg/ifc/nmifc/crossdim-blockdownto-corrupt-label.trp:36:13

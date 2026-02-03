@@ -1,0 +1,4 @@
+(* Test getCliArgs with root authority - returns empty list when no args *)
+let val args = getCliArgs authority
+in print args
+end

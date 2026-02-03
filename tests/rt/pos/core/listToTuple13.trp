@@ -1,0 +1,5 @@
+let 
+    fun inc x = x + 1
+in
+    listToTuple [42, "hello", true, inc, `{alice}`, authority, self(), (1, 2), [3, 4]]
+end

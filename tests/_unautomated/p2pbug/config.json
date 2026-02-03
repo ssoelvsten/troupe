@@ -1,0 +1,36 @@
+{
+  "test_name": "p2p-discovery-bug",
+  "description": "Reproduces peer discovery bug where whereis() hangs because peers connected to the same relay cannot find each other",
+  "timeout": 30,
+  "coordination": "parallel",
+  "network": {
+    "relay_port": 15555,
+    "use_relay": true
+  },
+  "nodes": [
+    {
+      "id": "server",
+      "script": "server.trp",
+      "port": 16789,
+      "expected_exit_code": 1,
+      "_comment": "Server times out because client never contacts it"
+    },
+    {
+      "id": "client",
+      "script": "client.trp",
+      "port": 16790,
+      "start_delay": 2,
+      "expected_exit_code": 124,
+      "_comment": "Client times out at whereis() - this is the bug"
+    }
+  ],
+  "output": {
+    "merge_strategy": "sequential"
+  },
+  "_notes": {
+    "bug_description": "Peers connected to the same local relay cannot discover each other",
+    "root_cause": "Relay is pure circuit relay, DHT uses global bootstrap nodes",
+    "expected_behavior": "Client should find server via whereis('@server', 'echo')",
+    "actual_behavior": "Client hangs at whereis() until timeout"
+  }
+}

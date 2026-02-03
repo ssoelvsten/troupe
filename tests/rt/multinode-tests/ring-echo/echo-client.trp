@@ -1,0 +1,27 @@
+let 
+    val timeout_pid = spawn(fn () => 
+        let val _ = sleep 10000
+        in exit(authority, 124)
+        end)
+    
+    fun echo_client() = 
+        let val _ = print "CLIENT: Starting ring echo test"
+            val _ = sleep 500
+            
+            val intermediary = whereis("@intermediary", "proxy")
+            val _ = print "CLIENT: Found intermediary proxy"
+            
+            val test_msg = "Hello from client!"
+            val _ = print ("CLIENT: Sending to intermediary: " ^ test_msg)
+            val _ = send(intermediary, ("FORWARD_ECHO", test_msg, self(), "@server"))
+            
+            val response = receive [
+                hn ("ECHO_REPLY", msg, server_pid) => msg
+            ]
+            val _ = print ("CLIENT: Received direct reply from server: " ^ response)
+            
+        in exit(authority, 0)
+        end
+
+in echo_client()
+end

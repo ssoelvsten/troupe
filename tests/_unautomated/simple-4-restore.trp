@@ -1,0 +1,3 @@
+let val f_restored = restore ("f_ext")
+in f_restored () 
+end

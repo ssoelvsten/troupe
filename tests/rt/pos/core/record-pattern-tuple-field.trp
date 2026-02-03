@@ -1,0 +1,3 @@
+case {coord = (10, 20), name = "point"} of 
+    {coord = (x, y), name = n} => x + y
+  | _ => 0

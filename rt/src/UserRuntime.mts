@@ -2,6 +2,7 @@ import { UserRuntimeZero } from './builtins/UserRuntimeZero.mjs'
 import { BuiltinStdIo } from './builtins/stdio.mjs'
 import { BuiltinMath } from './builtins/math.mjs'
 import { BuiltinDebugUtils } from './builtins/debugutils.mjs'
+import { BuiltinDebugValue } from './builtins/debugValue.mjs'
 import { BuiltinPini } from './builtins/pini.mjs'
 import { BuiltinMonitors } from './builtins/monitor.mjs'
 import { BuiltinSleep } from './builtins/sleep.mjs'
@@ -14,12 +15,14 @@ import { BuiltinSelf } from './builtins/self.mjs'
 import { BuiltinExit } from './builtins/exit.mjs'
 import { BuiltinAdv } from './builtins/adv.mjs'
 import { BuiltinGetTime } from './builtins/getTime.mjs'
+import { BuiltinCliArgs } from './builtins/cliargs.mjs'
 import { BuiltinStringToInt } from './builtins/stringToInt.mjs'
 import { BuiltinToString } from './builtins/toString.mjs'
 import { BuiltinSend } from './builtins/send.mjs'
 import { BuiltinSpawn } from './builtins/spawn.mjs'
 import { BuiltinReceive } from './builtins/receive.mjs'
 import { BuiltinAttenuate } from './builtins/attenuate.mjs'
+import { BuiltinCoalesce } from './builtins/coalesce.mjs'
 import { BuiltinRegistry } from './builtins/whereis.mjs'
 import { BuiltinDeclassify } from './builtins/declassify.mjs'
 import { BuiltinRaiseTrust } from './builtins/raiseTrust.mjs'
@@ -29,11 +32,14 @@ import { RuntimeAssert } from './builtins/runtimeassert.mjs'
 import { BuiltinService } from './builtins/service.mjs'
 import { BuiltinString } from './builtins/string.mjs'
 import { BuiltinRecordReflection } from './builtins/recordReflection.mjs'
+import { BuiltinRecordToList } from './builtins/recordToList.mjs'
 import { BuiltinTypeInformation } from './builtins/types.mjs'
+import { BuiltinListToTuple } from './builtins/listToTuple.mjs'
 
 let BuiltSpawnSendReceive = x => BuiltinSpawn(BuiltinSend(BuiltinReceive(x)))
 
 export const UserRuntime =
+    BuiltinListToTuple (
     BuiltinString (
     BuiltinService (
     RuntimeAssert(
@@ -42,11 +48,13 @@ export const UserRuntime =
     BuiltinRaiseTrust(
     BuiltinDeclassify (
     BuiltinRegistry(
+    BuiltinCoalesce(
     BuiltinAttenuate(
     BuiltSpawnSendReceive(
     BuiltinStringToInt(
     BuiltinToString(
     BuiltinGetTime(
+    BuiltinCliArgs(
     BuiltinAdv(
     BuiltinExit(
     BuiltinSelf(
@@ -58,9 +66,11 @@ export const UserRuntime =
     BuiltinSleep(
     BuiltinMonitors(
     BuiltinPini(
+    BuiltinDebugValue(
     BuiltinDebugUtils(
     BuiltinMath(
+    BuiltinRecordToList(
     BuiltinRecordReflection(
     BuiltinTypeInformation(
-    BuiltinStdIo(UserRuntimeZero)    
-    ))))))))))))))))))))))))))))
+    BuiltinStdIo(UserRuntimeZero)
+    )))))))))))))))))))))))))))))))))

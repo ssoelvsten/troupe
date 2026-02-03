@@ -8,7 +8,8 @@ module Lexer (
   Token(..),
   scanTokens,
   L(..),
-  AlexPosn(..)
+  AlexPosn(..),
+  showToken
 ) where
 
 import Direct
@@ -16,24 +17,33 @@ import Control.Monad.Except
 import Data.Char (isSpace, toLower)
 import Data.List (dropWhileEnd)
 import Data.Char ( chr )
-import Numeric ( readDec )
+import Numeric ( readDec, readBin, readOct, readHex )
+import Control.Monad (when)
 }
 
 %wrapper "monadUserState"
 
+$bindigit = [01]
+$octdigit = 0-7
+$hexdigit = [0-9A-Fa-f]
 $digit = 0-9
 $alpha = [a-zA-Z]
 $alpha_ = [$alpha \_]
 $eol   = [\n]
 $graphic    = $printable # $white
+@sym        = $alpha_ [$alpha $digit \_ \']*
 @string     = \" ($printable # \")* \"
 @label      = \`\{ ($printable # \})*  \}\`
-
+@declit     = $digit[\_$digit]*
+@binlit     = 0[bB]$bindigit[\_$bindigit]*
+@octlit     = 0[oO]$octdigit[\_$octdigit]*
+@hexlit     = 0[xX]$hexdigit[\_$hexdigit]*
+@floatlit   = $digit[\_$digit]* \. $digit[\_$digit]* ([eE][\+\-]? $digit[\_$digit]*)?
 
 tokens:-
 -- Whitespace insensitive
-<0> $eol                           ;
-<0> $white+                        ;
+<0, state_dclabel> $eol                           ;
+<0, state_dclabel> $white+                        ;
 
 -- Comments
 <0> "(*)".*                        ;
@@ -91,9 +101,12 @@ tokens:-
 <0>   isTuple                        { mkL TokenIsTuple }
 <0>   isList                         { mkL TokenIsList }
 <0>   isRecord                       { mkL TokenIsRecord }
+<0>   not                            { mkL TokenNot }
 <0>   pini                           { mkL TokenPini}
 <0>   when                           { mkL TokenWhen }
 <0>   with                           { mkL TokenWith }
+<0>   qualified                      { mkL TokenQualified }
+<0>   as                             { mkL TokenAs }
 <0>   datatype                       { mkL TokenDatatype }
 <0>   div                            { mkL TokenIntDiv }
 <0>   mod                            { mkL TokenMod }
@@ -101,10 +114,26 @@ tokens:-
 <0>   orb                            { mkL TokenBinOr }
 <0>   xorb                           { mkL TokenBinXor }
 <0>   Atoms                          { mkL TokenAtoms }
-<0>   $digit+                        { mkLs (\s -> TokenNum (read s)) }
+<0>   "#true"                        { mkL TokenDCTrue }
+<0>   "#false"                       { mkL TokenDCFalse }
+<state_dclabel> "#root-confidentiality" { mkL TokenDCRootConf }
+<state_dclabel> "#root-integrity"       { mkL TokenDCRootInteg }
+<state_dclabel> "#null-confidentiality" { mkL TokenDCNullConf }
+<state_dclabel> "#null-integrity"       { mkL TokenDCNullInteg }
+-- Numeric literal parsing inspired by https://github.com/ocaml/ocaml/blob/trunk/parsing/lexer.mll
+-- Float rule must come BEFORE integer rules so that 3.14 matches as float, not 3 as int
+<0>   @floatlit                      { mkLs (\s -> TokenFloat (read (filter (/='_') s))) }
+<0>   @declit                        { mkLs (\s -> TokenNum (read (filter (/='_') s))) }
+<0>   @binlit                        { mkLs (\s -> TokenNum (fst (head (readBin (filter (/='_') (drop 2 s)))))) }
+<0>   @octlit                        { mkLs (\s -> TokenNum (fst (head (readOct (filter (/='_') (drop 2 s)))))) }
+<0>   @hexlit                        { mkLs (\s -> TokenNum (fst (head (readHex (filter (/='_') (drop 2 s)))))) }
+<0>   (@declit|@binlit|@octlit|@hexlit)@sym { \(_, _, _, s) _ -> lexerError ("Invalid literal " ++ s) }
 <0>   [\<][\<]                       { mkL TokenBinShiftLeft }
 <0>   [\>][\>]                       { mkL TokenBinShiftRight }
 <0>   [\~][\>][\>]                   { mkL TokenBinZeroShiftRight }
+<0>   [\`]$white*[\<]                { mkL TokenDCLabelLeft `andBegin` state_dclabel}
+<state_dclabel>   [\>]$white*[\`]    { mkL TokenDCLabelRight `andBegin` state_initial }
+<0>   [\>][\`]                       { mkL TokenDCLabelRight }
 <0>   [\@]                           { mkL TokenAt }
 <0>   [\=][\>]                       { mkL TokenArrow }
 <0>   [\=]                           { mkL TokenEq }
@@ -113,24 +142,26 @@ tokens:-
 <0>   [\*]                           { mkL TokenMul }
 <0>   [\^]                           { mkL TokenCaret } 
 <0>   [\/]                           { mkL TokenDiv }
-<0>   [\;]                           { mkL TokenSemi }
+<0, state_dclabel>   [\;]            { mkL TokenSemi }
 <0>   [\<][\>]                       { mkL TokenNe }
 <0>   [\<][\=]                       { mkL TokenLe }
 <0>   [\<]                           { mkL TokenLt }
 <0>   [\>][\=]                       { mkL TokenGe }
 <0>   [\>]                           { mkL TokenGt }
-<0>   \(                             { mkL TokenLParen }
-<0>   \)                             { mkL TokenRParen }
+<0, state_dclabel>   \(              { mkL TokenLParen }
+<0, state_dclabel>   \)              { mkL TokenRParen }
+<0>   [\.][\.]                       { mkL TokenDotDot }
 <0>   [\.]                           { mkL TokenDot }
 <0>   [\{]                           { mkL TokenLBrace }
 <0>   [\}]                           { mkL TokenRBrace }
 <0>   [\,]                           { mkL TokenComma }
-<0>   [\|]                           { mkL TokenBar }
+<0, state_dclabel>   [\|]            { mkL TokenBar }
 <0>   [\_]                           { mkL TokenWildcard }
 <0>   [\:][\:]                       { mkL TokenColonColon }
 <0>   [\[]                           { mkL TokenLBracket }
 <0>   [\]]                           { mkL TokenRBracket }
-<0>   $alpha_ [$alpha $digit \_ \']*  { mkLs (\s -> TokenSym s) }
+<0, state_dclabel>   [\&]            { mkL TokenAmpersand }
+<0, state_dclabel>   @sym            { mkLs (\s -> TokenSym s) }
 <0>   @label                         { mkLs (\s -> (TokenLabel (((map toLower) . trim . unquote) s)))}
 
 {
@@ -182,6 +213,8 @@ data Token
   | TokenPini
   | TokenWhen
   | TokenWith
+  | TokenQualified
+  | TokenAs
   | TokenDatatype
   | TokenAtoms
   | TokenIntDiv 
@@ -189,6 +222,7 @@ data Token
   | TokenFn
   | TokenHn
   | TokenNum Integer
+  | TokenFloat Double
   | TokenSym String
   | TokenString String
   | TokenTrue
@@ -220,6 +254,7 @@ data Token
   | TokenIsTuple
   | TokenIsList
   | TokenIsRecord
+  | TokenNot
   | TokenFlowsTo
   | TokenLevelOf
   | TokenLabel String
@@ -232,18 +267,31 @@ data Token
   | TokenBinShiftRight 
   | TokenBinZeroShiftRight 
   | TokenDot 
+  | TokenDotDot
   | TokenLBrace
   | TokenRBrace
+  | TokenDCLabelLeft 
+  | TokenDCLabelRight
+  | TokenAmpersand
+  | TokenDCTrue 
+  | TokenDCFalse
+  | TokenDCRootConf
+  | TokenDCRootInteg
+  | TokenDCNullConf
+  | TokenDCNullInteg
   deriving (Eq,Show)
 
 type Lexeme = L Token 
 
 -- definition needed by Alex
 alexEOF :: Alex Lexeme
-alexEOF = do 
-    comment_depth <- getLexerCommentDepth 
-    if comment_depth > 0 
+alexEOF = do
+    comment_depth <- getLexerCommentDepth
+    start_code <- alexGetStartCode
+    if comment_depth > 0
         then alexError "Comment not closed at end of file"
+        else if start_code == state_dclabel
+            then alexError "Incomplete DC label at end of file - label not closed"
         else return (L undefined TokenEOF)
 
 
@@ -344,6 +392,92 @@ showPosn :: AlexPosn -> String
 showPosn (AlexPn _ line col) = show line ++ ':': show col
 
 
+-- | Human-readable token description for error messages
+showToken :: Token -> String
+showToken TokenLet = "keyword 'let'"
+showToken TokenIn = "keyword 'in'"
+showToken TokenEnd = "keyword 'end'"
+showToken TokenFun = "keyword 'fun'"
+showToken TokenAnd = "keyword 'and'"
+showToken TokenVal = "keyword 'val'"
+showToken TokenIf = "keyword 'if'"
+showToken TokenThen = "keyword 'then'"
+showToken TokenElse = "keyword 'else'"
+showToken TokenCase = "keyword 'case'"
+showToken TokenOf = "keyword 'of'"
+showToken TokenImport = "keyword 'import'"
+showToken TokenReceive = "keyword 'receive'"
+showToken TokenPini = "keyword 'pini'"
+showToken TokenWhen = "keyword 'when'"
+showToken TokenWith = "keyword 'with'"
+showToken TokenQualified = "keyword 'qualified'"
+showToken TokenAs = "keyword 'as'"
+showToken TokenDatatype = "keyword 'datatype'"
+showToken TokenAtoms = "keyword 'Atoms'"
+showToken TokenFn = "keyword 'fn'"
+showToken TokenHn = "keyword 'hn'"
+showToken TokenTrue = "'true'"
+showToken TokenFalse = "'false'"
+showToken TokenAndAlso = "'andalso'"
+showToken TokenOrElse = "'orelse'"
+showToken TokenIntDiv = "'div'"
+showToken TokenMod = "'mod'"
+showToken (TokenNum n) = "number " ++ show n
+showToken (TokenFloat f) = "float " ++ show f
+showToken (TokenSym s) = "identifier '" ++ s ++ "'"
+showToken (TokenString s) = "string \"" ++ s ++ "\""
+showToken (TokenLabel l) = "label `{" ++ l ++ "}`"
+showToken TokenArrow = "'=>'"
+showToken TokenEq = "'='"
+showToken TokenNe = "'<>'"
+showToken TokenLt = "'<'"
+showToken TokenLe = "'<='"
+showToken TokenGt = "'>'"
+showToken TokenGe = "'>='"
+showToken TokenAdd = "'+'"
+showToken TokenSub = "'-'"
+showToken TokenMul = "'*'"
+showToken TokenDiv = "'/'"
+showToken TokenSemi = "';'"
+showToken TokenLParen = "'('"
+showToken TokenRParen = "')'"
+showToken TokenLBracket = "'['"
+showToken TokenRBracket = "']'"
+showToken TokenLBrace = "'{'"
+showToken TokenRBrace = "'}'"
+showToken TokenComma = "','"
+showToken TokenBar = "'|'"
+showToken TokenWildcard = "'_'"
+showToken TokenColonColon = "'::'"
+showToken TokenDot = "'.'"
+showToken TokenDotDot = "'..'"
+showToken TokenRaisedTo = "'raisedTo'"
+showToken TokenIsTuple = "'isTuple'"
+showToken TokenIsList = "'isList'"
+showToken TokenIsRecord = "'isRecord'"
+showToken TokenNot = "'not'"
+showToken TokenFlowsTo = "'flowsTo'"
+showToken TokenLevelOf = "'levelOf'"
+showToken TokenAt = "'@'"
+showToken TokenCaret = "'^'"
+showToken TokenBinAnd = "'andb'"
+showToken TokenBinOr = "'orb'"
+showToken TokenBinXor = "'xorb'"
+showToken TokenBinShiftLeft = "'<<'"
+showToken TokenBinShiftRight = "'>>'"
+showToken TokenBinZeroShiftRight = "'~>>'"
+showToken TokenDCLabelLeft = "'`<' (DC label start)"
+showToken TokenDCLabelRight = "'>`' (DC label end)"
+showToken TokenAmpersand = "'&'"
+showToken TokenDCTrue = "'#true'"
+showToken TokenDCFalse = "'#false'"
+showToken TokenDCRootConf = "'#root-confidentiality'"
+showToken TokenDCRootInteg = "'#root-integrity'"
+showToken TokenDCNullConf = "'#null-confidentiality'"
+showToken TokenDCNullInteg = "'#null-integrity'"
+showToken TokenEOF = "end of file"
+
+
 lexerError :: String -> Alex a
 lexerError msg =
     do (p, c, _, inp) <- alexGetInput
@@ -362,9 +496,6 @@ lexerError msg =
        alexError (disp3 ++ " at " ++ showPosn p ++ disp)
   where
     trim = reverse . dropWhile (== ' ') . reverse . dropWhile (== ' ')
-
-
-
 
 -- we use a custom version of monadScan so that we have full
 -- control over the error reporting; this one is based on 

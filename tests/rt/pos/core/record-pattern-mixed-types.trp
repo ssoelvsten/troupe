@@ -1,0 +1,4 @@
+case {num = 42, text = "hello", flag = true, list = [1,2]} of 
+    {num = n, text = t, flag = true, list = x::_} => n + x
+  | {num = n, flag = false} => n
+  | _ => 0

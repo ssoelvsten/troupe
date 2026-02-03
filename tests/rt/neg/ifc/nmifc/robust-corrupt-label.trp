@@ -1,0 +1,32 @@
+(* NMIFC Robustness Violation Test: Corrupt Label
+
+   This test demonstrates that NMIFC rejects declassification from corrupt labels.
+
+   A label <S, I> is corrupt when I does not imply S (integrity doesn't flow to secrecy).
+
+   The label {alice,bob} (in V1 syntax) expands to <alice & bob; alice | bob>.
+   This is corrupt because (alice | bob) does NOT imply (alice & bob).
+
+   Under NMIFC:
+   - Robustness requires: (S_auth \/ I_from \/ I_pc) /\ S_to ==> S_from
+   - With PC = BOT (I_pc = FALSE), this simplifies to: I_from ==> S_from
+   - For {alice,bob}: (alice | bob) ==> (alice & bob) is FALSE
+   - Therefore, NMIFC rejects the declassification
+
+   Without NMIFC: This declassification would succeed (only authority check).
+
+   Note: For declassify, integrity must be preserved. So we declassify to
+   <#null-confidentiality; alice | bob> which only changes confidentiality.
+
+   Expected: Thread error - robustness violation
+
+   See: nmifc-summary.md for details on the robustness condition
+*)
+
+let val x = 42 raisedTo `{alice,bob}`
+    (* {alice,bob} = <alice & bob; alice | bob> -- a corrupt label *)
+
+    (* Declassify: change confidentiality to TRUE, preserve integrity as alice|bob *)
+    val y = declassify (x, authority, `<#null-confidentiality; alice|bob>`)
+in print y
+end

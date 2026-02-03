@@ -1,0 +1,6 @@
+(* Test CLI arguments with multiple arguments *)
+import List
+let val args = getCliArgs authority
+    val count = length args
+in print count
+end

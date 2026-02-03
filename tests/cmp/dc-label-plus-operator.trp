@@ -1,0 +1,3 @@
+let val x = 80 raisedTo `<alice + bob; charlie>`
+in printWithLabels x
+end

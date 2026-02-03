@@ -1,5 +1,6 @@
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE TypeSynonymInstances #-}
 
 {-- Obs: 2018-02-16: beacuse of the RetCPS representation, we currently
 have very few rewrites that actually kick-in; we should be able to
@@ -27,7 +28,7 @@ import Control.Monad.Identity
 import Data.Set (Set)
 import qualified Data.Set as Set
 import RetFreeVars as FreeVars
-import TroupePositionInfo
+import TroupePositionInfo (Located(..), getLoc, unLoc, noLoc, atLoc, PosInf(..))
 
 
 -- substitution is a collection of both variable substitutions and
@@ -47,12 +48,12 @@ idSubst = Subst (Map.empty)
 instance Substitutable KLambda where
   apply subst@(Subst (varmap)) kl =
     case kl of
-      Unary vn kt ->
+      Unary lv@(Loc vnPos vn) lkt ->
         let subst' = Subst (Map.delete vn varmap)
-        in  Unary vn (apply subst' kt)
-      Nullary kt ->
+        in  Unary lv (apply subst' lkt)
+      Nullary lkt ->
         let subst' = Subst (varmap)
-        in Nullary (apply subst' kt)
+        in Nullary (apply subst' lkt)
 
 
 instance Substitutable SVal where
@@ -63,75 +64,88 @@ instance Substitutable SVal where
 instance Substitutable SimpleTerm where
   apply subst@(Subst varmap) simpleTerm =
     case simpleTerm of
-      Bin op v1 v2 -> Bin op (fwd v1) (fwd v2)
-      Un op v -> Un op (fwd v)
-      Tuple vs -> Tuple (map fwd vs)
-      Record fields -> Record $ fwdFields fields
-      WithRecord x fields -> WithRecord (fwd x) $ fwdFields fields
-      ProjField x f -> ProjField (fwd x) f
-      ProjIdx x idx -> ProjIdx (fwd x) idx
-      List vs -> List (map fwd vs)
-      ListCons v v' -> ListCons (fwd v) (fwd v')
+      -- Now using LVarName (Located VarName), need to preserve the Located wrapper
+      Bin op lv1 lv2 -> Bin op (fwdL lv1) (fwdL lv2)
+      Un op lv -> Un op (fwdL lv)
+      Tuple lvs -> Tuple (map fwdL lvs)
+      Record fields -> Record (fwdLFields fields)
+      WithRecord lx fields -> WithRecord (fwdL lx) (fwdLFields fields)
+      ProjField lx f -> ProjField (fwdL lx) f
+      ProjIdx lx idx -> ProjIdx (fwdL lx) idx
+      List lvs -> List (map fwdL lvs)
+      ListCons lv lv' -> ListCons (fwdL lv) (fwdL lv')
       ValSimpleTerm sv -> ValSimpleTerm (apply subst sv)
       Base v -> Base v
-      Lib l v -> Lib l v 
+      Lib l v -> Lib l v
     where fwd x = Map.findWithDefault x x varmap
-          fwdFields fields = map (\(f, x) -> (f, fwd x)) fields
+          -- Forward a Located VarName, preserving the position
+          fwdL (Loc pos vn) = Loc pos (fwd vn)
+          -- Forward fields with Located VarNames
+          fwdLFields fields = map (\(f, lx) -> (f, fwdL lx)) fields
+
+instance Substitutable LSimpleTerm where
+  apply subst (Loc p st) = Loc p (apply subst st)
 
 instance Substitutable ContDef where
-  apply subst@(Subst varmap) (Cont vn kt) =
+  apply subst@(Subst varmap) (Cont vn lkt) =
      let subst' = Subst (Map.delete vn varmap)
-     in Cont vn (apply subst' kt)
+     in Cont vn (apply subst' lkt)
 
 instance Substitutable FunDef where
   apply subst@(Subst varmap) (Fun vn klam) =
     let subst' = Subst (Map.delete vn varmap)
     in Fun vn (apply subst' klam)
 
+instance Substitutable (Located FunDef) where
+  apply subst (Loc p fd) = Loc p (apply subst fd)
+
 
 instance Substitutable KTerm where
   apply subst@(Subst varmap) kontTerm =
     case kontTerm of
-      LetSimple x st kt ->
-        LetSimple (vfwd x) (apply subst st) (apply subst kt)
+      LetSimple x lst lkt ->
+        LetSimple (vfwd x) (apply subst lst) (apply subst lkt)
 
-      LetRet kdef@(Cont _ _) kt ->
+      LetRet kdef@(Cont _ _) lkt ->
         let kdef' = apply subst kdef
-            kt'   = apply subst kt
-        in LetRet kdef' kt'
+            lkt'   = apply subst lkt
+        in LetRet kdef' lkt'
 
-      LetFun fdefs kt ->
-         let fnames = map (\(Fun v _) -> v) fdefs
+      LetFun lfdefs lkt ->
+         let fnames = map (\(Loc _ (Fun v _)) -> v) lfdefs
              subst' = Subst ( foldl (\m v -> Map.delete v m) varmap fnames)
-             kt' = apply subst' kt
-             fdefs' = map (apply subst') fdefs
-         in LetFun fdefs' kt'
+             lkt' = apply subst' lkt
+             lfdefs' = map (apply subst') lfdefs
+         in LetFun lfdefs' lkt'
 
 
       -- LetRet k kt -> LetRet (kfwd k) (apply subst kt)
 
       Halt v -> Halt (vfwd v)
 
-      KontReturn v  -> KontReturn (vfwd v)
+      KontReturn v -> KontReturn (vfwd v)
 
       ApplyFun fn argn -> ApplyFun (vfwd fn) (vfwd argn)
 
-      If v k1 k2 -> If (vfwd v) (apply subst k1) (apply subst k2)
+      If v lk1 lk2 -> If (vfwd v) (apply subst lk1) (apply subst lk2)
 
-      AssertElseError v k1 z p -> AssertElseError (vfwd v) (apply subst k1) (vfwd z) p
+      AssertElseError v lk1 z -> AssertElseError (vfwd v) (apply subst lk1) (vfwd z)
 
-      Error x p -> Error (vfwd x) p
+      Error x -> Error (vfwd x)
 
    where vfwd x = Map.findWithDefault x x varmap
          -- kfwd x = Map.findWithDefault x x kontmap
 
+instance Substitutable LKTerm where
+  apply subst (Loc p kt) = Loc p (apply subst kt)
+
 
 data Context -- note this is not an exhaustive set of possible contexts; 2018-01-25; AA
   = CtxtHole
-  | CtxtLetSimple VarName SimpleTerm Context
+  | CtxtLetSimple VarName LSimpleTerm Context
   | CtxtLetCont ContDef Context
-  | CtxtLetFunK [FunDef] Context
-  | CtxtAssert VarName VarName PosInf Context
+  | CtxtLetFunK [Located FunDef] Context
+  | CtxtAssert VarName VarName PosInf Context  -- Changed from ErrorPosInf to PosInf
 --  | CtxtLetRet KontName Context
   deriving (Eq)
 
@@ -148,36 +162,36 @@ data SearchPat = PatReturn
                | PatFunApply VarName
 
 
-matchterm :: KTerm -> SearchPat -> Maybe (Context, KTerm)
+matchterm :: LKTerm -> SearchPat -> Maybe (Context, LKTerm)
 
-matchterm found@(LetRet _ _) (PatLetRet)  =
+matchterm found@(Loc _ (LetRet _ _)) (PatLetRet)  =
   return (CtxtHole, found)
 
-matchterm (LetRet _ _) PatReturn = Nothing  
+matchterm (Loc _ (LetRet _ _)) PatReturn = Nothing
 
-matchterm found@(KontReturn _) (PatReturn) =
+matchterm found@(Loc _ (KontReturn _)) (PatReturn) =
   return (CtxtHole, found)
 
-matchterm found@(ApplyFun fn argn) (PatFunApply fn') | fn == fn' =
+matchterm found@(Loc _ (ApplyFun fn argn)) (PatFunApply fn') | fn == fn' =
   return (CtxtHole, found)
 
 
 
-matchterm (LetSimple vn st kt) searchTerm = do
-  (ctxt, found) <- matchterm kt searchTerm
-  return $ (CtxtLetSimple vn st ctxt, found)
+matchterm (Loc _ (LetSimple vn lst lkt)) searchTerm = do
+  (ctxt, found) <- matchterm lkt searchTerm
+  return $ (CtxtLetSimple vn lst ctxt, found)
 
-matchterm (LetFun fdefs kt) searchTerm = do
-  (ctxt, found) <- matchterm kt searchTerm
-  return $ (CtxtLetFunK fdefs ctxt, found)
+matchterm (Loc _ (LetFun lfdefs lkt)) searchTerm = do
+  (ctxt, found) <- matchterm lkt searchTerm
+  return $ (CtxtLetFunK lfdefs ctxt, found)
 
-matchterm (LetRet kdef kt) searchTerm = do
-  (ctxt, found) <- matchterm kt searchTerm
+matchterm (Loc _ (LetRet kdef lkt)) searchTerm = do
+  (ctxt, found) <- matchterm lkt searchTerm
   return $ (CtxtLetCont kdef ctxt, found)
 
-matchterm (AssertElseError vn kt vn' pos) searchTerm = do 
-  (ctxt, found) <- matchterm kt searchTerm
-  return $ (CtxtAssert vn vn' pos ctxt, found)
+matchterm (Loc pos (AssertElseError vn lkt vn')) searchTerm = do
+  (ctxt, found) <- matchterm lkt searchTerm
+  return $ (CtxtAssert vn vn' pos ctxt, found)  -- Use position from Located wrapper
 
 
 matchterm _ _ = Nothing
@@ -188,63 +202,68 @@ matchterm _ _ = Nothing
 --- this is the inverse of match: allows us to reconstruct the term back
 --- from the contxt and the term inside
 
-reconstructTerm :: Context -> KTerm -> KTerm
-reconstructTerm CtxtHole kt  = kt
-reconstructTerm (CtxtLetSimple vn st ctxt) kt =
-  LetSimple vn st (reconstructTerm ctxt kt)
-reconstructTerm (CtxtLetCont kdef ctxt) kt =
-  LetRet kdef (reconstructTerm ctxt kt)
-reconstructTerm (CtxtLetFunK fdefs ctxt) kt =
-  LetFun fdefs (reconstructTerm ctxt kt)
-reconstructTerm (CtxtAssert vn vn' pos ctxt) kt = 
-  AssertElseError vn (reconstructTerm ctxt kt) vn' pos
+reconstructTerm :: Context -> LKTerm -> LKTerm
+reconstructTerm CtxtHole lkt  = lkt
+reconstructTerm (CtxtLetSimple vn lst ctxt) lkt =
+  noLoc $ LetSimple vn lst (reconstructTerm ctxt lkt)
+reconstructTerm (CtxtLetCont kdef ctxt) lkt =
+  noLoc $ LetRet kdef (reconstructTerm ctxt lkt)
+reconstructTerm (CtxtLetFunK lfdefs ctxt) lkt =
+  noLoc $ LetFun lfdefs (reconstructTerm ctxt lkt)
+reconstructTerm (CtxtAssert vn vn' pos ctxt) lkt =
+  Loc pos $ AssertElseError vn (reconstructTerm ctxt lkt) vn'
 
 
 class KWalkable a b where
   walk :: (b -> Bool) -> (b -> b) -> a -> a
 
-instance (KWalkable KTerm KTerm) where
-  walk pred f kt =
-    if pred kt then f kt
+instance (KWalkable LKTerm LKTerm) where
+  walk pred f lkt =
+    if pred lkt then f lkt
     else
       let w' = walk pred f
-      in
-       case kt of
-         LetSimple vn st kt' -> LetSimple vn (walk pred f st) (w' kt')
-         LetRet cdef kt'    -> LetRet  (walk pred f cdef) (w' kt')
-         LetFun fdefs kt'    -> LetFun (map (walk pred f) fdefs) (w' kt')
-         If v k1 k2          -> If v (w' k1) (w' k2)
-         AssertElseError v k1 z p -> AssertElseError v (w' k1) z p
+      in case unLoc lkt of
+         LetSimple vn lst lkt' -> lkt `withLocOf'` LetSimple vn (walk pred f lst) (w' lkt')
+         LetRet cdef lkt'   -> lkt `withLocOf'` LetRet  (walk pred f cdef) (w' lkt')
+         LetFun lfdefs lkt'   -> lkt `withLocOf'` LetFun (map (walk pred f) lfdefs) (w' lkt')
+         If v lk1 lk2         -> lkt `withLocOf'` If v (w' lk1) (w' lk2)
+         AssertElseError v lk1 z -> lkt `withLocOf'` AssertElseError v (w' lk1) z
          -- LetRet kn kt'       -> LetRet kn (w' kt')
          -- these do not modify anything
-         KontReturn v   -> KontReturn v
-         Halt v -> Halt v
-         ApplyFun v a1 -> ApplyFun v a1
-         Error x p -> Error x p
+         KontReturn v  -> lkt
+         Halt v -> lkt
+         ApplyFun v a1 -> lkt
+         Error x -> lkt
+    where
+      withLocOf' (Loc p _) kt = Loc p kt
 
 
+instance (KWalkable KLambda LKTerm) where
+  walk pred f (Unary lv lkt) =
+    Unary lv (walk pred f lkt)
+  walk pred f (Nullary lkt) =
+    Nullary (walk pred f lkt)
 
-instance (KWalkable KLambda KTerm) where
-  walk pred f (Unary vn kt) =
-    Unary vn (walk pred f kt)
-  walk pred f (Nullary kt) =
-    Nullary (walk pred f kt)
 
+instance (KWalkable LSimpleTerm LKTerm) where
+  walk pred f (Loc p st) = Loc p (walk pred f st)
 
-instance (KWalkable SimpleTerm KTerm) where
+instance (KWalkable SimpleTerm LKTerm) where
   walk pred f st =
     case st of
         ValSimpleTerm (KAbs klam) ->
           ValSimpleTerm (KAbs (walk pred f klam))
         _ -> st
 
-instance KWalkable ContDef KTerm where
-  walk pred f (Cont vn kt) = Cont vn (walk pred f kt)
+instance KWalkable ContDef LKTerm where
+  walk pred f (Cont vn lkt) = Cont vn (walk pred f lkt)
 
 
-instance KWalkable FunDef KTerm where
+instance KWalkable FunDef LKTerm where
   walk pred f (Fun v klam) = Fun v (walk pred f klam)
 
+instance KWalkable (Located FunDef) LKTerm where
+  walk pred f (Loc p fd) = Loc p (walk pred f fd)
 
 
 --------------------------------------------------
@@ -256,12 +275,12 @@ instance KWalkable FunDef KTerm where
 
 instance FreeNames Context where
   freeVars CtxtHole = emptyFreeVars
-  freeVars (CtxtLetSimple vn st ctxt) = freeOfLet st [vn] ctxt
-  freeVars (CtxtLetCont cdef@(Cont vn kt') ctxt) = freeOfLet cdef [vn] ctxt
-  freeVars (CtxtLetFunK fdefs ctxt) =
-      (unionMany (map freeVars fdefs)) `unionFreeVars` (restrictFree ctxt  (map fname fdefs))
-        where fname (Fun n _) = n
-  freeVars (CtxtAssert vn1 vn2 _ ctxt) = unionMany [freeVars ctxt, FreeVars $ Set.fromList [vn1, vn2]]
+  freeVars (CtxtLetSimple vn lst ctxt) = freeOfLet lst [vn] ctxt
+  freeVars (CtxtLetCont cdef@(Cont vn lkt') ctxt) = freeOfLet cdef [vn] ctxt
+  freeVars (CtxtLetFunK lfdefs ctxt) =
+      (unionMany (map freeVars lfdefs)) `unionFreeVars` (restrictFree ctxt  (map fname lfdefs))
+        where fname (Loc _ (Fun n _)) = n
+  freeVars (CtxtAssert vn1 vn2 _pos ctxt) = unionMany [freeVars ctxt, FreeVars $ Set.fromList [vn1, vn2]]
 
 -- todo: eliminate redundancy in code ; 2018-01-25 ; aa
 
@@ -270,22 +289,22 @@ instance FreeNames Context where
 -- REWRITES
 --------------------------------------------------
 
-betaContPred (LetRet _ _) = True
+betaContPred (Loc _ (LetRet _ _)) = True
 betaContPred _ = False
 
 
-betaCont :: KTerm -> KTerm
-betaCont (LetRet cdef@(Cont xn kt) kt') =
+betaCont :: LKTerm -> LKTerm
+betaCont lkt@(Loc p (LetRet cdef@(Cont xn lktBody) lkt')) =
   let cdef' = walk betaContPred betaCont cdef
   in
-    case matchterm kt' PatReturn of
-                  Just (ctxt, KontReturn yn) ->
-                       let kt'' = let subst = Subst ( Map.fromList ([(xn, yn)] ) )
-                                  in reconstructTerm ctxt (apply subst kt)
+    case matchterm lkt' PatReturn of
+                  Just (ctxt, Loc _ (KontReturn yn)) ->
+                       let lkt'' = let subst = Subst ( Map.fromList ([(xn, yn)] ) )
+                                  in reconstructTerm ctxt (apply subst lktBody)
                        in if retUnchanged ctxt
-                          then kt''
-                          else LetRet cdef' kt''
-                  _ -> LetRet cdef'  (walk betaContPred betaCont kt')
+                          then lkt''
+                          else Loc p $ LetRet cdef' lkt''
+                  _ -> Loc p $ LetRet cdef'  (walk betaContPred betaCont lkt')
 
 betaCont _ = error "should not be called here"
 
@@ -308,41 +327,41 @@ deadContPred _ = False
 -- β-Fun (-Lin)
 --------------------------------------------------
 
-betaFunPred (LetFun [Fun fn (Unary vn kt')] kt) = True 
-betaFunPred (LetSimple fn (ValSimpleTerm (KAbs (Unary vn kt')))  kt) = True
+betaFunPred (Loc _ (LetFun [Loc _ (Fun fn (Unary _ lkt'))] lkt)) = True
+betaFunPred (Loc _ (LetSimple fn (Loc _ (ValSimpleTerm (KAbs (Unary _ lkt')))) lkt)) = True
 betaFunPred _ = False
 
-betaFun :: KTerm -> KTerm
-betaFun (LetFun [Fun fn klam@(Unary xn kt)] kt') =
+betaFun :: LKTerm -> LKTerm
+betaFun lkt@(Loc p (LetFun [lfd@(Loc funPos (Fun fn klam@(Unary (Loc _ xn) lktBody)))] lkt')) =
   let klam' = walk betaFunPred betaFun klam
-      noChange = LetFun [Fun fn klam'] (walk betaFunPred betaFun kt')
+      noChange = Loc p $ LetFun [Loc funPos (Fun fn klam')] (walk betaFunPred betaFun lkt')
   in
-     case matchterm kt' (PatFunApply fn) of
-       Just (ctxt, ApplyFun _ yn) ->
-          let kt'' = let subst = Subst (Map.fromList [(xn, yn)])
-                     in reconstructTerm ctxt (apply subst kt)
+     case matchterm lkt' (PatFunApply fn) of
+       Just (ctxt, Loc _ (ApplyFun _ yn)) ->
+          let lkt'' = let subst = Subst (Map.fromList [(xn, yn)])
+                     in reconstructTerm ctxt (apply subst lktBody)
               FreeVars ( freeVsCtxt ) = freeVars ctxt
-              FreeVars ( freeVsKt ) = freeVars kt
+              FreeVars ( freeVsKt ) = freeVars lktBody
 
           in if (not (Set.member fn (freeVsCtxt `Set.union` freeVsKt))) && ( fn /= yn)
-             then kt''
+             then lkt''
              else noChange
        _ -> noChange
 
 
-betaFun (LetSimple fn (ValSimpleTerm (KAbs klam@(Unary xn kt))) kt') = 
+betaFun lkt@(Loc p2 (LetSimple fn (Loc p1 (ValSimpleTerm (KAbs klam@(Unary (Loc _ xn) lktBody)))) lkt')) =
   let klam' = walk betaFunPred betaFun klam
-      noChange = LetSimple fn (ValSimpleTerm (KAbs klam')) (walk betaFunPred betaFun kt')
+      noChange = Loc p2 $ LetSimple fn (Loc p1 (ValSimpleTerm (KAbs klam'))) (walk betaFunPred betaFun lkt')
   in
-     case matchterm kt' (PatFunApply fn) of
-       Just (ctxt, ApplyFun _ yn) ->
-          let kt'' = let subst = Subst (Map.fromList [(xn, yn)])
-                     in reconstructTerm ctxt (apply subst kt)
+     case matchterm lkt' (PatFunApply fn) of
+       Just (ctxt, Loc _ (ApplyFun _ yn)) ->
+          let lkt'' = let subst = Subst (Map.fromList [(xn, yn)])
+                     in reconstructTerm ctxt (apply subst lktBody)
               FreeVars ( freeVsCtxt ) = freeVars ctxt
-              FreeVars ( freeVsKt ) = freeVars kt
+              FreeVars ( freeVsKt ) = freeVars lktBody
 
           in if (not (Set.member fn (freeVsCtxt `Set.union` freeVsKt))) && ( fn /= yn)
-             then kt''
+             then lkt''
              else noChange
        _ -> noChange
 
@@ -362,18 +381,18 @@ contextualRewrites = [ (betaFunPred, betaFun)
                      ]
 
 
-ktWalk :: KTerm -> KTerm
-ktWalk kt =
-   let rewrites = 
+lktWalk :: LKTerm -> LKTerm
+lktWalk lkt =
+   let rewrites =
           map (\(pred, f) -> walk pred f) contextualRewrites
    in
-    foldl (\t rwrt -> rwrt t) kt rewrites
+    foldl (\t rwrt -> rwrt t) lkt rewrites
 
 
-ktWalkFix kt =
-    let kt' = ktWalk kt
-    in if kt' == kt then kt
-       else ktWalkFix kt'
+lktWalkFix lkt =
+    let lkt' = lktWalk lkt
+    in if lkt' == lkt then lkt
+       else lktWalkFix lkt'
 
 rewrite :: Prog -> Prog
-rewrite (Prog atoms kterm) = Prog atoms (ktWalkFix kterm)
+rewrite (Prog atoms lkterm) = Prog atoms (lktWalkFix lkterm)

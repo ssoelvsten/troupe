@@ -1,0 +1,31 @@
+(* NMIFC Contrast Test: Blocking Level Declassification WITHOUT NMIFC
+
+   This test demonstrates that blockdeclto from a corrupt PC SUCCEEDS
+   when NMIFC is NOT enabled. This is the "unsafe" behavior that NMIFC prevents.
+
+   Setup:
+   1. Create a value with corrupt label {alice,bob} = <alice & bob; alice | bob>
+   2. Branch on that value, which taints the PC with the corrupt label
+   3. Attempt blockdeclto - succeeds without NMIFC
+
+   Without NMIFC: Only authority check is performed, which passes with root authority.
+   With NMIFC: Robustness check fails (see block-robust-corrupt-label.trp in neg/ifc/nmifc/).
+
+   This test runs WITHOUT --nmifc flag (explicit --no-nmifc in options).
+
+   Expected: blockdeclto succeeds, prints "success"
+
+   See: nmifc-summary.md for details on the robustness condition
+*)
+
+let val corruptValue = true raisedTo `{alice,bob}`
+    (* {alice,bob} = <alice & bob; alice | bob> -- a corrupt label *)
+
+    (* Branch on corrupt value, tainting the PC *)
+    val _ = if corruptValue then () else ()
+
+    (* Now PC is tainted with corrupt label *)
+    (* This succeeds without NMIFC but would fail with NMIFC enabled *)
+    val _ = blockdeclto (authority, `<#null-confidentiality; alice|bob>`)
+in print "success"
+end

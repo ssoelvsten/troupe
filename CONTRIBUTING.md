@@ -34,6 +34,11 @@ If your contribution includes both syntactic and semantic changes:
 
 This helps reviewers understand and evaluate changes more effectively.
 
+### 4. Cosmetic changes
+
+Commits with purely cosmetic changes (code cleanup, etc) should
+clearly marked as such, e.g., with the tag `style:` 
+
 ## Code Style
 
 Please follow the established coding style of the project. Use existing code as a reference when in doubt.

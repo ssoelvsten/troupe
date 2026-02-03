@@ -1,42 +1,39 @@
-import resolve from 'rollup-plugin-node-resolve';
-import commonjs from 'rollup-plugin-commonjs';
-import json from 'rollup-plugin-json';
-// import babel from 'rollup-plugin-babel';
-import minify from 'rollup-plugin-babel-minify';
+import resolve from '@rollup/plugin-node-resolve';
+import commonjs from '@rollup/plugin-commonjs';
+import json from '@rollup/plugin-json';
+import terser from '@rollup/plugin-terser';
+
 // don't unroll node modules. Except winston... Don't ask...
 const external = id =>
       !id.startsWith('\0')
       && !id.startsWith('.')
       && !id.startsWith('/')
+      && !id.startsWith('rt/')
       && !(id == 'winston');
 
-module.exports = {
-  input: 'rt/built/troupe.js',
+export default {
+  input: 'rt/built/troupe.mjs',
   output: {
     file: 'build/Troupe/rt/built/troupe.js',
     format: 'cjs'
   },
-  
+
   plugins: [
     resolve(),
-    commonjs({ 
-      ignore: ["conditional-runtime-dependency"] 
+    commonjs({
+      ignoreDynamicRequires: true
     }),
     json(),
-    // babel({}),
-    minify({
-       "mangle": { eval : true,
-                  // topLevel: true,
-                  sort : true,
-                  sort : true,
-                  screw_ie8 : true
-                },
-      "keepFnName": false,
-      "keepClassName": false,
-      comments: false
-    }
-    )
+    terser({
+      mangle: {
+        eval: true
+      },
+      keep_fnames: false,
+      keep_classnames: false,
+      format: {
+        comments: false
+      }
+    })
   ],
   external
-
 };

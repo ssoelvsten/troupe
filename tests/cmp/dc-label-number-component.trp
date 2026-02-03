@@ -1,0 +1,3 @@
+let val x = 40 raisedTo `<123; bob>`
+in printWithLabels x
+end

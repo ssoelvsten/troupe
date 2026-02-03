@@ -1,0 +1,4 @@
+let val x = 10
+    val y = "hello"
+in {x, y, z = 42}
+end

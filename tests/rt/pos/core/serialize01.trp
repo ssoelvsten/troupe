@@ -23,7 +23,7 @@ let val rawobj =
               )
 
     val filename = "serialization_test"
-    val _ = save (filename, obj)
+    val _ = save (authority,filename, obj)
     
     val (pid, rawobj2, f ) = restore (filename)
 in printWithLabels (rawobj2)

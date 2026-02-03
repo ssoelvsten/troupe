@@ -1,0 +1,13 @@
+import Missing
+
+let val lev = `{secret}`
+    val result = invokeWithTaint lev (fn () =>
+        let val pc = _pc ()
+        in print "Function was called";
+           print "PC inside tainted context:";
+           printWithLabels pc;
+           42
+        end)
+in print "Result:";
+   printWithLabels result
+end

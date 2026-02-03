@@ -1,3 +1,0 @@
-2023-03-17T21:23:22.867Z [RTM] [32minfo[39m: Skipping network creation. Observe that all external IO operations will yield a runtime error.
-Runtime error in thread b45dd3d8-b537-4577-8033-213c8a6c9858@{}%{}
->> pattern match failure in let declaration at :1:5

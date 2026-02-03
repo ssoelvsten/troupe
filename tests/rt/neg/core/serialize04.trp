@@ -6,5 +6,5 @@
 
 let fun f() = _debug (1); sleep (2000); _debug (2)
     val (2, resume) = sandbox (1000, f)
-in  save ("serialize04", resume)
+in  save (authority,"serialize04", resume)
 end

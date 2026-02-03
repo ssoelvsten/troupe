@@ -1,14 +1,12 @@
 import { UserRuntimeZero, Constructor, mkBase } from './UserRuntimeZero.mjs'
 import { LocalObject } from '../LocalObject.mjs'
-import * as options from '../options.mjs'
-import { mkLevel } from '../options.mjs'
-import { assertIsAuthority, assertIsTopAuthority, assertIsNTuple, assertIsLocalObject, assertIsString, assertIsUnit, assertNormalState } from '../Asserts.mjs'
+import * as levels from '../Level.mjs'
+import { mkLevel } from '../Level.mjs'
+import { assertIsAuthority, assertIsRootAuthority, assertIsNTuple, assertIsLocalObject, assertIsString, assertIsUnit, assertNormalState } from '../Asserts.mjs'
 import { __unit } from '../UnitVal.mjs';
-import yargs from 'yargs'
-import { hideBin } from 'yargs/helpers';
-const argv:any = yargs(hideBin(process.argv)).parse()
+import { getCliArgs, TroupeCliArg } from '../TroupeCliArgs.mjs';
+const argv = getCliArgs();
 
-const levels = options;
 const flowsTo = levels.flowsTo;
 
 import * as _rl from 'node:readline';
@@ -22,7 +20,7 @@ const readline = _rl.createInterface({
 const lineBuffer = [];
 const readlineCallbacks = []
 
-const __stdio_lev = argv.stdiolev ? mkLevel (argv.stdiolev): levels.TOP
+const __stdio_lev = argv[TroupeCliArg.Stdiolev] ? levels.mkV1Level (argv[TroupeCliArg.Stdiolev]): levels.ROOT
 
 function lineListener(input) {
     if (readlineCallbacks.length > 0) {
@@ -90,14 +88,14 @@ export function BuiltinStdIo<TBase extends Constructor<UserRuntimeZero>>(Base: T
             assertNormalState("inputLine")
             assertIsUnit(arg)
             let theThread = this.runtime.$t;
-            theThread.raiseBlockingThreadLev(levels.TOP)
+            theThread.raiseBlockingThreadLev(__stdio_lev)
             if (lineBuffer.length > 0) {
                 let s = lineBuffer.shift();
-                let r = theThread.mkValWithLev(s, levels.TOP);
+                let r = theThread.mkValWithLev(s, __stdio_lev);
                 return theThread.returnImmediateLValue(r);
             } else {
                 readlineCallbacks.push((s) => {
-                    let r = theThread.mkValWithLev(s, levels.TOP)
+                    let r = theThread.mkValWithLev(s, __stdio_lev)
                     theThread.returnSuspended(r)
                     this.runtime.__sched.scheduleThread(theThread);
                     this.runtime.__sched.resumeLoopAsync()
@@ -110,9 +108,9 @@ export function BuiltinStdIo<TBase extends Constructor<UserRuntimeZero>>(Base: T
             readline.removeListener('line', lineListener);
             let theThread = this.runtime.$t;
             assertIsString(arg);
-            theThread.raiseBlockingThreadLev(levels.TOP)
+            theThread.raiseBlockingThreadLev(__stdio_lev)
             readline.question(arg.val, (s) => {
-                let r = theThread.mkValWithLev(s, levels.TOP)
+                let r = theThread.mkValWithLev(s, __stdio_lev)
                 theThread.returnSuspended(r)
                 this.runtime.__sched.scheduleThread(theThread);
                 this.runtime.__sched.resumeLoopAsync()

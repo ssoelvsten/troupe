@@ -1,0 +1,5 @@
+let val untrustedValue = 42 raisedTo `<;alice>`
+    val _ = if untrustedValue > 0 then print "tainted" else ()
+    val _ = blockendorseto (authority, `<;#root-integrity>`) 
+in cert ()
+end

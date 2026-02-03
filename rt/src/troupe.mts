@@ -1,14 +1,15 @@
 import { start } from './runtimeMonitored.mjs';
 import { getRuntimeObject } from './SysState.mjs';
 import path  from 'path';
-import yargs from 'yargs'
 import fs from 'node:fs'
-// let yargs = require('yargs');
-// let fs = require('fs');
-import { hideBin } from 'yargs/helpers';
-const argv:any = yargs(hideBin(process.argv)).parse()
+import { getCliArgs, TroupeCliArg } from './TroupeCliArgs.mjs';
+const argv = getCliArgs();
 
-let p:any = argv.f;
+let p:any = argv[TroupeCliArg.File];
+if (!p) {
+    console.error("Error: -f/--file argument is required.");
+    process.exit(1);
+}
 if (!path.isAbsolute(p)) {
     p = path.normalize(process.cwd() + "/" + p);
 }

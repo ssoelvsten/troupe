@@ -1,0 +1,26 @@
+(* Trust Flow Test - Node 1 *)
+(* Tests that trust flow errors are handled properly, not as "Unhandled general error" *)
+
+let 
+    val timeout_pid = spawn(fn () => 
+        let val _ = sleep 5000
+        in print "NODE1: Timeout reached - main thread likely encountered expected error"; exit(authority, 124)
+        end)
+    
+    fun test_trust_flow() =
+        let val _ = print "NODE1: Starting trust flow test"
+            val _ = print "NODE1: Attempting to spawn with secret info on untrusted node"
+            
+            (* This should trigger a trust flow error since node2 has default trust {} *)
+            (* but we're trying to spawn with {secret} level information *)
+            val pid = if true raisedTo `{secret}` then
+                        spawn ("node2", fn () => receive [ hn x => x ])
+                      else  
+                        spawn ("node2", fn () => receive [ hn x => x ])
+                        
+            val _ = print "NODE1: Spawn succeeded unexpectedly"
+        in print "NODE1: ERROR - Should not reach this point"; exit(authority, 1)
+        end
+        
+in test_trust_flow()
+end

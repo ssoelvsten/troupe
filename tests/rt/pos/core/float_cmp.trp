@@ -1,0 +1,9 @@
+let val a = 3.14
+    val b = 3.14
+    val c = 2.71
+in print (a = b);
+   print (a = c);
+   print (a > c);
+   print (a < c);
+   print (3 = 3.0)
+end

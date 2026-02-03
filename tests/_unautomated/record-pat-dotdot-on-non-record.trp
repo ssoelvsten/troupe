@@ -1,0 +1,6 @@
+(* Test: record pattern with .. on non-record value - should fail *)
+let val t = (1, 2, 3)
+in case t of
+     {a, ..} => a
+   | _ => 0
+end

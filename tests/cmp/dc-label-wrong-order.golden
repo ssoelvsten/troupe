@@ -1,0 +1,24 @@
+Found 2 parse errors:
+
+tests/cmp/dc-label-wrong-order.trp:1:27: parse error
+  (while parsing DC label)
+  1 | let val x = 60 raisedTo `<#root-integrity; #null-confidentiality>`
+    |                           ^
+  unexpected '#root-integrity'
+  expected ';'
+
+Suggestion: Integrity component in wrong position.
+  In DC labels, confidentiality comes BEFORE the semicolon,
+  and integrity comes AFTER.
+  Syntax: `< confidentiality ; integrity >`
+  You have an integrity component ('#root-integrity') in the
+  confidentiality position. Perhaps you meant to swap them?
+
+----------------------------------------
+
+tests/cmp/dc-label-wrong-order.trp:1:44: parse error
+  1 | let val x = 60 raisedTo `<#root-integrity; #null-confidentiality>`
+    |                                            ^
+  unexpected '#null-confidentiality'
+  expected expression
+

@@ -1,0 +1,10 @@
+(* Test for Issue #110: Label equality checking with DC syntax *)
+(* Two logically equivalent label orderings should be equal *)
+
+let val x = `<alice & bob ; alice & bob>` = `<alice & bob ; alice & bob>`
+    val y = `<alice & bob ; alice & bob>` = `<bob & alice ; bob & alice>`
+    val _ = print ("Same order DC:     ", x)
+    val _ = print ("Different order DC:", y)
+in
+()
+end

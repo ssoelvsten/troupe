@@ -1,0 +1,5 @@
+datatype Atoms = Timeout | Timeout
+
+let val t = Timeout
+in print t
+end

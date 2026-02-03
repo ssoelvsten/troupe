@@ -8,7 +8,8 @@ import Data.Set(Set)
 import qualified Data.Set as Set 
 import qualified Basics
 import qualified Core                      as C
-import           TroupePositionInfo
+import Core (Numeric(..))
+import           TroupePositionInfo (Located(..), getLoc, unLoc, noLoc, atLoc, PosInf(..), GetPosInfo(..))
 
 import qualified Data.Map.Lazy as Map 
 import           RetCPS                    (VarName (..))
@@ -28,6 +29,7 @@ idSubst = Subst (Map.empty)
 
 instance Substitutable VarAccess where 
     apply _ x@(VarEnv _) = x 
+    apply _ x@(VarFunSelfRef) = x 
     apply subst@(Subst varmap) (VarLocal x) = 
         Map.findWithDefault (VarLocal x) x varmap
 
@@ -48,28 +50,32 @@ instance Substitutable IRExpr where
             Lib name name' -> Lib name name'
         where _ff fields = map (\(f,x) -> (f, apply subst x)) fields
 
-instance Substitutable IRInst where 
-    apply subst i = 
-        case i of 
+instance Substitutable IRInst where
+    apply subst i =
+        case i of
             Assign x e -> Assign x (apply subst e)
-            MkFunClosures env funs -> 
+            MkFunClosures env funs ->
                 let env' = map (\(decVar, y) -> (decVar, apply subst y)) env  -- obs: need only subst in y
-                in MkFunClosures env' funs 
+                in MkFunClosures env' funs
 
-instance Substitutable IRTerminator where 
-    apply subst tr = 
-        case tr of 
+instance Substitutable IRTerminator where
+    apply subst tr =
+        case tr of
             TailCall x y -> TailCall (apply subst x) (apply subst y)
             Ret x -> Ret (apply subst x)
             If x bb1 bb2 -> If (apply subst x) (apply subst bb1) (apply subst bb2)
-            AssertElseError x bb y pos -> 
-                AssertElseError (apply subst x) (apply subst bb) (apply subst y) pos 
+            AssertElseError x bb y ->
+                AssertElseError (apply subst x) (apply subst bb) (apply subst y)
             LibExport x -> LibExport (apply subst x)
-            Error x pos -> Error (apply subst x) pos 
-            Call decVar bb1 bb2 -> Call decVar (apply subst bb1) (apply subst bb2)
+            Error x -> Error (apply subst x)
+            StackExpand decVar bb1 bb2 -> StackExpand decVar (apply subst bb1) (apply subst bb2)
 
-instance Substitutable IRBBTree where 
-    apply subst (BB insts tr) = 
+-- Instance for Located wrapper - apply substitution to content, preserve position
+instance Substitutable a => Substitutable (Located a) where
+    apply subst (Loc pos a) = Loc pos (apply subst a)
+
+instance Substitutable IRBBTree where
+    apply subst (BB insts tr) =
         BB (map (apply subst) insts) (apply subst tr)
 
 --------------------------------------------------
@@ -80,12 +86,12 @@ instance Substitutable IRBBTree where
 
 -- | Partial value.
 data PValue = Unknown
-            | TupleVal [VarAccess]
+            | TupleVal [LVarAccess]
             | ListVal
-            | IntConst Integer
+            | NumericConst Numeric
             | BoolConst Bool
             | StringConst String
-            | RecordVal Fields
+            | RecordVal LFields
              
              
 
@@ -118,17 +124,108 @@ class PEval a where
 
 markUsed x = tell $ Set.singleton x -- collect the use of the local
 markUsed' (VarEnv _) = return ()
-markUsed' (VarLocal x) = markUsed x 
+markUsed' (VarFunSelfRef) = return ()
+markUsed' (VarLocal x) = markUsed x
+
+-- | Mark a Located VarAccess as used (extracts VarAccess from Located wrapper)
+markUsedL' :: LVarAccess -> Opt ()
+markUsedL' (Loc _ va) = markUsed' va
+
+-- | Check if an expression can fail at runtime or has side effects
+-- This is used to prevent unsound dead code elimination
+canFailOrHasEffects :: IRExpr -> Bool
+canFailOrHasEffects expr = case expr of
+    -- Binary operations that can fail due to type errors
+    Bin op _ _ -> case op of
+        -- Arithmetic operations can fail if operands are not numbers
+        Basics.Plus -> True
+        Basics.Minus -> True
+        Basics.Mult -> True
+        Basics.Div -> True  -- Also division by zero
+        Basics.IntDiv -> True
+        Basics.Mod -> True
+        -- Bitwise operations require numbers
+        Basics.BinAnd -> True
+        Basics.BinOr -> True
+        Basics.BinXor -> True
+        Basics.BinShiftLeft -> True
+        Basics.BinShiftRight -> True
+        Basics.BinZeroShiftRight -> True
+        -- String concatenation can fail if operands are not strings
+        Basics.Concat -> True
+        -- Comparisons that require numbers
+        Basics.Le -> True
+        Basics.Lt -> True
+        Basics.Ge -> True
+        Basics.Gt -> True
+        -- Boolean operations 
+        Basics.And -> True 
+        Basics.Or -> True         
+        -- Record checking
+        Basics.HasField -> True
+        -- These are generally safe
+        Basics.Eq -> False
+        Basics.Neq -> False
+        -- Level operations might be safe but conservative
+        Basics.FlowsTo -> True
+        Basics.LatticeJoin -> True
+        Basics.LatticeMeet -> True
+        Basics.RaisedTo -> True
+    
+    -- Unary operations
+    Un op _ -> case op of
+        -- List/tuple operations can fail
+        Basics.Head -> True
+        Basics.Tail -> True
+        Basics.Fst -> True
+        Basics.Snd -> True
+        -- Arithmetic
+        Basics.UnMinus -> True
+        -- Length operations can fail 
+        Basics.ListLength -> True
+        Basics.TupleLength -> True
+        Basics.RecordSize -> True
+        -- Boolean negation can fail
+        Basics.Not -> True
+        -- Type tests are safe
+        Basics.IsTuple -> False
+        Basics.IsList -> False
+        Basics.IsRecord -> False
+        -- Level operations
+        Basics.LevelOf -> False
+    
+    -- Field/index projections can fail
+    ProjField _ _ -> True
+    ProjIdx _ _ -> True
+    
+    -- List operations
+    ListCons _ _ -> True  -- Second argument must be a list
+    
+    -- Function calls can have side effects
+    Base _ -> True
+    Lib _ _ -> True
+    
+    -- These are generally safe
+    Tuple _ -> False
+    Record _ -> False
+    WithRecord _ _ -> False  -- Assuming the base is a record
+    List _ -> False
+    Const _ -> False 
 
 -- | Get evaluation of a variable.
-varPEval :: VarAccess -> Opt PValue 
+varPEval :: VarAccess -> Opt PValue
 varPEval (VarEnv _) = return Unknown
-varPEval (VarLocal x) = do 
-    env <- getEnv 
+varPEval (VarFunSelfRef) = return Unknown
+varPEval (VarLocal x) = do
+    env <- getEnv
     markUsed x
-    case Map.lookup x env of 
-        Just v -> return v 
+    case Map.lookup x env of
+        Just v -> return v
         Nothing -> return Unknown
+
+-- | Get evaluation of a Located VarAccess (extracts VarAccess from Located wrapper)
+varPEvalL :: LVarAccess -> Opt PValue
+varPEvalL (Loc _ va) = varPEval va
 
 
 data IRExprRes 
@@ -138,70 +235,80 @@ data IRExprRes
 
         
 irExprPeval :: IRExpr -> Opt IRExprRes -- (PValue, IRExpr)
-irExprPeval e = 
-    let r_ x = return (RExpr x) 
+irExprPeval e =
+    let r_ x = return (RExpr x)
         def_ = r_ (Unknown, e) in
-    case e of 
-        Un Basics.IsTuple x -> do 
-            v <- varPEval x 
-            case v of 
-                TupleVal _ -> do 
+    case e of
+        Un Basics.IsTuple x -> do
+            v <- varPEvalL x
+            case v of
+                TupleVal _ -> do
                     setChangeFlag
                     r_ (BoolConst True, Const (C.LBool True))
                 _ -> def_
-        Un Basics.IsRecord x -> do 
-            v <- varPEval x 
-            case v of 
-                RecordVal _ -> do 
-                    setChangeFlag 
+        Un Basics.IsRecord x -> do
+            v <- varPEvalL x
+            case v of
+                RecordVal _ -> do
+                    setChangeFlag
                     r_ (BoolConst True, Const (C.LBool True))
                 _ -> def_
-        
 
-        Bin Basics.Eq x y -> do 
-            v1 <- varPEval x 
-            v2 <- varPEval y 
-            case (v1, v2) of 
-                (IntConst a, IntConst b) | a == b -> do
+        Un Basics.Not x -> do
+            v <- varPEvalL x
+            case v of
+                BoolConst True -> do
+                    setChangeFlag
+                    r_ (BoolConst False, Const (C.LBool False))
+                BoolConst False -> do
                     setChangeFlag
                     r_ (BoolConst True, Const (C.LBool True))
-                (IntConst a, IntConst b) | a /= b -> do
+                _ -> def_
+
+        Bin Basics.Eq x y -> do
+            v1 <- varPEvalL x
+            v2 <- varPEvalL y
+            case (v1, v2) of
+                (NumericConst a, NumericConst b) | a == b -> do
+                    setChangeFlag
+                    r_ (BoolConst True, Const (C.LBool True))
+                (NumericConst a, NumericConst b) | a /= b -> do
                     setChangeFlag
                     r_ (BoolConst False, Const (C.LBool False))
                 _ -> r_ (Unknown, e)
-        
 
-        Bin Basics.HasField x y -> do 
-            v1 <- varPEval x 
-            v2 <- varPEval y 
-            case (v1, v2) of 
-                (RecordVal fs, StringConst s) -> 
-                    case lookup s fs of 
+
+        Bin Basics.HasField x y -> do
+            v1 <- varPEvalL x
+            v2 <- varPEvalL y
+            case (v1, v2) of
+                (RecordVal fs, StringConst s) ->
+                    case lookup s (map (\(f, Loc _ va) -> (f, va)) fs) of
                         Just _ -> do
                             setChangeFlag
                             r_ (BoolConst True, Const (C.LBool True))
-                        Nothing -> def_ 
-                _ -> def_ 
-        
-        
-        Bin op x y -> do 
-          u <- varPEval x 
-          v <- varPEval y
-          case (u, v) of 
-            (IntConst a, IntConst b) -> do
+                        Nothing -> def_
+                _ -> def_
+
+
+        Bin op x y -> do
+          u <- varPEvalL x
+          v <- varPEvalL y
+          case (u, v) of
+            (NumericConst (NumInt a), NumericConst (NumInt b)) -> do
                 let ii f = let c = f a b in do
                               setChangeFlag
-                              r_ (IntConst c, Const (C.LInt c NoPos))  
+                              r_ (NumericConst (NumInt c), Const (C.LNumeric (NumInt c)))
                 let bb f = let c = f a b in do
                               setChangeFlag
                               r_ (BoolConst c, Const (C.LBool c))
-                case op of 
+                case op of
                             Basics.Plus ->  ii (+)
                             Basics.Minus -> ii (-)
                             Basics.Mult ->  ii (*)
                             Basics.Div ->   def_ -- do not mess with divisions -- ii div
                             Basics.IntDiv-> def_
-                            Basics.Mod ->   def_ -- ii mod 
+                            Basics.Mod ->   def_ -- ii mod
                             -- Basics.Eq ->    bb (==)
                             Basics.Neq ->   bb(/=)
                             Basics.Le ->    bb (<=)
@@ -210,36 +317,38 @@ irExprPeval e =
                             Basics.Gt ->    bb ( > )
                             _ -> def_
                             -- _  -> fail "Type error discovered at compliation time"
-                            
+
             _ -> do
-              markUsed' x 
-              markUsed' y
+              markUsedL' x
+              markUsedL' y
               def_
-        Record fields -> do mapM pevalField fields 
+        Record fields -> do mapM pevalField fields
                             r_ (RecordVal fields, e)
                             -- def_
-            where pevalField (_, x) = markUsed' x
-        WithRecord r fields -> do   
-                    markUsed' r
-                    mapM (\(_,x) -> markUsed' x) fields
-                    z <- varPEval r 
-                    let fields' = fields ++ ( case z of 
+            where pevalField (_, x) = markUsedL' x
+        WithRecord r fields -> do
+                    markUsedL' r
+                    mapM (\(_,x) -> markUsedL' x) fields
+                    z <- varPEvalL r
+                    let fields' = fields ++ ( case z of
                                                RecordVal f0 -> f0
                                                _ -> [] )
                     r_ (RecordVal fields', e)
-        ProjField x s -> do 
-            v <- varPEval x 
-            case v of 
-                RecordVal fs -> 
-                    case lookup s fs of 
-                        Just y -> do
+        ProjField x s -> do
+            v <- varPEvalL x
+            case v of
+                RecordVal fs ->
+                    case lookup s fs of
+                        Just (Loc _ y) -> do
                             setChangeFlag
-                            return $ RMov y 
+                            return $ RMov y
                             -- r_ (BoolConst True, Const (C.LBool True))
-                        Nothing -> def_ 
-                _ -> def_ 
+                        Nothing -> def_
+                _ -> def_
         -- TODO Implement optimization for ProjIdx
-        ProjIdx x idx -> def_
+        ProjIdx x idx -> do
+            markUsedL' x  -- Mark the tuple variable as used
+            def_
         -- ProjIdx x idx -> do 
         --     v <- varPEval x 
         --     case v of 
@@ -267,24 +376,24 @@ irExprPeval e =
  
 
 
-        (List xs) -> do 
-            mapM_ markUsed' xs
+        (List xs) -> do
+            mapM_ markUsedL' xs
             r_ (Unknown, e)
 
-        (ListCons x y) -> do 
-            markUsed' x 
-            markUsed' y 
+        (ListCons x y) -> do
+            markUsedL' x
+            markUsedL' y
             r_ (Unknown, e)    
 
-        (Const x) -> do 
-            case x of 
-                C.LInt n pos -> 
-                    r_ (IntConst n, e)
-                C.LBool b -> 
+        (Const x) -> do
+            case x of
+                C.LNumeric n ->
+                    r_ (NumericConst n, e)
+                C.LBool b ->
                     r_ (BoolConst b, e)
-                C.LString s -> 
+                C.LString s ->
                     r_ (StringConst s, e)
-                _ -> 
+                _ ->
                     r_ (Unknown, e) 
 
         (Base _) -> do 
@@ -293,122 +402,127 @@ irExprPeval e =
         (Lib _ _) -> do 
             r_ (Unknown, e)
 
-        (Un Basics.TupleLength x) -> do 
-            v <- varPEval x 
-            case v of 
-                TupleVal vars -> do  
+        (Un Basics.TupleLength x) -> do
+            v <- varPEvalL x
+            case v of
+                TupleVal vars -> do
                     setChangeFlag
                     let n = fromIntegral $ length vars
-                    r_ (IntConst n, Const (C.LInt n NoPos))    
-                _ -> r_ (Unknown, e)    
+                    r_ (NumericConst (NumInt n), Const (C.LNumeric (NumInt n)))
+                _ -> r_ (Unknown, e)
         -- Not possible as not tracking list content:
-        -- (Un Basics.ListLength x) -> do 
-        --     v <- varPEval x 
-        --     case v of 
-        --         ListVal -> do  
+        -- (Un Basics.ListLength x) -> do
+        --     v <- varPEvalL x
+        --     case v of
+        --         ListVal -> do
 
-        (Un _ x) -> do 
-            markUsed' x 
+        (Un _ x) -> do
+            markUsedL' x
             r_ (Unknown, e)
 
 
         (Tuple xs) -> do
-            mapM_ markUsed' xs 
+            mapM_ markUsedL' xs
             r_ (TupleVal xs, e)
 
 
-data IRInstRes 
-    = RIns IRInst 
-    | RSubst Subst 
+data IRInstRes
+    = RIns LIRInst
+    | RSubst Subst
 
-insPeval :: IRInst -> Opt IRInstRes 
-insPeval i = 
-    case i of 
-        Assign x e -> do 
-            exprRes <- irExprPeval e 
-            case exprRes of 
+-- | Partial evaluation of a Located IR instruction
+insPeval :: LIRInst -> Opt IRInstRes
+insPeval linst@(Loc pos i) =
+    case i of
+        Assign x e -> do
+            exprRes <- irExprPeval e
+            case exprRes of
                 RExpr (v', e') -> do
-                    envInsert x v' 
-                    return $ RIns (Assign x e')
+                    envInsert x v'
+                    return $ RIns (Loc pos (Assign x e'))
                 RMov y ->
                     return $ RSubst $ Subst (Map.singleton x y)
-        (MkFunClosures envs hfns) -> do 
-            mapM (\(_, x) -> markUsed' x) envs 
-            return $ RIns i
+        MkFunClosures envs hfns -> do
+            mapM_ (\(_, lx) -> markUsedL' lx) envs
+            return $ RIns linst
 
 
 {--
-instance PEval IRInst where 
-    peval (Assign x e) = do 
-        RExpr (v', e') <- irExprPeval e 
-        envInsert x v' 
-        return (Assign x e')        
+instance PEval IRInst where
+    peval (Assign x e) = do
+        RExpr (v', e') <- irExprPeval e
+        envInsert x v'
+        return (Assign x e')
 
-    peval i@(MkFunClosures envs hfns) = do 
-        mapM (\(_, x) -> markUsed' x) envs 
+    peval i@(MkFunClosures envs hfns) = do
+        mapM_ (\(_, lx) -> markUsedL' lx) envs
         return i
 --}
 
-trPeval :: IRTerminator -> Opt IRBBTree
+-- | Partial evaluation of a Located IR terminator
+-- Note: IRTerminator now uses LVarAccess, so we use varPEvalL and markUsedL'
+trPeval :: LIRTerminator -> Opt IRBBTree
 
-trPeval (If x bb1 bb2) = do 
-        v <- varPEval x 
-        let _doThen = do setChangeFlag   
-                         peval bb1 
-        
+trPeval (Loc pos (If lx bb1 bb2)) = do
+        v <- varPEvalL lx
+        let _doThen = do setChangeFlag
+                         peval bb1
+
         let _doElse = do setChangeFlag
-                         peval bb2  
-        case v of 
+                         peval bb2
+        case v of
             BoolConst True -> _doThen
             BoolConst False -> _doElse
-            IntConst x | x /= 0 -> _doThen 
-            IntConst 0 -> _doElse
-                                  
-            _ -> do bb1' <- peval bb1 
-                    bb2' <- peval bb2 
-                    return $ BB [] (If x bb1' bb2')
+            NumericConst (NumInt x) | x /= 0 -> _doThen
+            NumericConst (NumInt 0) -> _doElse
+
+            _ -> do bb1' <- peval bb1
+                    bb2' <- peval bb2
+                    return $ BB [] (Loc pos (If lx bb1' bb2'))
 
 
-trPeval (AssertElseError x bb y_err pos) = do 
-    v <- varPEval x 
-    markUsed' y_err
-    case v of 
-        BoolConst True -> do 
+trPeval (Loc pos (AssertElseError lx bb ly_err)) = do
+    v <- varPEvalL lx
+    markUsedL' ly_err
+    case v of
+        BoolConst True -> do
             setChangeFlag
-            peval bb 
-        _ -> do bb' <- peval bb 
-                return $ BB [] (AssertElseError x bb' y_err pos)     
+            peval bb
+        _ -> do bb' <- peval bb
+                return $ BB [] (Loc pos (AssertElseError lx bb' ly_err))
 
 
-trPeval (Call x bb1 bb2) = do 
-    bb1' <- peval bb1 
+trPeval (Loc pos (StackExpand x bb1 bb2)) = do
+    bb1' <- peval bb1
     bb2' <- peval bb2
 
-    case bb1' of 
-        BB insts1 (Ret rv1) -> do 
+    case bb1' of
+        BB insts1 (Loc _retPos (Ret lrv1)) -> do
+            -- Extract VarAccess from LVarAccess for the substitution map key
+            let rv1 = unLoc lrv1
             let subst = Subst (Map.singleton x rv1)
-            let (BB insts2 tr2) = apply subst bb2' 
-            setChangeFlag           
+            let (BB insts2 tr2) = apply subst bb2'
+            setChangeFlag
             return $ BB (insts1 ++ insts2) tr2
-        _ -> 
-            return $ BB [] (Call x bb1' bb2')
+        _ ->
+            return $ BB [] (Loc pos (StackExpand x bb1' bb2'))
 
-trPeval tr@(Ret x) = do 
-    markUsed' x 
-    return $ BB [] tr 
+trPeval ltr@(Loc _pos (Ret lx)) = do
+    markUsedL' lx
+    return $ BB [] ltr
 
-trPeval tr@(LibExport x) = do 
-    markUsed' x 
-    return $ BB [] tr 
+trPeval ltr@(Loc _pos (LibExport lx)) = do
+    markUsedL' lx
+    return $ BB [] ltr
 
-trPeval tr@(Error x _) = do 
-    markUsed' x 
-    return $ BB [] tr 
+trPeval ltr@(Loc _pos (Error lx)) = do
+    markUsedL' lx
+    return $ BB [] ltr
 
-trPeval tr@(TailCall x y)  = do 
-    markUsed' x 
-    markUsed' y 
-    return $ BB [] tr
+trPeval ltr@(Loc _pos (TailCall lx ly)) = do
+    markUsedL' lx
+    markUsedL' ly
+    return $ BB [] ltr
 
 
 bbPeval (BB insts tr) = do 
@@ -427,12 +541,13 @@ bbPeval (BB insts tr) = do
                     
 
 
-instance PEval IRBBTree where    
-    peval bb@(BB insts tr) = do 
-        
+instance PEval IRBBTree where
+    peval bb@(BB insts tr) = do
+
         (BB insts_ tr_, used) <- listen $ bbPeval bb
 
-        let isNotDeadAssign (Assign x _) = Set.member x used 
+        let isNotDeadAssign (Loc _ (Assign x e)) =
+                Set.member x used || canFailOrHasEffects e
             isNotDeadAssign _   = True
 
             instsFiltered = filter isNotDeadAssign insts_
@@ -440,14 +555,15 @@ instance PEval IRBBTree where
 
 
 
-funopt :: FunDef -> FunDef
-funopt (FunDef hfn argname consts bb) = 
+-- | Optimize a Located FunDef
+funopt :: LFunDef -> LFunDef
+funopt (Loc funDefPos (FunDef hfn largname@(Loc _ argname) consts bb)) =
     let initEnv = (Map.singleton argname Unknown, False)
-        (bb', (_, hasChanges), _) = runRWS (peval bb) () initEnv
+        (bb', (_, _hasChanges), _) = runRWS (peval bb) () initEnv
 
-        new = FunDef hfn argname consts bb'
-    in if (bb /= bb')  then funopt new 
-                       else new 
+        new = Loc funDefPos (FunDef hfn largname consts bb')
+    in if (bb /= bb')  then funopt new
+                       else new
 
 
 

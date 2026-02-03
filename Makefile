@@ -1,60 +1,85 @@
-.PHONY: rt
+.PHONY: rt trp-rt compiler lib p2p-tools npm clean test dist check-compiler
 
+# TODO: Rename to 'build/*' ?
+all: npm compiler rt trp-rt p2p-tools lib
 
-
-COMPILER=./bin/troupec
-# run the make of the compiler itself
-stack:
-	$(MAKE) -C compiler 
+check-compiler:
+	@if [ ! -x ./bin/troupec ]; then \
+		echo "Error: Compiler not built. Run 'make compiler' first." >&2; \
+		exit 1; \
+	fi
 
 npm:
 	npm install
-rt:
-	cd rt; tsc 
-service:
-	$(COMPILER) ./trp-rt/service.trp -l	
-libs:
-	$(COMPILER) ./lib/nsuref.trp -l
-	$(COMPILER) ./lib/string.trp -l
-	$(COMPILER) ./lib/printService.trp -l
-	$(COMPILER) ./lib/lists.trp -l
-	$(COMPILER) ./lib/declassifyutil.trp -l 
-	$(COMPILER) ./lib/stdio.trp -l 
-	$(COMPILER) ./lib/timeout.trp -l
-	$(COMPILER) ./lib/raft.trp -l
-	$(COMPILER) ./lib/raft_debug.trp -l
-	$(COMPILER) ./lib/bst.trp -l	
-	$(COMPILER) ./lib/localregistry.trp -l	
+	npm install -g typescript
 
-test:
+rt:
+	cd rt; $(MAKE) all
+
+COMPILER=./bin/troupec
+compiler:
+	cd compiler; $(MAKE) all
+
+p2p-tools:
+	cd p2p-tools; tsc
+
+lib: check-compiler
+	cd lib; $(MAKE) build
+
+trp-rt: check-compiler
+	cd trp-rt/; $(MAKE) build
+
+clean: clean/compiler clean/rt clean/trp-rt clean/p2p-tools clean/lib
+clean/compiler:
+	cd compiler; $(MAKE) clean
+clean/rt:
+	cd rt; $(MAKE) clean
+clean/trp-rt:
+	cd trp-rt; $(MAKE) clean
+clean/p2p-tools:
+	cd p2p-tools; $(MAKE) clean
+clean/lib:
+	cd lib; $(MAKE) clean
+
+ci-test-golden-no-color:
+	mkdir -p out 
+	./bin/golden --no-color
+
+test: test/local test/multinode
+test/local:
 	mkdir -p out
 	cd compiler && $(MAKE) test
+test/multinode:
+	./scripts/run-multinode-tests.sh
+test/libp2p-migration:
+	./scripts/run-libp2p-migration-tests.sh
+test/libp2p-migration-verbose:
+	./scripts/run-libp2p-migration-tests.sh -v
+test/ci-network: rt p2p-tools
+	@echo "Running CI network test..."
+	./tests/ci-network-test.sh
+test/ci-relay: p2p-tools
+	@echo "Running CI relay test..."
+	./tests/ci-relay-test.sh
 
-dist: stack npm rt libs
+dist: stack npm rt p2p-tools lib
 	rm -rf ./build/
 	mkdir -p ./build/Troupe/rt/built
+	mkdir -p ./build/Troupe/p2p-tools/built
 	mkdir -p ./build/Troupe/bin
 	cp -RP bin  ./build/Troupe
 	cp -RL lib ./build/Troupe/
 	cp -RL trustmap.json ./build/Troupe/trustmap.json
 	cp -RL node_modules ./build/Troupe/node_modules
 	cp -RL rt/built ./build/Troupe/rt/
+	cp -RL p2p-tools/built ./build/Troupe/p2p-tools/
 	cp rt/troupe ./build/Troupe/rt/troupe
 	cp local.sh ./build/Troupe/bin/local.sh
 	cp network.sh ./build/Troupe/bin/network.sh
 	cp -RL tests ./build/Troupe/
-all:
-	make stack 
-	npm i
-	make rt 
-	make libs 
-	make service
-clear-built-rt:
-	rm -rf rt/built
 
-build-and-push-docker:
+build-and-push/docker:
 	docker build -t jbay/troupe . && docker push jbay/troupe
 
-build-and-push-repo:
+build-and-push/repo:
 	docker build -t jbay/troupe git@github.com:aslanix/Troupe.git\#devraft && docker push jbay/troupe
-

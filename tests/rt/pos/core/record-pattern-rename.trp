@@ -1,0 +1,3 @@
+case {longFieldName = 100, anotherField = 200} of 
+    {longFieldName = short, anotherField = another} => short + another 
+  | _ => 0

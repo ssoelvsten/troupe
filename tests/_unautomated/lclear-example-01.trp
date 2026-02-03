@@ -1,0 +1,22 @@
+import {exitAfterTimeout} timeout
+
+datatype Atoms = ASK | CHECK | HELLO | RESPONSE
+
+let
+    val secret = 9099 raisedTo `{alice}` 
+    fun secret_handling_server () = 
+	receive [ 	
+		hn (ASK, p) => send (p, (RESPONSE, secret))	       
+	];
+	secret_handling_server ()
+
+    val server_pid = spawn secret_handling_server
+    fun client () = 
+	send (server_pid , (ASK , self ()));
+	receive [ hn x => printWithLabels x; debugpc()]
+
+in 
+
+    exitAfterTimeout authority 2000 15 "timeout";
+    client ()
+end 

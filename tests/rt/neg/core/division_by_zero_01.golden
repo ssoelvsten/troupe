@@ -1,0 +1,8 @@
+2026-01-06T14:33:29.332Z [RTM] [32minfo[39m: Skipping network creation. Observe that all external IO operations will yield a runtime error.
+Runtime error in thread 636240cc-b8d8-42cb-82b4-bb5b1a330ed2@{}%{}
+
+  1 | 1 / 0
+    |     ^
+
+>> Division by zero error
+>> at tests/rt/neg/core/division_by_zero_01.trp:1:5

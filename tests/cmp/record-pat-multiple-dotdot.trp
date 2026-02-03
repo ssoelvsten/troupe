@@ -1,0 +1,5 @@
+(* Test: multiple .. in record pattern - should fail *)
+let val r = {a = 1, b = 2, c = 3, d = 4}
+    val {a, .., b, ..} = r
+in a + b
+end

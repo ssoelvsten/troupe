@@ -1,0 +1,6 @@
+tests/cmp/record-pat-dotdot-in-expression.trp:3:14: parse error
+  3 |     val {a = .., b} = r
+    |              ^
+  unexpected '..'
+  expected expression or '_'
+

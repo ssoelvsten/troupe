@@ -16,7 +16,7 @@ type FieldName = String
 data BinOp = Plus | Minus | Mult | Div | Mod |  Eq | Neq | Le | Lt | Ge | Gt | And | Or | RaisedTo | FlowsTo | Concat| IntDiv | BinAnd | BinOr | BinXor | BinShiftLeft | BinShiftRight | BinZeroShiftRight | HasField | LatticeJoin | LatticeMeet
   deriving (Eq,Generic, Ord)
 instance Serialize BinOp
-data UnaryOp = IsList | IsTuple | IsRecord | Head | Tail | Fst | Snd | ListLength | TupleLength | LevelOf | UnMinus
+data UnaryOp = IsList | IsTuple | IsRecord | Head | Tail | Fst | Snd | ListLength | TupleLength | RecordSize | LevelOf | UnMinus | Not
   deriving (Eq, Generic, Ord)
 instance Serialize UnaryOp
 
@@ -57,9 +57,11 @@ instance Show UnaryOp where
   show Snd = "snd"
   show ListLength = "list-length"
   show TupleLength = "tuple-length"
+  show RecordSize = "record-size"
   show LevelOf = "levelOf"
   show UnMinus = "un-minus"
   show IsRecord = "is-record"
+  show Not = "not"
 
 
 type Precedence = Integer
@@ -101,6 +103,10 @@ opPrec HasField   = 50
 newtype LibName = LibName String deriving (Eq, Show, Generic, Ord)
 instance Serialize LibName
 
+data ImportMode = Qualified | Unqualified
+  deriving (Eq, Show, Ord, Generic)
+instance Serialize ImportMode
+
 
 
 -- 2018-07-02; AA: note on the data structure that we use for imports:
@@ -108,9 +114,22 @@ instance Serialize LibName
 -- library that is imported together with a Nothing value. After
 -- parsing we produce a version where we replace the Nothing value
 -- with the list of names that are exported from the library.
+--
+-- 2024: Extended to support:
+--   - `as` aliases: import List as L
+--   - Selective imports: import List (head, tail)
 
+data ImportDecl = ImportDecl
+  { importLib      :: LibName          -- Original library name
+  , importAlias    :: Maybe LibName    -- Optional alias (from "as X")
+  , importExports  :: Maybe [VarName]  -- Exports from .exports file (filled by ProcessImports)
+  , importSelected :: Maybe [VarName]  -- Selective imports (user-specified)
+  , importMode     :: ImportMode       -- Qualified | Unqualified
+  } deriving (Eq, Show, Ord, Generic)
 
-data Imports = Imports [(LibName, Maybe [VarName])]
+instance Serialize ImportDecl
+
+data Imports = Imports [ImportDecl]
   deriving (Eq, Show, Ord)
 
 

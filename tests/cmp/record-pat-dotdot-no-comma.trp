@@ -1,0 +1,5 @@
+(* Test: missing comma before .. - should fail *)
+let val r = {a = 1, b = 2, c = 3}
+    val {a ..} = r
+in a
+end

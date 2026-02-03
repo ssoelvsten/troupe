@@ -1,0 +1,11 @@
+2026-01-06T14:33:33.242Z [RTM] [32minfo[39m: Skipping network creation. Observe that all external IO operations will yield a runtime error.
+Runtime error in thread e5bd15c7-b05c-425e-88d1-26ba42711e14@{}%{}
+
+  2 | in if secret > 0 then adv 1 else adv 0
+    |                       ^
+
+>> Illegal flow in adv function:
+ |    pc: {#TOP}
+ | block: {#TOP}
+ | value: 1@{}%{}
+>> at tests/rt/neg/ifc/simple-ifc-violation01.trp:2:23

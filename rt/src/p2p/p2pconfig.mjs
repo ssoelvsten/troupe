@@ -11,25 +11,17 @@ let relays
 
 
 // TODO: change the relay address to be the actual address
-let default_relays =
+let default_relays = []
   // ["/dns4/relay.troupe-lang.net/tcp/5555/p2p/QmcQpBNGULxRC3QmvxVGXSw8BarpMvdADYvFtmvKAL5QMe"]
   // TODO: dns resolution of the relay has stopped working
-  ["/ip4/134.209.92.133/tcp/5555/ws/p2p/12D3KooWShh9qmeS1UEgwWpjAsrjsigu8UGh8DRKyx1UG6HeHzjf"]
+  // ["/ip4/134.209.92.133/tcp/5555/ws/p2p/12D3KooWShh9qmeS1UEgwWpjAsrjsigu8UGh8DRKyx1UG6HeHzjf"]
   
 let known_nodes = [
-    {nodeid:"QmXfj4ysaS4pARJU5uUP59B47aCQP6X6FH6cm5otLhcMPa", ip: "/ip4/134.209.90.7/tcp/6789"},
-
-
-    {nodeid:"QmNUiTnU1J5rNFtGXUfZJzSmx2GahSFCPjeSfSTbGoAR4q", ip: "/ip4/142.93.235.197/tcp/6789"},
-    {nodeid:"QmW3oruhRQEuZXCtFWUEwE6DT1WyvifcR6YYtBEK6QTsMo", ip: "/ip4/167.71.68.246/tcp/6789"},
-    {nodeid:"QmYHExHtTzFEjdwyQcJkD9gaKKgfwvGswoFb4simrJn5Q6", ip: "/ip4/188.166.69.210/tcp/6789"},
-    {nodeid:"QmcRfB3SJp92t7GMgS5rygXuSDPm7q31GeAdP8q9HutyYT", ip: "/ip4/128.199.61.30/tcp/6789"},
-    {nodeid:"QmSyj7FUykAhog46qDekYKjWDF4Y4PhPbP2hDkEmwz679b", ip: "/ip4/142.93.234.253/tcp/6789"},
-    {nodeid:"QmS9tkoqKEPrfgsGMhqQgNT1pcZjCq1XRonUiR9uXEoj9e", ip: "/ip4/188.166.70.113/tcp/6789"},
-    {nodeid:"QmYVDakQNvBhVCHeu1JCHJYc2sG1ESBwC3PB1vNzAFJWbH", ip: "/ip4/128.199.41.250/tcp/6789"},
-    {nodeid:"QmX2edVZhWVa9Q6gbpwNZJGXqeLgcAvAYTga2m25dwWudH", ip: "/ip4/188.166.70.132/tcp/6789"},
-    {nodeid:"QmbkpnNgD8uu9FArPPyzYUYuuVZtCo7n3jQ5Rz2nqiZEWD", ip: "/ip4/167.71.76.8/tcp/6789"},
-    {nodeid:"QmYFdcq31Gnch87kkqFjWt5R1GH8jTPNspz5XxBzC6hJ1r", ip: "/ip4/104.248.86.46/tcp/6789"}
+    {nodeid:"QmNnooDu7bfjPFoTZYxMNLWUQJyrVwtbZg5gBMjTezGAJN", ip: "/dnsaddr/bootstrap.libp2p.io"},
+    {nodeid:"QmQCU2EcMqAqQPR2i9bChDtGNJchTbq5TbXJJ16u19uLTa", ip: "/dnsaddr/bootstrap.libp2p.io"},
+    {nodeid:"QmbLHAnMoJPWSCR5Zhtx6BHJX9KiKNN6tpvbUcqanj75Nb", ip: "/dnsaddr/bootstrap.libp2p.io"},
+    {nodeid:"QmcZf59bWwK5XFi76CZX8cbJ4BhTzzA3gU1ZjYZcYW3dwt", ip: "/dnsaddr/bootstrap.libp2p.io"},
+    {nodeid:"QmaCpDMGvV2BGHeYERUEnRQAwe3N8SzbUtfsmvsqQLuvuJ", ip: "/ip4/104.131.131.82/tcp/4001"}
 ]
   
 
@@ -51,4 +43,22 @@ if (existsSync(P2PCONFIG_FILE)) {
   relays = default_relays
 }
 
-export default { relays, known_nodes }
+let cliRelays = null;
+
+export function setCliRelays(relayAddresses) {
+  if (relayAddresses && relayAddresses.length > 0) {
+    cliRelays = relayAddresses;
+    logger?.info(`Using CLI-provided relay addresses: ${relayAddresses.join(', ')}`);
+  }
+}
+
+export function getRelays() {
+  // CLI relays take precedence
+  if (cliRelays && cliRelays.length > 0) {
+    return cliRelays;
+  }
+  // Otherwise use file-based or default relays
+  return relays;
+}
+
+export default { relays: getRelays(), known_nodes, setCliRelays, getRelays }

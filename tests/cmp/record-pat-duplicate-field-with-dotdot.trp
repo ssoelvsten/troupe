@@ -1,0 +1,5 @@
+(* Test: duplicate fields in record pattern with .. - should fail *)
+let val r = {a = 1, b = 2, c = 3}
+    val {a, a, ..} = r
+in a
+end

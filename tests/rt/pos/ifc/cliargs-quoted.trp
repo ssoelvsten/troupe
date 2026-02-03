@@ -1,0 +1,4 @@
+(* Test CLI arguments with quoted strings containing spaces *)
+let val args = getCliArgs authority
+in print args
+end

@@ -1,0 +1,8 @@
+2026-01-06T14:33:31.368Z [RTM] [32minfo[39m: Skipping network creation. Observe that all external IO operations will yield a runtime error.
+Runtime error in thread 73eda93d-02da-43a7-994f-141c9afec99a@{}%{}
+
+  2 | in r.z
+    |    ^
+
+>> record {a=5@{}%{}, b=42@{}%{}, c=10@{}%{}} does not have field 'z'
+>> at tests/rt/neg/core/record-proj03.trp:2:4

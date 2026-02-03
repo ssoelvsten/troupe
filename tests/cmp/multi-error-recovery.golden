@@ -1,0 +1,16 @@
+Found 2 parse errors:
+
+tests/cmp/multi-error-recovery.trp:2:5: parse error
+  2 | 1 + ; 2 + ; 3
+    |     ^
+  unexpected ';'
+  expected expression
+
+----------------------------------------
+
+tests/cmp/multi-error-recovery.trp:2:11: parse error
+  2 | 1 + ; 2 + ; 3
+    |           ^
+  unexpected ';'
+  expected expression
+

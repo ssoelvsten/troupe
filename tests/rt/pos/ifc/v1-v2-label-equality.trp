@@ -1,0 +1,62 @@
+(* Test: DC Label V1 vs V2 Syntax Comparison *)
+(*
+   V1 `{}` = IFC_BOT = <CNF_TRUE, CNF_FALSE> = <#null-conf; #root-intg>
+   V2 `<#null-confidentiality; #null-integrity>` = TRUST_NULL = <CNF_TRUE, CNF_TRUE>
+
+   These are DIFFERENT labels!
+   - IFC_BOT: most public (True conf), least trusted (False integ)
+   - TRUST_NULL: no confidentiality restriction, no integrity endorsement
+*)
+
+let
+    (* V1 syntax: empty braces means IFC_BOT *)
+    val v1_bot = `{}`
+
+    (* V2 with explicit null components (TRUST_NULL) *)
+    val v2_null_null = `<#null-confidentiality; #null-integrity>`
+
+    (* V2 equivalent to IFC_BOT: null confidentiality, root integrity *)
+    val v2_ifc_bot = `<#null-confidentiality; #root-integrity>`
+
+    (* V2 just empty: should be same as <;> = <#null-conf; #null-intg> *)
+    val v2_empty = `<;>`
+
+    (* V2 IFC_TOP: root confidentiality, null integrity *)
+    val v2_ifc_top = `<#root-confidentiality; #null-integrity>`
+
+    (* Test equalities *)
+    val v1_eq_null_null = v1_bot = v2_null_null
+    val v1_eq_ifc_bot = v1_bot = v2_ifc_bot
+    val v1_eq_empty = v1_bot = v2_empty
+
+    (* Flow tests - equality means mutual flowsTo *)
+    val v1_flows_to_ifc_bot = flowsTo (v1_bot, v2_ifc_bot)
+    val ifc_bot_flows_to_v1 = flowsTo (v2_ifc_bot, v1_bot)
+
+    (* Also get levelOf a simple value which should be bottom *)
+    val simple_val = 42
+    val level_of_simple = levelOf simple_val
+    val simple_matches_v1 = level_of_simple = v1_bot
+
+    val _ = print "=== DC Label V1 vs V2 Syntax Comparison ==="
+    val _ = print ""
+    val _ = print ("V1 `{}`:                                  ", v1_bot)
+    val _ = print ("V2 `<;>`:                                 ", v2_empty)
+    val _ = print ("V2 `<#null-conf; #null-intg>`:            ", v2_null_null)
+    val _ = print ("V2 `<#null-conf; #root-intg>`:            ", v2_ifc_bot)
+    val _ = print ("V2 `<#root-conf; #null-intg>`:            ", v2_ifc_top)
+    val _ = print ""
+    val _ = print "=== Equality Tests ==="
+    val _ = print ("V1 `{}` == `<;>`?                         ", v1_eq_empty)
+    val _ = print ("V1 `{}` == `<#null-conf; #null-intg>`?    ", v1_eq_null_null)
+    val _ = print ("V1 `{}` == `<#null-conf; #root-intg>`?    ", v1_eq_ifc_bot)
+    val _ = print ""
+    val _ = print "=== Flow Tests (for V1 {} vs V2 <#null-conf; #root-intg>) ==="
+    val _ = print ("V1 {} flowsTo V2 <#null;#root>?           ", v1_flows_to_ifc_bot)
+    val _ = print ("V2 <#null;#root> flowsTo V1 {}?           ", ifc_bot_flows_to_v1)
+    val _ = print ""
+    val _ = print ("Level of 42:                              ", level_of_simple)
+    val _ = print ("Level of 42 equals V1 `{}`?               ", simple_matches_v1)
+in
+    ()
+end

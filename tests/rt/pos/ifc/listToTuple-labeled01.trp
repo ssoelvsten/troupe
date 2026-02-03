@@ -1,0 +1,1 @@
+listToTuple [1 raisedTo `{alice}`, 2 raisedTo `{alice}`, 3 raisedTo `{alice}`]

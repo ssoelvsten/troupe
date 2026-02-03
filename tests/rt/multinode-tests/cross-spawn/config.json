@@ -1,0 +1,33 @@
+{
+  "test_name": "cross-node-spawn",
+  "timeout": 45,
+  "coordination": "parallel",
+  "network": {
+    "relay_port": 5557,
+    "use_relay": "relay-only"
+  },
+  "nodes": [
+    {
+      "id": "spawner",
+      "script": "spawner.trp",
+      "port": 6794,
+      "start_delay": 1,
+      "expected_exit_code": 0
+    },
+    {
+      "id": "target",
+      "script": "target.trp",
+      "port": 6795,
+      "expected_exit_code": 0,
+      "extra_argv": "--rspawn --stdiolev='{}'"
+    }
+  ],
+  "trust": [
+    {"from": "spawner", "to": "target", "level": "bot"},
+    {"from": "target", "to": "spawner", "level": "bot"}
+  ],
+  "output": {
+    "merge_strategy": "timestamp",
+    "filter_patterns": ["uuid", "timestamp", "peer_id"]
+  }
+}

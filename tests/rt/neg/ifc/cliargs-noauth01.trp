@@ -1,0 +1,2 @@
+(* Test getCliArgs without authority - should fail *)
+getCliArgs ()

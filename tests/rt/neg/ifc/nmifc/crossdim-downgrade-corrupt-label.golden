@@ -1,0 +1,12 @@
+2026-01-06T14:33:33.100Z [RTM] [32minfo[39m: Skipping network creation. Observe that all external IO operations will yield a runtime error.
+Runtime error in thread 94e67f5e-0b25-4813-8396-78a33167e1eb@{}%{}
+
+  27 |     val y = downgrade (x, authority, `<#null-confidentiality; #root-integrity>`)
+     |             ^
+
+>> NMIFC robustness violation for downgrade
+ | The integrity of the data and PC do not permit this declassification.
+ | level of the data: {alice,bob} (corrupt: true)
+ | target level: {}
+ | PC level: {} (corrupt: false)
+>> at tests/rt/neg/ifc/nmifc/crossdim-downgrade-corrupt-label.trp:27:13

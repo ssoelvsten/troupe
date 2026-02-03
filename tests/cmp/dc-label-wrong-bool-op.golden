@@ -1,0 +1,19 @@
+Found 2 parse errors:
+
+tests/cmp/dc-label-wrong-bool-op.trp:1:34: parse error
+  1 | let val x = 90 raisedTo `<alice && bob; charlie>`
+    |                                  ^
+  unexpected '&'
+  expected one of: identifier, '('
+
+----------------------------------------
+
+tests/cmp/dc-label-wrong-bool-op.trp:1:48: parse error
+  1 | let val x = 90 raisedTo `<alice && bob; charlie>`
+    |                                                ^
+  unexpected '>`' (DC label end)
+  expected one of: keyword 'in', keyword 'val', keyword 'fun'
+
+Suggestion: Missing 'in' keyword?
+  Syntax: let <declarations> in <expression> end
+

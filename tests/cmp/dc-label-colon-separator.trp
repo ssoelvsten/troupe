@@ -1,0 +1,3 @@
+let val x = 30 raisedTo `<alice : bob>`
+in printWithLabels x
+end
