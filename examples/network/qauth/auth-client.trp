@@ -1,0 +1,54 @@
+(* Authentication Client - Token-based authentication *)
+(* Client trusts server at level {alice} *)
+
+let val _ = print "AUTH CLIENT: Starting..."
+    val _ = sleep 200  (* Give server time to register *)
+
+    val auth_server_raw = whereis ("@server", "auth")
+    val _ = print "AUTH CLIENT: Found auth server"
+    val _ = printWithLabels auth_server_raw
+
+    val alice_auth = attenuate (authority, `{alice}`)
+    val auth_server = endorse (auth_server_raw, alice_auth, `<; alice>`)
+    val _ = printWithLabels auth_server
+    val _ = debugpc ()
+
+    (* The token we're sending - in real scenario this would be a secret *)
+    val my_token = "secret_auth_token_12345" raisedTo `{alice}`
+    (* val my_token = "secret_auth_token_12345" raisedTo `{alice}` *)
+    val _ = print "AUTH CLIENT: Token with labels:"
+    val _ = printWithLabels my_token
+
+    val _ = print "AUTH CLIENT: Sending authentication request..."
+    val datum = ("AUTH", my_token, self())
+    val _ = printWithLabels datum
+    val _ = send (auth_server, datum)
+
+    (* Wait for authentication response *)
+    val (response_raw, metadata) = rcvp (`{alice}`, [hn ("AUTH_RESULT", result) | y => (result, y)])
+    val _ = print "AUTH CLIENT: Received response (raw) with labels:"
+    val _ = printWithLabels response_raw
+
+    (* Extract quarantine authority and endorse the response *)
+    val _ = 
+        case metadata of          
+            {quarantineAuth, ..} =>
+              let 
+                 val _ = print "AUTH CLIENT: Got quarantine authority:"
+                 val _ = printWithLabels quarantineAuth
+              in ()
+              end
+         | _ => ()             
+
+    val response = response_raw 
+        (* endorse (response_raw, authority, `{}`) *)
+    (* val _ = print "AUTH CLIENT: Response after endorsement:" *)
+    val _ = printWithLabels response
+
+    val _ = if response
+            then print "AUTH CLIENT: Authentication SUCCESSFUL!"
+            else print "AUTH CLIENT: Authentication FAILED!"
+
+    val _ = print "AUTH CLIENT: Done"
+in exit (authority, 0)
+end

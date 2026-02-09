@@ -1,0 +1,131 @@
+import Missing
+(* Authentication Server - Token-based authentication with gate pattern *)
+(* Server does NOT trust the client - incoming data downgraded to BOT *)
+
+let
+    val _ = spawn (fn () =>
+        let val _ = sleep (10000000)
+            val _ = print "Server timeout exit"
+        in exit (authority, 124)
+        end)
+
+    fun serverDone() =
+        sleep (1000);
+        print "Server done";
+        exit (authority, 0)
+
+    val _ = register ("auth", self(), authority)
+
+    (* The server's secret token - client must know this to authenticate *)
+    val server_token = "secret_auth_token_12345" raisedTo `{server}`
+
+    fun endorse_aux ( v, authority, l) =
+      let val v' = endorse ( v, authority, l)
+      in case v' of
+            (x,y) => let val x' = endorse (x, authority, l)
+                         val y' = endorse (y, authority, l)
+                     in (x', y')
+                     end
+            |  _ => v'
+      end
+
+    fun downgrade_aux (v, authority, l)  = 
+       let   val _ = debugpc ()
+             val v' = downgrade (v, authority, l)   
+             val _ = printWithLabels v'
+             val _ = debugpc ()
+       in case v' of 
+                (x,y,z) => let val x' = downgrade_aux (x, authority, l) 
+                               val y' = downgrade_aux (y, authority, l)
+                               val z' = downgrade_aux (z, authority, l)
+                            in (x', y', z')
+                            end 
+              | (x, y) => let val x' = downgrade_aux (x, authority, l) 
+                              val y' = downgrade_aux (y, authority, l) 
+                          in (x', y')
+                          end 
+              | _ => v' 
+          end
+
+
+    fun gate () =
+        let
+            val _ = debugMbox()
+            (* Gate pattern: receive untrusted data and systematically downgrade *)
+            val c = raisembox (`<; #null-integrity>`)
+            val datum =
+                rcv ( `{}`
+                    , `<; #null-integrity>`
+                    , [ hn x | y => let val _ = debugValue y in (x,y) end ])
+
+            val _ = lowermbox (c, authority)
+            val _ = blockdown authority
+            val (x,y) = downgrade (datum, authority, `{}`)
+            val x' = downgrade (x, authority, `{}`)
+            val y' = downgrade (y, authority, `{}`)
+        in (x', y')
+        end
+
+    fun loop i =
+        if i > 0 then serverDone() else
+        let val _ = print "AUTH SERVER: waiting for authentication requests..."
+            val _ = sleep (3000)
+            val datum_1 = gate ()
+            val l = `<check; #root-integrity>`
+            val _ = printWithLabels l
+            val (datum_2, meta) = downgrade (datum_1, authority, `{}` )
+            val (a,b,c) = downgrade (datum_2, authority, `{}`)
+            val _ = debugpc ()
+            val a' = downgrade (a, authority, `{}`)
+            val b' = downgrade (b, authority, l)
+            val c' = downgrade (c, authority, `{}`)
+            val datum = (a',b',c')
+            val _ = debugpc ()
+            val _ = debugValue datum
+            val _ = 
+              case datum of
+                  ("AUTH", client_token, sender)  =>
+                            let val _ = print "AUTH SERVER: Received auth request"
+                                val _ = print "AUTH SERVER: Token received with labels:"
+                                val _ = printWithLabels client_token
+
+
+                                (* endorse to server trust level *)
+
+                                val client_token_relabeled = downgrade (client_token, authority, l)
+                                val server_token_relabeled = downgrade (server_token, authority, l)
+
+                                (* Compare with server's secret token *)
+                                val auth_result = (client_token_relabeled = server_token_relabeled)
+
+                                
+                                val public_result = 
+                                      downgrade (auth_result, authority, `<#null-confidentiality; #root-integrity>`)
+                                
+                                val node  = downgrade (meta.senderNode, authority, `{}`)
+                                val _ = printWithLabels node
+                                val _ = debugpc ()
+
+                                val _ = if public_result
+                                        then raiseTrust (node, authority, `{alice}`);
+                                             print "AUTH SERVER: Authentication SUCCESSFUL";
+                                             invokeWithTaint   
+                                                ( `<alice; alice>` )
+                                                (fn () => send (sender, ("AUTH_RESULT", public_result raisedTo `<;alice>`)))
+
+                                        else print "AUTH SERVER: Authentication FAILED";
+                                             invokeWithTaint 
+                                                ( levelOf b )
+                                                ( fn () => 
+                                                        send( sender
+                                                            , ("AUTH_RESULT", public_result), meta.quarantineAuth))
+
+                                
+                                val _ = print "AUTH SERVER: Sent auth result"
+                            in ()
+                            end
+                | _ => print "AUTH SERVER: Unknown message format"
+        in loop (i+1)
+        end
+in loop 0
+end
