@@ -55,7 +55,7 @@ function fromLevelLabel(kind: DowngradeKind): string {
 
 export function formatRobustnessViolationMsg(operationDescription: string, fromLevel: Level, targetLevel: Level, pcLevel: Level, kind: DowngradeKind): string {
     return `NMIFC robustness violation for ${operationDescription}\n` +
-           ` | The integrity of the data and PC do not permit this declassification.\n` +
+           ` | The integrity of the data and PC do not permit this ${operationDescription}.\n` +
            ` | ${fromLevelLabel(kind)}: ${fromLevel.stringRep()} (corrupt: ${fromLevel.isCorrupt()})\n` +
            ` | target level: ${targetLevel.stringRep()}\n` +
            ` | PC level: ${pcLevel.stringRep()} (corrupt: ${pcLevel.isCorrupt()})`;

@@ -44,7 +44,7 @@ export function BuiltinRaiseTrust<TBase extends Constructor<UserRuntimeZero>>(Ba
             }
             // let nodeId = data.val;
             let currentLevel = nodeTrustLevel(nodeId)
-            _trustMap[nodeId] = lub(currentLevel, l_raise);
+            _trustMap[nodeId] = levels.coalesce (currentLevel, l_raise);
             return this.runtime.ret(__unit);
         }, "raiseTrust")
 

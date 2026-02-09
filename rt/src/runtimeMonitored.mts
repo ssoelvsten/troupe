@@ -34,6 +34,8 @@ import { getTroupeRoot } from './troupeRoot.mjs'
 import { Record } from './Record.mjs';
 import { level } from 'winston';
 import { shouldDrop, extractQuarantineAuth } from './QuarantineUtils.mjs';
+import { DCLabel } from './levels/DCLabels/dclabel.mjs';
+import { implies } from './levels/DCLabels/cnf.mjs';
 
 const readFile = fs.promises.readFile
 const rt_uuid = runId
@@ -85,7 +87,7 @@ async function spawnAtNode(nodeid, f) {
   let trustLevel = nodeTrustLevel(node.nodeId);
   let theThread = $t();
 
-  if (!actsFor(trustLevel, level, { node: node.nodeId })) {
+  if (!implies(trustLevel.confidentiality, level.confidentiality)) { // }, { node: node.nodeId })) {
     theThread.throwInSuspended("Illegal trust flow when spawning on a remote node\n" +
       ` | the trust level of the recepient node: ${trustLevel.stringRep()}\n` +
       ` | the level of the information in spawn: ${level.stringRep()}`)
@@ -267,7 +269,8 @@ function sendMessageToRemote(toPid, message, qauth?: Authority) {
     ? trustLevel.coalesce(qauth.authorityLevel)
     : trustLevel;
 
-  if (!actsFor(effectiveTrust, level)) {  // No { node } option!
+  // if (!actsFor(effectiveTrust, level)) {  // No { node } option!
+  if (!implies(effectiveTrust.confidentiality, level.confidentiality)) {
     threadError("Illegal trust flow when sending information to a remote node\n" +
       ` | the trust level of the recepient node: ${trustLevel.stringRep()}\n` +
       (qauth ? ` | effective trust (with qauth): ${effectiveTrust.stringRep()}\n` : '') +
