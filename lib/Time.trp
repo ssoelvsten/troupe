@@ -517,60 +517,6 @@ let
            padZero 3 dt.ms ^ offsetStr
         end
 
-    (* === Phase 5: Scheduling === *)
-    (* Note: Troupe's sleep is blocking and there's no built-in way to cancel
-       sleeping processes. For cancellable operations, use the actor message-passing
-       pattern from timeout.trp directly. *)
-
-    (* --- Timer Type --- *)
-    (* Representation: {tag = "Timer", pid = processId, delay = duration} *)
-
-    (** Execute an action after a delay. Returns a timer handle with the spawned pid.
-        Note: The timer cannot be cancelled once started. *)
-    fun setTimeout delay action =
-        let val pid = spawn (fn () =>
-                let val _ = sleep delay.ms
-                in action ()
-                end)
-        in {tag = "Timer", pid = pid, delay = delay}
-        end
-
-    (** Execute an action at a specific instant. Returns a timer handle.
-        If the instant is in the past, executes immediately. *)
-    fun runAt instant action =
-        let val currentMs = getTime ()
-            val targetMs = instant.epochMs
-            val delayMs = if targetMs > currentMs then targetMs - currentMs else 0
-        in setTimeout (Duration.fromMillis delayMs) action
-        end
-
-    (* --- Interval Type --- *)
-    (* Representation: {tag = "Interval", pid = processId, period = duration} *)
-
-    (** Execute an action repeatedly at a fixed interval.
-        Returns an interval handle. The interval runs indefinitely.
-        Note: Cannot be cancelled - runs until the process exits. *)
-    fun setInterval period action =
-        let val pid = spawn (fn () =>
-                let fun loop () =
-                        let val _ = sleep period.ms
-                            val _ = action ()
-                        in loop ()
-                        end
-                in loop ()
-                end)
-        in {tag = "Interval", pid = pid, period = period}
-        end
-
-    (** Delay execution, then return. Like sleep but takes a Duration. *)
-    fun delay duration = sleep duration.ms
-
-    (** Get the pid from a timer handle *)
-    fun timerPid timer = timer.pid
-
-    (** Get the pid from an interval handle *)
-    fun intervalPid interval = interval.pid
-
 in [ (* Instant constructors *)
      ("now", now)
    , ("fromEpochMillis", fromEpochMillis)
@@ -667,13 +613,6 @@ in [ (* Instant constructors *)
    , ("zonedDateTime", zonedDateTime)
    , ("zonedTimeZone", zonedTimeZone)
    , ("formatZonedDateTimeISO", formatZonedDateTimeISO)
-     (* Scheduling *)
-   , ("setTimeout", setTimeout)
-   , ("runAt", runAt)
-   , ("setInterval", setInterval)
-   , ("delay", delay)
-   , ("timerPid", timerPid)
-   , ("intervalPid", intervalPid)
      (* Month constants *)
    , ("january", january)
    , ("february", february)
