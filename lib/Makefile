@@ -2,34 +2,42 @@ COMPILER=../bin/troupec
 
 build:
 	mkdir -p out
-  # Standard Library
+
+  # No dependencies
 	$(COMPILER) ./Number.trp -l
 	$(COMPILER) ./List.trp -l
-	$(COMPILER) ./ListPair.trp -l
-	$(COMPILER) ./String.trp -l
+	$(COMPILER) ./ThreadUtil.trp -l
 	$(COMPILER) ./Result.trp -l
-	$(COMPILER) ./Hash.trp -l
+
+  # Dependency on `Number`
+	$(COMPILER) ./Duration.trp -l
+
+  # Dependency on `List`
+	$(COMPILER) ./ListPair.trp -l
 	$(COMPILER) ./Unit.trp -l
 	$(COMPILER) ./Map.trp -l
 	$(COMPILER) ./Set.trp -l
+	$(COMPILER) ./DeclassifyUtil.trp -l
 	$(COMPILER) ./StencilVector.trp -l
+
+  # Dependency on `List` and `Number`
+	$(COMPILER) ./String.trp -l
+
+  # Dependency on `Number` and `String` (and transitively `List`)
+	$(COMPILER) ./Hash.trp -l
+
+  # Dependency on `List`, `String`, and `Result`
+	$(COMPILER) ./Html.trp -l
+
+  # Dependency on `Number`, `String`, `List`, `Result`, and `Duration`
+	$(COMPILER) ./Time.trp -l
+
+  # Dependency on `List`, `ListPair`, and `StencilVector`
 	$(COMPILER) ./HashMap.trp -l
 	$(COMPILER) ./HashSet.trp -l
-	$(COMPILER) ./Duration.trp -l
-	$(COMPILER) ./Time.trp -l
-	$(COMPILER) ./Html.trp -l
+
   # Transition hack; 2025-12-14; AA 
 	$(COMPILER) ./Missing.trp -l 
-  # Old stuff, here be dragons...
-	$(COMPILER) ./nsuref.trp -l
-	$(COMPILER) ./printService.trp -l
-	$(COMPILER) ./timeout.trp -l
-	$(COMPILER) ./NetHealth.trp -l
-	$(COMPILER) ./declassifyutil.trp -l
-	$(COMPILER) ./stdio.trp -l
-	$(COMPILER) ./raft.trp -l
-	$(COMPILER) ./raft_debug.trp -l
-	$(COMPILER) ./localregistry.trp -l
 
 clean:
 	rm -rf out

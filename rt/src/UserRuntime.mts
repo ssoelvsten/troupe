@@ -21,6 +21,7 @@ import { BuiltinToString } from './builtins/toString.mjs'
 import { BuiltinSend } from './builtins/send.mjs'
 import { BuiltinSpawn } from './builtins/spawn.mjs'
 import { BuiltinReceive } from './builtins/receive.mjs'
+import { BuiltinThread } from './builtins/thread.mjs'
 import { BuiltinAttenuate } from './builtins/attenuate.mjs'
 import { BuiltinCoalesce } from './builtins/coalesce.mjs'
 import { BuiltinRegistry } from './builtins/whereis.mjs'
@@ -51,6 +52,7 @@ export const UserRuntime =
     BuiltinCoalesce(
     BuiltinAttenuate(
     BuiltSpawnSendReceive(
+    BuiltinThread(
     BuiltinStringToInt(
     BuiltinToString(
     BuiltinGetTime(
@@ -73,4 +75,4 @@ export const UserRuntime =
     BuiltinRecordReflection(
     BuiltinTypeInformation(
     BuiltinStdIo(UserRuntimeZero)
-    )))))))))))))))))))))))))))))))))
+    ))))))))))))))))))))))))))))))))))

@@ -1,8 +1,0 @@
-2026-01-06T14:33:31.347Z [RTM] [32minfo[39m: Skipping network creation. Observe that all external IO operations will yield a runtime error.
-Runtime error in thread 764e4d27-c67e-4717-a6c2-ba8b1358279b@{}%{}
-
-  1 | printString 42
-    | ^
-
->> value 42 is not a string
->> at tests/rt/neg/core/printstring01.trp:1:1
