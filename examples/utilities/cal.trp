@@ -6,7 +6,7 @@ import List
 
 let
     (* Get stdout handle for clean output *)
-    val stdout = getStdout authority
+    val stdout = stdout authority
 
     (* Print a line without quotes *)
     fun puts s = fwrite (stdout, s ^ "\n")
