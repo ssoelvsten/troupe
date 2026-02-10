@@ -1,11 +1,11 @@
-2026-01-06T14:33:32.585Z [RTM] [32minfo[39m: Skipping network creation. Observe that all external IO operations will yield a runtime error.
-Runtime error in thread 442257d5-9e4a-4604-b6b5-a106785944e0@{}%{}
+2026-02-10T10:10:42.241Z [RTM] [32minfo[39m: Skipping network creation. Observe that all external IO operations will yield a runtime error.
+Runtime error in thread 06158528-49bf-4240-a1d0-f0fb2e0c794e@{}%{}
 
   30 |     val _ = blockdeclto (authority, `<#null-confidentiality; alice|bob>`)
      |             ^
 
 >> NMIFC robustness violation for blocking level declassification
- | The integrity of the data and PC do not permit this declassification.
+ | The integrity of the data and PC do not permit this blocking level declassification.
  | current blocking level: {alice,bob} (corrupt: true)
  | target level: <#null-confidentiality;alice|bob>
  | PC level: {} (corrupt: false)

@@ -1,6 +1,6 @@
 import Missing
 (* Authentication Server - Token-based authentication with gate pattern *)
-(* Server does NOT trust the client - incoming data downgraded to BOT *)
+(* Server does NOT trust the client - incoming data downgraded is quarantined *)
 
 let
     val server_timeout_ms = 10000000
@@ -45,7 +45,11 @@ let
     fun handleAuthRequest (client_token, reply_to, sender_meta, check_level, token_level) =
         let val _ = print "AUTH SERVER: Received auth request"
             val _ = print "AUTH SERVER: Token received with labels:"
-            val _ = printWithLabels client_token
+            (* val _ = printWithLabels client_token *)
+
+
+            (* ---- NMIFC requires us to relabel both client_token and server_token 
+                    to a non-corrupt level *)
 
             val client_token_relabeled = downgrade (client_token, authority, check_level)
             val server_token_relabeled = downgrade (server_token, authority, check_level)
@@ -62,11 +66,13 @@ let
             val _ = if public_result
                     then raiseTrust (node, authority, `{alice}`);
                          print "AUTH SERVER: Authentication SUCCESSFUL";
+                         (* --- convenience hack : avoids unnecessary quarantining on the client side *)
                          invokeWithTaint
                             ( `<alice; alice>` )
                             (fn () => send (reply_to, ("AUTH_RESULT", public_result raisedTo `<;alice>`)))
 
                     else print "AUTH SERVER: Authentication FAILED";
+                         (* --- convenience hack : avoids unnecessary quarantining on the client side *)
                          invokeWithTaint
                             ( token_level )
                             ( fn () =>
