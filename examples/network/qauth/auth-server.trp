@@ -89,7 +89,6 @@ let
                                 val _ = print "AUTH SERVER: Token received with labels:"
                                 val _ = printWithLabels client_token
 
-
                                 (* endorse to server trust level *)
 
                                 val client_token_relabeled = downgrade (client_token, authority, l)
@@ -98,7 +97,6 @@ let
                                 (* Compare with server's secret token *)
                                 val auth_result = (client_token_relabeled = server_token_relabeled)
 
-                                
                                 val public_result = 
                                       downgrade (auth_result, authority, `<#null-confidentiality; #root-integrity>`)
                                 

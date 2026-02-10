@@ -14,24 +14,40 @@ CLIENT_CMD=$(START) auth-client.trp --debugquarantine --disable-relay --id=ids/c
 
 # Run both server and client together
 # Usage: make run (or: make setup && make run)
+# Pass CLIENT_ARGS to send CLI arguments to the client (e.g., make run CLIENT_ARGS="correct")
 run: check-setup
 	@echo "Starting server in background..." && \
 	$(SERVER_CMD) & SERVER_PID=$$!; \
 	sleep 2; \
 	echo "Starting client..."; \
-	$(CLIENT_CMD); CLIENT_EXIT=$$?; \
+	$(CLIENT_CMD) $(if $(CLIENT_ARGS),-- $(CLIENT_ARGS),); CLIENT_EXIT=$$?; \
 	echo "Client finished, waiting for server..."; \
 	wait $$SERVER_PID; SERVER_EXIT=$$?; \
 	echo "Done. Server exit: $$SERVER_EXIT, Client exit: $$CLIENT_EXIT"; \
 	exit $$CLIENT_EXIT
+
+# Run with correct password (authentication succeeds)
+run-correct: check-setup
+	@$(MAKE) run CLIENT_ARGS=correct
+
+# Run with wrong password (authentication fails) - same as default
+run-wrong: check-setup
+	@$(MAKE) run CLIENT_ARGS=wrong
 
 # Server: does NOT trust the client (no trustmap)
 server: check-setup
 	$(SERVER_CMD)
 
 # Client: trusts the server at level {alice}
+# Usage: make client or make client CLIENT_ARGS=correct
 client: check-setup
-	$(CLIENT_CMD)
+	$(CLIENT_CMD) $(if $(CLIENT_ARGS),-- $(CLIENT_ARGS),)
+
+client-correct: check-setup
+	@$(MAKE) client CLIENT_ARGS=correct
+
+client-wrong: check-setup
+	@$(MAKE) client CLIENT_ARGS=wrong
 
 # Full setup: create identifiers and client trustmap
 setup: create-network-identifiers create-trustmap
@@ -57,4 +73,4 @@ clean:
 	rm -rf ids/ aliases.json client-trustmap.json out/
 	pkill -f "auth-server.trp" 2>/dev/null || true
 
-.PHONY: run server client setup check-setup create-network-identifiers clean
+.PHONY: run run-correct run-wrong server client client-correct client-wrong setup check-setup create-network-identifiers clean
