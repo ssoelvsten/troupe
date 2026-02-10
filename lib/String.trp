@@ -1,8 +1,6 @@
 import Number
 import List
 
-(* TODO: Make strings merely lists of characters, similar to Haskell and SML? Then a lot of things
- *       can be moved out of the TCB. *)
 
 let val __substring = substring
 

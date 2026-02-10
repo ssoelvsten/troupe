@@ -20,18 +20,18 @@ let (* --- Helper Functions --- *)
         let val prefixLen = String.size prefix
             val sLen = String.size s
         in if sLen < prefixLen then false
-           else String.substring(s, 0, prefixLen) = prefix
+           else substring(s, 0, prefixLen) = prefix
         end
 
     (* Convert a character to lowercase (ASCII only) *)
     fun toLowerChar c =
-        let val code = String.subCode(c, 0)
+        let val code = String.subCode c 0
         in if code >= 65 andalso code <= 90  (* A-Z *)
            then let (* Build lowercase char from code: a=97, A=65, so add 32 *)
                     val lowerCode = code + 32
                     (* Use simple mapping for common cases *)
                     val chars = "abcdefghijklmnopqrstuvwxyz"
-                in String.sub(chars, code - 65) end
+                in String.sub chars (code - 65) end
            else c
         end
 
@@ -76,7 +76,7 @@ let (* --- Helper Functions --- *)
     fun escapeAttr s =
         let fun escapeChar c =
                 let val base = escapeBase c
-                in if base = c andalso String.subCode(c, 0) = 39  (* single quote *)
+                in if base = c andalso String.subCode c 0 = 39  (* single quote *)
                    then "&#39;"
                    else base
                 end
