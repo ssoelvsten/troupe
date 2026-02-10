@@ -1,5 +1,0 @@
-The label 
-
-` < ; attacker> `
-
-is not properly handled by the lexer -- this may be the whitespace issue. 

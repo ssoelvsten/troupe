@@ -66,3 +66,7 @@ compiler/src/Parser.info
 
 ## MacOS
 *.DS_Store
+
+##################################################
+# Claude Code planning files
+_claude_planning/
