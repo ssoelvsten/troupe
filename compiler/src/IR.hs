@@ -363,7 +363,6 @@ instance WellFormedIRCheck IRExpr where
                      , "_resetScheduler"
                      , "rcv"
                      , "rcvp"
-                     , "round"
                      , "sandbox"
                      , "save"
                      , "send"

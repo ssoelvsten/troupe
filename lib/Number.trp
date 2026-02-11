@@ -60,10 +60,12 @@ let (*--- Constants ---*)
     fun ceil x = -(floor (-x))
 
     (** Returns the integer, `x'`, with the least distance to `x` (ties are broken by the largest).
-     *
-     * TODO: Move out of the TCB?
      *)
-    val round = round
+    fun round x =
+        let val fx  = floor x
+            val fx' = floor (x + 0.5)
+        in if fx = fx' then fx else fx'
+        end
 
     (** Returns the square root of *x*, i.e. the number, `x'` such that `x' * x' = x`.
      *

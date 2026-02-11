@@ -12,11 +12,6 @@ export function BuiltinMath <TBase extends Constructor<UserRuntimeZero>> (Base:T
             return this.runtime.ret(new LVal(Math.random(), levels.BOT, levels.BOT))
         })
 
-        round = mkBase((arg) => {
-            assertIsNumber(arg);
-            return this.runtime.ret(new LVal(Math.round(arg.val), arg.lev, arg.tlev));
-        })
-
         floor = mkBase((arg) => {
             assertIsNumber(arg);
             return this.runtime.ret(new LVal(Math.floor(arg.val), arg.lev, arg.tlev));
