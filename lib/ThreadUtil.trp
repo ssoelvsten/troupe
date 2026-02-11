@@ -1,19 +1,40 @@
+datatype Atoms = Go
+               | Cancel
+
 let (** Run function `f` after `duration` milliseconds. The function `f` is given `()` as its
      *  argument. *)
     fun spawnTimeout f duration =
-        spawn (fn () => sleep duration; f ())
+        let fun mgr () =
+                let val _ = sleep duration
+                    val _ = send (self(), Go)
+                in receive [ hn Cancel => ()
+                           , hn Go     => f ()]
+                end
+        in spawn mgr
+        end
 
     (** Run function `f` each `duration` milliseconds. The function `f` is given the current
      *  iteration count as argument. *)
     fun spawnInterval f duration =
-        let fun f' i = sleep duration; spawn (fn () => f i); f' (i+1)
-        in spawn (fn () => f' 0)
+        let fun mgr i =
+                let val _ = sleep duration
+                    val _ = send (self(), Go)
+                in receive [ hn Cancel => ()
+                           , hn Go     => spawn (fn () => f i); mgr (i+1)]
+                end
+        in spawn (fn () => mgr 0)
         end
 
-    (* TODO: Cancel `spawnTimeout` and `spawnInterval`. But, this requires a non-blocking `receive`
-     *       operation. *)
+    (** Cancels the execution of a `spawnTimeout` and `spawnInterval`.
+     *
+     * @note Correctness of this operation depends on the assumption that Troupe's mailbox system
+     *       behaves as a FIFO queue.
+     *)
+    fun cancel pid =
+        send (pid, Cancel)
 
 in [ ("spawnTimeout", spawnTimeout)
    , ("spawnInterval", spawnInterval)
+   , ("cancel", cancel)
    ]
 end
