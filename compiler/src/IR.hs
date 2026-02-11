@@ -314,7 +314,6 @@ instance WellFormedIRCheck IRExpr where
                      , "blockdownto"
                      , "blockendorse"
                      , "blockendorseto"
-                     , "ceil"
                      , "cert"
                      , "charCodeAtWithDefault"
                      , "coalesce"

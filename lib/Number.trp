@@ -56,10 +56,8 @@ let (*--- Constants ---*)
 
     (** Returns the *ceiling* of the given number, `x`, i.e. the smallest integral number larger
      *  than `x`.
-     *
-     * TODO: Move out of the TCB?
      *)
-    val ceil = ceil
+    fun ceil x = -(floor (-x))
 
     (** Returns the integer, `x'`, with the least distance to `x` (ties are broken by the largest).
      *
