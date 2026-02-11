@@ -47,19 +47,19 @@ let (*--- Constants ---*)
     (** Returns the largest value in the tuple. *)
     fun max (x,y) = if x < y then y else x
 
-    (** Returns the *ceiling* of the given number, `x`, i.e. the smallest integral number larger
-     *  than `x`.
-     *
-     * TODO: Move out of the TCB?
-     *)
-    val ceil = ceil
-
     (** Returns the *floor* of the given number, `x`, i.e. the largest integral number smaller than
      *  `x`.
      *
      * TODO: Move out of the TCB?
      *)
     val floor = floor
+
+    (** Returns the *ceiling* of the given number, `x`, i.e. the smallest integral number larger
+     *  than `x`.
+     *
+     * TODO: Move out of the TCB?
+     *)
+    val ceil = ceil
 
     (** Returns the integer, `x'`, with the least distance to `x` (ties are broken by the largest).
      *
