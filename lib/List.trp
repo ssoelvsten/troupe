@@ -105,15 +105,22 @@ let (* -- List Access -- *)
                                            in if f (i,x) then x::xs' else xs' end
                       in go 0 l end
 
-    (** Split the list `ls` into two sublists depending on whether each respective element
+    (** Split the list `ls` into two reversed sublists depending on whether each respective element
         satisfies the predicate `f`. Tail-recursive. *)
-    fun partition f ls =
-        let fun partition_aux  (a,b) [] = (reverse a, reverse b)
+    fun revPartition f ls =
+        let fun partition_aux  (a,b) [] = (a, b)
               | partition_aux  (a,b) (x::xs) =
                 if f x
                 then partition_aux (x::a, b) xs
                 else partition_aux (a, x::b) xs
         in partition_aux ([],[]) ls
+        end
+
+    (** Split the list `ls` into two sublists depending on whether each respective element satisfies
+        the predicate `f`. Tail-recursive. *)
+    fun partition f ls =
+        let val (a,b) = revPartition f ls
+        in (reverse a, reverse b)
         end
 
     (* -- List Generation -- *)
@@ -206,6 +213,7 @@ in [ ("head", head)
    , ("filter", filter)
    , ("filteri", filteri)
    , ("partition", partition)
+   , ("revPartition", revPartition)
    , ("range", range)
    , ("max", max)
    , ("min", min)
