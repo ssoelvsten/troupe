@@ -1,0 +1,159 @@
+import Missing
+import List
+
+(* The faceted value is implemented via the `flowsTo` predicate to filter through elements in a list
+ * of `(level, value)` pairs.
+ *
+ * - To identify a removal at a level above `{}` (BOT), we use a designated `Tombstone`.
+ *)
+datatype Atoms = Tombstone
+
+(* TODO: Should we also raise the level of each `(lvl, x)` not only to `levelOf lvl` but also `lvl`?
+ *)
+
+let (*--- Internal: List Predicates and Filtering ---*)
+
+    (** The bottom level that flows to everything. *)
+    val BOT = `{}`
+
+    (* NOTE (NMIFC): To not get corrupt labels, we have to declassify the levels prior to the
+     *               `flowsTo` check. To ensure the result has the correct level, we use `raisedTo`
+     *               to compensate for the downgrade.
+     *)
+
+    (* NOTE: Using `List.filter` etc. taints the list based on the result of the predicate used. We
+     *       want the final list to only be tainted by the elements that remain. Hence, we keep
+     *       `false` results at the `BOT` level.
+     *)
+
+    (** Predicate that is `true` for all but the elements `(lvl', x)` where `lvl` does **not** flow
+     *  to `lvl'`. That is, if `false` is returned, then this value would be shadowed by an
+     *  insertion at level `lvl`.
+     *)
+    fun noFlow authority lvl (lvl', _) =
+        let val p_lvl  = downgrade (lvl, authority, BOT)
+            val p_lvl' = downgrade (lvl', authority, BOT)
+
+            val p_res = not (flowsTo (p_lvl, p_lvl'))
+            val s_res = (p_res raisedTo lvl) raisedTo lvl'
+        in if p_res then s_res else p_res
+        end
+
+    (** Similar to `noFlow` but also returns `true` if `lvl = lvl'`. *)
+    fun noFlowOrEqual authority lvl (lvl', _) =
+        let val p_lvl  = downgrade (lvl, authority, BOT)
+            val p_lvl' = downgrade (lvl', authority, BOT)
+
+            val p_res = (not (flowsTo (p_lvl, p_lvl'))) orelse (flowsTo (p_lvl', p_lvl))
+            val s_res = (p_res raisedTo lvl) raisedTo lvl'
+        in if p_res then s_res else p_res
+        end
+
+    (** Removes values any entries at level `lvl` and all levels to which `lvl` flows to. *)
+    fun noFlowFilter authority fv lvl =
+        let fun remove' () =
+                let (* NOTE: Using `List.filter` directly on `fv@{a}` will taint each of its elements
+                     *       by `a`. Doing so pollutes the level of the respective elements. So, we
+                     *       declassify the list to then re-raise it afterwards.
+                     *
+                     *       But, `List.filter` also directly taints the list based on the predicate
+                     *       used. Since we filtering on `flowsTo` on each level, we directly
+                     *       re-raise the list back to `@{levelOf lvl'}` of each `(lvl', _)`. This
+                     *       also includes raising it to the level of `lvl`.
+                     *)
+                    val fv' =  List.filter (noFlow authority lvl) (downgrade (fv, authority, BOT))
+
+                    (* NOTE: declassify success of `List.filter`. *)
+                    val _ = blockdown authority
+                in fv'
+                end
+        in Missing.preserveBL remove'
+        end
+
+    (*--- Faceted Value ---*)
+
+    (** A faceted value with nothing currently stored at any level. *)
+    val empty = []
+
+    (** Removes values at level `lvl` and all levels to which `lvl` flows to. *)
+    fun remove authority fv lvl =
+        case noFlowFilter authority fv lvl of []  => []
+                                           |  fv' => (lvl, Tombstone)::fv'
+
+    (** Inserts `x` at level `lvl` and all levels to which `lvl` flows to. *)
+    fun insertAtLevel authority fv lvl x = (lvl, x)::(noFlowFilter authority fv lvl)
+
+    (** Inserts `x` at its IFC level and all levels to which its level flows to. *)
+    fun insert authority fv x = insertAtLevel authority fv (levelOf x) x
+
+    (** Whether the given faceted value, `fv`, is empty. *)
+    fun null [] = true
+      | null fv = false
+
+    (** Whether the given faceted value, `fv`, has a value that flows to the given level. *)
+    fun mem authority fv lvl =
+        let fun mem' () =
+                let (* NOTE: Similar to `noFlowFilter`, we want to not taint everything by the level
+                     *        of the list `fv`.
+                     *
+                     * NOTE: This also implicitly re-raises the level of the results up to the level
+                     *       of the (remaining) elements.
+                     *)
+                    val x = List.exist' (noFlow authority lvl) (downgrade (fv, authority, BOT))
+
+                    (* NOTE: declassify success of `List.mem`. *)
+                    val _ = blockdown authority
+                in x
+                end
+        in Missing.preserveBL mem'
+        end
+
+    (** Finds the newest value at the given level `lvl`.
+     *
+     * @assumes there exists a value at the given level, i.e., `mem authority fv lvl` is `true`.
+     *)
+    fun find authority fv lvl =
+        let fun find' () =
+                let (* NOTE: Similar to `noFlowFilter`, we want to not taint everything by the level
+                     *       of the list `fv`.
+                     *
+                     * NOTE: This also implicitly re-raises the level up to the level of the
+                     *       (remaining) elements.
+                     *)
+                    val fv' = List.filter (noFlowOrEqual authority lvl)
+                                          (downgrade (fv, authority, BOT))
+
+                    (* NOTE: declassify success of `List.filter`. *)
+                    val _ = blockdown authority
+
+                    (* Destructing `fv'@{a}` will taint each of its elements by `a`. Doing so taints
+                     * the level of the respective value. But since the list has been downgraded to
+                     * the very elements still "visible", this is exactly what we want.
+                     *)
+                    val v = case fv' of []        => Tombstone
+                                      | (_, v)::_ => v
+
+                    (* NOTE: declassify success of pattern matching. *)
+                    val _ = blockdown authority
+                in v
+                end
+        in Missing.preserveBL find'
+        end
+
+    (** Finds the newest value at the given level `lvl`. If none exists, then `default` is returned
+     *  instead.
+     *)
+    fun findOrDefault authority fv lvl default =
+        case find authority fv lvl of Tombstone => default
+                                   |  x         => x
+
+in [ ("empty", empty)
+   , ("insertAtLevel", insertAtLevel)
+   , ("insert", insert)
+   , ("remove", remove)
+   , ("null", null)
+   , ("mem", mem)
+   , ("find", find)
+   , ("findOrDefault", findOrDefault)
+   ]
+end

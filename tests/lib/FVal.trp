@@ -1,0 +1,57 @@
+import FVal
+
+let val _ = printString "FVal.empty"
+    val fv = FVal.empty
+    val _ = printWithLabels fv
+    val _ = blockdown authority
+
+    val _ = printString "\nFVal.insert authority fv (1 raisedTo `{}`)"
+    val fv = FVal.insert authority fv (1 raisedTo `{}`)
+    val _ = printWithLabels fv
+    val _ = blockdown authority
+
+    val _ = printString "\nFVal.insert authority fv (2 raisedTo `{alice}`)"
+    val fv = FVal.insert authority fv (2 raisedTo `{alice}`)
+    val _ = printWithLabels fv
+    val _ = blockdown authority
+
+    val _ = printString "\nFVal.insert authority fv (3 raisedTo `{bob}`)"
+    val fv = FVal.insert authority fv (3 raisedTo `{bob}`)
+    val _ = printWithLabels fv
+    val _ = blockdown authority
+
+    val _ = printString "\nFVal.insert authority fv (4 raisedTo `{alice}`)"
+    val fv = FVal.insert authority fv (4 raisedTo `{alice}`)
+    val _ = printWithLabels fv
+    val _ = blockdown authority
+
+    val _ = printString "\nFVal.mem authority <...>"
+    val _ = printWithLabels (FVal.mem authority fv `{}`)
+    val _ = blockdown authority
+    val _ = printWithLabels (FVal.mem authority fv `{alice}`)
+    val _ = blockdown authority
+    val _ = printWithLabels (FVal.mem authority fv `{bob}`)
+    val _ = blockdown authority
+    val _ = printWithLabels (FVal.mem authority fv `{charlie}`)
+    val _ = blockdown authority
+    val _ = printWithLabels (FVal.mem authority fv `{alice, bob}`)
+    val _ = blockdown authority
+
+    val _ = printString "\nFVal.find authority <...>"
+    val _ = printWithLabels (FVal.find authority fv `{}`)
+    val _ = blockdown authority
+    val _ = printWithLabels (FVal.find authority fv `{alice}`)
+    val _ = blockdown authority
+    val _ = printWithLabels (FVal.find authority fv `{bob}`)
+    val _ = blockdown authority
+    val _ = printWithLabels (FVal.find authority fv `{alice,bob}`)
+    val _ = blockdown authority
+    val _ = printWithLabels (FVal.find authority fv `{charlie}`)
+    val _ = blockdown authority
+
+    val _ = printString "\nFVal.insert authority fv (4 raisedTo `{}`)"
+    val fv = FVal.insert authority fv (5 raisedTo `{}`)
+    val _ = printWithLabels fv
+    val _ = blockdown authority
+in fv
+end
