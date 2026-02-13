@@ -1,0 +1,11 @@
+import FVal
+
+let val fv = FVal.empty
+    val fv = FVal.insert fv authority (1 raisedTo `{}`)
+    val fv = FVal.insert fv authority (2 raisedTo `{bob}`)
+    val fv = FVal.insert fv authority (3 raisedTo `{alice}`)
+    val fv = FVal.insert fv authority (4 raisedTo `{alice, bob}`)
+    val fv = FVal.insert fv authority (5 raisedTo `{alice}`)
+    val fv = FVal.insert fv authority (6 raisedTo `{bob}`)
+in fv
+end

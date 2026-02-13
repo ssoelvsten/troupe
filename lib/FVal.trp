@@ -1,0 +1,98 @@
+import List
+
+datatype Atoms = Tombstone | TODO
+
+let (* NOTE: The faceted value is implemented via the `flowsTo` predicate to recreate the security
+     *       lattice as a tree. When retrieving a value for a certain level, one can potentially
+     *       have multiple candidates in separate subtrees.
+     *
+     *       - To identify the newest one, we also store a timestamp for the `insert` and `remove`.
+     *       - To identify a removal at a level above `{}` (BOT), we use a designated `Tombstone`.
+     *)
+
+    (* TODO: Use `raisedTo` explicitly? Or, maybe consistently `downgrade` the subtree level? *)
+
+    (** A faceted value with nothing currently stored at any level. *)
+    val empty = []
+
+    (** A faceted value storing the value `x` at level `lvl`. *)
+    fun make lvl x =
+        let val t  = (getTime ()) raisedTo (levelOf lvl)
+            val x' = x raisedTo (levelOf lvl)
+            val cs = [] raisedTo lvl
+        in [(lvl, t, x', cs)] raisedTo lvl
+        end
+
+    (** Inserts `x` at the level `lvl` and all levels to which `lvl` flows to. *)
+    fun insertAtLevel [] _         lvl x = make lvl x
+      | insertAtLevel vs authority lvl x =
+        let fun insertNode (lvl', t, x', vs') =
+                let val vs'' = insertList lvl' (downgrade (vs', authority, lvl'))
+                in (lvl', t, x', vs'' raisedTo (levelOf vs'))
+                end
+            and insertList _       []  = make lvl x
+              | insertList currLvl vs' =
+                let fun le (lvl',_,_,_) = flowsTo ( downgrade (lvl,  authority, currLvl)
+                                                  , downgrade (lvl', authority, currLvl))
+
+                    fun ge (lvl',_,_,_) = flowsTo ( downgrade (lvl', authority, currLvl)
+                                                  , downgrade (lvl,  authority, currLvl))
+                in case List.revPartition le vs'
+                    of (* Case: no nodes to which `lvl` will flow. *)
+                       ([], _) => (case List.revPartition ge vs'
+                                    of (* Case: neither any nodes that flow to `lvl`. *)
+                                       ([], _) => List.revAppend (make lvl x) vs'
+                                     (* Case: match on flow in! Recurse into any one of them. *)
+                                     | (c::cs, vs') => List.revAppend ((insertNode c)::cs) vs')
+                     (* Case: match on flow out! Replace with new value (and prune subtrees) *)
+                     | (_, vs') => List.revAppend (make lvl x) vs'
+                end
+        in insertList `{}` vs
+        end
+
+    (** Inserts `x` at its IFC level and all levels to which its level flows to. *)
+    fun insert fv authority x = insertAtLevel fv authority (levelOf x) x
+
+    (** Removes values at level `lvl` and all levels to which `lvl` flows to. *)
+    fun remove [] _         _   = empty
+      | remove vs authority lvl =
+        let fun le (lvl',_,_,_) = flowsTo ( downgrade (lvl, authority, `{}`)
+                                          , downgrade (lvl', authority, `{}`))
+        in if List.forall le vs
+           then empty
+           else insertAtLevel vs authority lvl Tombstone
+        end
+
+    (** Whether the given faceted value, `fv`, is empty. *)
+    fun null [] = true
+      | null vs = false
+
+    (** Whether the given faceted value, `fv`, has a value at the given level. *)
+    fun mem [] authority lvl = false
+      | mem vs _         _   = true
+
+    (** Finds the newest value at the given level `lvl`.
+     *
+     * @assumes there exists a value at the given level, i.e., `mem fv authority lvl` is `true`.
+     *)
+    fun find [] _         _   = Tombstone
+      | find vs authority lvl = TODO
+
+    (** Finds the newest value at the given level `lvl`. If none exists, then `default` is returned
+     *  instead.
+     *)
+    fun findOrDefault fv authority lvl default =
+        case find fv authority lvl of Tombstone => default
+                                   |  x         => x
+
+in [ ("empty", empty)
+   , ("make", make)
+   , ("insertAtLevel", insertAtLevel)
+   , ("insert", insert)
+   , ("remove", remove)
+   , ("null", null)
+   , ("mem", mem)
+   , ("find", find)
+   , ("findOrDefault", findOrDefault)
+   ]
+end
