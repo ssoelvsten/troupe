@@ -1,4 +1,4 @@
-2026-02-17T16:02:59.554Z [RTM] [32minfo[39m: Skipping network creation. Observe that all external IO operations will yield a runtime error.
+2026-02-17T16:06:04.302Z [RTM] [32minfo[39m: Skipping network creation. Observe that all external IO operations will yield a runtime error.
 [34mbegin [0mList
   [34mbegin [0mhead
       [33m[ TEST ][0m it returns 42 for [42]      [32m[ PASS ][0m it returns 42 for [42]
@@ -138,6 +138,10 @@
       [33m[ TEST ][0m it isOddIdx xs      [32m[ PASS ][0m it isOddIdx xs
       [33m[ TEST ][0m it isOddVal xs      [32m[ PASS ][0m it isOddVal xs
   [34mend [0m
+  [34mbegin [0mrevPartition
+      [33m[ TEST ][0m it isOdd []      [32m[ PASS ][0m it isOdd []
+      [33m[ TEST ][0m it isOdd xs      [32m[ PASS ][0m it isOdd xs
+  [34mend [0m
   [34mbegin [0mpartition
       [33m[ TEST ][0m it isOdd []      [32m[ PASS ][0m it isOdd []
       [33m[ TEST ][0m it isOdd xs      [32m[ PASS ][0m it isOdd xs
@@ -182,6 +186,6 @@
   [34mend [0m
 [34mend [0m
 
-Total:  132
-Passes: 132
+Total:  134
+Passes: 134
 >>> Main thread finished with value: true@{}%{}

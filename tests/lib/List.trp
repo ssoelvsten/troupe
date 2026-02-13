@@ -173,6 +173,13 @@ let val tests = Unit.group "List" [
             end,
             let val xs = [21,42,8,11,7]
                 fun isOdd x = (x mod 2) = 1
+            in Unit.group "revPartition" [
+                    Unit.it "isOdd []" (Unit.isEq ([],[])            (List.revPartition isOdd []))
+                  , Unit.it "isOdd xs" (Unit.isEq ([7,11,21],[8,42]) (List.revPartition isOdd xs))
+                ]
+            end,
+            let val xs = [21,42,8,11,7]
+                fun isOdd x = (x mod 2) = 1
             in Unit.group "partition" [
                     Unit.it "isOdd []" (Unit.isEq ([],[])            (List.partition isOdd []))
                   , Unit.it "isOdd xs" (Unit.isEq ([21,11,7],[42,8]) (List.partition isOdd xs))
