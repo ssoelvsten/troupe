@@ -122,6 +122,16 @@ let (* -- List Access -- *)
 
     (* -- Sorting -- *)
 
+    (** Returns the largest value in the given (non-empty) list according to the given less-than
+     *  predicate. *)
+    fun max cmp xs = foldl1 (fn (x, currMax) => if cmp currMax x then x else currMax) xs
+
+    (** Returns the smallest value in the given (non-empty) list according to the given less-than
+     *  predicate. *)
+    fun min cmp xs =
+        let fun cmp' x y = cmp y x
+        in max cmp' xs end
+
     (** Returns a list with the same elements as in `l` but sorted based on the less-than predicate,
      *  `cmp` of type `'a -> 'a -> bool`. *)
     fun sort cmp xs =
@@ -189,6 +199,8 @@ in [ ("head", head)
    , ("filteri", filteri)
    , ("partition", partition)
    , ("range", range)
+   , ("max", max)
+   , ("min", min)
    , ("sort", sort)
    ]
 end
