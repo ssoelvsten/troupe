@@ -21,9 +21,15 @@ let (* -- List Access -- *)
     fun null [] = true
       | null _  = false
 
+    (** Returns `true` if an element satisfies the given predicate. *)
+    fun exist f []    = false
+      | exist f x::xs = if f x then true else exist f xs
+
+    (** Returns `true` if all elements satisfy the given predicate. *)
+    fun forall f xs = not (exist (fn x => not (f x)) xs)
+
     (** Returns `true` if the element `x` exists in the list. *)
-    fun elem x []    = false
-      | elem x y::ys = if x = y then true else elem x ys
+    fun elem x ys = exist (fn y => x = y) ys
 
     (** Returns the length of the given list. Tail-recursive. *)
     fun length xs =
@@ -184,6 +190,8 @@ in [ ("head", head)
    , ("tail", tail)
    , ("nth", nth)
    , ("null", null)
+   , ("exist", exist)
+   , ("forall", forall)
    , ("elem", elem)
    , ("length", length)
    , ("reverse", reverse)
