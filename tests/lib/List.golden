@@ -1,4 +1,4 @@
-2025-10-24T08:31:14.889Z [RTM] [32minfo[39m: Skipping network creation. Observe that all external IO operations will yield a runtime error.
+2026-02-13T12:14:46.185Z [RTM] [32minfo[39m: Skipping network creation. Observe that all external IO operations will yield a runtime error.
 [34mbegin [0mList
   [34mbegin [0mhead
       [33m[ TEST ][0m it returns 42 for [42]      [32m[ PASS ][0m it returns 42 for [42]
@@ -129,6 +129,26 @@
       [33m[ TEST ][0m it generates [0..2]      [32m[ PASS ][0m it generates [0..2]
       [33m[ TEST ][0m it generates [0..3]      [32m[ PASS ][0m it generates [0..3]
   [34mend [0m
+  [34mbegin [0mmax
+      [33m[ TEST ][0m it max [0] = 0      [32m[ PASS ][0m it max [0] = 0
+      [33m[ TEST ][0m it max [1] = 1      [32m[ PASS ][0m it max [1] = 1
+      [33m[ TEST ][0m it max [0,1] = 1      [32m[ PASS ][0m it max [0,1] = 1
+      [33m[ TEST ][0m it max [1,0] = 1      [32m[ PASS ][0m it max [1,0] = 1
+      [33m[ TEST ][0m it max [0,0] = 0      [32m[ PASS ][0m it max [0,0] = 0
+      [33m[ TEST ][0m it max [1,0,0] = 1      [32m[ PASS ][0m it max [1,0,0] = 1
+      [33m[ TEST ][0m it max [1,0,2] = 2      [32m[ PASS ][0m it max [1,0,2] = 2
+      [33m[ TEST ][0m it max [1,3,0,2] = 3      [32m[ PASS ][0m it max [1,3,0,2] = 3
+  [34mend [0m
+  [34mbegin [0mmin
+      [33m[ TEST ][0m it min [0] = 0      [32m[ PASS ][0m it min [0] = 0
+      [33m[ TEST ][0m it min [1] = 0      [32m[ PASS ][0m it min [1] = 0
+      [33m[ TEST ][0m it min [0,1] = 0      [32m[ PASS ][0m it min [0,1] = 0
+      [33m[ TEST ][0m it min [1,0] = 0      [32m[ PASS ][0m it min [1,0] = 0
+      [33m[ TEST ][0m it min [2,2] = 2      [32m[ PASS ][0m it min [2,2] = 2
+      [33m[ TEST ][0m it min [1,0,0] = 0      [32m[ PASS ][0m it min [1,0,0] = 0
+      [33m[ TEST ][0m it min [1,0,2] = 0      [32m[ PASS ][0m it min [1,0,2] = 0
+      [33m[ TEST ][0m it min [4,3,4,2] = 2      [32m[ PASS ][0m it min [4,3,4,2] = 2
+  [34mend [0m
   [34mbegin [0msort
       [33m[ TEST ][0m it sorts []      [32m[ PASS ][0m it sorts []
       [33m[ TEST ][0m it sorts [0]      [32m[ PASS ][0m it sorts [0]
@@ -143,6 +163,6 @@
   [34mend [0m
 [34mend [0m
 
-Total:  101
-Passes: 101
+Total:  117
+Passes: 117
 >>> Main thread finished with value: true@{}%{}
