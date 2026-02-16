@@ -1,4 +1,4 @@
-2026-02-17T16:06:04.302Z [RTM] [32minfo[39m: Skipping network creation. Observe that all external IO operations will yield a runtime error.
+2026-02-17T16:06:55.036Z [RTM] [32minfo[39m: Skipping network creation. Observe that all external IO operations will yield a runtime error.
 [34mbegin [0mList
   [34mbegin [0mhead
       [33m[ TEST ][0m it returns 42 for [42]      [32m[ PASS ][0m it returns 42 for [42]
@@ -31,7 +31,26 @@
       [33m[ TEST ][0m it accepts isOdd  [42, 21]      [32m[ PASS ][0m it accepts isOdd  [42, 21]
       [33m[ TEST ][0m it rejects isOdd  [22, 10]      [32m[ PASS ][0m it rejects isOdd  [22, 10]
   [34mend [0m
+  [34mbegin [0mexist'
+      [33m[ TEST ][0m it rejects isOdd  []      [32m[ PASS ][0m it rejects isOdd  []
+      [33m[ TEST ][0m it rejects isEven []      [32m[ PASS ][0m it rejects isEven []
+      [33m[ TEST ][0m it rejects isOdd  [42]      [32m[ PASS ][0m it rejects isOdd  [42]
+      [33m[ TEST ][0m it accepts isEven [42]      [32m[ PASS ][0m it accepts isEven [42]
+      [33m[ TEST ][0m it accepts isOdd  [21, 42]      [32m[ PASS ][0m it accepts isOdd  [21, 42]
+      [33m[ TEST ][0m it accepts isOdd  [42, 21]      [32m[ PASS ][0m it accepts isOdd  [42, 21]
+      [33m[ TEST ][0m it rejects isOdd  [22, 10]      [32m[ PASS ][0m it rejects isOdd  [22, 10]
+  [34mend [0m
   [34mbegin [0mforall
+      [33m[ TEST ][0m it accepts isOdd  []      [32m[ PASS ][0m it accepts isOdd  []
+      [33m[ TEST ][0m it accepts isEven []      [32m[ PASS ][0m it accepts isEven []
+      [33m[ TEST ][0m it rejects isOdd  [42]      [32m[ PASS ][0m it rejects isOdd  [42]
+      [33m[ TEST ][0m it accepts isEven [42]      [32m[ PASS ][0m it accepts isEven [42]
+      [33m[ TEST ][0m it rejects isOdd  [21, 42]      [32m[ PASS ][0m it rejects isOdd  [21, 42]
+      [33m[ TEST ][0m it rejects isOdd  [42, 21]      [32m[ PASS ][0m it rejects isOdd  [42, 21]
+      [33m[ TEST ][0m it rejects isOdd  [22, 10]      [32m[ PASS ][0m it rejects isOdd  [22, 10]
+      [33m[ TEST ][0m it accepts isEven [22, 10]      [32m[ PASS ][0m it accepts isEven [22, 10]
+  [34mend [0m
+  [34mbegin [0mforall'
       [33m[ TEST ][0m it accepts isOdd  []      [32m[ PASS ][0m it accepts isOdd  []
       [33m[ TEST ][0m it accepts isEven []      [32m[ PASS ][0m it accepts isEven []
       [33m[ TEST ][0m it rejects isOdd  [42]      [32m[ PASS ][0m it rejects isOdd  [42]
@@ -186,6 +205,6 @@
   [34mend [0m
 [34mend [0m
 
-Total:  134
-Passes: 134
+Total:  149
+Passes: 149
 >>> Main thread finished with value: true@{}%{}

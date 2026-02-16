@@ -21,12 +21,32 @@ let (* -- List Access -- *)
     fun null [] = true
       | null _  = false
 
-    (** Returns `true` if an element satisfies the given predicate. *)
+    (** Returns `true` if an element satisfies the given predicate. Tail-recursive. *)
     fun exist f []    = false
       | exist f x::xs = if f x then true else exist f xs
 
-    (** Returns `true` if all elements satisfy the given predicate. *)
+    (** Returns `true` if an element satisfies the given predicate. Tail-recursive.
+     *
+     * Unlike `exist`, this runs `f` on elements even after having found a true candidate. This
+     * raises the IFC level of the result to the same level regardless of the order of the elements
+     * in `xs`.
+     *)
+    fun exist' f xs =
+        let fun go acc []    = acc
+              | go acc x::xs = go ((f x) orelse acc) xs
+        in go false xs
+        end
+
+    (** Returns `true` if all elements satisfy the given predicate. Tail-recursive.  *)
     fun forall f xs = not (exist (fn x => not (f x)) xs)
+
+    (** Returns `true` if all elements satisfy the given predicate. Tail-recursive.
+     *
+     * Unlike `forall`, this runs `f` on elements even after having found a violation. This raises
+     * the IFC level of the result to the same level regardless of the order of the elements in
+     * `xs`.
+     *)
+    fun forall' f xs = not (exist' (fn x => not (f x)) xs)
 
     (** Returns `true` if the element `x` exists in the list. *)
     fun elem x ys = exist (fn y => x = y) ys
@@ -198,7 +218,9 @@ in [ ("head", head)
    , ("nth", nth)
    , ("null", null)
    , ("exist", exist)
+   , ("exist'", exist')
    , ("forall", forall)
+   , ("forall'", forall')
    , ("elem", elem)
    , ("length", length)
    , ("reverse", reverse)

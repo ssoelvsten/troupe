@@ -40,6 +40,18 @@ let val tests = Unit.group "List" [
             end,
             let fun isOdd  x = (x mod 2) = 1
                 fun isEven x = (x mod 2) = 0
+            in Unit.group "exist'" [
+                    Unit.it "rejects isOdd  []"             (Unit.isFalse (List.exist' isOdd  []))
+                  , Unit.it "rejects isEven []"             (Unit.isFalse (List.exist' isEven []))
+                  , Unit.it "rejects isOdd  [42]"           (Unit.isFalse (List.exist' isOdd  [42]))
+                  , Unit.it "accepts isEven [42]"           (Unit.isTrue  (List.exist' isEven [42]))
+                  , Unit.it "accepts isOdd  [21, 42]"       (Unit.isTrue  (List.exist' isOdd  [21,42]))
+                  , Unit.it "accepts isOdd  [42, 21]"       (Unit.isTrue  (List.exist' isOdd  [42,21]))
+                  , Unit.it "rejects isOdd  [22, 10]"       (Unit.isFalse (List.exist' isOdd  [22,10]))
+                ]
+            end,
+            let fun isOdd  x = (x mod 2) = 1
+                fun isEven x = (x mod 2) = 0
             in Unit.group "forall" [
                     Unit.it "accepts isOdd  []"             (Unit.isTrue  (List.forall isOdd  []))
                   , Unit.it "accepts isEven []"             (Unit.isTrue  (List.forall isEven []))
@@ -49,6 +61,19 @@ let val tests = Unit.group "List" [
                   , Unit.it "rejects isOdd  [42, 21]"       (Unit.isFalse (List.forall isOdd  [42,21]))
                   , Unit.it "rejects isOdd  [22, 10]"       (Unit.isFalse (List.forall isOdd  [22,10]))
                   , Unit.it "accepts isEven [22, 10]"       (Unit.isTrue  (List.forall isEven [22,10]))
+                ]
+            end,
+            let fun isOdd  x = (x mod 2) = 1
+                fun isEven x = (x mod 2) = 0
+            in Unit.group "forall'" [
+                    Unit.it "accepts isOdd  []"             (Unit.isTrue  (List.forall' isOdd  []))
+                  , Unit.it "accepts isEven []"             (Unit.isTrue  (List.forall' isEven []))
+                  , Unit.it "rejects isOdd  [42]"           (Unit.isFalse (List.forall' isOdd  [42]))
+                  , Unit.it "accepts isEven [42]"           (Unit.isTrue  (List.forall' isEven [42]))
+                  , Unit.it "rejects isOdd  [21, 42]"       (Unit.isFalse (List.forall' isOdd  [21,42]))
+                  , Unit.it "rejects isOdd  [42, 21]"       (Unit.isFalse (List.forall' isOdd  [42,21]))
+                  , Unit.it "rejects isOdd  [22, 10]"       (Unit.isFalse (List.forall' isOdd  [22,10]))
+                  , Unit.it "accepts isEven [22, 10]"       (Unit.isTrue  (List.forall' isEven [22,10]))
                 ]
             end,
             Unit.group "elem" [
