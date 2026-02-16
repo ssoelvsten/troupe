@@ -62,9 +62,9 @@ let (*--- Constants ---*)
     (** Returns the integer, `x'`, with the least distance to `x` (ties are broken by the largest).
      *)
     fun round x =
-        let val fx  = floor x
-            val fx' = floor (x + 0.5)
-        in if fx = fx' then fx else fx'
+        let val fx = floor x
+            val d  = x - fx
+        in floor (fx + 2*d)
         end
 
     (** Returns the square root of *x*, i.e. the number, `x'` such that `x' * x' = x`.
