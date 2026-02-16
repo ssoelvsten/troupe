@@ -1,0 +1,9 @@
+(* NMIFC
+ *
+ * Part of NMIFC is that the data from one source (`bob` below) should not be
+ * able to (affect the) downgrade data from another source (`alice` below).
+ *)
+
+if true raisedTo `{bob}`
+then downgrade (42 raisedTo `{alice}`, authority, `{}`)
+else ((*unreachable...*))
