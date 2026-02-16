@@ -1,4 +1,4 @@
-2025-09-10T10:39:43.344Z [RTM] [32minfo[39m: Skipping network creation. Observe that all external IO operations will yield a runtime error.
+2026-02-16T15:39:18.731Z [RTM] [32minfo[39m: Skipping network creation. Observe that all external IO operations will yield a runtime error.
 [34mbegin [0mString
   [34mbegin [0msize
       [33m[ TEST ][0m it is 0 for ''      [32m[ PASS ][0m it is 0 for ''
@@ -6,6 +6,12 @@
       [33m[ TEST ][0m it is 1 for 'b'      [32m[ PASS ][0m it is 1 for 'b'
       [33m[ TEST ][0m it is 5 for 'Hello'      [32m[ PASS ][0m it is 5 for 'Hello'
       [33m[ TEST ][0m it is 7 for 'Troupe!'      [32m[ PASS ][0m it is 7 for 'Troupe!'
+  [34mend [0m
+  [34mbegin [0msubstring
+      [33m[ TEST ][0m it is 'Hello' for 0 5      [32m[ PASS ][0m it is 'Hello' for 0 5
+      [33m[ TEST ][0m it is 'Troupe' for 6 12      [32m[ PASS ][0m it is 'Troupe' for 6 12
+      [33m[ TEST ][0m it is 'Troupe!' for 6 13      [32m[ PASS ][0m it is 'Troupe!' for 6 13
+      [33m[ TEST ][0m it is 'Troupe!' for 6 14      [32m[ PASS ][0m it is 'Troupe!' for 6 14
   [34mend [0m
   [34mbegin [0msub
       [33m[ TEST ][0m it is 'H' for 0      [32m[ PASS ][0m it is 'H' for 0
@@ -24,12 +30,6 @@
       [33m[ TEST ][0m it is 100 for 4      [32m[ PASS ][0m it is 100 for 4
       [33m[ TEST ][0m it is 33  for 5      [32m[ PASS ][0m it is 33  for 5
       [33m[ TEST ][0m it is 0   for 6      [32m[ PASS ][0m it is 0   for 6
-  [34mend [0m
-  [34mbegin [0msubstring
-      [33m[ TEST ][0m it is 'Hello' for 0 5      [32m[ PASS ][0m it is 'Hello' for 0 5
-      [33m[ TEST ][0m it is 'Troupe' for 6 12      [32m[ PASS ][0m it is 'Troupe' for 6 12
-      [33m[ TEST ][0m it is 'Troupe!' for 6 13      [32m[ PASS ][0m it is 'Troupe!' for 6 13
-      [33m[ TEST ][0m it is 'Troupe!' for 6 14      [32m[ PASS ][0m it is 'Troupe!' for 6 14
   [34mend [0m
   [34mbegin [0mconcat
       [33m[ TEST ][0m it is '' for []      [32m[ PASS ][0m it is '' for []
