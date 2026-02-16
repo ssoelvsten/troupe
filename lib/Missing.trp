@@ -7,6 +7,17 @@ let
         otherwise returns unit. *)
     fun invokeWithTaint lev f = if true raisedTo lev then f() else ()
 
+    (** Raise the blocking level to `level`. *)
+    fun raiseBL level = ((if (true raisedTo level) then () else ()); ())
+
+    (** Runs `f` while preserving the blocking level regardless of any downgrades in `f`. *)
+    fun preserveBL f =
+        let val bl = _bl ()
+            val x = f ()
+            val _ = raiseBL bl
+        in x
+        end
+
     (* TODO: The `downgradeDeep` below ought to be refactored into `DeclassifyUtil`. *)
 
     (* Mutually recursive deep downgrade of tuples *)
@@ -45,6 +56,8 @@ let
         end
 
 in [ ("invokeWithTaint", invokeWithTaint)
+   , ("raiseBL", raiseBL)
+   , ("preserveBL", preserveBL)
    , ("downgradeDeep", downgradeDeep)
    ]
 end
