@@ -7,6 +7,8 @@ let
         otherwise returns unit. *)
     fun invokeWithTaint lev f = if true raisedTo lev then f() else ()
 
+    (* TODO: The `downgradeDeep` below ought to be refactored into `DeclassifyUtil`. *)
+
     (* Mutually recursive deep downgrade of tuples *)
     fun downgrade2 ((x,y), a, lev) =
         ( downgradeDeep (x, a, lev)
