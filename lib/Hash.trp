@@ -10,9 +10,9 @@ let
      *)
     fun hashString s =
         (* String hash with fast paths for small strings *)
-        let val len     = String.size s
-            val radix   = 127
-            val subCode = String.subCode s
+        let val len       = String.size s
+            val radix     = 127
+            fun subCode i = String.subCode (s, i)
         in case len of 0 => 0
                      | 1 => subCode 0
                      | 2 => (radix * subCode 0 + subCode 1) andb Number.maxInt32
