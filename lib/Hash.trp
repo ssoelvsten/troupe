@@ -48,9 +48,10 @@ let
         let fun hashType x = case getType x of "number"   => 2
                                              | "string"   => 3
                                              | "list"     => 5
-                                             | "record"   => 7
-                                             | "function" => 11
-                                             | _          => 13
+                                             | "tuple"    => 7
+                                             | "record"   => 11
+                                             | "function" => 13
+                                             | _          => 17
             val p = 3
             fun go i []    acc = acc
               | go i x::xs acc =
@@ -62,6 +63,7 @@ let
     and hash x = case getType x of "number"   => hashNumber x
                                  | "string"   => hashString x
                                  | "list"     => hashList x
+                              (* | "tuple"    => TODO: Run recursively on tuples? *)
                               (* | "record"   => TODO: Convert to sorted list? *)
                               (* | "function" => TODO: How to hash the function body? *)
                                  | _          => hashString (toString x)
