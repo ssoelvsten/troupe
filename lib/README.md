@@ -38,8 +38,3 @@ target of the *makefile*.
 
 - The `ThreadUtil` module was initially named `Thread`. But, this suggests incorrectly, that
   threading is implemented here rather than being a language primitive.
-
-## TODO
-
-The [modules](#modules) mentioned above already follow the [design principles](#design-principles).
-The remaining files either need to be updated or to be removed.
