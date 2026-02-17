@@ -1,5 +1,5 @@
-import Missing
 import List
+import IfcUtil
 
 (* The faceted value is implemented via the `flowsTo` predicate to filter through elements in a list
  * of `(level, value)` pairs.
@@ -13,61 +13,59 @@ datatype Atoms = Tombstone
 
 let (*--- Internal: List Predicates and Filtering ---*)
 
-    (** The bottom level that flows to everything. *)
-    val BOT = `{}`
+    (** The *root* level with the highest privilege. *)
+    val ROOT = `<#root-confidentiality; #root-integrity>`
 
     (* NOTE (NMIFC): To not get corrupt labels, we have to declassify the levels prior to the
      *               `flowsTo` check. To ensure the result has the correct level, we use `raisedTo`
-     *               to compensate for the downgrade.
-     *)
-
-    (* NOTE: Using `List.filter` etc. taints the list based on the result of the predicate used. We
-     *       want the final list to only be tainted by the elements that remain. Hence, we keep
-     *       `false` results at the `BOT` level.
+     *               later to compensate for the downgrade.
      *)
 
     (** Predicate that is `true` for all but the elements `(lvl', x)` where `lvl` does **not** flow
      *  to `lvl'`. That is, if `false` is returned, then this value would be shadowed by an
      *  insertion at level `lvl`.
      *)
-    fun noFlow authority lvl (lvl', _) =
-        let val p_lvl  = downgrade (lvl, authority, BOT)
-            val p_lvl' = downgrade (lvl', authority, BOT)
-
-            val p_res = not (flowsTo (p_lvl, p_lvl'))
-            val s_res = (p_res raisedTo lvl) raisedTo lvl'
-        in if p_res then s_res else p_res
+    fun noFlow authority lvl fv =
+        let (* NOTE: declassify the levels (and hence the `flowsTo` result). *)
+            val lvl       = IfcUtil.pdowngrade (lvl, authority, _pc())
+            val (lvl', _) = IfcUtil.pdowngrade (fv, authority, _pc())
+            val lvl'      = IfcUtil.pdowngrade (lvl', authority, _pc())
+        in not (flowsTo (lvl, lvl'))
         end
 
     (** Similar to `noFlow` but also returns `true` if `lvl = lvl'`. *)
-    fun noFlowOrEqual authority lvl (lvl', _) =
-        let val p_lvl  = downgrade (lvl, authority, BOT)
-            val p_lvl' = downgrade (lvl', authority, BOT)
-
-            val p_res = (not (flowsTo (p_lvl, p_lvl'))) orelse (flowsTo (p_lvl', p_lvl))
-            val s_res = (p_res raisedTo lvl) raisedTo lvl'
-        in if p_res then s_res else p_res
+    fun noFlowOrEqual authority lvl fv =
+        let (* NOTE: declassify the levels (and hence the `flowsTo` result). *)
+            val lvl       = IfcUtil.pdowngrade (lvl, authority, _pc())
+            val (lvl', _) = IfcUtil.pdowngrade (fv, authority, _pc())
+            val lvl'      = IfcUtil.pdowngrade (lvl', authority, _pc())
+        in (not (flowsTo (lvl, lvl'))) orelse (flowsTo (lvl', lvl))
         end
 
-    (** Removes values any entries at level `lvl` and all levels to which `lvl` flows to. *)
+    (** Removes values of any entries at level `lvl` and all levels to which `lvl` flows to. *)
     fun noFlowFilter authority fv lvl =
-        let fun remove' () =
-                let (* NOTE: Using `List.filter` directly on `fv@{a}` will taint each of its elements
-                     *       by `a`. Doing so pollutes the level of the respective elements. So, we
-                     *       declassify the list to then re-raise it afterwards.
-                     *
-                     *       But, `List.filter` also directly taints the list based on the predicate
-                     *       used. Since we filtering on `flowsTo` on each level, we directly
-                     *       re-raise the list back to `@{levelOf lvl'}` of each `(lvl', _)`. This
-                     *       also includes raising it to the level of `lvl`.
-                     *)
-                    val fv' =  List.filter (noFlow authority lvl) (downgrade (fv, authority, BOT))
+        let (* NOTE: Using `List.filter` directly on `fv@{a}` will raise the pc and hence taint each
+             *       of its elements by `a`.. Doing so pollutes/corrupts the level of the respective
+             *       elements. So, we declassify the list to then re-raise it later.
+             *)
+            val fv' =  List.filter (noFlow authority lvl)
+                                   (IfcUtil.pdowngrade (fv, authority, _pc()))
 
-                    (* NOTE: declassify success of `List.filter`. *)
-                    val _ = blockdown authority
-                in fv'
-                end
-        in Missing.preserveBL remove'
+            (* NOTE: Declassify success of `List.filter`. *)
+            val _ = blockdown authority
+
+            (* NOTE: Obtain original level of the list. At this point, we can guarantee the data
+             *       is list of (lvl, _) tuples. Hence, we endorse the integrity with the `glb`.
+             *
+             *       This endorsement makes the FVal more likely to stay non-malleable.
+             *
+             * NOTE: In between, we also declassify the success of `levelOf` and `glb` since they
+             *       are certainly safe.
+             *)
+            val lvl' = levelOf fv
+            val lvl' = (downgrade (lvl', authority, _pc())) glb ROOT
+            val _    = blockdown authority
+        in fv' raisedTo lvl'
         end
 
     (*--- Faceted Value ---*)
@@ -77,14 +75,25 @@ let (*--- Internal: List Predicates and Filtering ---*)
 
     (** Removes values at level `lvl` and all levels to which `lvl` flows to. *)
     fun remove authority fv lvl =
-        case noFlowFilter authority fv lvl of []  => []
-                                           |  fv' => (lvl, Tombstone)::fv'
+        let fun remove' () =
+                case noFlowFilter authority fv lvl
+                 of []  => []
+                 |  fv' => ((lvl, Tombstone) raisedTo lvl)::fv'
+        in IfcUtil.blockprotect remove'
+        end
 
     (** Inserts `x` at level `lvl` and all levels to which `lvl` flows to. *)
-    fun insertAtLevel authority fv lvl x = (lvl, x)::(noFlowFilter authority fv lvl)
+    fun insertAtLevel authority fv lvl x =
+        IfcUtil.blockprotect (fn () => (lvl, x)::(noFlowFilter authority fv lvl))
 
     (** Inserts `x` at its IFC level and all levels to which its level flows to. *)
-    fun insert authority fv x = insertAtLevel authority fv (levelOf x) x
+    fun insert authority fv x =
+        insertAtLevel authority fv (levelOf x) x
+
+    (** Inserts `x` at the join (`lub`) of its own level and the program counter; this overwrites
+     *  any insertions to which this flows to. *)
+    fun insertAtPC authority fv x =
+        insertAtLevel authority fv (_pc()) x
 
     (** Whether the given faceted value, `fv`, is empty. *)
     fun null [] = true
@@ -99,13 +108,14 @@ let (*--- Internal: List Predicates and Filtering ---*)
                      * NOTE: This also implicitly re-raises the level of the results up to the level
                      *       of the (remaining) elements.
                      *)
-                    val x = List.exist' (noFlow authority lvl) (downgrade (fv, authority, BOT))
+                    val x = List.exist' (noFlow authority lvl)
+                                        (IfcUtil.pdowngrade (fv, authority, _pc()))
 
                     (* NOTE: declassify success of `List.mem`. *)
                     val _ = blockdown authority
-                in x
+                in x raisedTo lvl
                 end
-        in Missing.preserveBL mem'
+        in IfcUtil.blockprotect mem'
         end
 
     (** Finds the newest value at the given level `lvl`.
@@ -121,7 +131,7 @@ let (*--- Internal: List Predicates and Filtering ---*)
                      *       (remaining) elements.
                      *)
                     val fv' = List.filter (noFlowOrEqual authority lvl)
-                                          (downgrade (fv, authority, BOT))
+                                          (IfcUtil.pdowngrade (fv, authority, _pc()))
 
                     (* NOTE: declassify success of `List.filter`. *)
                     val _ = blockdown authority
@@ -135,9 +145,9 @@ let (*--- Internal: List Predicates and Filtering ---*)
 
                     (* NOTE: declassify success of pattern matching. *)
                     val _ = blockdown authority
-                in v
+                in v raisedTo lvl
                 end
-        in Missing.preserveBL find'
+        in IfcUtil.blockprotect find'
         end
 
     (** Finds the newest value at the given level `lvl`. If none exists, then `default` is returned
@@ -148,8 +158,9 @@ let (*--- Internal: List Predicates and Filtering ---*)
                                    |  x         => x
 
 in [ ("empty", empty)
-   , ("insertAtLevel", insertAtLevel)
    , ("insert", insert)
+   , ("insertAtPC", insertAtPC)
+   , ("insertAtLevel", insertAtLevel)
    , ("remove", remove)
    , ("null", null)
    , ("mem", mem)
