@@ -61,6 +61,7 @@ import Data.List (group, sort, intercalate)
     false { L _ TokenFalse }
     andalso { L _ TokenAndAlso }
     orelse  { L _ TokenOrElse }
+    'not' { L _ TokenNot }
     NUM   { L _ (TokenNum _) }
     FLOAT { L _ (TokenFloat _) }
     STRING{ L _ (TokenString _)}
@@ -100,7 +101,6 @@ import Data.List (group, sort, intercalate)
     'isTuple' { L _ TokenIsTuple }
     'isList' { L _ TokenIsList }
     'isRecord' { L _ TokenIsRecord }
-    'not' { L _ TokenNot }
 
     '('   { L _ TokenLParen }
     ')'   { L _ TokenRParen }
