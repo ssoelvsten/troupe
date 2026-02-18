@@ -92,6 +92,8 @@ import Data.List (group, sort, intercalate)
     '`<'    { L _ TokenDCLabelLeft  } 
     '>`'    { L _ TokenDCLabelRight } 
     '&'     { L _ TokenAmpersand }
+    '#true'  { L _ TokenDCTrue }
+    '#false' { L _ TokenDCFalse }
     '#root-confidentiality' { L _ TokenDCRootConf }
     '#null-confidentiality' { L _ TokenDCNullConf }
     '#root-integrity' { L _ TokenDCRootInteg }
@@ -248,11 +250,15 @@ LabelExp:
 ConfLabelExp :                     { ConstComponent LabelTrue }
      | '#root-confidentiality'     { ConstComponent LabelFalse }
      | '#null-confidentiality'     { ConstComponent LabelTrue }
+     | '#false'                    { ConstComponent LabelFalse }
+     | '#true'                     { ConstComponent LabelTrue }
      | LabelExp                    { ExprComponent $1 }
 
 IntLabelExp :                      { ConstComponent LabelTrue }
      | '#root-integrity'           { ConstComponent LabelFalse }
      | '#null-integrity'           { ConstComponent LabelTrue }
+     | '#false'                    { ConstComponent LabelFalse }
+     | '#true'                     { ConstComponent LabelTrue }
      | LabelExp                    { ExprComponent $1 }     
 
 DCLabelExp:
