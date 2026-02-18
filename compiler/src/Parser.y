@@ -121,30 +121,40 @@ import Data.List (group, sort, intercalate)
 
 
 %nonassoc with
-%right '=>' 
+%right '=>'
 %right '|'
-%right else 
+%right else
 %right ';'
 %left andalso orelse
+
 %nonassoc '=' '<=' '>=' '<>' '<' '>' '@'
+
 %left andb orb xorb
 %left '<<' '>>' '~>>'
-%left '+' '-' 
+
+%left '+' '-'
 %left '*' '/' div mod
-%left '|' 
+
+%left '|'
 %left '&'
+
 %right '::'
+
 %right '.'
 
 %left 'raisedTo'
+
 %left 'isTuple'
 %left 'isList'
 %left 'isRecord'
+
 %left 'not'
+
 %left '^'
 %%
 
 
+-- Syntax
 
 
 Prog : ImportDecl AtomsDecl Expr                       { Prog (Imports $1) (Atoms $2) $3 }
