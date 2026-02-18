@@ -341,8 +341,6 @@ instance WellFormedIRCheck IRExpr where
                      , "listToTuple"
                      , "lowermbox"
                      , "levelOf"
-                     , "glb"
-                     , "lub"
                      , "mkuuid"
                      , "mkSecret"
                      , "monitorlocal"
