@@ -68,6 +68,8 @@ type Precedence = Integer
 
 opPrec :: BinOp -> Precedence
 
+opPrec Concat = 400
+
 opPrec LatticeJoin = 300
 opPrec LatticeMeet = 300
 
@@ -78,7 +80,6 @@ opPrec Mod    = 200
 
 opPrec Plus   = 100
 opPrec Minus  = 100
-opPrec Concat = 100
 
 opPrec BinShiftLeft      = 70
 opPrec BinShiftRight     = 70
