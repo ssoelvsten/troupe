@@ -99,7 +99,10 @@ import Data.List (group, sort, intercalate)
     '#root-integrity' { L _ TokenDCRootInteg }
     '#null-integrity' { L _ TokenDCNullInteg }    
 
-    'raisedTo' { L _ TokenRaisedTo }
+    'raisedTo'    { L _ TokenRaisedTo }
+    'latticeJoin' { L _ TokenLatticeJoin }
+    'latticeMeet' { L _ TokenLatticeMeet }
+
     'isTuple' { L _ TokenIsTuple }
     'isList' { L _ TokenIsList }
     'isRecord' { L _ TokenIsRecord }
@@ -152,6 +155,9 @@ import Data.List (group, sort, intercalate)
 
 %left 'not'
 
+%left 'latticeJoin'
+%left 'latticeMeet'
+
 %left '^'
 %%
 
@@ -197,6 +203,8 @@ Expr: Form                        { $1 }
     | hn Pattern '|' Pattern when Expr '=>' Expr      {% atPos $1 (Hnd (Handler $2 (Just $4) (Just $6) $8)) }
     | case Expr of Match          {% atPos $1 (Case $2 $4) }
     | Expr ';' Expr               {% mkSeq $1 $3 $2 }
+    | Expr 'latticeMeet' Expr     {% atPos $2 (Bin LatticeMeet $1 $3) }
+    | Expr 'latticeJoin' Expr     {% atPos $2 (Bin LatticeJoin $1 $3) }
     | Expr '-' Expr               {% atPos $2 (Bin Minus $1 $3) }
     | Expr '+' Expr               {% atPos $2 (Bin Plus $1 $3) }
     | Expr '>=' Expr              {% atPos $2 (Bin Ge $1 $3) }
@@ -413,6 +421,7 @@ errorExpr _ = Loc (RTGen "error-recovery") (Lit LUnit)  -- Placeholder expressio
 errorPattern :: L Token -> LDeclPattern
 errorPattern _ = Loc (RTGen "error-recovery") ErrorPattern
 
+
 errorDecl :: L Token -> Decl
 errorDecl _ = ErrorDecl
 
@@ -603,6 +612,8 @@ cleanExpectedToken "'isRecord'" = "'isRecord'"
 cleanExpectedToken "'not'" = "'not'"
 cleanExpectedToken "'flowsTo'" = "'flowsTo'"
 cleanExpectedToken "'levelOf'" = "'levelOf'"
+cleanExpectedToken "'latticeMeet'" = "'glb'"
+cleanExpectedToken "'latticeJoin'" = "'lub'"
 cleanExpectedToken s = s  -- fallback
 
 

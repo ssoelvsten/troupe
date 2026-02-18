@@ -70,8 +70,8 @@ opPrec :: BinOp -> Precedence
 
 opPrec Concat = 400
 
+opPrec LatticeMeet = 350
 opPrec LatticeJoin = 300
-opPrec LatticeMeet = 300
 
 opPrec Mult   = 200
 opPrec IntDiv = 200
