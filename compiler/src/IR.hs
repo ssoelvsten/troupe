@@ -340,6 +340,8 @@ instance WellFormedIRCheck IRExpr where
                      , "listToTuple"
                      , "lowermbox"
                      , "levelOf"
+                     , "meet"
+                     , "join"
                      , "mkuuid"
                      , "mkSecret"
                      , "monitorlocal"

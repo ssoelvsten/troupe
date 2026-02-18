@@ -114,8 +114,8 @@ tokens:-
 <0>   orb                            { mkL TokenBinOr }
 <0>   xorb                           { mkL TokenBinXor }
 <0>   Atoms                          { mkL TokenAtoms }
-<0>   "#true"                        { mkL TokenDCTrue }
-<0>   "#false"                       { mkL TokenDCFalse }
+<state_dclabel> "#true"                 { mkL TokenDCTrue }
+<state_dclabel> "#false"                { mkL TokenDCFalse }
 <state_dclabel> "#root-confidentiality" { mkL TokenDCRootConf }
 <state_dclabel> "#root-integrity"       { mkL TokenDCRootInteg }
 <state_dclabel> "#null-confidentiality" { mkL TokenDCNullConf }
