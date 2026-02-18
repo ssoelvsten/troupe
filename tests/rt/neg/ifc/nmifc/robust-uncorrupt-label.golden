@@ -1,0 +1,12 @@
+2026-02-16T16:20:48.329Z [RTM] [32minfo[39m: Skipping network creation. Observe that all external IO operations will yield a runtime error.
+Runtime error in thread 6e4b2d2b-0900-4bf1-82c1-dfbad2edf157@{}%{}
+
+  8 | then downgrade (42 raisedTo `{alice}`, authority, `{}`)
+    |      ^
+
+>> NMIFC robustness violation for downgrade
+ | The integrity of the data and PC do not permit this downgrade.
+ | level of the data: {alice,bob} (corrupt: true)
+ | target level: {}
+ | PC level: {bob} (corrupt: false)
+>> at tests/rt/neg/ifc/nmifc/robust-uncorrupt-label.trp:8:6
