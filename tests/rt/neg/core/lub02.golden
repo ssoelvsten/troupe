@@ -1,0 +1,8 @@
+2026-02-18T10:44:14.733Z [RTM] [32minfo[39m: Skipping network creation. Observe that all external IO operations will yield a runtime error.
+Runtime error in thread 01e43bfe-2429-43a2-8cec-c5ce19d18926@{}%{}
+
+  1 | lub (`{alice}`, "{bob}")
+    | ^
+
+>> value "{bob}"@{}%{} is not a level
+>> at tests/rt/neg/core/lub02.trp:1:1

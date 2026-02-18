@@ -1,6 +1,6 @@
 import {UserRuntimeZero, Constructor, mkBase} from './UserRuntimeZero.mjs'
 import { LVal } from '../Lval.mjs';
-import { lub, flowsTo, BOT } from '../Level.mjs'
+import { lub, glb, flowsTo, BOT } from '../Level.mjs'
 import { v4 as uuidv4 } from 'uuid'
 import { assertIsNTuple, assertIsLevel, assertIsUnit } from '../Asserts.mjs'
 
@@ -9,6 +9,28 @@ export function BuiltinLevOps <TBase extends Constructor<UserRuntimeZero>> (Base
         levelOf = mkBase((arg) => {
             let l = arg.lev;
             return this.runtime.ret(new LVal(l, lub(this.runtime.$t.pc, l), BOT));
+        });
+
+        glb = mkBase((arg) => {
+            assertIsNTuple(arg, 2);
+            let x = arg.val[0];
+            let y = arg.val[1];
+
+            assertIsLevel(x);
+            assertIsLevel(y);
+
+            return this.runtime.ret(new LVal(glb (x.val, y.val), lub (x.lev, y.lev), BOT));
+        });
+
+        lub = mkBase((arg) => {
+            assertIsNTuple(arg, 2);
+            let x = arg.val[0];
+            let y = arg.val[1];
+
+            assertIsLevel(x);
+            assertIsLevel(y);
+
+            return this.runtime.ret(new LVal(lub (x.val, y.val), lub (x.lev, y.lev), BOT));
         });
 
         flowsTo = mkBase((arg) => {
