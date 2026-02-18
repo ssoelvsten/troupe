@@ -26,6 +26,56 @@ let val tests = Unit.group "List" [
               , Unit.it "rejects [0,1]"   (Unit.isFalse (List.null [0,1]))
               , Unit.it "rejects [1,2,0]" (Unit.isFalse (List.null [1,2,0]))
             ],
+            let fun isOdd  x = (x mod 2) = 1
+                fun isEven x = (x mod 2) = 0
+            in Unit.group "exist" [
+                    Unit.it "rejects isOdd  []"             (Unit.isFalse (List.exist isOdd  []))
+                  , Unit.it "rejects isEven []"             (Unit.isFalse (List.exist isEven []))
+                  , Unit.it "rejects isOdd  [42]"           (Unit.isFalse (List.exist isOdd  [42]))
+                  , Unit.it "accepts isEven [42]"           (Unit.isTrue  (List.exist isEven [42]))
+                  , Unit.it "accepts isOdd  [21, 42]"       (Unit.isTrue  (List.exist isOdd  [21,42]))
+                  , Unit.it "accepts isOdd  [42, 21]"       (Unit.isTrue  (List.exist isOdd  [42,21]))
+                  , Unit.it "rejects isOdd  [22, 10]"       (Unit.isFalse (List.exist isOdd  [22,10]))
+                ]
+            end,
+            let fun isOdd  x = (x mod 2) = 1
+                fun isEven x = (x mod 2) = 0
+            in Unit.group "exist'" [
+                    Unit.it "rejects isOdd  []"             (Unit.isFalse (List.exist' isOdd  []))
+                  , Unit.it "rejects isEven []"             (Unit.isFalse (List.exist' isEven []))
+                  , Unit.it "rejects isOdd  [42]"           (Unit.isFalse (List.exist' isOdd  [42]))
+                  , Unit.it "accepts isEven [42]"           (Unit.isTrue  (List.exist' isEven [42]))
+                  , Unit.it "accepts isOdd  [21, 42]"       (Unit.isTrue  (List.exist' isOdd  [21,42]))
+                  , Unit.it "accepts isOdd  [42, 21]"       (Unit.isTrue  (List.exist' isOdd  [42,21]))
+                  , Unit.it "rejects isOdd  [22, 10]"       (Unit.isFalse (List.exist' isOdd  [22,10]))
+                ]
+            end,
+            let fun isOdd  x = (x mod 2) = 1
+                fun isEven x = (x mod 2) = 0
+            in Unit.group "forall" [
+                    Unit.it "accepts isOdd  []"             (Unit.isTrue  (List.forall isOdd  []))
+                  , Unit.it "accepts isEven []"             (Unit.isTrue  (List.forall isEven []))
+                  , Unit.it "rejects isOdd  [42]"           (Unit.isFalse (List.forall isOdd  [42]))
+                  , Unit.it "accepts isEven [42]"           (Unit.isTrue  (List.forall isEven [42]))
+                  , Unit.it "rejects isOdd  [21, 42]"       (Unit.isFalse (List.forall isOdd  [21,42]))
+                  , Unit.it "rejects isOdd  [42, 21]"       (Unit.isFalse (List.forall isOdd  [42,21]))
+                  , Unit.it "rejects isOdd  [22, 10]"       (Unit.isFalse (List.forall isOdd  [22,10]))
+                  , Unit.it "accepts isEven [22, 10]"       (Unit.isTrue  (List.forall isEven [22,10]))
+                ]
+            end,
+            let fun isOdd  x = (x mod 2) = 1
+                fun isEven x = (x mod 2) = 0
+            in Unit.group "forall'" [
+                    Unit.it "accepts isOdd  []"             (Unit.isTrue  (List.forall' isOdd  []))
+                  , Unit.it "accepts isEven []"             (Unit.isTrue  (List.forall' isEven []))
+                  , Unit.it "rejects isOdd  [42]"           (Unit.isFalse (List.forall' isOdd  [42]))
+                  , Unit.it "accepts isEven [42]"           (Unit.isTrue  (List.forall' isEven [42]))
+                  , Unit.it "rejects isOdd  [21, 42]"       (Unit.isFalse (List.forall' isOdd  [21,42]))
+                  , Unit.it "rejects isOdd  [42, 21]"       (Unit.isFalse (List.forall' isOdd  [42,21]))
+                  , Unit.it "rejects isOdd  [22, 10]"       (Unit.isFalse (List.forall' isOdd  [22,10]))
+                  , Unit.it "accepts isEven [22, 10]"       (Unit.isTrue  (List.forall' isEven [22,10]))
+                ]
+            end,
             Unit.group "elem" [
                 Unit.it "rejects 42 []"               (Unit.isFalse (List.elem 42 []))
               , Unit.it "accepts 42 [42]"             (Unit.isTrue  (List.elem 42 [42]))
@@ -148,6 +198,13 @@ let val tests = Unit.group "List" [
             end,
             let val xs = [21,42,8,11,7]
                 fun isOdd x = (x mod 2) = 1
+            in Unit.group "revPartition" [
+                    Unit.it "isOdd []" (Unit.isEq ([],[])            (List.revPartition isOdd []))
+                  , Unit.it "isOdd xs" (Unit.isEq ([7,11,21],[8,42]) (List.revPartition isOdd xs))
+                ]
+            end,
+            let val xs = [21,42,8,11,7]
+                fun isOdd x = (x mod 2) = 1
             in Unit.group "partition" [
                     Unit.it "isOdd []" (Unit.isEq ([],[])            (List.partition isOdd []))
                   , Unit.it "isOdd xs" (Unit.isEq ([21,11,7],[42,8]) (List.partition isOdd xs))
@@ -159,6 +216,32 @@ let val tests = Unit.group "List" [
               , Unit.it "generates [0..2]" (Unit.isEq [0,1]   (List.range 2))
               , Unit.it "generates [0..3]" (Unit.isEq [0,1,2] (List.range 3))
             ],
+            let fun cmp x y = x < y
+                val max = List.max cmp
+            in Unit.group "max" [
+                    Unit.it "max [0] = 0"       (Unit.isEq 0 (max [0]))
+                  , Unit.it "max [1] = 1"       (Unit.isEq 1 (max [1]))
+                  , Unit.it "max [0,1] = 1"     (Unit.isEq 1 (max [0,1]))
+                  , Unit.it "max [1,0] = 1"     (Unit.isEq 1 (max [1,0]))
+                  , Unit.it "max [0,0] = 0"     (Unit.isEq 0 (max [0,0]))
+                  , Unit.it "max [1,0,0] = 1"   (Unit.isEq 1 (max [1,0,0]))
+                  , Unit.it "max [1,0,2] = 2"   (Unit.isEq 2 (max [1,0,2]))
+                  , Unit.it "max [1,3,0,2] = 3" (Unit.isEq 3 (max [1,3,0,2]))
+                ]
+            end,
+            let fun cmp x y = x < y
+                val min = List.min cmp
+            in Unit.group "min" [
+                    Unit.it "min [0] = 0"       (Unit.isEq 0 (min [0]))
+                  , Unit.it "min [1] = 0"       (Unit.isEq 1 (min [1]))
+                  , Unit.it "min [0,1] = 0"     (Unit.isEq 0 (min [0,1]))
+                  , Unit.it "min [1,0] = 0"     (Unit.isEq 0 (min [1,0]))
+                  , Unit.it "min [2,2] = 2"     (Unit.isEq 2 (min [2,2]))
+                  , Unit.it "min [1,0,0] = 0"   (Unit.isEq 0 (min [1,0,0]))
+                  , Unit.it "min [1,0,2] = 0"   (Unit.isEq 0 (min [1,2,0]))
+                  , Unit.it "min [4,3,4,2] = 2" (Unit.isEq 2 (min [4,3,4,2]))
+                ]
+            end,
             let fun cmp x y = x < y
                 val sort = List.sort cmp
             in Unit.group "sort" [

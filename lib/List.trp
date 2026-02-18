@@ -21,9 +21,35 @@ let (* -- List Access -- *)
     fun null [] = true
       | null _  = false
 
+    (** Returns `true` if an element satisfies the given predicate. Tail-recursive. *)
+    fun exist f []    = false
+      | exist f x::xs = if f x then true else exist f xs
+
+    (** Returns `true` if an element satisfies the given predicate. Tail-recursive.
+     *
+     * Unlike `exist`, this runs `f` on elements even after having found a true candidate. This
+     * raises the IFC level of the result to the same level regardless of the order of the elements
+     * in `xs`.
+     *)
+    fun exist' f xs =
+        let fun go acc []    = acc
+              | go acc x::xs = go ((f x) orelse acc) xs
+        in go false xs
+        end
+
+    (** Returns `true` if all elements satisfy the given predicate. Tail-recursive.  *)
+    fun forall f xs = not (exist (fn x => not (f x)) xs)
+
+    (** Returns `true` if all elements satisfy the given predicate. Tail-recursive.
+     *
+     * Unlike `forall`, this runs `f` on elements even after having found a violation. This raises
+     * the IFC level of the result to the same level regardless of the order of the elements in
+     * `xs`.
+     *)
+    fun forall' f xs = not (exist' (fn x => not (f x)) xs)
+
     (** Returns `true` if the element `x` exists in the list. *)
-    fun elem x []    = false
-      | elem x y::ys = if x = y then true else elem x ys
+    fun elem x ys = exist (fn y => x = y) ys
 
     (** Returns the length of the given list. Tail-recursive. *)
     fun length xs =
@@ -99,15 +125,22 @@ let (* -- List Access -- *)
                                            in if f (i,x) then x::xs' else xs' end
                       in go 0 l end
 
-    (** Split the list `ls` into two sublists depending on whether each respective element
+    (** Split the list `ls` into two reversed sublists depending on whether each respective element
         satisfies the predicate `f`. Tail-recursive. *)
-    fun partition f ls =
-        let fun partition_aux  (a,b) [] = (reverse a, reverse b)
+    fun revPartition f ls =
+        let fun partition_aux  (a,b) [] = (a, b)
               | partition_aux  (a,b) (x::xs) =
                 if f x
                 then partition_aux (x::a, b) xs
                 else partition_aux (a, x::b) xs
         in partition_aux ([],[]) ls
+        end
+
+    (** Split the list `ls` into two sublists depending on whether each respective element satisfies
+        the predicate `f`. Tail-recursive. *)
+    fun partition f ls =
+        let val (a,b) = revPartition f ls
+        in (reverse a, reverse b)
         end
 
     (* -- List Generation -- *)
@@ -121,6 +154,16 @@ let (* -- List Access -- *)
                   end
 
     (* -- Sorting -- *)
+
+    (** Returns the largest value in the given (non-empty) list according to the given less-than
+     *  predicate. *)
+    fun max cmp xs = foldl1 (fn (x, currMax) => if cmp currMax x then x else currMax) xs
+
+    (** Returns the smallest value in the given (non-empty) list according to the given less-than
+     *  predicate. *)
+    fun min cmp xs =
+        let fun cmp' x y = cmp y x
+        in max cmp' xs end
 
     (** Returns a list with the same elements as in `l` but sorted based on the less-than predicate,
      *  `cmp` of type `'a -> 'a -> bool`. *)
@@ -174,6 +217,10 @@ in [ ("head", head)
    , ("tail", tail)
    , ("nth", nth)
    , ("null", null)
+   , ("exist", exist)
+   , ("exist'", exist')
+   , ("forall", forall)
+   , ("forall'", forall')
    , ("elem", elem)
    , ("length", length)
    , ("reverse", reverse)
@@ -188,7 +235,10 @@ in [ ("head", head)
    , ("filter", filter)
    , ("filteri", filteri)
    , ("partition", partition)
+   , ("revPartition", revPartition)
    , ("range", range)
+   , ("max", max)
+   , ("min", min)
    , ("sort", sort)
    ]
 end

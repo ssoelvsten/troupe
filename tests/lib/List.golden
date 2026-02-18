@@ -1,4 +1,4 @@
-2025-10-24T08:31:14.889Z [RTM] [32minfo[39m: Skipping network creation. Observe that all external IO operations will yield a runtime error.
+2026-02-17T16:06:55.036Z [RTM] [32minfo[39m: Skipping network creation. Observe that all external IO operations will yield a runtime error.
 [34mbegin [0mList
   [34mbegin [0mhead
       [33m[ TEST ][0m it returns 42 for [42]      [32m[ PASS ][0m it returns 42 for [42]
@@ -21,6 +21,44 @@
       [33m[ TEST ][0m it rejects ['a']      [32m[ PASS ][0m it rejects ['a']
       [33m[ TEST ][0m it rejects [0,1]      [32m[ PASS ][0m it rejects [0,1]
       [33m[ TEST ][0m it rejects [1,2,0]      [32m[ PASS ][0m it rejects [1,2,0]
+  [34mend [0m
+  [34mbegin [0mexist
+      [33m[ TEST ][0m it rejects isOdd  []      [32m[ PASS ][0m it rejects isOdd  []
+      [33m[ TEST ][0m it rejects isEven []      [32m[ PASS ][0m it rejects isEven []
+      [33m[ TEST ][0m it rejects isOdd  [42]      [32m[ PASS ][0m it rejects isOdd  [42]
+      [33m[ TEST ][0m it accepts isEven [42]      [32m[ PASS ][0m it accepts isEven [42]
+      [33m[ TEST ][0m it accepts isOdd  [21, 42]      [32m[ PASS ][0m it accepts isOdd  [21, 42]
+      [33m[ TEST ][0m it accepts isOdd  [42, 21]      [32m[ PASS ][0m it accepts isOdd  [42, 21]
+      [33m[ TEST ][0m it rejects isOdd  [22, 10]      [32m[ PASS ][0m it rejects isOdd  [22, 10]
+  [34mend [0m
+  [34mbegin [0mexist'
+      [33m[ TEST ][0m it rejects isOdd  []      [32m[ PASS ][0m it rejects isOdd  []
+      [33m[ TEST ][0m it rejects isEven []      [32m[ PASS ][0m it rejects isEven []
+      [33m[ TEST ][0m it rejects isOdd  [42]      [32m[ PASS ][0m it rejects isOdd  [42]
+      [33m[ TEST ][0m it accepts isEven [42]      [32m[ PASS ][0m it accepts isEven [42]
+      [33m[ TEST ][0m it accepts isOdd  [21, 42]      [32m[ PASS ][0m it accepts isOdd  [21, 42]
+      [33m[ TEST ][0m it accepts isOdd  [42, 21]      [32m[ PASS ][0m it accepts isOdd  [42, 21]
+      [33m[ TEST ][0m it rejects isOdd  [22, 10]      [32m[ PASS ][0m it rejects isOdd  [22, 10]
+  [34mend [0m
+  [34mbegin [0mforall
+      [33m[ TEST ][0m it accepts isOdd  []      [32m[ PASS ][0m it accepts isOdd  []
+      [33m[ TEST ][0m it accepts isEven []      [32m[ PASS ][0m it accepts isEven []
+      [33m[ TEST ][0m it rejects isOdd  [42]      [32m[ PASS ][0m it rejects isOdd  [42]
+      [33m[ TEST ][0m it accepts isEven [42]      [32m[ PASS ][0m it accepts isEven [42]
+      [33m[ TEST ][0m it rejects isOdd  [21, 42]      [32m[ PASS ][0m it rejects isOdd  [21, 42]
+      [33m[ TEST ][0m it rejects isOdd  [42, 21]      [32m[ PASS ][0m it rejects isOdd  [42, 21]
+      [33m[ TEST ][0m it rejects isOdd  [22, 10]      [32m[ PASS ][0m it rejects isOdd  [22, 10]
+      [33m[ TEST ][0m it accepts isEven [22, 10]      [32m[ PASS ][0m it accepts isEven [22, 10]
+  [34mend [0m
+  [34mbegin [0mforall'
+      [33m[ TEST ][0m it accepts isOdd  []      [32m[ PASS ][0m it accepts isOdd  []
+      [33m[ TEST ][0m it accepts isEven []      [32m[ PASS ][0m it accepts isEven []
+      [33m[ TEST ][0m it rejects isOdd  [42]      [32m[ PASS ][0m it rejects isOdd  [42]
+      [33m[ TEST ][0m it accepts isEven [42]      [32m[ PASS ][0m it accepts isEven [42]
+      [33m[ TEST ][0m it rejects isOdd  [21, 42]      [32m[ PASS ][0m it rejects isOdd  [21, 42]
+      [33m[ TEST ][0m it rejects isOdd  [42, 21]      [32m[ PASS ][0m it rejects isOdd  [42, 21]
+      [33m[ TEST ][0m it rejects isOdd  [22, 10]      [32m[ PASS ][0m it rejects isOdd  [22, 10]
+      [33m[ TEST ][0m it accepts isEven [22, 10]      [32m[ PASS ][0m it accepts isEven [22, 10]
   [34mend [0m
   [34mbegin [0melem
       [33m[ TEST ][0m it rejects 42 []      [32m[ PASS ][0m it rejects 42 []
@@ -119,6 +157,10 @@
       [33m[ TEST ][0m it isOddIdx xs      [32m[ PASS ][0m it isOddIdx xs
       [33m[ TEST ][0m it isOddVal xs      [32m[ PASS ][0m it isOddVal xs
   [34mend [0m
+  [34mbegin [0mrevPartition
+      [33m[ TEST ][0m it isOdd []      [32m[ PASS ][0m it isOdd []
+      [33m[ TEST ][0m it isOdd xs      [32m[ PASS ][0m it isOdd xs
+  [34mend [0m
   [34mbegin [0mpartition
       [33m[ TEST ][0m it isOdd []      [32m[ PASS ][0m it isOdd []
       [33m[ TEST ][0m it isOdd xs      [32m[ PASS ][0m it isOdd xs
@@ -128,6 +170,26 @@
       [33m[ TEST ][0m it generates [0..1]      [32m[ PASS ][0m it generates [0..1]
       [33m[ TEST ][0m it generates [0..2]      [32m[ PASS ][0m it generates [0..2]
       [33m[ TEST ][0m it generates [0..3]      [32m[ PASS ][0m it generates [0..3]
+  [34mend [0m
+  [34mbegin [0mmax
+      [33m[ TEST ][0m it max [0] = 0      [32m[ PASS ][0m it max [0] = 0
+      [33m[ TEST ][0m it max [1] = 1      [32m[ PASS ][0m it max [1] = 1
+      [33m[ TEST ][0m it max [0,1] = 1      [32m[ PASS ][0m it max [0,1] = 1
+      [33m[ TEST ][0m it max [1,0] = 1      [32m[ PASS ][0m it max [1,0] = 1
+      [33m[ TEST ][0m it max [0,0] = 0      [32m[ PASS ][0m it max [0,0] = 0
+      [33m[ TEST ][0m it max [1,0,0] = 1      [32m[ PASS ][0m it max [1,0,0] = 1
+      [33m[ TEST ][0m it max [1,0,2] = 2      [32m[ PASS ][0m it max [1,0,2] = 2
+      [33m[ TEST ][0m it max [1,3,0,2] = 3      [32m[ PASS ][0m it max [1,3,0,2] = 3
+  [34mend [0m
+  [34mbegin [0mmin
+      [33m[ TEST ][0m it min [0] = 0      [32m[ PASS ][0m it min [0] = 0
+      [33m[ TEST ][0m it min [1] = 0      [32m[ PASS ][0m it min [1] = 0
+      [33m[ TEST ][0m it min [0,1] = 0      [32m[ PASS ][0m it min [0,1] = 0
+      [33m[ TEST ][0m it min [1,0] = 0      [32m[ PASS ][0m it min [1,0] = 0
+      [33m[ TEST ][0m it min [2,2] = 2      [32m[ PASS ][0m it min [2,2] = 2
+      [33m[ TEST ][0m it min [1,0,0] = 0      [32m[ PASS ][0m it min [1,0,0] = 0
+      [33m[ TEST ][0m it min [1,0,2] = 0      [32m[ PASS ][0m it min [1,0,2] = 0
+      [33m[ TEST ][0m it min [4,3,4,2] = 2      [32m[ PASS ][0m it min [4,3,4,2] = 2
   [34mend [0m
   [34mbegin [0msort
       [33m[ TEST ][0m it sorts []      [32m[ PASS ][0m it sorts []
@@ -143,6 +205,6 @@
   [34mend [0m
 [34mend [0m
 
-Total:  101
-Passes: 101
+Total:  149
+Passes: 149
 >>> Main thread finished with value: true@{}%{}
