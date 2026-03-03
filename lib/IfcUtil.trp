@@ -1,6 +1,20 @@
 import List
 
-let (*--------------------------  Deep Downgrades  --------------------------*)
+let (*-------------------------- Lattice Constants  -------------------------*)
+
+    (** The *root* level with the highest privilege. *)
+    val root = `<#root-confidentiality; #root-integrity>`
+
+    (** The bottom level that flows to everything. *)
+    val null = `<#null-confidentiality; #null-integrity>`
+
+    (** The bottom level that flows to everything. *)
+    val bot = `<#null-confidentiality; #root-integrity>`
+
+    (** The bottom level that flows to everything. *)
+    val top = `<#root-confidentiality; #null-integrity>`
+
+    (*--------------------------  Deep Downgrades  --------------------------*)
 
     (* Declassification for (most) tuples *)
     fun declassify2 ((x,y), a, lev) =
@@ -114,7 +128,16 @@ let (*--------------------------  Deep Downgrades  --------------------------*)
     fun freadlnAtLevel (fd, authority, level) =
         declassify (freadlnPini (fd, authority), authority, level)
 
-in [ ("declassifyDeep", declassifyDeep)
+in [ (*-- Constants --*)
+     ("root", root)
+   , ("null", null)
+   , ("bot",  bot)
+   , ("top",  top)
+
+     (*-- Deep Downgrades --*)
+   , ("declassifyDeep", declassifyDeep)
+
+     (*-- I/O --*)
    , ("freadlnPini", freadlnPini)
    , ("freadlnAtLevel", freadlnAtLevel)
    ]
