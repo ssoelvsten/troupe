@@ -52,7 +52,7 @@ export function downgrader (runtime, dimension:DowngradeDimension) {
                 dg_f(levFrom, lev_to, auth.val.authorityLevel, bl, isNMIFC, pc)
 
             if (ok_to_downgrade_result.kind === "SUCCESS") {
-                let r = new LCopyVal(data, lub(lev_to, pc, arg.lev, auth.lev));
+                let r = new LCopyVal(data, lub(lev_to, pc, arg.lev, auth.lev, toLevV.lev));
                 return runtime.ret(r)
             } else {
                 let errorMessage = "";
