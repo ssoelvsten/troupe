@@ -37,6 +37,14 @@ export function downgrader (runtime, dimension:DowngradeDimension) {
             assertIsAuthority(auth);
             let toLevV = argv[2];
             assertIsLevel(toLevV);
+
+            // 2026-03-03; AA & SS
+            //   Downgrade succeeds based on the level of `data` and the value of the authority and
+            //   the to-level. The secrecy/integrity of their values are in their levels.
+            //
+            // TODO: Assert taint on authority?
+            runtime.$t.raiseBlockingThreadLev(lub (data.lev, auth.lev, toLevV.lev));
+
             let pc = runtime.$t.pc;
             let levFrom = data.lev;
             let bl = runtime.$t.bl;
