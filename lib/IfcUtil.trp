@@ -16,80 +16,80 @@ let (*-------------------------- Lattice Constants  -------------------------*)
 
     (*--------------------------  Deep Downgrades  --------------------------*)
 
-    (* Declassification for (most) tuples *)
-    fun declassify2 ((x,y), a, lev) =
-        ( declassifyDeep (x, a, lev)
-        , declassifyDeep (y, a, lev))
+    (* Helper functions for tuples, lists, and more. *)
+    fun deep2 downgradeFn ((x,y), authority, lev) =
+        ( deep downgradeFn (x, authority, lev)
+        , deep downgradeFn (y, authority, lev))
 
-    and declassify3 ((x,y,z), a, lev) =
-        ( declassifyDeep (x, a, lev)
-        , declassifyDeep (y, a, lev)
-        , declassifyDeep (z, a, lev))
+    and deep3 downgradeFn ((x,y,z), authority, lev) =
+        ( deep downgradeFn (x, authority, lev)
+        , deep downgradeFn (y, authority, lev)
+        , deep downgradeFn (z, authority, lev))
 
-    and declassify4 ((x,y,z,w), a, lev) =
-        ( declassifyDeep (x, a, lev)
-        , declassifyDeep (y, a, lev)
-        , declassifyDeep (z, a, lev)
-        , declassifyDeep (w, a, lev))
+    and deep4 downgradeFn ((x,y,z,w), authority, lev) =
+        ( deep downgradeFn (x, authority, lev)
+        , deep downgradeFn (y, authority, lev)
+        , deep downgradeFn (z, authority, lev)
+        , deep downgradeFn (w, authority, lev))
 
-    and declassify5 ((x1,x2,x3,x4,x5), a, lev) =
-        ( declassifyDeep (x1, a, lev)
-        , declassifyDeep (x2, a, lev)
-        , declassifyDeep (x3, a, lev)
-        , declassifyDeep (x4, a, lev)
-        , declassifyDeep (x5, a, lev)
+    and deep5 downgradeFn ((x1,x2,x3,x4,x5), authority, lev) =
+        ( deep downgradeFn (x1, authority, lev)
+        , deep downgradeFn (x2, authority, lev)
+        , deep downgradeFn (x3, authority, lev)
+        , deep downgradeFn (x4, authority, lev)
+        , deep downgradeFn (x5, authority, lev)
         )
 
-    and declassify6 ((x1,x2,x3,x4,x5,x6), a, lev) =
-        ( declassifyDeep (x1, a, lev)
-        , declassifyDeep (x2, a, lev)
-        , declassifyDeep (x3, a, lev)
-        , declassifyDeep (x4, a, lev)
-        , declassifyDeep (x5, a, lev)
-        , declassifyDeep (x6, a, lev)
+    and deep6 downgradeFn ((x1,x2,x3,x4,x5,x6), authority, lev) =
+        ( deep downgradeFn (x1, authority, lev)
+        , deep downgradeFn (x2, authority, lev)
+        , deep downgradeFn (x3, authority, lev)
+        , deep downgradeFn (x4, authority, lev)
+        , deep downgradeFn (x5, authority, lev)
+        , deep downgradeFn (x6, authority, lev)
         )
 
-    and declassify7 ((x1,x2,x3,x4,x5,x6,x7), a, lev) =
-        ( declassifyDeep (x1, a, lev)
-        , declassifyDeep (x2, a, lev)
-        , declassifyDeep (x3, a, lev)
-        , declassifyDeep (x4, a, lev)
-        , declassifyDeep (x5, a, lev)
-        , declassifyDeep (x6, a, lev)
-        , declassifyDeep (x7, a, lev)
+    and deep7 downgradeFn ((x1,x2,x3,x4,x5,x6,x7), authority, lev) =
+        ( deep downgradeFn (x1, authority, lev)
+        , deep downgradeFn (x2, authority, lev)
+        , deep downgradeFn (x3, authority, lev)
+        , deep downgradeFn (x4, authority, lev)
+        , deep downgradeFn (x5, authority, lev)
+        , deep downgradeFn (x6, authority, lev)
+        , deep downgradeFn (x7, authority, lev)
         )
 
-    and declassify8 ((x1,x2,x3,x4,x5,x6,x7,x8), a, lev) =
-        ( declassifyDeep (x1, a, lev)
-        , declassifyDeep (x2, a, lev)
-        , declassifyDeep (x3, a, lev)
-        , declassifyDeep (x4, a, lev)
-        , declassifyDeep (x5, a, lev)
-        , declassifyDeep (x6, a, lev)
-        , declassifyDeep (x7, a, lev)
-        , declassifyDeep (x8, a, lev)
+    and deep8 downgradeFn ((x1,x2,x3,x4,x5,x6,x7,x8), authority, lev) =
+        ( deep downgradeFn (x1, authority, lev)
+        , deep downgradeFn (x2, authority, lev)
+        , deep downgradeFn (x3, authority, lev)
+        , deep downgradeFn (x4, authority, lev)
+        , deep downgradeFn (x5, authority, lev)
+        , deep downgradeFn (x6, authority, lev)
+        , deep downgradeFn (x7, authority, lev)
+        , deep downgradeFn (x8, authority, lev)
         )
 
-    and declassify9 ((x1,x2,x3,x4,x5,x6,x7,x8,x9), a, lev) =
-        ( declassifyDeep (x1, a, lev)
-        , declassifyDeep (x2, a, lev)
-        , declassifyDeep (x3, a, lev)
-        , declassifyDeep (x4, a, lev)
-        , declassifyDeep (x5, a, lev)
-        , declassifyDeep (x6, a, lev)
-        , declassifyDeep (x7, a, lev)
-        , declassifyDeep (x8, a, lev)
-        , declassifyDeep (x9, a, lev)
+    and deep9 downgradeFn ((x1,x2,x3,x4,x5,x6,x7,x8,x9), authority, lev) =
+        ( deep downgradeFn (x1, authority, lev)
+        , deep downgradeFn (x2, authority, lev)
+        , deep downgradeFn (x3, authority, lev)
+        , deep downgradeFn (x4, authority, lev)
+        , deep downgradeFn (x5, authority, lev)
+        , deep downgradeFn (x6, authority, lev)
+        , deep downgradeFn (x7, authority, lev)
+        , deep downgradeFn (x8, authority, lev)
+        , deep downgradeFn (x9, authority, lev)
         )
 
-    (* Declassification for lists *)
-    and declassifyList (xs, a, lev) =
-        List.map (fn x => declassifyDeep (x, a, lev) ) xs
+    and deepList downgradeFn (xs, authority, lev) =
+        List.map (fn x => deep downgradeFn (x, authority, lev) ) xs
 
-    (* TODO: Declassification of records? *)
+    (* TODO: records! *)
 
-    (** Deep declassification of value `x` to `level` via the given `authority`. *)
-    and declassifyDeep (x, authority, level) =
+    (** Apply the given downgrade function, `downgradeFn`, deeply to value `x` to lower it to
+     *  `level` via the given `authority`. *)
+    and deep downgradeFn (x, authority, level) =
         let (* Declassify the blocking label before touching the value. *)
             val _ = blockdeclto (authority, level)
 
@@ -99,21 +99,28 @@ let (*-------------------------- Lattice Constants  -------------------------*)
              *    this choice of the function needs to be declassified itself.
              *
              * 2. We proceed onto the application of the function. *)
-            val x' = declassify (x, authority, level)
+            val x' = downgradeFn (x, authority, level)
 
-            val f = case x' of (_,_)               => declassify2
-                             | (_,_,_)             => declassify3
-                             | (_,_,_,_)           => declassify4
-                             | (_,_,_,_,_)         => declassify5
-                             | (_,_,_,_,_,_)       => declassify6
-                             | (_,_,_,_,_,_,_)     => declassify7
-                             | (_,_,_,_,_,_,_,_)   => declassify8
-                             | (_,_,_,_,_,_,_,_,_) => declassify9
-                             | (_::_)              => declassifyList
-                             | _                   => declassify
+            val f = case x' of (_,_)               => deep2 downgradeFn
+                             | (_,_,_)             => deep3 downgradeFn
+                             | (_,_,_,_)           => deep4 downgradeFn
+                             | (_,_,_,_,_)         => deep5 downgradeFn
+                             | (_,_,_,_,_,_)       => deep6 downgradeFn
+                             | (_,_,_,_,_,_,_)     => deep7 downgradeFn
+                             | (_,_,_,_,_,_,_,_)   => deep8 downgradeFn
+                             | (_,_,_,_,_,_,_,_,_) => deep9 downgradeFn
+                             | (_::_)              => deepList downgradeFn
+                             | _                   => downgradeFn
 
         in f(x', authority, level)
         end
+
+    (** Deep declassification of value `x` to `level` via the given `authority`.
+     *
+     *  TODO: If not for #55, this is replaceable with `val declassifyDeep = deep declassify`
+     *)
+    fun declassifyDeep (x, authority, level) =
+        deep declassify (x, authority, level)
 
     (*--------------------------------  I/O  --------------------------------*)
 
