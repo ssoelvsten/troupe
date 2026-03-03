@@ -1,6 +1,6 @@
 import List
 
-let (* Mutually recursive deep declassification of tuples, lists, ... *)
+let (*--------------------------  Deep Downgrades  --------------------------*)
 
     (* Declassification for (most) tuples *)
     fun declassify2 ((x,y), a, lev) =
@@ -100,6 +100,8 @@ let (* Mutually recursive deep declassification of tuples, lists, ... *)
 
         in f(x', authority, level)
         end
+
+    (*--------------------------------  I/O  --------------------------------*)
 
     (** Similar to `freadln` but ensures the blocking label is not raised. *)
     fun freadlnPini (fd, authority) =
