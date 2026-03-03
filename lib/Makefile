@@ -20,7 +20,7 @@ build:
 	$(COMPILER) ./Unit.trp -l
 	$(COMPILER) ./Map.trp -l
 	$(COMPILER) ./Set.trp -l
-	$(COMPILER) ./DeclassifyUtil.trp -l
+	$(COMPILER) ./IfcUtil.trp -l
 	$(COMPILER) ./StencilVector.trp -l
 
   # Dependency on `List` and `Number`

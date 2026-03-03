@@ -1,45 +1,45 @@
-import DeclassifyUtil
+import IfcUtil
 
 let (* `declassifyDeep` *)
     val alice = `<alice; #root-integrity>`
     val bob   = `<bob; #root-integrity>`
 
     val x = 1 raisedTo alice
-    val _ = printWithLabels (DeclassifyUtil.declassifyDeep (x, authority, `{}`))
+    val _ = printWithLabels (IfcUtil.declassifyDeep (x, authority, `{}`))
 
     val x = "secret!" raisedTo alice
-    val _ = printWithLabels (DeclassifyUtil.declassifyDeep (x, authority, `{}`))
+    val _ = printWithLabels (IfcUtil.declassifyDeep (x, authority, `{}`))
 
     val x = (1 raisedTo alice, 2 raisedTo bob)
-    val _ = printWithLabels (DeclassifyUtil.declassifyDeep (x, authority, `{}`))
+    val _ = printWithLabels (IfcUtil.declassifyDeep (x, authority, `{}`))
 
     val x = ((1, 2 raisedTo alice) raisedTo alice, 3 raisedTo bob)
-    val _ = printWithLabels (DeclassifyUtil.declassifyDeep (x, authority, `{}`))
+    val _ = printWithLabels (IfcUtil.declassifyDeep (x, authority, `{}`))
 
     val x = (1, (2 raisedTo alice, 3 raisedTo bob) raisedTo bob)
-    val _ = printWithLabels (DeclassifyUtil.declassifyDeep (x, authority, `{}`))
+    val _ = printWithLabels (IfcUtil.declassifyDeep (x, authority, `{}`))
 
     val x = (1, 2 raisedTo alice, 3 raisedTo bob) raisedTo alice
-    val _ = printWithLabels (DeclassifyUtil.declassifyDeep (x, authority, `{}`))
+    val _ = printWithLabels (IfcUtil.declassifyDeep (x, authority, `{}`))
 
     val x = [ 1
             , 2 raisedTo alice
             , (3 raisedTo bob, 4) raisedTo alice
             , (5, [6 raisedTo bob])
             ] raisedTo alice
-    val _ = printWithLabels (DeclassifyUtil.declassifyDeep (x, authority, `{}`))
+    val _ = printWithLabels (IfcUtil.declassifyDeep (x, authority, `{}`))
 
     (* `freadlnPini` *)
     val _ = blockdecl authority
 
-    val x = DeclassifyUtil.freadlnPini (stdin authority, authority)
+    val x = IfcUtil.freadlnPini (stdin authority, authority)
     val _ = printWithLabels x
     val _ = debugpc ()
 
     (* `freadlnAtLevel` *)
     val _ = blockdecl authority
 
-    val x = DeclassifyUtil.freadlnAtLevel (stdin authority, authority, `{}`)
+    val x = IfcUtil.freadlnAtLevel (stdin authority, authority, `{}`)
     val _ = printWithLabels x
     val _ = debugpc ()
 
