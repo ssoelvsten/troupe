@@ -1,0 +1,14 @@
+{
+  "compilerOptions": {
+    "outDir": "./built",
+    "moduleResolution": "node16",
+    "module": "Node16",
+    "target": "ES2022",
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "incremental": true,
+    "lib": ["ESNext"],
+    "strict": true
+  },
+  "include": ["src/**/*"]
+}

@@ -1,4 +1,4 @@
-.PHONY: rt trp-rt compiler lib p2p-tools npm clean test dist check-compiler
+.PHONY: rt trp-rt compiler lib p2p-tools npm clean test dist check-compiler notebook
 
 # TODO: Rename to 'build/*' ?
 all: npm compiler rt trp-rt p2p-tools lib
@@ -28,6 +28,9 @@ lib: check-compiler
 
 trp-rt: check-compiler
 	cd trp-rt/; $(MAKE) build
+
+notebook:
+	cd notebook; npm install; npm run build
 
 clean: clean/compiler clean/rt clean/trp-rt clean/p2p-tools clean/lib
 clean/compiler:
