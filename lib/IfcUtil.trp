@@ -14,6 +14,24 @@ let (*-------------------------- Lattice Constants  -------------------------*)
     (** The bottom level that flows to everything. *)
     val top = `<#root-confidentiality; #null-integrity>`
 
+
+    (*---------------------------  Blocking Label  --------------------------*)
+
+    (** Raises the blocking label up to `level`. *)
+    fun blockupto level = ((if (true raisedTo level) then () else ()); ())
+
+    (** Runs `f` while preserving the blocking label regardless of any
+     *  downgrades in `f`.
+     *
+     *  Any taints on the blocking label are also preserved.
+     *)
+    fun blockprotect f =
+        let val bl = _bl ()
+            val x = f ()
+            val _ = blockupto bl
+        in x
+        end
+
     (*--------------------------  Deep Downgrades  --------------------------*)
 
     (* Helper functions for tuples, lists, and more. *)
@@ -154,6 +172,10 @@ in [ (*-- Constants --*)
    , ("null", null)
    , ("bot",  bot)
    , ("top",  top)
+
+     (*-- Blocking Label --*)
+   , ("blockupto", blockupto)
+   , ("blockprotect", blockprotect)
 
      (*-- Deep Downgrades --*)
    , ("declassifyDeep", declassifyDeep)

@@ -6,19 +6,6 @@ let
         Returns the result of `f()`. *)
     fun invokeWithTaint lev f = if true raisedTo lev then f() else ()
 
-    (** Raise the blocking level to `level`. *)
-    fun raiseBL level = ((if (true raisedTo level) then () else ()); ())
-
-    (** Runs `f` while preserving the blocking level regardless of any downgrades in `f`. *)
-    fun preserveBL f =
-        let val bl = _bl ()
-            val x = f ()
-            val _ = raiseBL bl
-        in x
-        end
-
 in [ ("invokeWithTaint", invokeWithTaint)
-   , ("raiseBL", raiseBL)
-   , ("preserveBL", preserveBL)
    ]
 end
