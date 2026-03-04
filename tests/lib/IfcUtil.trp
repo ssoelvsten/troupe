@@ -3,7 +3,10 @@ import IfcUtil
 let fun printpc () =
         print ("pc", _pc (), "bl", _bl ())
 
-    (* Constants *)
+    val _ = printString ""
+    val _ = printString "constants"
+    val _ = printString "============================================================"
+
     val _ = print (flowsTo (IfcUtil.root, IfcUtil.root))
     val _ = print (flowsTo (IfcUtil.root, IfcUtil.null))
     val _ = print (flowsTo (IfcUtil.root, IfcUtil.bot))
@@ -24,7 +27,11 @@ let fun printpc () =
     val _ = print (flowsTo (IfcUtil.top, IfcUtil.bot))
     val _ = print (flowsTo (IfcUtil.top, IfcUtil.top))
 
-    (* `declassifyDeep`, `endorseDeep`, and `downgradeDeep` *)
+
+    val _ = printString ""
+    val _ = printString "declassifyDeep, endorseDeep, downgradeDeep"
+    val _ = printString "============================================================"
+
     val alice  = `<alice; alice>`
     val aliceC = `<alice; #root-integrity>`
 
@@ -67,14 +74,22 @@ let fun printpc () =
             ] raisedTo alice
     val _ = printWithLabels (IfcUtil.downgradeDeep (x, authority, IfcUtil.bot))
 
-    (* `freadlnPini` *)
+
+    val _ = printString ""
+    val _ = printString "freadlnPini"
+    val _ = printString "============================================================"
+
     val _ = blockdecl authority
 
     val x = IfcUtil.freadlnPini (stdin authority, authority)
     val _ = printWithLabels x
     val _ = printpc ()
 
-    (* `freadlnAtLevel` *)
+
+    val _ = printString ""
+    val _ = printString "freadlnAtLevel"
+    val _ = printString "============================================================"
+
     val _ = blockdecl authority
 
     val x = IfcUtil.freadlnAtLevel (stdin authority, authority, IfcUtil.bot)
