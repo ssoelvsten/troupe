@@ -90,10 +90,10 @@ let (*-------------------------- Lattice Constants  -------------------------*)
     (** Apply the given downgrade function, `downgradeFn`, deeply to value `x` to lower it to
      *  `level` via the given `authority`. *)
     and deep downgradeFn (x, authority, level) =
-        let (* Declassify the blocking label before touching the value. *)
-            val _ = blockdeclto (authority, level)
+        let (* Downgrade the blocking label before touching the value. *)
+            val _ = blockdownto (authority, level)
 
-            (* declassification is a 2-step process:
+            (* downgrading is a 2-step process:
              *
              * 1. We pattern match on the given value and figure out which function to apply;
              *    this choice of the function needs to be declassified itself.
@@ -122,6 +122,20 @@ let (*-------------------------- Lattice Constants  -------------------------*)
     fun declassifyDeep (x, authority, level) =
         deep declassify (x, authority, level)
 
+    (** Deep endorsement of value `x` to `level` via the given `authority`.
+     *
+     *  TODO: If not for #55, this is replaceable with `val endorseDeep = deep endorse`
+     *)
+    fun endorseDeep (x, authority, level) =
+        deep endorse (x, authority, level)
+
+    (** Deep downgrade of value `x` to `level` via the given `authority`.
+     *
+     *  TODO: If not for #55, this is replaceable with `val downgradeDeep = deep downgrade`
+     *)
+    fun downgradeDeep (x, authority, level) =
+        deep downgrade (x, authority, level)
+
     (*--------------------------------  I/O  --------------------------------*)
 
     (** Similar to `freadln` but ensures the blocking label is not raised. *)
@@ -143,6 +157,8 @@ in [ (*-- Constants --*)
 
      (*-- Deep Downgrades --*)
    , ("declassifyDeep", declassifyDeep)
+   , ("endorseDeep", endorseDeep)
+   , ("downgradeDeep", downgradeDeep)
 
      (*-- I/O --*)
    , ("freadlnPini", freadlnPini)

@@ -24,34 +24,48 @@ let fun printpc () =
     val _ = print (flowsTo (IfcUtil.top, IfcUtil.bot))
     val _ = print (flowsTo (IfcUtil.top, IfcUtil.top))
 
-    (* `declassifyDeep` *)
-    val alice = `<alice; #root-integrity>`
-    val bob   = `<bob; #root-integrity>`
+    (* `declassifyDeep`, `endorseDeep`, and `downgradeDeep` *)
+    val alice  = `<alice; alice>`
+    val aliceC = `<alice; #root-integrity>`
 
-    val x = 1 raisedTo alice
-    val _ = printWithLabels (IfcUtil.declassifyDeep (x, authority, IfcUtil.bot))
+    val bob  = `<bob; bob>`
 
-    val x = "secret!" raisedTo alice
-    val _ = printWithLabels (IfcUtil.declassifyDeep (x, authority, IfcUtil.bot))
+    val x  = 1 raisedTo alice
+    val x' = IfcUtil.endorseDeep (x, authority, aliceC)
+    val _ = printWithLabels x'
+    val _ = printWithLabels (IfcUtil.declassifyDeep (x', authority, IfcUtil.bot))
+    val _ = printWithLabels (IfcUtil.downgradeDeep (x, authority, IfcUtil.bot))
 
-    val x = (1 raisedTo alice, 2 raisedTo bob)
-    val _ = printWithLabels (IfcUtil.declassifyDeep (x, authority, IfcUtil.bot))
+    val x  = "secret!" raisedTo alice
+    val x' = IfcUtil.endorseDeep (x, authority, aliceC)
+    val _ = printWithLabels x'
+    val _ = printWithLabels (IfcUtil.declassifyDeep (x', authority, IfcUtil.bot))
+    val _ = printWithLabels (IfcUtil.downgradeDeep (x, authority, IfcUtil.bot))
 
-    val x = ((1, 2 raisedTo alice) raisedTo alice, 3 raisedTo bob)
-    val _ = printWithLabels (IfcUtil.declassifyDeep (x, authority, IfcUtil.bot))
+    val x  = (1 raisedTo alice, 2 raisedTo alice) raisedTo alice
+    val x' = IfcUtil.endorseDeep (x, authority, aliceC)
+    val _ = printWithLabels x'
+    val _ = printWithLabels (IfcUtil.declassifyDeep (x', authority, IfcUtil.bot))
+    val _ = printWithLabels (IfcUtil.downgradeDeep (x, authority, IfcUtil.bot))
+
+    val x  = ((1, 2 raisedTo alice) raisedTo alice, 3 raisedTo alice) raisedTo alice
+    val x' = IfcUtil.endorseDeep (x, authority, aliceC)
+    val _ = printWithLabels x'
+    val _ = printWithLabels (IfcUtil.declassifyDeep (x', authority, IfcUtil.bot))
+    val _ = printWithLabels (IfcUtil.downgradeDeep (x, authority, IfcUtil.bot))
 
     val x = (1, (2 raisedTo alice, 3 raisedTo bob) raisedTo bob)
-    val _ = printWithLabels (IfcUtil.declassifyDeep (x, authority, IfcUtil.bot))
+    val _ = printWithLabels (IfcUtil.downgradeDeep (x, authority, IfcUtil.bot))
 
     val x = (1, 2 raisedTo alice, 3 raisedTo bob) raisedTo alice
-    val _ = printWithLabels (IfcUtil.declassifyDeep (x, authority, IfcUtil.bot))
+    val _ = printWithLabels (IfcUtil.downgradeDeep (x, authority, IfcUtil.bot))
 
     val x = [ 1
             , 2 raisedTo alice
             , (3 raisedTo bob, 4) raisedTo alice
             , (5, [6 raisedTo bob])
             ] raisedTo alice
-    val _ = printWithLabels (IfcUtil.declassifyDeep (x, authority, IfcUtil.bot))
+    val _ = printWithLabels (IfcUtil.downgradeDeep (x, authority, IfcUtil.bot))
 
     (* `freadlnPini` *)
     val _ = blockdecl authority
