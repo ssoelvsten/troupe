@@ -3,8 +3,7 @@
 
 let
     (** Invokes the function `f` with the pc tainted by `lev`.
-        Returns the result of `f()` if the tainted branch is taken,
-        otherwise returns unit. *)
+        Returns the result of `f()`. *)
     fun invokeWithTaint lev f = if true raisedTo lev then f() else ()
 
     (** Raise the blocking level to `level`. *)
