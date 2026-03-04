@@ -1,6 +1,9 @@
 import IfcUtil
 
-let (* `declassifyDeep` *)
+let fun printpc () =
+        print ("pc", _pc (), "bl", _bl ())
+
+    (* `declassifyDeep` *)
     val alice = `<alice; #root-integrity>`
     val bob   = `<bob; #root-integrity>`
 
@@ -34,13 +37,13 @@ let (* `declassifyDeep` *)
 
     val x = IfcUtil.freadlnPini (stdin authority, authority)
     val _ = printWithLabels x
-    val _ = debugpc ()
+    val _ = printpc ()
 
     (* `freadlnAtLevel` *)
     val _ = blockdecl authority
 
     val x = IfcUtil.freadlnAtLevel (stdin authority, authority, `{}`)
     val _ = printWithLabels x
-    val _ = debugpc ()
+    val _ = printpc ()
 
 in () end
