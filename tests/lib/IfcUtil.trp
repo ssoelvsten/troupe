@@ -58,6 +58,24 @@ let fun printpc () =
 
 
     val _ = printString ""
+    val _ = printString "invokeAtLevel, invokeAtLevel"
+    val _ = printString "============================================================"
+
+
+    val _ = printpc ()
+    val _ = IfcUtil.invokeAtLevel (printpc, `{alice}`)
+    val _ = printpc ()
+    val _ = blockdown authority
+
+    val _ = printString ""
+
+    val _ = printpc ()
+    val _ = IfcUtil.invokeAtLevelPini (printpc, authority, `{alice}`)
+    val _ = printpc ()
+    val _ = blockdown authority
+
+
+    val _ = printString ""
     val _ = printString "declassifyDeep, endorseDeep, downgradeDeep"
     val _ = printString "============================================================"
 

@@ -1,4 +1,4 @@
-2026-03-04T10:17:34.429Z [RTM] [32minfo[39m: Skipping network creation. Observe that all external IO operations will yield a runtime error.
+2026-03-04T10:18:05.912Z [RTM] [32minfo[39m: Skipping network creation. Observe that all external IO operations will yield a runtime error.
 
 constants
 ============================================================
@@ -31,6 +31,16 @@ blockprotect
 ============================================================
 ("pc", {}, "bl", {alice})
 ("pc", {}, "bl", {alice})
+
+invokeAtLevel, invokeAtLevel
+============================================================
+("pc", {}, "bl", {})
+("pc", {alice}, "bl", {alice})
+("pc", {}, "bl", {alice})
+
+("pc", {}, "bl", {})
+("pc", {alice}, "bl", {alice})
+("pc", {}, "bl", {})
 
 declassifyDeep, endorseDeep, downgradeDeep
 ============================================================

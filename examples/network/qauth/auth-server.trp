@@ -1,4 +1,5 @@
-import Missing
+import IfcUtil
+
 (* Authentication Server - Token-based authentication with gate pattern *)
 (* Server does NOT trust the client - incoming data downgraded is quarantined *)
 
@@ -67,17 +68,18 @@ let
                     then raiseTrust (node, authority, `{alice}`);
                          print "AUTH SERVER: Authentication SUCCESSFUL";
                          (* --- convenience hack : avoids unnecessary quarantining on the client side *)
-                         invokeWithTaint
-                            ( `<alice; alice>` )
-                            (fn () => send (reply_to, ("AUTH_RESULT", public_result raisedTo `<;alice>`)))
+                         invokeAtLevel
+                             (`<alice; alice>`,
+                              (fn () => send ( reply_to
+                                             , ("AUTH_RESULT", public_result raisedTo `<;alice>`)))
 
                     else print "AUTH SERVER: Authentication FAILED";
                          (* --- convenience hack : avoids unnecessary quarantining on the client side *)
-                         invokeWithTaint
-                            ( token_level )
-                            ( fn () =>
-                                    send( reply_to
-                                        , ("AUTH_RESULT", public_result), sender_meta.quarantineAuth))
+                         invokeAtLevel
+                             (token_level,
+                              (fn () =>
+                                  send( reply_to
+                                      , ("AUTH_RESULT", public_result), sender_meta.quarantineAuth))
 
             val _ = print "AUTH SERVER: Sent auth result"
         in ()
