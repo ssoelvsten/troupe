@@ -57,7 +57,7 @@ Example - passing CLI arguments to the program:
 
 Example - passing runtime options:
 ```
---no-v1-labels
+--label-format v2
 ```
 
 The arguments are appended after the test filename when invoking `./local.sh`.

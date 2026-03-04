@@ -1,0 +1,4 @@
+(* Test that V2 mode shows both dimensions for tagset-compatible labels *)
+let val x = printWithLabels `{alice}`
+in x
+end

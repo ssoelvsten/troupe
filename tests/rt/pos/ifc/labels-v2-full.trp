@@ -1,0 +1,6 @@
+(* Test DC label output with V2Full format (fully explicit, no elision) *)
+(* Uses --label-format v2-full via .options file *)
+let val x = 42
+    val lbl = levelOf x
+in print lbl
+end
