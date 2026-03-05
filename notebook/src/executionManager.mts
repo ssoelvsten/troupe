@@ -32,6 +32,9 @@ export class ExecutionManager {
     }
 
     async executeCell(cellId: string, source: string, onOutput: OutputCallback, options?: RuntimeOptions): Promise<void> {
+        if (this.running.has(cellId)) {
+            this.interrupt(cellId);
+        }
         const id = randomUUID().slice(0, 8);
         const trpFile = join(tmpdir(), `troupe-nb-${id}.trp`);
         const jsFile = join(tmpdir(), `troupe-nb-${id}.js`);
@@ -55,14 +58,18 @@ export class ExecutionManager {
         }
     }
 
+    private clearTimer(cellId: string): void {
+        const timer = this.timeoutTimers.get(cellId);
+        if (timer) {
+            clearTimeout(timer);
+            this.timeoutTimers.delete(cellId);
+        }
+    }
+
     interrupt(cellId: string): boolean {
         const proc = this.running.get(cellId);
         if (proc) {
-            const timer = this.timeoutTimers.get(cellId);
-            if (timer) {
-                clearTimeout(timer);
-                this.timeoutTimers.delete(cellId);
-            }
+            this.clearTimer(cellId);
             proc.kill('SIGINT');
             return true;
         }
@@ -110,11 +117,13 @@ export class ExecutionManager {
                 '--no-color',
             ];
 
+            const ALLOWED_LABEL_FORMATS = ['v1', 'v2'];
             if (options) {
                 if (options.nmifc === false) {
                     runtimeArgs.push('--no-nmifc');
                 }
-                if (options.labelFormat && options.labelFormat !== 'v1') {
+                if (options.labelFormat && options.labelFormat !== 'v1'
+                    && ALLOWED_LABEL_FORMATS.includes(options.labelFormat)) {
                     runtimeArgs.push(`--label-format=${options.labelFormat}`);
                 }
             }
@@ -159,11 +168,7 @@ export class ExecutionManager {
             });
 
             proc.on('close', (code, signal) => {
-                const timer = this.timeoutTimers.get(cellId);
-                if (timer) {
-                    clearTimeout(timer);
-                    this.timeoutTimers.delete(cellId);
-                }
+                this.clearTimer(cellId);
                 this.running.delete(cellId);
                 // Signal kills: SIGINT→130, SIGKILL→137, etc.
                 const exitCode = code !== null ? code
@@ -174,11 +179,7 @@ export class ExecutionManager {
             });
 
             proc.on('error', (err) => {
-                const timer = this.timeoutTimers.get(cellId);
-                if (timer) {
-                    clearTimeout(timer);
-                    this.timeoutTimers.delete(cellId);
-                }
+                this.clearTimer(cellId);
                 this.running.delete(cellId);
                 onOutput('stderr', `Failed to start runtime: ${err.message}\n`);
                 onOutput('done', '1');

@@ -4,6 +4,7 @@ import { keymap, Decoration } from '@codemirror/view';
 import { troupe } from './troupe-lang.js';
 import { undo, redo } from '@codemirror/commands';
 import { marked } from 'marked';
+import DOMPurify from 'dompurify';
 
 // ---- Constants ----
 
@@ -246,11 +247,7 @@ function handleDragEnd(cell) {
     if (dropIndicator) dropIndicator.style.display = 'none';
 }
 
-function handleDragOver(e) {
-    if (!draggedCell) return;
-    e.preventDefault();
-    e.dataTransfer.dropEffect = 'move';
-
+function findClosestCell(clientY) {
     const notebookEl = document.getElementById('notebook');
     const cellElements = [...notebookEl.children].filter(el => el.classList.contains('cell'));
 
@@ -262,13 +259,24 @@ function handleDragOver(e) {
         if (cellEl === draggedCell.el) continue;
         const rect = cellEl.getBoundingClientRect();
         const midY = rect.top + rect.height / 2;
-        const dist = Math.abs(e.clientY - midY);
+        const dist = Math.abs(clientY - midY);
         if (dist < closestDist) {
             closestDist = dist;
             closestCell = cellEl;
-            insertBefore = e.clientY < midY;
+            insertBefore = clientY < midY;
         }
     }
+
+    return { closestCell, insertBefore };
+}
+
+function handleDragOver(e) {
+    if (!draggedCell) return;
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+
+    const notebookEl = document.getElementById('notebook');
+    const { closestCell, insertBefore } = findClosestCell(e.clientY);
 
     if (closestCell && dropIndicator) {
         const rect = closestCell.getBoundingClientRect();
@@ -286,23 +294,7 @@ function handleDrop(e) {
     if (dropIndicator) dropIndicator.style.display = 'none';
 
     const notebookEl = document.getElementById('notebook');
-    const cellElements = [...notebookEl.children].filter(el => el.classList.contains('cell'));
-
-    let closestCell = null;
-    let insertBefore = true;
-    let closestDist = Infinity;
-
-    for (const cellEl of cellElements) {
-        if (cellEl === draggedCell.el) continue;
-        const rect = cellEl.getBoundingClientRect();
-        const midY = rect.top + rect.height / 2;
-        const dist = Math.abs(e.clientY - midY);
-        if (dist < closestDist) {
-            closestDist = dist;
-            closestCell = cellEl;
-            insertBefore = e.clientY < midY;
-        }
-    }
+    const { closestCell, insertBefore } = findClosestCell(e.clientY);
 
     if (!closestCell) return;
 
@@ -340,7 +332,13 @@ function connectWS() {
     ws.onopen = () => console.log('WebSocket connected');
 
     ws.onmessage = (event) => {
-        const msg = JSON.parse(event.data);
+        let msg;
+        try {
+            msg = JSON.parse(event.data);
+        } catch {
+            console.warn('Invalid WebSocket message from server');
+            return;
+        }
         const cell = cells.find(c => c.id === msg.cellId);
         if (!cell) return;
 
@@ -550,6 +548,299 @@ function rebuildFragmentPicker(cell, dropdown, labelEl) {
 
 const notebook = document.getElementById('notebook');
 
+function renderCodeCellHeaderControls(cell, header) {
+    const toggleWrap = document.createElement('div');
+    toggleWrap.className = 'cell-mode-toggle';
+
+    const runnableOpt = document.createElement('span');
+    runnableOpt.className = 'toggle-option' + (cell.fragment ? '' : ' active');
+    runnableOpt.textContent = 'runnable';
+
+    const fragmentOpt = document.createElement('span');
+    fragmentOpt.className = 'toggle-option' + (cell.fragment ? ' active' : '');
+    fragmentOpt.textContent = 'fragment';
+
+    function setFragmentMode(isFragment) {
+        cell.fragment = isFragment;
+        runnableOpt.classList.toggle('active', !isFragment);
+        fragmentOpt.classList.toggle('active', isFragment);
+        const runBtn = cell.el.querySelector('.run-btn');
+        const clearBtn = cell.el.querySelector('.clear-btn');
+        if (runBtn) runBtn.style.display = isFragment ? 'none' : '';
+        if (clearBtn) clearBtn.style.display = isFragment ? 'none' : '';
+        const nameInput = cell.el.querySelector('.fragment-name');
+        const pickerWrap = cell.el.querySelector('.fragment-picker-wrap');
+        const timeoutWrap = cell.el.querySelector('.cell-timeout-wrap');
+        if (nameInput) nameInput.style.display = isFragment ? '' : 'none';
+        if (pickerWrap) pickerWrap.style.display = isFragment ? 'none' : '';
+        if (timeoutWrap) timeoutWrap.style.display = isFragment ? 'none' : '';
+    }
+
+    runnableOpt.onclick = () => { setFragmentMode(false); markDirty(); };
+    fragmentOpt.onclick = () => { setFragmentMode(true); markDirty(); };
+
+    toggleWrap.appendChild(runnableOpt);
+    toggleWrap.appendChild(fragmentOpt);
+    toggleWrap.title = 'Fragment cells provide definitions to subsequent cells (not independently runnable)';
+    header.appendChild(toggleWrap);
+
+    const nameInput = document.createElement('input');
+    nameInput.type = 'text';
+    nameInput.className = 'fragment-name';
+    nameInput.placeholder = 'unnamed';
+    nameInput.value = cell.fragmentName;
+    nameInput.style.display = cell.fragment ? '' : 'none';
+    nameInput.oninput = () => { cell.fragmentName = nameInput.value; markDirty(); };
+    header.appendChild(nameInput);
+
+    const pickerWrap = document.createElement('div');
+    pickerWrap.className = 'fragment-picker-wrap';
+    pickerWrap.style.display = cell.fragment ? 'none' : '';
+
+    const pickerLabel = document.createElement('span');
+    pickerLabel.className = 'fragment-picker-label';
+    pickerLabel.textContent = 'Includes: all fragments';
+    pickerWrap.appendChild(pickerLabel);
+
+    const pickerDropdown = document.createElement('div');
+    pickerDropdown.className = 'fragment-picker-dropdown';
+    pickerDropdown.style.display = 'none';
+    pickerWrap.appendChild(pickerDropdown);
+
+    pickerLabel.onclick = () => {
+        const isOpen = pickerDropdown.style.display !== 'none';
+        if (!isOpen) {
+            rebuildFragmentPicker(cell, pickerDropdown, pickerLabel);
+        }
+        pickerDropdown.style.display = isOpen ? 'none' : '';
+    };
+
+    header.appendChild(pickerWrap);
+
+    const cellTimeoutWrap = document.createElement('span');
+    cellTimeoutWrap.className = 'cell-timeout-wrap';
+    cellTimeoutWrap.title = 'Per-cell timeout override (empty = use global)';
+    cellTimeoutWrap.style.display = cell.fragment ? 'none' : '';
+    const cellTimeoutLabel = document.createElement('span');
+    cellTimeoutLabel.className = 'cell-timeout-label';
+    cellTimeoutLabel.textContent = 'T/O:';
+    cellTimeoutWrap.appendChild(cellTimeoutLabel);
+    const cellTimeoutInput = document.createElement('input');
+    cellTimeoutInput.type = 'number';
+    cellTimeoutInput.className = 'cell-timeout-input';
+    cellTimeoutInput.min = '1';
+    cellTimeoutInput.step = '1';
+    cellTimeoutInput.value = cell.cellTimeout > 0 ? cell.cellTimeout : '';
+    cellTimeoutInput.placeholder = '';
+    cellTimeoutInput.oninput = () => {
+        const v = parseInt(cellTimeoutInput.value, 10);
+        cell.cellTimeout = v > 0 ? v : 0;
+        markDirty();
+    };
+    cellTimeoutWrap.appendChild(cellTimeoutInput);
+    const cellTimeoutUnit = document.createElement('span');
+    cellTimeoutUnit.textContent = 's';
+    cellTimeoutWrap.appendChild(cellTimeoutUnit);
+    header.appendChild(cellTimeoutWrap);
+}
+
+function renderCodeCellActions(cell, actions) {
+    const runBtn = document.createElement('button');
+    runBtn.className = 'run-btn';
+    runBtn.textContent = 'Run';
+    runBtn.onclick = () => executeCell(cell);
+    actions.appendChild(runBtn);
+
+    const clearBtn = document.createElement('button');
+    clearBtn.className = 'clear-btn';
+    clearBtn.textContent = 'Clear';
+    clearBtn.title = 'Clear output';
+    clearBtn.onclick = () => {
+        clearOutput(cell);
+        clearErrorHighlights(cell);
+        cell.outputs = [];
+        cell.lastResult = null;
+        cell.el.classList.remove('error');
+    };
+    actions.appendChild(clearBtn);
+
+    const copyBtn = document.createElement('button');
+    copyBtn.className = 'copy-btn';
+    copyBtn.textContent = 'Copy';
+    copyBtn.title = 'Copy source to clipboard';
+    copyBtn.onclick = () => {
+        const source = cell.editor ? cell.editor.state.doc.toString() : cell.source;
+        navigator.clipboard.writeText(source).then(() => {
+            copyBtn.textContent = 'Copied!';
+            setTimeout(() => { copyBtn.textContent = 'Copy'; }, 1500);
+        });
+    };
+    actions.appendChild(copyBtn);
+
+    const undoBtn = document.createElement('button');
+    undoBtn.className = 'undo-btn';
+    undoBtn.textContent = 'Undo';
+    undoBtn.title = 'Undo edit';
+    undoBtn.onclick = () => { if (cell.editor) undo(cell.editor); };
+    actions.appendChild(undoBtn);
+
+    const redoBtn = document.createElement('button');
+    redoBtn.className = 'redo-btn';
+    redoBtn.textContent = 'Redo';
+    redoBtn.title = 'Redo edit';
+    redoBtn.onclick = () => { if (cell.editor) redo(cell.editor); };
+    actions.appendChild(redoBtn);
+
+    const dupBtn = document.createElement('button');
+    dupBtn.className = 'dup-btn';
+    dupBtn.textContent = 'Dup';
+    dupBtn.title = 'Duplicate cell';
+    dupBtn.onclick = () => duplicateCell(cell);
+    actions.appendChild(dupBtn);
+
+    if (cell.fragment) {
+        runBtn.style.display = 'none';
+        clearBtn.style.display = 'none';
+    }
+}
+
+function renderCodeCellBody(cell, el) {
+    const editorDiv = document.createElement('div');
+    editorDiv.className = 'cell-editor';
+    el.appendChild(editorDiv);
+
+    const editorState = EditorState.create({
+        doc: cell.source,
+        extensions: [
+            basicSetup,
+            troupe(),
+            errorLineField,
+            keymap.of([
+                {
+                    key: 'Shift-Enter',
+                    run: () => { executeCell(cell); return true; },
+                },
+            ]),
+            EditorView.updateListener.of((update) => {
+                if (update.docChanged) {
+                    cell.source = update.state.doc.toString();
+                    markDirty();
+                }
+            }),
+        ],
+    });
+
+    cell.editor = new EditorView({
+        state: editorState,
+        parent: editorDiv,
+    });
+
+    const outputWrap = document.createElement('div');
+    outputWrap.className = 'cell-output-wrap';
+
+    const outputEl = document.createElement('div');
+    outputEl.className = 'cell-output';
+    outputWrap.appendChild(outputEl);
+
+    const copyOutBtn = document.createElement('button');
+    copyOutBtn.className = 'copy-output-btn';
+    copyOutBtn.textContent = 'Copy';
+    copyOutBtn.title = 'Copy output to clipboard';
+    copyOutBtn.onclick = () => {
+        const text = cell.outputEl ? cell.outputEl.textContent : '';
+        if (!text) return;
+        navigator.clipboard.writeText(text).then(() => {
+            copyOutBtn.textContent = 'Copied!';
+            setTimeout(() => { copyOutBtn.textContent = 'Copy'; }, 1500);
+        });
+    };
+    outputWrap.appendChild(copyOutBtn);
+
+    el.appendChild(outputWrap);
+    cell.outputEl = outputEl;
+
+    if (cell.fragment) {
+        copyOutBtn.style.display = 'none';
+    }
+}
+
+function renderMarkdownCellBody(cell, el, actions) {
+    const renderedDiv = document.createElement('div');
+    renderedDiv.className = 'cell-rendered';
+    renderedDiv.innerHTML = DOMPurify.sanitize(marked.parse(cell.source || '*Click to edit*'));
+    el.appendChild(renderedDiv);
+
+    const editBtn = document.createElement('button');
+    editBtn.className = 'edit-btn';
+    editBtn.textContent = 'Edit';
+    editBtn.title = 'Edit markdown (or double-click)';
+    actions.appendChild(editBtn);
+
+    const doneBtn = document.createElement('button');
+    doneBtn.className = 'done-btn';
+    doneBtn.textContent = 'Done';
+    doneBtn.title = 'Finish editing (Escape or Shift+Enter)';
+    doneBtn.style.display = 'none';
+    actions.appendChild(doneBtn);
+
+    function startEditing() {
+        if (cell.editor) return;
+        renderedDiv.style.display = 'none';
+        editBtn.style.display = 'none';
+        doneBtn.style.display = '';
+        const editorDiv = document.createElement('div');
+        editorDiv.className = 'cell-editor';
+        el.insertBefore(editorDiv, renderedDiv);
+
+        function finishEditing() {
+            cell.source = cell.editor.state.doc.toString();
+            renderedDiv.innerHTML = DOMPurify.sanitize(marked.parse(cell.source || '*Click to edit*'));
+            renderedDiv.style.display = '';
+            editBtn.style.display = '';
+            doneBtn.style.display = 'none';
+            cell.editor.destroy();
+            cell.editor = null;
+            editorDiv.remove();
+            updateTitle();
+        }
+
+        doneBtn.onclick = finishEditing;
+
+        const editorState = EditorState.create({
+            doc: cell.source,
+            extensions: [
+                basicSetup,
+                EditorView.lineWrapping,
+                keymap.of([
+                    {
+                        key: 'Escape',
+                        run: () => { finishEditing(); return true; },
+                    },
+                    {
+                        key: 'Shift-Enter',
+                        run: () => { finishEditing(); return true; },
+                    },
+                ]),
+                EditorView.updateListener.of((update) => {
+                    if (update.docChanged) {
+                        cell.source = update.state.doc.toString();
+                        markDirty();
+                    }
+                }),
+            ],
+        });
+
+        cell.editor = new EditorView({
+            state: editorState,
+            parent: editorDiv,
+        });
+        cell.editor.focus();
+    }
+
+    editBtn.onclick = startEditing;
+    renderedDiv.addEventListener('dblclick', startEditing);
+}
+
 function renderCell(cell, insertAtIndex) {
     const el = document.createElement('div');
     el.className = `cell ${cell.type}-cell`;
@@ -578,107 +869,8 @@ function renderCell(cell, insertAtIndex) {
     header.appendChild(dragHandle);
 
     if (cell.type === 'code') {
-        // Segmented toggle: Runnable | Fragment
-        const toggleWrap = document.createElement('div');
-        toggleWrap.className = 'cell-mode-toggle';
-
-        const runnableOpt = document.createElement('span');
-        runnableOpt.className = 'toggle-option' + (cell.fragment ? '' : ' active');
-        runnableOpt.textContent = 'runnable';
-
-        const fragmentOpt = document.createElement('span');
-        fragmentOpt.className = 'toggle-option' + (cell.fragment ? ' active' : '');
-        fragmentOpt.textContent = 'fragment';
-
-        function setFragmentMode(isFragment) {
-            cell.fragment = isFragment;
-            runnableOpt.classList.toggle('active', !isFragment);
-            fragmentOpt.classList.toggle('active', isFragment);
-            // Toggle Run/Clear visibility
-            const runBtn = cell.el.querySelector('.run-btn');
-            const clearBtn = cell.el.querySelector('.clear-btn');
-            if (runBtn) runBtn.style.display = isFragment ? 'none' : '';
-            if (clearBtn) clearBtn.style.display = isFragment ? 'none' : '';
-            // Toggle fragment name input vs fragment picker
-            const nameInput = cell.el.querySelector('.fragment-name');
-            const pickerWrap = cell.el.querySelector('.fragment-picker-wrap');
-            const timeoutWrap = cell.el.querySelector('.cell-timeout-wrap');
-            if (nameInput) nameInput.style.display = isFragment ? '' : 'none';
-            if (pickerWrap) pickerWrap.style.display = isFragment ? 'none' : '';
-            if (timeoutWrap) timeoutWrap.style.display = isFragment ? 'none' : '';
-        }
-
-        runnableOpt.onclick = () => { setFragmentMode(false); markDirty(); };
-        fragmentOpt.onclick = () => { setFragmentMode(true); markDirty(); };
-
-        toggleWrap.appendChild(runnableOpt);
-        toggleWrap.appendChild(fragmentOpt);
-        toggleWrap.title = 'Fragment cells provide definitions to subsequent cells (not independently runnable)';
-        header.appendChild(toggleWrap);
-
-        // Fragment name input (visible only when fragment is on)
-        const nameInput = document.createElement('input');
-        nameInput.type = 'text';
-        nameInput.className = 'fragment-name';
-        nameInput.placeholder = 'unnamed';
-        nameInput.value = cell.fragmentName;
-        nameInput.style.display = cell.fragment ? '' : 'none';
-        nameInput.oninput = () => { cell.fragmentName = nameInput.value; markDirty(); };
-        header.appendChild(nameInput);
-
-        // Fragment picker (visible only when fragment is off)
-        const pickerWrap = document.createElement('div');
-        pickerWrap.className = 'fragment-picker-wrap';
-        pickerWrap.style.display = cell.fragment ? 'none' : '';
-
-        const pickerLabel = document.createElement('span');
-        pickerLabel.className = 'fragment-picker-label';
-        pickerLabel.textContent = 'Includes: all fragments';
-        pickerWrap.appendChild(pickerLabel);
-
-        const pickerDropdown = document.createElement('div');
-        pickerDropdown.className = 'fragment-picker-dropdown';
-        pickerDropdown.style.display = 'none';
-        pickerWrap.appendChild(pickerDropdown);
-
-        pickerLabel.onclick = () => {
-            const isOpen = pickerDropdown.style.display !== 'none';
-            if (!isOpen) {
-                rebuildFragmentPicker(cell, pickerDropdown, pickerLabel);
-            }
-            pickerDropdown.style.display = isOpen ? 'none' : '';
-        };
-
-        header.appendChild(pickerWrap);
-
-        // Per-cell timeout input (visible only for runnable cells)
-        const cellTimeoutWrap = document.createElement('span');
-        cellTimeoutWrap.className = 'cell-timeout-wrap';
-        cellTimeoutWrap.title = 'Per-cell timeout override (empty = use global)';
-        cellTimeoutWrap.style.display = cell.fragment ? 'none' : '';
-        const cellTimeoutLabel = document.createElement('span');
-        cellTimeoutLabel.className = 'cell-timeout-label';
-        cellTimeoutLabel.textContent = 'T/O:';
-        cellTimeoutWrap.appendChild(cellTimeoutLabel);
-        const cellTimeoutInput = document.createElement('input');
-        cellTimeoutInput.type = 'number';
-        cellTimeoutInput.className = 'cell-timeout-input';
-        cellTimeoutInput.min = '1';
-        cellTimeoutInput.step = '1';
-        cellTimeoutInput.value = cell.cellTimeout > 0 ? cell.cellTimeout : '';
-        cellTimeoutInput.placeholder = '';
-        cellTimeoutInput.oninput = () => {
-            const v = parseInt(cellTimeoutInput.value, 10);
-            cell.cellTimeout = v > 0 ? v : 0;
-            markDirty();
-        };
-        cellTimeoutWrap.appendChild(cellTimeoutInput);
-        const cellTimeoutUnit = document.createElement('span');
-        cellTimeoutUnit.textContent = 's';
-        cellTimeoutWrap.appendChild(cellTimeoutUnit);
-        header.appendChild(cellTimeoutWrap);
+        renderCodeCellHeaderControls(cell, header);
     } else {
-        // Markdown cell type label
         const typeLabel = document.createElement('span');
         typeLabel.className = 'cell-type';
         typeLabel.textContent = 'MD';
@@ -689,66 +881,7 @@ function renderCell(cell, insertAtIndex) {
     actions.className = 'cell-actions';
 
     if (cell.type === 'code') {
-        const runBtn = document.createElement('button');
-        runBtn.className = 'run-btn';
-        runBtn.textContent = 'Run';
-        runBtn.onclick = () => executeCell(cell);
-        actions.appendChild(runBtn);
-
-        const clearBtn = document.createElement('button');
-        clearBtn.className = 'clear-btn';
-        clearBtn.textContent = 'Clear';
-        clearBtn.title = 'Clear output';
-        clearBtn.onclick = () => {
-            clearOutput(cell);
-            clearErrorHighlights(cell);
-            cell.outputs = [];
-            cell.lastResult = null;
-            cell.el.classList.remove('error');
-        };
-        actions.appendChild(clearBtn);
-
-
-        const copyBtn = document.createElement('button');
-        copyBtn.className = 'copy-btn';
-        copyBtn.textContent = 'Copy';
-        copyBtn.title = 'Copy source to clipboard';
-        copyBtn.onclick = () => {
-            const source = cell.editor ? cell.editor.state.doc.toString() : cell.source;
-            navigator.clipboard.writeText(source).then(() => {
-                copyBtn.textContent = 'Copied!';
-                setTimeout(() => { copyBtn.textContent = 'Copy'; }, 1500);
-            });
-        };
-        actions.appendChild(copyBtn);
-
-        const undoBtn = document.createElement('button');
-        undoBtn.className = 'undo-btn';
-        undoBtn.textContent = 'Undo';
-        undoBtn.title = 'Undo edit';
-        undoBtn.onclick = () => { if (cell.editor) undo(cell.editor); };
-        actions.appendChild(undoBtn);
-
-        const redoBtn = document.createElement('button');
-        redoBtn.className = 'redo-btn';
-        redoBtn.textContent = 'Redo';
-        redoBtn.title = 'Redo edit';
-        redoBtn.onclick = () => { if (cell.editor) redo(cell.editor); };
-        actions.appendChild(redoBtn);
-
-        const dupBtn = document.createElement('button');
-        dupBtn.className = 'dup-btn';
-        dupBtn.textContent = 'Dup';
-        dupBtn.title = 'Duplicate cell';
-        dupBtn.onclick = () => duplicateCell(cell);
-        actions.appendChild(dupBtn);
-
-        // Hide Run/Clear/Copy Output when fragment is on
-        if (cell.fragment) {
-            runBtn.style.display = 'none';
-            clearBtn.style.display = 'none';
-            copyOutBtn.style.display = 'none';
-        }
+        renderCodeCellActions(cell, actions);
     }
 
     const upBtn = document.createElement('button');
@@ -772,140 +905,10 @@ function renderCell(cell, insertAtIndex) {
     header.appendChild(actions);
     el.appendChild(header);
 
-    // Editor area
     if (cell.type === 'code') {
-        const editorDiv = document.createElement('div');
-        editorDiv.className = 'cell-editor';
-        el.appendChild(editorDiv);
-
-        const editorState = EditorState.create({
-            doc: cell.source,
-            extensions: [
-                basicSetup,
-                troupe(),
-                errorLineField,
-                keymap.of([
-                    {
-                        key: 'Shift-Enter',
-                        run: () => { executeCell(cell); return true; },
-                    },
-                ]),
-                EditorView.updateListener.of((update) => {
-                    if (update.docChanged) {
-                        cell.source = update.state.doc.toString();
-                        markDirty();
-                    }
-                }),
-            ],
-        });
-
-        cell.editor = new EditorView({
-            state: editorState,
-            parent: editorDiv,
-        });
-
-        // Output area with copy button
-        const outputWrap = document.createElement('div');
-        outputWrap.className = 'cell-output-wrap';
-
-        const outputEl = document.createElement('div');
-        outputEl.className = 'cell-output';
-        outputWrap.appendChild(outputEl);
-
-        const copyOutBtn = document.createElement('button');
-        copyOutBtn.className = 'copy-output-btn';
-        copyOutBtn.textContent = 'Copy';
-        copyOutBtn.title = 'Copy output to clipboard';
-        copyOutBtn.onclick = () => {
-            const text = cell.outputEl ? cell.outputEl.textContent : '';
-            if (!text) return;
-            navigator.clipboard.writeText(text).then(() => {
-                copyOutBtn.textContent = 'Copied!';
-                setTimeout(() => { copyOutBtn.textContent = 'Copy'; }, 1500);
-            });
-        };
-        outputWrap.appendChild(copyOutBtn);
-
-        el.appendChild(outputWrap);
-        cell.outputEl = outputEl;
+        renderCodeCellBody(cell, el);
     } else {
-        // Markdown cell
-        const renderedDiv = document.createElement('div');
-        renderedDiv.className = 'cell-rendered';
-        renderedDiv.innerHTML = marked.parse(cell.source || '*Click to edit*');
-        el.appendChild(renderedDiv);
-
-        // Edit button (visible when not editing)
-        const editBtn = document.createElement('button');
-        editBtn.className = 'edit-btn';
-        editBtn.textContent = 'Edit';
-        editBtn.title = 'Edit markdown (or double-click)';
-        actions.appendChild(editBtn);
-
-        // Done button (hidden until editing)
-        const doneBtn = document.createElement('button');
-        doneBtn.className = 'done-btn';
-        doneBtn.textContent = 'Done';
-        doneBtn.title = 'Finish editing (Escape or Shift+Enter)';
-        doneBtn.style.display = 'none';
-        actions.appendChild(doneBtn);
-
-        function startEditing() {
-            if (cell.editor) return; // already editing
-            renderedDiv.style.display = 'none';
-            editBtn.style.display = 'none';
-            doneBtn.style.display = '';
-            const editorDiv = document.createElement('div');
-            editorDiv.className = 'cell-editor';
-            el.insertBefore(editorDiv, renderedDiv);
-
-            function finishEditing() {
-                cell.source = cell.editor.state.doc.toString();
-                renderedDiv.innerHTML = marked.parse(cell.source || '*Click to edit*');
-                renderedDiv.style.display = '';
-                editBtn.style.display = '';
-                doneBtn.style.display = 'none';
-                cell.editor.destroy();
-                cell.editor = null;
-                editorDiv.remove();
-                updateTitle(); // heading may have changed
-            }
-
-            doneBtn.onclick = finishEditing;
-
-            const editorState = EditorState.create({
-                doc: cell.source,
-                extensions: [
-                    basicSetup,
-                    EditorView.lineWrapping,
-                    keymap.of([
-                        {
-                            key: 'Escape',
-                            run: () => { finishEditing(); return true; },
-                        },
-                        {
-                            key: 'Shift-Enter',
-                            run: () => { finishEditing(); return true; },
-                        },
-                    ]),
-                    EditorView.updateListener.of((update) => {
-                        if (update.docChanged) {
-                            cell.source = update.state.doc.toString();
-                            markDirty();
-                        }
-                    }),
-                ],
-            });
-
-            cell.editor = new EditorView({
-                state: editorState,
-                parent: editorDiv,
-            });
-            cell.editor.focus();
-        }
-
-        editBtn.onclick = startEditing;
-        renderedDiv.addEventListener('dblclick', startEditing);
+        renderMarkdownCellBody(cell, el, actions);
     }
 
     cell.el = el;
@@ -1333,6 +1336,9 @@ function importNotebook(event) {
     event.target.value = '';
 
     const reader = new FileReader();
+    reader.onerror = () => {
+        showStatus('Failed to read file', true);
+    };
     reader.onload = (e) => {
         try {
             const data = JSON.parse(e.target.result);
@@ -1574,7 +1580,7 @@ async function startup() {
             if (data.files.length > 0) {
                 showFilePicker();
             }
-        } catch { /* ignore */ }
+        } catch (err) { console.warn('Failed to list notebooks:', err); }
     }
 }
 

@@ -41,8 +41,9 @@ app.get('/api/notebooks', async (_req, res) => {
     try {
         const files = await notebookStore.list();
         res.json({ files });
-    } catch (err: any) {
-        res.status(500).json({ error: err.message });
+    } catch (err: unknown) {
+        const message = err instanceof Error ? err.message : String(err);
+        res.status(500).json({ error: message });
     }
 });
 
@@ -55,11 +56,12 @@ app.get('/api/notebook', async (req, res) => {
     try {
         const { data, version } = await notebookStore.load(path);
         res.json({ ...data, _version: version });
-    } catch (err: any) {
-        if (err.code === 'ENOENT') {
+    } catch (err: unknown) {
+        if (err instanceof Error && (err as any).code === 'ENOENT') {
             return res.status(404).json({ error: 'Notebook not found' });
         }
-        res.status(500).json({ error: err.message });
+        const message = err instanceof Error ? err.message : String(err);
+        res.status(500).json({ error: message });
     }
 });
 
@@ -74,11 +76,12 @@ app.put('/api/notebook', async (req, res) => {
         const { _version, ...data } = req.body;
         const newVersion = await notebookStore.save(path, data, expectedVersion);
         res.json({ ok: true, version: newVersion });
-    } catch (err: any) {
+    } catch (err: unknown) {
         if (err instanceof VersionConflictError) {
             return res.status(409).json({ error: err.message, conflict: true });
         }
-        res.status(500).json({ error: err.message });
+        const message = err instanceof Error ? err.message : String(err);
+        res.status(500).json({ error: message });
     }
 });
 
@@ -95,12 +98,18 @@ wss.on('connection', (ws: WebSocket) => {
 
         if (msg.type === 'execute') {
             const { cellId, source, preamble, options } = msg;
+            if (typeof cellId !== 'string' || typeof source !== 'string') {
+                ws.send(JSON.stringify({ type: 'stderr', cellId: cellId || '', data: 'Invalid execute message: missing cellId or source\n' }));
+                return;
+            }
             const fullSource = (preamble || '') + source;
 
             await executionManager.executeCell(cellId, fullSource, (type, data) => {
-                if (ws.readyState === WebSocket.OPEN) {
-                    ws.send(JSON.stringify({ type, cellId, data }));
-                }
+                try {
+                    if (ws.readyState === WebSocket.OPEN) {
+                        ws.send(JSON.stringify({ type, cellId, data }));
+                    }
+                } catch { /* connection closed between check and send */ }
             }, options);
         } else if (msg.type === 'interrupt') {
             executionManager.interrupt(msg.cellId);
