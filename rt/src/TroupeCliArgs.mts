@@ -53,6 +53,8 @@ export enum TroupeCliArg {
     SuppressLocalInfoMessage = 'suppress-local-info-message',
     SuppressMainThreadFinishedMessage = 'suppress-main-thread-finished-message',
     Explain = 'explain',
+    Timeout = 'timeout',
+    TimeoutExitCode = 'timeout-exit-code',
 }
 
 export interface ParsedArgs {
@@ -83,6 +85,8 @@ export interface ParsedArgs {
     [TroupeCliArg.SuppressLocalInfoMessage]?: boolean;
     [TroupeCliArg.SuppressMainThreadFinishedMessage]?: boolean;
     [TroupeCliArg.Explain]?: boolean;
+    [TroupeCliArg.Timeout]?: number;
+    [TroupeCliArg.TimeoutExitCode]?: number;
     [key: string]: any;
 }
 
@@ -158,6 +162,16 @@ export function getCliArgs(): ParsedArgs {
                 type: 'boolean',
                 default: false,
                 describe: 'Enable detailed explanations for runtime errors (shows flowsTo checks and other diagnostics)'
+            })
+            .option(TroupeCliArg.Timeout, {
+                type: 'number',
+                default: 0,
+                describe: 'Execution timeout in seconds (0 = no timeout)'
+            })
+            .option(TroupeCliArg.TimeoutExitCode, {
+                type: 'number',
+                default: 124,
+                describe: 'Exit code to use when execution times out'
             })
             .parseSync();
 

@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Troupe Notebook</title>
+
+    <link rel="stylesheet" href="css/notebook.css">
+</head>
+<body>
+    <header>
+        <div class="header-title">
+            <h1 id="notebook-title">Troupe Notebook</h1>
+            <span id="notebook-file" class="notebook-file">unsaved</span>
+        </div>
+        <span id="status" class="status" style="display:none"></span>
+        <div class="toolbar">
+            <button id="btn-open" title="Open notebook">Open</button>
+            <button id="btn-new" title="New notebook">New</button>
+            <button id="btn-run-all" title="Run all cells">Run All</button>
+            <button id="btn-save" title="Save notebook (Ctrl+S)">Save</button>
+            <button id="btn-save-as" title="Save as new file">Save As</button>
+            <span class="toolbar-separator"></span>
+            <button id="btn-export" title="Export notebook as .tpnb file">Export</button>
+            <button id="btn-import" title="Import .tpnb file from disk">Import</button>
+            <input type="file" id="import-file-input" accept=".tpnb" style="display:none">
+        </div>
+    </header>
+    <div class="options-bar">
+        <label class="option-item" title="Non-Malleable IFC enforcement for downgrades">
+            <input type="checkbox" id="opt-nmifc" checked>
+            NMIFC
+        </label>
+        <label class="option-item" title="Label output format">
+            Label format:
+            <select id="opt-label-format">
+                <option value="v1" selected>v1 (tagset)</option>
+                <option value="v2">v2 (DC compact)</option>
+                <option value="v2-full">v2-full (DC explicit)</option>
+            </select>
+        </label>
+        <label class="option-item" title="Global execution timeout in seconds">
+            Timeout:
+            <input type="number" id="opt-timeout" min="1" step="1" value="" style="width: 55px">
+            s
+        </label>
+        <span class="options-separator"></span>
+        <label class="option-item" title="Automatically save after 2s of inactivity">
+            <input type="checkbox" id="opt-autosave">
+            Auto-save
+        </label>
+        <span id="save-status" class="save-status"></span>
+    </div>
+    <main id="notebook">
+        <!-- Cells are rendered here -->
+    </main>
+    <div class="add-cell-bar">
+        <button id="btn-add-code">+ Code</button>
+        <button id="btn-add-markdown">+ Markdown</button>
+    </div>
+
+    <!-- File picker overlay -->
+    <div id="file-picker" class="file-picker-overlay" style="display:none">
+        <div class="file-picker">
+            <div class="file-picker-header">
+                <h2>Open Notebook</h2>
+                <button id="picker-close" class="picker-close">&times;</button>
+            </div>
+            <ul id="file-list"></ul>
+            <div class="file-picker-footer">
+                <button id="picker-new">New Notebook</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="js/bundle.js"></script>
+</body>
+</html>

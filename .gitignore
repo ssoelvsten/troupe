@@ -70,3 +70,5 @@ compiler/src/Parser.info
 ##################################################
 # Claude Code planning files
 _claude_planning/
+_troupe_notebook_planning
+.notebook-storage

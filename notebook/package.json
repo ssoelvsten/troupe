@@ -1,0 +1,27 @@
+{
+  "name": "troupe-notebook",
+  "version": "0.1.0",
+  "description": "Jupyter-style interactive notebook for Troupe",
+  "type": "module",
+  "scripts": {
+    "build": "tsc && npx esbuild public/js/app.js --bundle --outfile=public/js/bundle.js --format=iife",
+    "start": "node built/server.mjs"
+  },
+  "dependencies": {
+    "@codemirror/lang-javascript": "^6.2.5",
+    "@codemirror/language": "^6.12.2",
+    "@codemirror/state": "^6.5.4",
+    "@codemirror/view": "^6.39.16",
+    "codemirror": "^6.0.2",
+    "dompurify": "^3.2.4",
+    "express": "^4.21.0",
+    "marked": "^17.0.3",
+    "ws": "^8.18.0"
+  },
+  "devDependencies": {
+    "@types/express": "^4.17.21",
+    "@types/ws": "^8.18.1",
+    "esbuild": "^0.27.3",
+    "typescript": "^5.8.3"
+  }
+}
