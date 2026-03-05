@@ -63,8 +63,11 @@ test/ci-network: rt p2p-tools
 	./tests/ci-network-test.sh
 test/result-socket: test/result-socket-socat test/result-socket-node
 test/result-socket-socat:
-	@command -v socat >/dev/null 2>&1 || { echo "SKIP: socat not installed"; exit 0; }
-	bash tests/rt/result-socket/test-result-socket.sh
+	@if command -v socat >/dev/null 2>&1; then \
+		bash tests/rt/result-socket/test-result-socket.sh; \
+	else \
+		echo "SKIP: socat not installed"; \
+	fi
 test/result-socket-node:
 	node tests/rt/result-socket/test-result-socket.mjs
 
