@@ -28,6 +28,7 @@ import { Console } from 'node:console'
 
 const { flowsTo, actsFor, lub, glb } = levels
 import { getCliArgs, TroupeCliArg } from './TroupeCliArgs.mjs';
+import { connectResultSocket, sendSocketMessageAndClose } from './resultSocket.mjs';
 import { configureColors, isColorEnabled } from './colorConfig.mjs';
 import { mkLogger } from './logger.mjs'
 import { getTroupeRoot } from './troupeRoot.mjs'
@@ -447,6 +448,7 @@ setRuntimeObject(__rtObj)
 
 
 async function cleanupAsync() {
+  await sendSocketMessageAndClose({ type: 'process-exit', exitCode: 0 });
   closeReadline()
   DS.stopCompiler();
   if (__p2pRunning) {
@@ -475,6 +477,7 @@ function bulletProofSigint() {
   process.on('SIGINT', () => {
     debug("SIGINT");
     (async () => {
+      await sendSocketMessageAndClose({ type: 'process-exit', exitCode: 0 });
       await cleanupAsync()
       process.exit(0);
     })()
@@ -548,6 +551,7 @@ async function getNetworkPeerId(rtHandlers) {
 }
 
 export async function start(f) {
+  await connectResultSocket();
   await initTrustMap()
 
   let peerid = await getNetworkPeerId({
@@ -607,6 +611,7 @@ export async function start(f) {
     const timer = setTimeout(async () => {
       console.error(`Execution timed out after ${timeoutSeconds} seconds`);
       setExitInitiated();
+      await sendSocketMessageAndClose({ type: 'process-exit', exitCode, reason: 'timeout' });
       await cleanupAsync();
       process.exit(exitCode);
     }, timeoutSeconds * 1000);
