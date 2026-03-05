@@ -1,5 +1,6 @@
 import {levels, Level, QuarantineOptions } from './levels/DCLabels/dclabel.mjs'
 import { DowngradeResult, DowngradeKind, DowngradeDimension } from './DowngradeEnums.mjs'
+import { getRuntimeObject } from './SysState.mjs'
 export { mkLevel, Level, QuarantineOptions } from './levels/DCLabels/dclabel.mjs'
 
 
@@ -26,7 +27,16 @@ export function okToCrossDimensionalDowngrade (from: Level, to:Level, auth: Leve
 export function fromSingleTag(x:string) { return levels.fromV1String(x)}
 
 export function mkV1Level (x:string ) {
-	return levels.fromV1String (x);
+	try {
+		return levels.fromV1String (x);
+	} catch (e) {
+		const thread = getRuntimeObject().__sched.__currentThread;
+		thread.threadError(
+			`Invalid V1 label \`{${x}}\`: ${e.message}\n` +
+			`V1 labels use commas to separate principals (e.g., \`{alice, bob}\`).\n` +
+			`For DC labels with separate confidentiality/integrity, use \`<...;...>\` syntax.`
+		);
+	}
 }
 export const BOT  = levels.BOT
 export const TOP  = levels.TOP
