@@ -9,7 +9,7 @@ import { Category
        , conjunction
        , disjunction
     } from './cnf.mjs'
-import { DC_CONF_LITERALS, DC_DELIM_LEFT, DC_DELIM_RIGHT, DC_DELIM_SEP, DC_IFC_TOP, DC_INTG_LITERALS, DC_TRUST_ROOT, getDelimiters } from './dcl_pp_config.mjs';
+import { DC_CONF_LITERALS, DC_DELIM_LEFT, DC_DELIM_RIGHT, DC_DELIM_SEP, DC_IFC_TOP, DC_INTG_LITERALS, DC_TRUST_ROOT, DC_TRUST_NULL, getDelimiters, LabelStringFormat, getDefaultLabelStringFormat } from './dcl_pp_config.mjs';
 import { Label, LabelKind, RegularLabel, QuarantinedLabel, QFalseLabel, WildcardQFalseLabel, QuarantineTag } from './label.mjs';
 
 /**
@@ -41,7 +41,7 @@ export class DCLabel extends AbstractLevel<DCLabel> {
         return IFC_BOT
     }
 
-    _cachedStringRepresentation: string = null ;
+    _cachedStringRep: { [key: number]: string } = {};
 
     constructor(c: CNF, i: CNF) {
         super ()
@@ -142,38 +142,64 @@ export class DCLabel extends AbstractLevel<DCLabel> {
     }
 
 
-    stringRep(): string {
-        if (this._cachedStringRepresentation) {
-            return this._cachedStringRepresentation
+    stringRep(format?: LabelStringFormat): string {
+        // Guard: LVal.stringRep() duck-types v.stringRep(omitLevels, taintRef),
+        // so format may receive a boolean or object — only accept valid enum values.
+        const fmt = (format === LabelStringFormat.V1
+                  || format === LabelStringFormat.V2
+                  || format === LabelStringFormat.V2Full)
+            ? format
+            : getDefaultLabelStringFormat();
+
+        if (this._cachedStringRep[fmt] !== undefined) {
+            return this._cachedStringRep[fmt];
         }
 
-        const delims = getDelimiters();
+        const delims = getDelimiters(fmt);
+        let result: string;
 
-        if (this.flowsTo(IFC_BOT)) {
-            this._cachedStringRepresentation =
-                delims.left + delims.right
-        } else if (IFC_TOP.flowsTo(this)) {
-            this._cachedStringRepresentation =
-                delims.left + DC_IFC_TOP + delims.right
-        } else if (TRUST_ROOT.flowsTo(this) && this.flowsTo(TRUST_ROOT)) {
-            this._cachedStringRepresentation =
-                delims.left + DC_TRUST_ROOT + delims.right
-        } else {
-            let s = this.isTagsetCompatible()
-            if (s) {
-                this._cachedStringRepresentation =
-                    tagsetStringRep(s as Set<string>, delims.left, delims.right);
+        if (fmt === LabelStringFormat.V1) {
+            // V1: use shorthands for special labels
+            if (this.flowsTo(IFC_BOT)) {
+                result = delims.left + delims.right;
+            } else if (IFC_TOP.flowsTo(this)) {
+                result = delims.left + DC_IFC_TOP + delims.right;
+            } else if (TRUST_ROOT.flowsTo(this) && this.flowsTo(TRUST_ROOT)) {
+                result = delims.left + DC_TRUST_ROOT + delims.right;
+            } else if (TRUST_NULL.flowsTo(this) && this.flowsTo(TRUST_NULL)) {
+                result = delims.left + DC_TRUST_NULL + delims.right;
             } else {
-                this._cachedStringRepresentation =
-                    DC_DELIM_LEFT +
-                    this.confidentiality.stringRep(DC_CONF_LITERALS) +
-                    DC_DELIM_SEP +
-                    this.integrity.stringRep(DC_INTG_LITERALS) +
-                    DC_DELIM_RIGHT
+                let s = this.isTagsetCompatible();
+                if (s) {
+                    result = tagsetStringRep(s as Set<string>, delims.left, delims.right);
+                } else {
+                    result = DC_DELIM_LEFT +
+                        this.confidentiality.stringRep(DC_CONF_LITERALS) +
+                        DC_DELIM_SEP +
+                        this.integrity.stringRep(DC_INTG_LITERALS) +
+                        DC_DELIM_RIGHT;
+                }
             }
+        } else if (fmt === LabelStringFormat.V2Full) {
+            // V2Full: always use full <conf;intg> form with explicit null names
+            result = DC_DELIM_LEFT +
+                this.confidentiality.stringRep(DC_CONF_LITERALS) +
+                DC_DELIM_SEP +
+                this.integrity.stringRep(DC_INTG_LITERALS) +
+                DC_DELIM_RIGHT;
+        } else {
+            // V2: DC format with null-component elision
+            const confStr = this.confidentiality.categories.size === 0
+                ? ""
+                : this.confidentiality.stringRep(DC_CONF_LITERALS);
+            const intgStr = this.integrity.categories.size === 0
+                ? ""
+                : this.integrity.stringRep(DC_INTG_LITERALS);
+            result = DC_DELIM_LEFT + confStr + DC_DELIM_SEP + intgStr + DC_DELIM_RIGHT;
         }
 
-        return this._cachedStringRepresentation;
+        this._cachedStringRep[fmt] = result;
+        return result;
     }
 
     

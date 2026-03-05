@@ -1,5 +1,5 @@
-(* Test DC label output with V2 format (angle brackets) *)
-(* Uses --no-v1-labels via .options file *)
+(* Test DC label output with V2 format (angle brackets, null elision) *)
+(* Uses --label-format v2 via .options file *)
 let val x = 42
     val lbl = levelOf x
 in print lbl

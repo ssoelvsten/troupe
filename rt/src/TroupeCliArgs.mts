@@ -49,7 +49,7 @@ export enum TroupeCliArg {
     DisableRelay = 'disable-relay',
     RelayFaultTolerance = 'relay-fault-tolerance',
     NoColor = 'no-color',
-    V1Labels = 'v1-labels',
+    LabelFormat = 'label-format',
     SuppressLocalInfoMessage = 'suppress-local-info-message',
     SuppressMainThreadFinishedMessage = 'suppress-main-thread-finished-message',
     Explain = 'explain',
@@ -79,7 +79,7 @@ export interface ParsedArgs {
     [TroupeCliArg.DisableRelay]?: boolean;
     [TroupeCliArg.RelayFaultTolerance]?: string;
     [TroupeCliArg.NoColor]?: boolean;
-    [TroupeCliArg.V1Labels]?: boolean;
+    [TroupeCliArg.LabelFormat]?: string;
     [TroupeCliArg.SuppressLocalInfoMessage]?: boolean;
     [TroupeCliArg.SuppressMainThreadFinishedMessage]?: boolean;
     [TroupeCliArg.Explain]?: boolean;
@@ -137,10 +137,11 @@ export function getCliArgs(): ParsedArgs {
                     return process.argv.includes('--no-color');
                 }
             })
-            .option(TroupeCliArg.V1Labels, {
-                type: 'boolean',
-                default: true,
-                describe: 'Use V1-compatible label format ({} instead of <>)'
+            .option(TroupeCliArg.LabelFormat, {
+                type: 'string',
+                choices: ['v1', 'v2', 'v2-full'],
+                default: 'v1',
+                describe: 'Label output format: v1 (tagset shorthand), v2 (DC with null elision), v2-full (DC fully explicit)'
             })
             .option(TroupeCliArg.SuppressLocalInfoMessage, {
                 type: 'boolean',
