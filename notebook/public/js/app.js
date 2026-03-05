@@ -1,9 +1,13 @@
 import { EditorView, basicSetup } from 'codemirror';
 import { EditorState, StateEffect, StateField } from '@codemirror/state';
 import { keymap, Decoration } from '@codemirror/view';
-import { javascript } from '@codemirror/lang-javascript';
+import { troupe } from './troupe-lang.js';
 import { undo, redo } from '@codemirror/commands';
 import { marked } from 'marked';
+
+// ---- Constants ----
+
+const DEFAULT_TIMEOUT_SECONDS = 10;
 
 // ---- Error Highlighting ----
 
@@ -76,6 +80,7 @@ function getRuntimeOptions() {
     return {
         nmifc: document.getElementById('opt-nmifc').checked,
         labelFormat: document.getElementById('opt-label-format').value,
+        timeout: Math.max(1, parseInt(document.getElementById('opt-timeout').value, 10) || DEFAULT_TIMEOUT_SECONDS),
     };
 }
 
@@ -87,6 +92,11 @@ function setRuntimeOptions(options) {
     if (options.labelFormat) {
         document.getElementById('opt-label-format').value = options.labelFormat;
     }
+    if (typeof options.timeout === 'number' && options.timeout > 0) {
+        document.getElementById('opt-timeout').value = options.timeout;
+    } else {
+        document.getElementById('opt-timeout').value = DEFAULT_TIMEOUT_SECONDS;
+    }
 }
 
 // ---- State ----
@@ -95,6 +105,231 @@ let ws = null;
 let cells = [];
 let cellIdCounter = 0;
 let currentNotebookPath = null; // e.g. "foo.tpnb"
+let currentNotebookVersion = null; // server mtime version for conflict detection
+
+// ---- Auto-Save & Dirty State ----
+
+let dirty = false;
+let autoSaveEnabled = false;
+let autoSaveTimer = null;
+let executingCount = 0; // number of cells currently executing
+
+function markDirty() {
+    if (!dirty) {
+        dirty = true;
+        updateSaveStatus();
+    }
+    scheduleAutoSave();
+}
+
+function markClean() {
+    dirty = false;
+    if (autoSaveTimer) {
+        clearTimeout(autoSaveTimer);
+        autoSaveTimer = null;
+    }
+    updateSaveStatus();
+}
+
+function scheduleAutoSave() {
+    if (!autoSaveEnabled || !currentNotebookPath) return;
+    if (autoSaveTimer) clearTimeout(autoSaveTimer);
+    autoSaveTimer = setTimeout(() => {
+        autoSaveTimer = null;
+        if (executingCount > 0) return; // defer until execution completes
+        if (dirty) autoSave();
+    }, 2000);
+}
+
+async function autoSave() {
+    if (!dirty || !autoSaveEnabled || !currentNotebookPath) return;
+    updateSaveStatus('saving');
+    const data = getNotebookData();
+    const headers = { 'Content-Type': 'application/json' };
+    if (currentNotebookVersion) {
+        headers['If-Match'] = currentNotebookVersion;
+    }
+    try {
+        const res = await fetch(`/api/notebook?path=${encodeURIComponent(currentNotebookPath)}`, {
+            method: 'PUT',
+            headers,
+            body: JSON.stringify(data),
+        });
+        if (res.status === 409) {
+            setAutoSave(false);
+            updateSaveStatus('conflict');
+            return;
+        }
+        if (res.ok) {
+            const result = await res.json();
+            currentNotebookVersion = result.version || null;
+            markClean();
+        } else {
+            updateSaveStatus('error');
+        }
+    } catch {
+        updateSaveStatus('error');
+    }
+}
+
+function setAutoSave(on) {
+    autoSaveEnabled = on;
+    const cb = document.getElementById('opt-autosave');
+    if (cb) cb.checked = on;
+    if (on && dirty) scheduleAutoSave();
+}
+
+function updateSaveStatus(override) {
+    const el = document.getElementById('save-status');
+    if (!el) return;
+    if (override === 'conflict') {
+        el.innerHTML = 'Conflict — modified elsewhere. <a href="#" class="conflict-force-save">Force save</a> · <a href="#" class="conflict-reload">Reload</a>';
+        el.className = 'save-status conflict';
+        el.querySelector('.conflict-force-save').onclick = (e) => {
+            e.preventDefault();
+            saveNotebook(true);
+        };
+        el.querySelector('.conflict-reload').onclick = (e) => {
+            e.preventDefault();
+            if (currentNotebookPath) loadNotebook(currentNotebookPath);
+        };
+    } else if (override === 'saving') {
+        el.textContent = 'Auto-saving...';
+        el.className = 'save-status saving';
+    } else if (override === 'error') {
+        el.textContent = 'Save failed';
+        el.className = 'save-status error';
+    } else if (dirty) {
+        el.textContent = 'Unsaved changes';
+        el.className = 'save-status dirty';
+    } else {
+        el.textContent = 'Saved';
+        el.className = 'save-status clean';
+        // Fade out "Saved" after a moment
+        setTimeout(() => {
+            if (!dirty && el.textContent === 'Saved') {
+                el.className = 'save-status clean faded';
+            }
+        }, 2000);
+    }
+}
+
+// Warn on page close with unsaved changes
+window.addEventListener('beforeunload', (e) => {
+    if (dirty) {
+        e.preventDefault();
+    }
+});
+
+// ---- Drag and Drop State ----
+
+let draggedCell = null;
+let dropIndicator = null;
+
+function initDropIndicator() {
+    dropIndicator = document.createElement('div');
+    dropIndicator.className = 'drop-indicator';
+    dropIndicator.style.display = 'none';
+    document.body.appendChild(dropIndicator);
+}
+
+function handleDragStart(cell, e) {
+    draggedCell = cell;
+    cell.el.classList.add('dragging');
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', cell.id);
+}
+
+function handleDragEnd(cell) {
+    draggedCell = null;
+    cell.el.classList.remove('dragging');
+    if (dropIndicator) dropIndicator.style.display = 'none';
+}
+
+function handleDragOver(e) {
+    if (!draggedCell) return;
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+
+    const notebookEl = document.getElementById('notebook');
+    const cellElements = [...notebookEl.children].filter(el => el.classList.contains('cell'));
+
+    let closestCell = null;
+    let insertBefore = true;
+    let closestDist = Infinity;
+
+    for (const cellEl of cellElements) {
+        if (cellEl === draggedCell.el) continue;
+        const rect = cellEl.getBoundingClientRect();
+        const midY = rect.top + rect.height / 2;
+        const dist = Math.abs(e.clientY - midY);
+        if (dist < closestDist) {
+            closestDist = dist;
+            closestCell = cellEl;
+            insertBefore = e.clientY < midY;
+        }
+    }
+
+    if (closestCell && dropIndicator) {
+        const rect = closestCell.getBoundingClientRect();
+        const notebookRect = notebookEl.getBoundingClientRect();
+        dropIndicator.style.display = 'block';
+        dropIndicator.style.left = notebookRect.left + 'px';
+        dropIndicator.style.width = notebookRect.width + 'px';
+        dropIndicator.style.top = (insertBefore ? rect.top - 2 : rect.bottom + 2) + 'px';
+    }
+}
+
+function handleDrop(e) {
+    if (!draggedCell) return;
+    e.preventDefault();
+    if (dropIndicator) dropIndicator.style.display = 'none';
+
+    const notebookEl = document.getElementById('notebook');
+    const cellElements = [...notebookEl.children].filter(el => el.classList.contains('cell'));
+
+    let closestCell = null;
+    let insertBefore = true;
+    let closestDist = Infinity;
+
+    for (const cellEl of cellElements) {
+        if (cellEl === draggedCell.el) continue;
+        const rect = cellEl.getBoundingClientRect();
+        const midY = rect.top + rect.height / 2;
+        const dist = Math.abs(e.clientY - midY);
+        if (dist < closestDist) {
+            closestDist = dist;
+            closestCell = cellEl;
+            insertBefore = e.clientY < midY;
+        }
+    }
+
+    if (!closestCell) return;
+
+    const targetCell = cells.find(c => c.el === closestCell);
+    if (!targetCell || targetCell === draggedCell) return;
+
+    // Update DOM
+    if (insertBefore) {
+        notebookEl.insertBefore(draggedCell.el, closestCell);
+    } else {
+        closestCell.after(draggedCell.el);
+    }
+
+    // Update cells array to match DOM order
+    const oldIdx = cells.indexOf(draggedCell);
+    cells.splice(oldIdx, 1);
+    const newIdx = cells.indexOf(targetCell);
+    if (insertBefore) {
+        cells.splice(newIdx, 0, draggedCell);
+    } else {
+        cells.splice(newIdx + 1, 0, draggedCell);
+    }
+
+    draggedCell.el.classList.remove('dragging');
+    draggedCell = null;
+    markDirty();
+}
 
 // ---- WebSocket Connection ----
 
@@ -135,7 +370,24 @@ function connectWS() {
             case 'done':
                 cell.el.classList.remove('running');
                 cell.running = false;
+                const exitCode = parseInt(msg.data, 10);
+                if (exitCode === 124) {
+                    cell.el.classList.add('timed-out');
+                } else {
+                    cell.el.classList.remove('timed-out');
+                }
+                if (exitCode !== 0) {
+                    const label = `Exited with code ${exitCode}`;
+                    cell.outputs.push({ type: 'exit-code', data: label });
+                    appendOutput(cell, label, 'exit-code');
+                }
+                executingCount = Math.max(0, executingCount - 1);
                 updateCellHeader(cell);
+                markDirty(); // outputs changed
+                // If auto-save was deferred during execution, trigger now
+                if (executingCount === 0 && autoSaveEnabled && dirty) {
+                    scheduleAutoSave();
+                }
                 break;
         }
     };
@@ -169,9 +421,14 @@ function createCell(type = 'code', source = '', opts = {}) {
         fragmentName: '',        // optional label for fragment cells
         includedFragments: null, // null = auto (all preceding), or array of cell IDs
         fragmentLineCount: 0,    // line count of fragment source prepended to last execution
+        cellTimeout: 0,          // per-cell timeout in seconds (0 = use global default)
     };
-    cells.push(cell);
-    renderCell(cell);
+    if (opts.insertAtIndex != null && opts.insertAtIndex < cells.length) {
+        cells.splice(opts.insertAtIndex, 0, cell);
+    } else {
+        cells.push(cell);
+    }
+    renderCell(cell, opts.insertAtIndex);
 
     // Restore saved outputs if provided
     if (opts.outputs && opts.outputs.length > 0) {
@@ -251,6 +508,7 @@ function rebuildFragmentPicker(cell, dropdown, labelEl) {
                 cell.includedFragments = null;
             }
             updatePickerLabel(cell, labelEl);
+            markDirty();
         };
         row.appendChild(cb);
         const nameSpan = document.createElement('span');
@@ -292,14 +550,32 @@ function rebuildFragmentPicker(cell, dropdown, labelEl) {
 
 const notebook = document.getElementById('notebook');
 
-function renderCell(cell) {
+function renderCell(cell, insertAtIndex) {
     const el = document.createElement('div');
     el.className = `cell ${cell.type}-cell`;
     el.dataset.cellId = cell.id;
+    el.draggable = false; // only drag via handle
 
     // Header
     const header = document.createElement('div');
     header.className = 'cell-header';
+
+    // Drag handle
+    const dragHandle = document.createElement('span');
+    dragHandle.className = 'drag-handle';
+    dragHandle.textContent = '\u2847'; // braille dots for grip icon
+    dragHandle.title = 'Drag to reorder';
+    dragHandle.draggable = true;
+    dragHandle.addEventListener('dragstart', (e) => {
+        // Transfer drag to the cell element
+        e.stopPropagation();
+        el.classList.add('dragging');
+        handleDragStart(cell, e);
+    });
+    dragHandle.addEventListener('dragend', () => {
+        handleDragEnd(cell);
+    });
+    header.appendChild(dragHandle);
 
     if (cell.type === 'code') {
         // Segmented toggle: Runnable | Fragment
@@ -326,12 +602,14 @@ function renderCell(cell) {
             // Toggle fragment name input vs fragment picker
             const nameInput = cell.el.querySelector('.fragment-name');
             const pickerWrap = cell.el.querySelector('.fragment-picker-wrap');
+            const timeoutWrap = cell.el.querySelector('.cell-timeout-wrap');
             if (nameInput) nameInput.style.display = isFragment ? '' : 'none';
             if (pickerWrap) pickerWrap.style.display = isFragment ? 'none' : '';
+            if (timeoutWrap) timeoutWrap.style.display = isFragment ? 'none' : '';
         }
 
-        runnableOpt.onclick = () => setFragmentMode(false);
-        fragmentOpt.onclick = () => setFragmentMode(true);
+        runnableOpt.onclick = () => { setFragmentMode(false); markDirty(); };
+        fragmentOpt.onclick = () => { setFragmentMode(true); markDirty(); };
 
         toggleWrap.appendChild(runnableOpt);
         toggleWrap.appendChild(fragmentOpt);
@@ -345,7 +623,7 @@ function renderCell(cell) {
         nameInput.placeholder = 'unnamed';
         nameInput.value = cell.fragmentName;
         nameInput.style.display = cell.fragment ? '' : 'none';
-        nameInput.oninput = () => { cell.fragmentName = nameInput.value; };
+        nameInput.oninput = () => { cell.fragmentName = nameInput.value; markDirty(); };
         header.appendChild(nameInput);
 
         // Fragment picker (visible only when fragment is off)
@@ -372,6 +650,33 @@ function renderCell(cell) {
         };
 
         header.appendChild(pickerWrap);
+
+        // Per-cell timeout input (visible only for runnable cells)
+        const cellTimeoutWrap = document.createElement('span');
+        cellTimeoutWrap.className = 'cell-timeout-wrap';
+        cellTimeoutWrap.title = 'Per-cell timeout override (empty = use global)';
+        cellTimeoutWrap.style.display = cell.fragment ? 'none' : '';
+        const cellTimeoutLabel = document.createElement('span');
+        cellTimeoutLabel.className = 'cell-timeout-label';
+        cellTimeoutLabel.textContent = 'T/O:';
+        cellTimeoutWrap.appendChild(cellTimeoutLabel);
+        const cellTimeoutInput = document.createElement('input');
+        cellTimeoutInput.type = 'number';
+        cellTimeoutInput.className = 'cell-timeout-input';
+        cellTimeoutInput.min = '1';
+        cellTimeoutInput.step = '1';
+        cellTimeoutInput.value = cell.cellTimeout > 0 ? cell.cellTimeout : '';
+        cellTimeoutInput.placeholder = '';
+        cellTimeoutInput.oninput = () => {
+            const v = parseInt(cellTimeoutInput.value, 10);
+            cell.cellTimeout = v > 0 ? v : 0;
+            markDirty();
+        };
+        cellTimeoutWrap.appendChild(cellTimeoutInput);
+        const cellTimeoutUnit = document.createElement('span');
+        cellTimeoutUnit.textContent = 's';
+        cellTimeoutWrap.appendChild(cellTimeoutUnit);
+        header.appendChild(cellTimeoutWrap);
     } else {
         // Markdown cell type label
         const typeLabel = document.createElement('span');
@@ -431,6 +736,13 @@ function renderCell(cell) {
         redoBtn.onclick = () => { if (cell.editor) redo(cell.editor); };
         actions.appendChild(redoBtn);
 
+        const dupBtn = document.createElement('button');
+        dupBtn.className = 'dup-btn';
+        dupBtn.textContent = 'Dup';
+        dupBtn.title = 'Duplicate cell';
+        dupBtn.onclick = () => duplicateCell(cell);
+        actions.appendChild(dupBtn);
+
         // Hide Run/Clear/Copy Output when fragment is on
         if (cell.fragment) {
             runBtn.style.display = 'none';
@@ -470,7 +782,7 @@ function renderCell(cell) {
             doc: cell.source,
             extensions: [
                 basicSetup,
-                javascript(),
+                troupe(),
                 errorLineField,
                 keymap.of([
                     {
@@ -481,6 +793,7 @@ function renderCell(cell) {
                 EditorView.updateListener.of((update) => {
                     if (update.docChanged) {
                         cell.source = update.state.doc.toString();
+                        markDirty();
                     }
                 }),
             ],
@@ -564,6 +877,7 @@ function renderCell(cell) {
                 doc: cell.source,
                 extensions: [
                     basicSetup,
+                    EditorView.lineWrapping,
                     keymap.of([
                         {
                             key: 'Escape',
@@ -577,6 +891,7 @@ function renderCell(cell) {
                     EditorView.updateListener.of((update) => {
                         if (update.docChanged) {
                             cell.source = update.state.doc.toString();
+                            markDirty();
                         }
                     }),
                 ],
@@ -594,7 +909,11 @@ function renderCell(cell) {
     }
 
     cell.el = el;
-    notebook.appendChild(el);
+    if (insertAtIndex != null && insertAtIndex < notebook.children.length) {
+        notebook.insertBefore(el, notebook.children[insertAtIndex]);
+    } else {
+        notebook.appendChild(el);
+    }
 }
 
 function updateCellHeader(cell) {
@@ -648,8 +967,10 @@ function executeCell(cell) {
     clearOutput(cell);
     clearErrorHighlights(cell);
     cell.el.classList.remove('error');
+    cell.el.classList.remove('timed-out');
     cell.el.classList.add('running');
     cell.running = true;
+    executingCount++;
     cell.lastResult = null;
     cell.outputs = []; // clear saved outputs for this execution
     updateCellHeader(cell);
@@ -660,12 +981,18 @@ function executeCell(cell) {
     const fragmentSource = assembleFragment(cell);
     cell.fragmentLineCount = fragmentSource ? (fragmentSource.match(/\n/g) || []).length : 0;
 
+    const options = getRuntimeOptions();
+    // Per-cell timeout overrides global
+    if (cell.cellTimeout > 0) {
+        options.timeout = cell.cellTimeout;
+    }
+
     ws.send(JSON.stringify({
         type: 'execute',
         cellId: cell.id,
         source: source,
         preamble: fragmentSource,
-        options: getRuntimeOptions(),
+        options: options,
     }));
 }
 
@@ -677,6 +1004,23 @@ function interruptCell(cell) {
     }));
 }
 
+function duplicateCell(cell) {
+    const source = cell.editor ? cell.editor.state.doc.toString() : cell.source;
+    const newCell = createCell(cell.type, source);
+    // Move the new cell to right after the original
+    const idx = cells.indexOf(cell);
+    const newIdx = cells.indexOf(newCell);
+    cells.splice(newIdx, 1);
+    cells.splice(idx + 1, 0, newCell);
+    // Reposition in DOM: insert after the original cell's element
+    cell.el.after(newCell.el);
+    // Copy fragment settings
+    if (cell.type === 'code' && cell.fragment) {
+        newCell.fragmentName = cell.fragmentName ? cell.fragmentName + ' (copy)' : 'copy';
+        activateFragmentMode(newCell);
+    }
+}
+
 function deleteCell(cell) {
     const idx = cells.indexOf(cell);
     if (idx === -1) return;
@@ -684,6 +1028,7 @@ function deleteCell(cell) {
     if (cell.editor) cell.editor.destroy();
     cell.el.remove();
     cells.splice(idx, 1);
+    markDirty();
 }
 
 function moveCell(cell, direction) {
@@ -700,16 +1045,19 @@ function moveCell(cell, direction) {
     } else {
         parent.insertBefore(children[newIdx], children[idx]);
     }
+    markDirty();
 }
 
 // ---- Toolbar ----
 
 document.getElementById('btn-add-code').onclick = () => {
     createCell('code', 'let val x = 42\nin x\nend');
+    markDirty();
 };
 
 document.getElementById('btn-add-markdown').onclick = () => {
     createCell('markdown', '## New Section\n\nWrite your notes here.');
+    markDirty();
 };
 
 document.getElementById('btn-run-all').onclick = () => {
@@ -737,6 +1085,131 @@ document.addEventListener('keydown', (e) => {
     if ((e.ctrlKey || e.metaKey) && e.key === 's') {
         e.preventDefault();
         saveNotebook();
+    }
+});
+
+// Initialize global timeout input from constant
+document.getElementById('opt-timeout').value = DEFAULT_TIMEOUT_SECONDS;
+
+// Runtime options change -> markDirty
+document.getElementById('opt-nmifc').addEventListener('change', markDirty);
+document.getElementById('opt-label-format').addEventListener('change', markDirty);
+document.getElementById('opt-timeout').addEventListener('change', markDirty);
+
+// Auto-save checkbox
+document.getElementById('opt-autosave').addEventListener('change', (e) => {
+    setAutoSave(e.target.checked);
+});
+
+// Drag-and-drop: global listeners on the notebook container
+const notebookContainer = document.getElementById('notebook');
+notebookContainer.addEventListener('dragover', handleDragOver);
+notebookContainer.addEventListener('drop', handleDrop);
+
+// ---- Press-and-Hold Insert Cell ----
+
+let insertPopup = null;
+let insertHoldTimer = null;
+let insertMouseStart = null;
+
+function getInsertIndex(clientY) {
+    const cellElements = [...notebook.children].filter(el => el.classList.contains('cell'));
+    if (cellElements.length === 0) return 0;
+
+    for (let i = 0; i < cellElements.length; i++) {
+        const rect = cellElements[i].getBoundingClientRect();
+        if (clientY < rect.top + rect.height / 2) return i;
+    }
+    return cellElements.length;
+}
+
+function showInsertPopup(clientX, clientY) {
+    dismissInsertPopup();
+
+    const idx = getInsertIndex(clientY);
+    const popup = document.createElement('div');
+    popup.className = 'insert-popup';
+
+    const codeBtn = document.createElement('button');
+    codeBtn.textContent = '+ Code';
+    codeBtn.onclick = () => {
+        dismissInsertPopup();
+        createCell('code', '', { insertAtIndex: idx });
+        markDirty();
+    };
+
+    const mdBtn = document.createElement('button');
+    mdBtn.textContent = '+ Markdown';
+    mdBtn.onclick = () => {
+        dismissInsertPopup();
+        createCell('markdown', '', { insertAtIndex: idx });
+        markDirty();
+    };
+
+    popup.appendChild(codeBtn);
+    popup.appendChild(mdBtn);
+    document.body.appendChild(popup);
+
+    // Position: centered at click, clamped to viewport
+    const popupW = 200; // approximate
+    const popupH = 40;
+    let left = clientX - popupW / 2;
+    let top = clientY - popupH / 2;
+    left = Math.max(8, Math.min(left, window.innerWidth - popupW - 8));
+    top = Math.max(8, Math.min(top, window.innerHeight - popupH - 8));
+    popup.style.left = left + 'px';
+    popup.style.top = top + 'px';
+
+    insertPopup = popup;
+}
+
+function dismissInsertPopup() {
+    if (insertPopup) {
+        insertPopup.remove();
+        insertPopup = null;
+    }
+}
+
+function cancelInsertHold() {
+    if (insertHoldTimer) {
+        clearTimeout(insertHoldTimer);
+        insertHoldTimer = null;
+    }
+    insertMouseStart = null;
+}
+
+notebookContainer.addEventListener('mousedown', (e) => {
+    // Only trigger on the notebook container itself (the gap between cells), not on cells
+    if (e.target !== notebookContainer) return;
+    if (e.button !== 0) return; // left button only
+
+    insertMouseStart = { x: e.clientX, y: e.clientY };
+    insertHoldTimer = setTimeout(() => {
+        insertHoldTimer = null;
+        showInsertPopup(insertMouseStart.x, insertMouseStart.y);
+    }, 300);
+});
+
+notebookContainer.addEventListener('mouseup', cancelInsertHold);
+notebookContainer.addEventListener('mouseleave', cancelInsertHold);
+notebookContainer.addEventListener('mousemove', (e) => {
+    if (!insertMouseStart) return;
+    const dx = e.clientX - insertMouseStart.x;
+    const dy = e.clientY - insertMouseStart.y;
+    if (dx * dx + dy * dy > 25) { // 5px threshold
+        cancelInsertHold();
+    }
+});
+
+// Dismiss insert popup on outside click or Escape
+document.addEventListener('mousedown', (e) => {
+    if (insertPopup && !insertPopup.contains(e.target)) {
+        dismissInsertPopup();
+    }
+});
+document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && insertPopup) {
+        dismissInsertPopup();
     }
 });
 
@@ -774,31 +1247,56 @@ function getNotebookData() {
                 if (c.includedFragments !== null) {
                     cellData.includedFragments = c.includedFragments;
                 }
+                if (c.cellTimeout > 0) {
+                    cellData.cellTimeout = c.cellTimeout;
+                }
             }
             return cellData;
         }),
     };
 }
 
-async function saveNotebook() {
+async function saveNotebook(force) {
     if (!currentNotebookPath) {
         return saveNotebookAs();
     }
+    // Cancel any pending auto-save
+    if (autoSaveTimer) {
+        clearTimeout(autoSaveTimer);
+        autoSaveTimer = null;
+    }
     const data = getNotebookData();
+    const headers = { 'Content-Type': 'application/json' };
+    // Send version for conflict detection (skip if force-saving)
+    if (!force && currentNotebookVersion) {
+        headers['If-Match'] = currentNotebookVersion;
+    }
     try {
         const res = await fetch(`/api/notebook?path=${encodeURIComponent(currentNotebookPath)}`, {
             method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
+            headers,
             body: JSON.stringify(data),
         });
+        if (res.status === 409) {
+            // Conflict: notebook was modified by another session
+            setAutoSave(false);
+            updateSaveStatus('conflict');
+            showStatus('Conflict: notebook was modified by another session', true);
+            return;
+        }
         if (!res.ok) {
             const err = await res.json();
             showStatus(`Save failed: ${err.error}`, true);
+            updateSaveStatus('error');
         } else {
+            const result = await res.json();
+            currentNotebookVersion = result.version || null;
+            markClean();
             showStatus('Saved');
         }
     } catch (err) {
         showStatus(`Save failed: ${err.message}`, true);
+        updateSaveStatus('error');
     }
 }
 
@@ -810,6 +1308,7 @@ async function saveNotebookAs() {
         return;
     }
     currentNotebookPath = name;
+    currentNotebookVersion = null; // new file, no conflict detection needed
     updateTitle();
     await saveNotebook();
 }
@@ -843,8 +1342,8 @@ function importNotebook(event) {
             }
             clearAllCells();
             currentNotebookPath = null;
+            currentNotebookVersion = null;
             setRuntimeOptions(data.options);
-            updateTitle();
 
             // Update URL: remove notebook param
             const url = new URL(window.location);
@@ -864,7 +1363,13 @@ function importNotebook(event) {
                 if (cellData.includedFragments || cellData.includedPreambles) {
                     cell.includedFragments = cellData.includedFragments || cellData.includedPreambles;
                 }
+                if (cellData.cellTimeout > 0) {
+                    cell.cellTimeout = cellData.cellTimeout;
+                }
             }
+            updateTitle();
+            setAutoSave(false);
+            markClean(); // fresh import starts clean
             showStatus(`Imported: ${file.name}`);
         } catch (err) {
             showStatus(`Import failed: ${err.message}`, true);
@@ -909,8 +1414,8 @@ async function loadNotebook(path) {
         const data = await res.json();
         clearAllCells();
         currentNotebookPath = path;
+        currentNotebookVersion = data._version || null;
         setRuntimeOptions(data.options);
-        updateTitle();
 
         // Update URL without reload
         const url = new URL(window.location);
@@ -932,7 +1437,15 @@ async function loadNotebook(path) {
             if (cellData.includedFragments || cellData.includedPreambles) {
                 cell.includedFragments = cellData.includedFragments || cellData.includedPreambles;
             }
+            if (cellData.cellTimeout > 0) {
+                cell.cellTimeout = cellData.cellTimeout;
+            }
+            // Restore per-cell timeout input display
+            const cellTimeoutInput = cell.el?.querySelector('.cell-timeout-input');
+            if (cellTimeoutInput) cellTimeoutInput.value = cell.cellTimeout > 0 ? cell.cellTimeout : '';
         }
+        updateTitle();
+        markClean();
         return true;
     } catch (err) {
         showStatus(`Load failed: ${err.message}`, true);
@@ -1016,7 +1529,10 @@ document.getElementById('btn-open').onclick = showFilePicker;
 document.getElementById('btn-new').onclick = () => {
     clearAllCells();
     currentNotebookPath = null;
+    currentNotebookVersion = null;
     updateTitle();
+    setAutoSave(false);
+    markClean();
 
     // Update URL: remove notebook param
     const url = new URL(window.location);
@@ -1035,6 +1551,8 @@ document.getElementById('picker-new').onclick = () => {
 document.getElementById('picker-close').onclick = hideFilePicker;
 
 // ---- Startup ----
+
+initDropIndicator();
 
 async function startup() {
     const params = new URLSearchParams(window.location.search);

@@ -39,6 +39,17 @@
                 <option value="v2-full">v2-full (DC explicit)</option>
             </select>
         </label>
+        <label class="option-item" title="Global execution timeout in seconds">
+            Timeout:
+            <input type="number" id="opt-timeout" min="1" step="1" value="" style="width: 55px">
+            s
+        </label>
+        <span class="options-separator"></span>
+        <label class="option-item" title="Automatically save after 2s of inactivity">
+            <input type="checkbox" id="opt-autosave">
+            Auto-save
+        </label>
+        <span id="save-status" class="save-status"></span>
     </div>
     <main id="notebook">
         <!-- Cells are rendered here -->

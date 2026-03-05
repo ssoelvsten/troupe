@@ -94,6 +94,41 @@ header h1 {
     cursor: pointer;
 }
 
+.options-separator {
+    width: 1px;
+    background: #ccc;
+    align-self: stretch;
+}
+
+.save-status {
+    font-size: 12px;
+    margin-left: auto;
+}
+.save-status.dirty {
+    color: #888;
+}
+.save-status.saving {
+    color: #888;
+    font-style: italic;
+}
+.save-status.clean {
+    color: #2ecc71;
+}
+.save-status.clean.faded {
+    color: #aaa;
+}
+.save-status.error {
+    color: #e74c3c;
+}
+.save-status.conflict {
+    color: #e67e22;
+}
+.save-status.conflict a {
+    color: #2980b9;
+    text-decoration: underline;
+    cursor: pointer;
+}
+
 #notebook {
     max-width: 900px;
     margin: 12px auto 24px;
@@ -111,11 +146,41 @@ header h1 {
 
 .cell.running {
     border-color: #3498db;
-    border-width: 2px;
+    box-shadow: 0 0 0 1px #3498db;
 }
 
 .cell.error {
     border-color: #e74c3c;
+    box-shadow: 0 0 0 1px #e74c3c;
+}
+
+.cell.timed-out {
+    border-color: #e67e22;
+    box-shadow: 0 0 0 1px #e67e22;
+}
+
+.cell-timeout-wrap {
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+    margin-left: 6px;
+    font-size: 11px;
+    color: #666;
+}
+
+.cell-timeout-input {
+    width: 45px;
+    font-size: 11px;
+    padding: 1px 4px;
+    border: 1px solid #ddd;
+    border-radius: 3px;
+    color: #555;
+    background: white;
+}
+
+.cell-timeout-input:focus {
+    outline: none;
+    border-color: #3498db;
 }
 
 .cell-header {
@@ -305,6 +370,15 @@ header h1 {
 .cell-output .result::before {
     content: "=> ";
     color: #7f8c8d;
+}
+
+.cell-output .exit-code {
+    color: #e74c3c;
+    font-weight: 600;
+    font-style: italic;
+    border-top: 1px solid #eee;
+    padding-top: 4px;
+    margin-top: 4px;
 }
 
 /* Markdown cells */
@@ -503,6 +577,68 @@ header h1 {
 }
 .fragment-picker-links a:hover {
     text-decoration: underline;
+}
+
+/* Drag handle */
+.drag-handle {
+    cursor: grab;
+    color: #bbb;
+    font-size: 16px;
+    line-height: 1;
+    padding: 0 2px;
+    user-select: none;
+    transition: color 0.15s;
+}
+.drag-handle:hover {
+    color: #666;
+}
+.drag-handle:active {
+    cursor: grabbing;
+}
+
+/* Dragging state */
+.cell.dragging {
+    opacity: 0.4;
+    border-style: dashed;
+}
+
+/* Drop indicator line */
+.drop-indicator {
+    position: fixed;
+    height: 3px;
+    background: #3498db;
+    border-radius: 2px;
+    z-index: 200;
+    pointer-events: none;
+    box-shadow: 0 0 4px rgba(52, 152, 219, 0.4);
+}
+
+/* Insert cell popup */
+.insert-popup {
+    position: fixed;
+    z-index: 100;
+    background: white;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.15);
+    display: flex;
+    gap: 8px;
+    padding: 8px 12px;
+}
+.insert-popup button {
+    background: white;
+    border: 1px solid #bbb;
+    border-radius: 4px;
+    padding: 6px 16px;
+    cursor: pointer;
+    font-size: 13px;
+    color: #555;
+    white-space: nowrap;
+}
+.insert-popup button:hover {
+    background: #ecf0f1;
+    border-color: #888;
+    color: #333;
 }
 
 /* File picker overlay */

@@ -4,7 +4,7 @@ import { WebSocketServer, WebSocket } from 'ws';
 import { join, resolve } from 'node:path';
 import { mkdirSync } from 'node:fs';
 import { ExecutionManager } from './executionManager.mjs';
-import { NotebookStore } from './notebookStore.mjs';
+import { NotebookStore, VersionConflictError } from './notebookStore.mjs';
 
 // Determine Troupe root: either from env or by walking up from this file
 const troupeRoot = process.env.TROUPE_ROOT
@@ -53,8 +53,8 @@ app.get('/api/notebook', async (req, res) => {
         return res.status(400).json({ error: 'Missing ?path= parameter' });
     }
     try {
-        const data = await notebookStore.load(path);
-        res.json(data);
+        const { data, version } = await notebookStore.load(path);
+        res.json({ ...data, _version: version });
     } catch (err: any) {
         if (err.code === 'ENOENT') {
             return res.status(404).json({ error: 'Notebook not found' });
@@ -70,9 +70,14 @@ app.put('/api/notebook', async (req, res) => {
         return res.status(400).json({ error: 'Missing ?path= parameter' });
     }
     try {
-        await notebookStore.save(path, req.body);
-        res.json({ ok: true });
+        const expectedVersion = req.headers['if-match'] as string | undefined;
+        const { _version, ...data } = req.body;
+        const newVersion = await notebookStore.save(path, data, expectedVersion);
+        res.json({ ok: true, version: newVersion });
     } catch (err: any) {
+        if (err instanceof VersionConflictError) {
+            return res.status(409).json({ error: err.message, conflict: true });
+        }
         res.status(500).json({ error: err.message });
     }
 });
