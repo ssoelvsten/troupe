@@ -32,8 +32,8 @@ let
 in case (x', y') of
     (("ECHO", msg, sender), {quarantineAuth, ..}) =>
         let val _ = print "SERVER: Sending reply with quarantine authority"
-            val _ = invokeAtLevel ( levelOf msg
-                                  , fn () => send(sender, ("REPLY", msg), quarantineAuth))
+            val _ = invokeAtLevel ( fn () => send(sender, ("REPLY", msg), quarantineAuth)
+                                  , levelOf msg)
             val _ = sleep 1000
             val _ = print "SERVER: Done"
         in exit(authority, 0)

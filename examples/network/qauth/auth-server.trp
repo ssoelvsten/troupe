@@ -69,17 +69,17 @@ let
                          print "AUTH SERVER: Authentication SUCCESSFUL";
                          (* --- convenience hack : avoids unnecessary quarantining on the client side *)
                          invokeAtLevel
-                             (`<alice; alice>`,
-                              (fn () => send ( reply_to
-                                             , ("AUTH_RESULT", public_result raisedTo `<;alice>`)))
+                             ((fn () => send ( reply_to
+                                             , ("AUTH_RESULT", public_result raisedTo `<;alice>`))),
+                              `<alice; alice>`)
 
                     else print "AUTH SERVER: Authentication FAILED";
                          (* --- convenience hack : avoids unnecessary quarantining on the client side *)
                          invokeAtLevel
-                             (token_level,
-                              (fn () =>
+                             ((fn () =>
                                   send( reply_to
-                                      , ("AUTH_RESULT", public_result), sender_meta.quarantineAuth))
+                                      , ("AUTH_RESULT", public_result), sender_meta.quarantineAuth)),
+                              token_level)
 
             val _ = print "AUTH SERVER: Sent auth result"
         in ()
