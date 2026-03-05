@@ -1,7 +1,0 @@
-2026-01-23T21:57:40.805Z [RTM] [32minfo[39m: Skipping network creation. Observe that all external IO operations will yield a runtime error.
-"Function was called"
-"PC inside tainted context:"
-{secret}@{secret}%{secret}
-"Result:"
-42@{secret}%{secret}
->>> Main thread finished with value: ()@{secret}%{secret}

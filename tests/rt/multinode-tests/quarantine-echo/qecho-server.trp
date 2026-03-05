@@ -1,4 +1,4 @@
-import Missing
+import IfcUtil
 
 (* Quarantine Echo Server - Demonstrates receiving quarantined data *)
 (* Server has NULL trust for client, so incoming data is quarantined *)
@@ -32,7 +32,8 @@ let
 in case (x', y') of
     (("ECHO", msg, sender), {quarantineAuth, ..}) =>
         let val _ = print "SERVER: Sending reply with quarantine authority"
-            val _ = invokeWithTaint (levelOf msg) (fn () => send(sender, ("REPLY", msg), quarantineAuth))
+            val _ = invokeAtLevel ( levelOf msg
+                                  , fn () => send(sender, ("REPLY", msg), quarantineAuth))
             val _ = sleep 1000
             val _ = print "SERVER: Done"
         in exit(authority, 0)

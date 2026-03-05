@@ -1,63 +1,6 @@
 (** 2025-12-14; AA:
     Some missing functionality that should find better home *)
 
-let
-    (** Invokes the function `f` with the pc tainted by `lev`.
-        Returns the result of `f()` if the tainted branch is taken,
-        otherwise returns unit. *)
-    fun invokeWithTaint lev f = if true raisedTo lev then f() else ()
-
-    (** Raise the blocking level to `level`. *)
-    fun raiseBL level = ((if (true raisedTo level) then () else ()); ())
-
-    (** Runs `f` while preserving the blocking level regardless of any downgrades in `f`. *)
-    fun preserveBL f =
-        let val bl = _bl ()
-            val x = f ()
-            val _ = raiseBL bl
-        in x
-        end
-
-    (* TODO: The `downgradeDeep` below ought to be refactored into `DeclassifyUtil`. *)
-
-    (* Mutually recursive deep downgrade of tuples *)
-    fun downgrade2 ((x,y), a, lev) =
-        ( downgradeDeep (x, a, lev)
-        , downgradeDeep (y, a, lev))
-
-    and downgrade3 ((x,y,z), a, lev) =
-        ( downgradeDeep (x, a, lev)
-        , downgradeDeep (y, a, lev)
-        , downgradeDeep (z, a, lev))
-
-    and downgrade4 ((x,y,z,w), a, lev) =
-        ( downgradeDeep (x, a, lev)
-        , downgradeDeep (y, a, lev)
-        , downgradeDeep (z, a, lev)
-        , downgradeDeep (w, a, lev))
-
-    and downgrade5 ((x1,x2,x3,x4,x5), a, lev) =
-        ( downgradeDeep (x1, a, lev)
-        , downgradeDeep (x2, a, lev)
-        , downgradeDeep (x3, a, lev)
-        , downgradeDeep (x4, a, lev)
-        , downgradeDeep (x5, a, lev))
-
-    (** Deep downgrade of value `x` to `level` via the given `authority`.
-        Recursively downgrades tuple elements. *)
-    and downgradeDeep (x, authority, level) =
-        let val x' = downgrade (x, authority, level)
-            val f = case x' of (_,_)         => downgrade2
-                             | (_,_,_)       => downgrade3
-                             | (_,_,_,_)     => downgrade4
-                             | (_,_,_,_,_)   => downgrade5
-                             | _             => downgrade
-        in f(x', authority, level)
-        end
-
-in [ ("invokeWithTaint", invokeWithTaint)
-   , ("raiseBL", raiseBL)
-   , ("preserveBL", preserveBL)
-   , ("downgradeDeep", downgradeDeep)
-   ]
+let val x = 42
+in []
 end

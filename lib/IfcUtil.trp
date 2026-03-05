@@ -1,0 +1,210 @@
+import List
+
+let (*-------------------------- Lattice Constants  -------------------------*)
+
+    (** The *root* level with the highest privilege. *)
+    val root = `<#root-confidentiality; #root-integrity>`
+
+    (** The bottom level that flows to everything. *)
+    val null = `<#null-confidentiality; #null-integrity>`
+
+    (** The bottom level that flows to everything. *)
+    val bot = `<#null-confidentiality; #root-integrity>`
+
+    (** The bottom level that flows to everything. *)
+    val top = `<#root-confidentiality; #null-integrity>`
+
+
+    (*---------------------------  Blocking Label  --------------------------*)
+
+    (** Raises the blocking label up to `level`. *)
+    fun blockupto level = ((if (true raisedTo level) then () else ()); ())
+
+    (** Runs `f` while preserving the blocking label regardless of any
+     *  downgrades in `f`.
+     *
+     *  Any taints on the blocking label are also preserved.
+     *)
+    fun blockprotect f =
+        let val bl = _bl ()
+            val x = f ()
+            val _ = blockupto bl
+        in x
+        end
+
+    (*--------------------------  Program Counter  --------------------------*)
+
+    (** Returns the result of invoking function `f` with `()` while the program
+     *  counter and blocking label is raised to `level`.
+     *
+     *  Note, the blocking label will be tainted by `level`.
+     *)
+    fun invokeAtLevel (f, level) = if true raisedTo level then f() else ()
+
+    (** Returns the result of invoking function `f` with `()` while the program
+     *  counter and blocking label is raised to `level`.
+     *
+     *  Note, the blocking label is lowered back again afterwards.
+     *)
+    fun invokeAtLevelPini (f, authority, level) =
+        blockprotect (fn () => invokeAtLevel (f, level); blockdown authority)
+
+    (*--------------------------  Deep Downgrades  --------------------------*)
+
+    (* Helper functions for tuples, lists, and more. *)
+    fun deep2 downgradeFn ((x,y), authority, lev) =
+        ( deep downgradeFn (x, authority, lev)
+        , deep downgradeFn (y, authority, lev))
+
+    and deep3 downgradeFn ((x,y,z), authority, lev) =
+        ( deep downgradeFn (x, authority, lev)
+        , deep downgradeFn (y, authority, lev)
+        , deep downgradeFn (z, authority, lev))
+
+    and deep4 downgradeFn ((x,y,z,w), authority, lev) =
+        ( deep downgradeFn (x, authority, lev)
+        , deep downgradeFn (y, authority, lev)
+        , deep downgradeFn (z, authority, lev)
+        , deep downgradeFn (w, authority, lev))
+
+    and deep5 downgradeFn ((x1,x2,x3,x4,x5), authority, lev) =
+        ( deep downgradeFn (x1, authority, lev)
+        , deep downgradeFn (x2, authority, lev)
+        , deep downgradeFn (x3, authority, lev)
+        , deep downgradeFn (x4, authority, lev)
+        , deep downgradeFn (x5, authority, lev)
+        )
+
+    and deep6 downgradeFn ((x1,x2,x3,x4,x5,x6), authority, lev) =
+        ( deep downgradeFn (x1, authority, lev)
+        , deep downgradeFn (x2, authority, lev)
+        , deep downgradeFn (x3, authority, lev)
+        , deep downgradeFn (x4, authority, lev)
+        , deep downgradeFn (x5, authority, lev)
+        , deep downgradeFn (x6, authority, lev)
+        )
+
+    and deep7 downgradeFn ((x1,x2,x3,x4,x5,x6,x7), authority, lev) =
+        ( deep downgradeFn (x1, authority, lev)
+        , deep downgradeFn (x2, authority, lev)
+        , deep downgradeFn (x3, authority, lev)
+        , deep downgradeFn (x4, authority, lev)
+        , deep downgradeFn (x5, authority, lev)
+        , deep downgradeFn (x6, authority, lev)
+        , deep downgradeFn (x7, authority, lev)
+        )
+
+    and deep8 downgradeFn ((x1,x2,x3,x4,x5,x6,x7,x8), authority, lev) =
+        ( deep downgradeFn (x1, authority, lev)
+        , deep downgradeFn (x2, authority, lev)
+        , deep downgradeFn (x3, authority, lev)
+        , deep downgradeFn (x4, authority, lev)
+        , deep downgradeFn (x5, authority, lev)
+        , deep downgradeFn (x6, authority, lev)
+        , deep downgradeFn (x7, authority, lev)
+        , deep downgradeFn (x8, authority, lev)
+        )
+
+    and deep9 downgradeFn ((x1,x2,x3,x4,x5,x6,x7,x8,x9), authority, lev) =
+        ( deep downgradeFn (x1, authority, lev)
+        , deep downgradeFn (x2, authority, lev)
+        , deep downgradeFn (x3, authority, lev)
+        , deep downgradeFn (x4, authority, lev)
+        , deep downgradeFn (x5, authority, lev)
+        , deep downgradeFn (x6, authority, lev)
+        , deep downgradeFn (x7, authority, lev)
+        , deep downgradeFn (x8, authority, lev)
+        , deep downgradeFn (x9, authority, lev)
+        )
+
+    and deepList downgradeFn (xs, authority, lev) =
+        List.map (fn x => deep downgradeFn (x, authority, lev) ) xs
+
+    (* TODO: records! *)
+
+    (** Apply the given downgrade function, `downgradeFn`, deeply to value `x` to lower it to
+     *  `level` via the given `authority`. *)
+    and deep downgradeFn (x, authority, level) =
+        let (* Downgrade the blocking label before touching the value. *)
+            val _ = blockdownto (authority, level)
+
+            (* downgrading is a 2-step process:
+             *
+             * 1. We pattern match on the given value and figure out which function to apply;
+             *    this choice of the function needs to be declassified itself.
+             *
+             * 2. We proceed onto the application of the function. *)
+            val x' = downgradeFn (x, authority, level)
+
+            val f = case x' of (_,_)               => deep2 downgradeFn
+                             | (_,_,_)             => deep3 downgradeFn
+                             | (_,_,_,_)           => deep4 downgradeFn
+                             | (_,_,_,_,_)         => deep5 downgradeFn
+                             | (_,_,_,_,_,_)       => deep6 downgradeFn
+                             | (_,_,_,_,_,_,_)     => deep7 downgradeFn
+                             | (_,_,_,_,_,_,_,_)   => deep8 downgradeFn
+                             | (_,_,_,_,_,_,_,_,_) => deep9 downgradeFn
+                             | (_::_)              => deepList downgradeFn
+                             | _                   => downgradeFn
+
+        in f(x', authority, level)
+        end
+
+    (** Deep declassification of value `x` to `level` via the given `authority`.
+     *
+     *  TODO: If not for #55, this is replaceable with `val declassifyDeep = deep declassify`
+     *)
+    fun declassifyDeep (x, authority, level) =
+        deep declassify (x, authority, level)
+
+    (** Deep endorsement of value `x` to `level` via the given `authority`.
+     *
+     *  TODO: If not for #55, this is replaceable with `val endorseDeep = deep endorse`
+     *)
+    fun endorseDeep (x, authority, level) =
+        deep endorse (x, authority, level)
+
+    (** Deep downgrade of value `x` to `level` via the given `authority`.
+     *
+     *  TODO: If not for #55, this is replaceable with `val downgradeDeep = deep downgrade`
+     *)
+    fun downgradeDeep (x, authority, level) =
+        deep downgrade (x, authority, level)
+
+    (*--------------------------------  I/O  --------------------------------*)
+
+    (** Similar to `freadln` but ensures the blocking label is not raised. *)
+    fun freadlnPini (fd, authority) =
+        let val ln = freadln fd
+            val _  = blockdecl authority
+        in ln end
+
+    (** Similar to `freadln` but does not raise the blocking label and
+     *  declassifies the content to the given level. *)
+    fun freadlnAtLevel (fd, authority, level) =
+        declassify (freadlnPini (fd, authority), authority, level)
+
+in [ (*-- Constants --*)
+     ("root", root)
+   , ("null", null)
+   , ("bot",  bot)
+   , ("top",  top)
+
+     (*-- Blocking Label --*)
+   , ("blockupto", blockupto)
+   , ("blockprotect", blockprotect)
+
+     (*-- Program Counter --*)
+   , ("invokeAtLevel", invokeAtLevel)
+   , ("invokeAtLevelPini", invokeAtLevelPini)
+
+     (*-- Deep Downgrades --*)
+   , ("declassifyDeep", declassifyDeep)
+   , ("endorseDeep", endorseDeep)
+   , ("downgradeDeep", downgradeDeep)
+
+     (*-- I/O --*)
+   , ("freadlnPini", freadlnPini)
+   , ("freadlnAtLevel", freadlnAtLevel)
+   ]
+end

@@ -1,7 +1,7 @@
 (* Authentication Client - Token-based authentication *)
 (* Client trusts server at level {alice} *)
 
-import DeclassifyUtil
+import IfcUtil
 
 let val _ = print "AUTH CLIENT: Starting..."
     val _ = sleep 200  (* Give server time to register *)
@@ -17,7 +17,7 @@ let val _ = print "AUTH CLIENT: Starting..."
 
     (* Get password mode from CLI args: "correct" or "wrong" (default) *)
     val args_raw = getCliArgs authority
-    val args = DeclassifyUtil.declassifyDeep (args_raw, authority, `{}`)
+    val args = IfcUtil.declassifyDeep (args_raw, authority, `{}`)
     val use_correct = case args of
           "correct" :: _ => true
         | _ => false
