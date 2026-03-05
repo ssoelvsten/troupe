@@ -599,5 +599,18 @@ export async function start(f) {
     , argv[TroupeCliArg.Persist]
   )
   __sched.loop()
+
+  // Set up execution timeout if specified via --timeout
+  const timeoutSeconds = argv[TroupeCliArg.Timeout] as number;
+  if (timeoutSeconds > 0) {
+    const exitCode = (argv[TroupeCliArg.TimeoutExitCode] as number) ?? 124;
+    const timer = setTimeout(async () => {
+      console.error(`Execution timed out after ${timeoutSeconds} seconds`);
+      setExitInitiated();
+      await cleanupAsync();
+      process.exit(exitCode);
+    }, timeoutSeconds * 1000);
+    timer.unref(); // Don't prevent natural exit when all threads complete
+  }
 }
 
