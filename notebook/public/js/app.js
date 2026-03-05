@@ -766,7 +766,7 @@ function renderCodeCellBody(cell, el) {
     copyOutBtn.textContent = 'Copy';
     copyOutBtn.title = 'Copy output to clipboard';
     copyOutBtn.onclick = () => {
-        const text = cell.outputEl ? cell.outputEl.textContent : '';
+        const text = cell.outputEl ? cell.outputEl.innerText : '';
         if (!text) return;
         navigator.clipboard.writeText(text).then(() => {
             copyOutBtn.textContent = 'Copied!';

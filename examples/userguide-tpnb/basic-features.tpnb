@@ -1,0 +1,324 @@
+{
+  "troupe_notebook": 1,
+  "options": {
+    "nmifc": true,
+    "labelFormat": "v1",
+    "timeout": 10
+  },
+  "cells": [
+    {
+      "id": "cell-1-09cf40",
+      "type": "markdown",
+      "source": "# Troupe basic features\n\nThis is an interactive guide that requires Troupe is installed on your system, with appropriately set environment variables.\n\n## A minimal Troupe program\n\nWe start with an example of a small Troupe program that returns number 42 as its result."
+    },
+    {
+      "id": "cell-1-2one4k",
+      "type": "code",
+      "source": "42",
+      "outputs": [
+        {
+          "type": "result",
+          "data": "42@{}%{}"
+        }
+      ]
+    },
+    {
+      "id": "cell-3-20b0f5",
+      "type": "markdown",
+      "source": "If you want to run this program outside of the Troupe notebook, this program can be compiled, executed, and inspected for the return value using the following sequence of shell commands."
+    },
+    {
+      "id": "cell-4-d4b6c7",
+      "type": "markdown",
+      "source": "```\n$ $TROUPE/bin/troupec program.trp -o out.js\n$ $TROUPE/rt/troupe out.js --localonly \n...\nmain thread finished with value: 42@{}%{}\n```"
+    },
+    {
+      "id": "cell-5-d5324c",
+      "type": "markdown",
+      "source": "The first command here invokes the Troupe compiler and specifies the generated output file to be `out/program.js`.\nThe second command invokes the nodejs runtime on the generated file. Note `--localonly` flag that \nprevents the runtime from initializing the network layer -- we discuss the network layer in Section Network.\nTroupe installation also includes a shell script `local.sh` that combines the above two tasks of compiling \nand running the programs.\n\nObserve the format of the output value `42@{}%{}`. This value is *labeled* and consists of three \nparts: the base value 42, the security label of the value after the @ sign, \nand the security label of the type after the % sign. Here, `{}` that means the lowest security level.\n\n## Overview of the basic language\n\nAt the very core of Troupe is a dynamically typed functional programming language without mutable references. \nFor example, a Fibonacci function in Troupe is written exactly as in SML sans type annotations."
+    },
+    {
+      "id": "cell-6-c9c185",
+      "type": "code",
+      "source": "let fun fib x = \n        if x > 2 then fib (x - 1) + fib (x - 2)\n                 else 1\nin fib 10\nend",
+      "outputs": [
+        {
+          "type": "result",
+          "data": "55@{}%{}"
+        }
+      ]
+    },
+    {
+      "id": "cell-7-9b1d38",
+      "type": "markdown",
+      "source": "Running this program results in the output"
+    },
+    {
+      "id": "cell-8-8a424f",
+      "type": "markdown",
+      "source": "**Expected output:**\n```\nmain thread finished with value: 55@{}%{}\n```"
+    },
+    {
+      "id": "cell-9-938d83",
+      "type": "markdown",
+      "source": "Note that Troupe is dynamically typed. For example, a program such as `1 + ()` results in a \nruntime type error"
+    },
+    {
+      "id": "cell-2-3ckeld",
+      "type": "code",
+      "source": "1 + ()",
+      "outputs": [
+        {
+          "type": "stdout",
+          "data": "Runtime error in thread 84144e76-6653-41a9-814d-076ccd7186ee@{}%{}\n"
+        },
+        {
+          "type": "stdout",
+          "data": ">> value () is not a number\n"
+        }
+      ]
+    },
+    {
+      "id": "cell-10-7850d1",
+      "type": "markdown",
+      "source": "```\nRuntime error in thread b279c491-4509-48e0-82fa-15f18de96003@{}%{}\n   value ()@{} is not a number    \n```"
+    },
+    {
+      "id": "cell-11-a3590f",
+      "type": "markdown",
+      "source": "## Types and values\n\nTroupe has the following types:\n\n- **Unit**: Unit type with the unit value `()`.\n- **Booleans**: Boolean type with literals `true` and `false`.\n- **Number**: Number type.\n- **String**: String type. String literals are created by placing text between double quotes, e.g., \"hello, world\".\n- **Tuple**: Tuple aggregate, e.g., `(\"hello\", (), true, 42)`.\n- **List**: List aggregate, with empty list denoted as `[]`.\n- **Record**: Record aggregate with named fields, e.g., `{x = 10, y = \"hello\"}`.\n- **Function**: Function type. Function values are created either using `fn x => e` syntax or using the let-fun declarations (cf. Function declarations section).\n- **Process Id**: Process identifier (cf. Concurrency section).\n- **Label**: Security label (cf. Information flow control section).\n- **Authority**: Declassification capability (cf. Declassification section).\n\nNote that strings are also used for referring to node identities.\n\n## Core language features\n\nTroupe uses an SML-like syntax for its core language. This section explains the syntax of every language as it presents them.\n\n### Basic operations\n\nTroupe supports basic arithmetic and comparison operations on numbers. The comparison is also extended to strings. \nAggregates support equality checks that is defined as point-wise equality of their elements. Boolean conjunction is \n`andalso`, and boolean disjunction is `orelse`. List cons operation is `::` and \nstring concatenation is `^`.\n\n\n### If expressions\n\nConditionals have the form `if e0 then e1 else e2`, where `e0` is the guard of the conditional. \nThe branch `e1` is chosen if `e0` evaluates to true; otherwise, the branch `e2` is chosen.\n\n### Case expressions\n\nCase expressions have the form\n```\ncase e of \n   pat_1 => e_1\n | pat_2 => e_2 \n |  ...\n | pat_n => e_n\n```\n\nHere, `pat_1`, ..., `pat_n` are the patterns that are matched against the expression `e`, and the `e_1`, ..., `e_n` are the \nexpressions to evaluate. Patterns range over literals, including `()`, booleans, numbers, and string literals, as well as the \naggregate constructors, and the wildcard pattern _.\n\n### Let expressions\n\nLet expressions are used for binding names to values. The basic value binding uses the `let val` syntax. \nSeveral binding may appear in one block, and references to the earlier bindings in the block are allowed."
+    },
+    {
+      "id": "cell-14-e157e2",
+      "type": "code",
+      "source": "let val x = 20\n    val y = x + 2\nin x + y\nend",
+      "outputs": [
+        {
+          "type": "result",
+          "data": "42@{}%{}"
+        }
+      ]
+    },
+    {
+      "id": "cell-15-46fc40",
+      "type": "markdown",
+      "source": "### Function declarations\n\nFunctions are declared using `let fun` syntax. Mutually recursive functions \nare delimited using the `and` keyword."
+    },
+    {
+      "id": "cell-16-3d4062",
+      "type": "code",
+      "source": "let fun even x = if x = 0 then true else odd (x - 1)\n    and odd x = if x = 0 then false else even (x - 1)\nin even 7\nend",
+      "outputs": [
+        {
+          "type": "result",
+          "data": "false@{}%{}"
+        }
+      ]
+    },
+    {
+      "id": "cell-17-8b381f",
+      "type": "markdown",
+      "source": "Function application has the form `e0 e1`. Curried function declarations and partial \napplication is supported, e.g.:"
+    },
+    {
+      "id": "cell-18-db7caa",
+      "type": "code",
+      "source": "let fun add2 x y = x + y \n    val inc = add2 1 \nin inc 10\nend",
+      "outputs": [
+        {
+          "type": "result",
+          "data": "11@{}%{}"
+        }
+      ]
+    },
+    {
+      "id": "cell-19-9b687c",
+      "type": "markdown",
+      "source": "### Records\n\nRecords are aggregate data structures with named fields. They provide a convenient way to group related values together.\n\n#### Record creation\n\nRecords are created using curly braces with field-value pairs:"
+    },
+    {
+      "id": "cell-20-6d3adb",
+      "type": "code",
+      "source": "let val point = {x = 10, y = 20}\n    val person = {name = \"Alice\", age = 30, active = true}\nin person\nend",
+      "outputs": [
+        {
+          "type": "result",
+          "data": "{name=\"Alice\"@{}%{}, age=30@{}%{}, active=true@{}%{}}@{}%{}"
+        }
+      ]
+    },
+    {
+      "id": "cell-21-cf473f",
+      "type": "markdown",
+      "source": "Empty records are also valid:"
+    },
+    {
+      "id": "cell-22-a4ba57",
+      "type": "code",
+      "source": "{}",
+      "outputs": [
+        {
+          "type": "result",
+          "data": "{}@{}%{}"
+        }
+      ]
+    },
+    {
+      "id": "cell-23-e17d98",
+      "type": "markdown",
+      "source": "Records can contain any type of value, including functions:"
+    },
+    {
+      "id": "cell-24-558e6d",
+      "type": "code",
+      "source": "let val obj = {a = 10, b = \"Hello\", f = fn x => x + 1}\nin obj.f(obj.a)  (* returns 11 *)\nend",
+      "outputs": [
+        {
+          "type": "result",
+          "data": "11@{}%{}"
+        }
+      ]
+    },
+    {
+      "id": "cell-25-87ba81",
+      "type": "markdown",
+      "source": "#### Field name shorthand\n\nWhen creating a record, if a field name matches a variable name in scope, you can use shorthand notation:"
+    },
+    {
+      "id": "cell-26-9b775f",
+      "type": "code",
+      "source": "let val name = \"Bob\"\n    val age = 25\n    val person = {name, age, city = \"New York\"}  (* name and age use shorthand *)\nin person\nend"
+    },
+    {
+      "id": "cell-27-13d77a",
+      "type": "markdown",
+      "source": "#### Field access\n\nRecord fields are accessed using dot notation:"
+    },
+    {
+      "id": "cell-28-b33867",
+      "type": "code",
+      "source": "let val point = {x = 100, y = 200}\nin point.x + point.y  (* returns 300 *)\nend"
+    },
+    {
+      "id": "cell-29-e72e80",
+      "type": "markdown",
+      "source": "#### Record update with `with`\n\nThe `with` syntax creates a new record based on an existing one with modified or additional fields:"
+    },
+    {
+      "id": "cell-30-6b6b88",
+      "type": "code",
+      "source": "let val point0 = {x = 0, y = 0}\n    val point1 = {point0 with x = 10}      (* updates x field *)\n    val point2 = {point0 with z = 5}       (* adds new z field *)\nin (point1, point2)  (* returns ({x = 10, y = 0}, {x = 0, y = 0, z = 5}) *)\nend",
+      "outputs": [
+        {
+          "type": "result",
+          "data": "({x=10@{}%{}, y=0@{}%{}}@{}%{}, {x=0@{}%{}, y=0@{}%{}, z=5@{}%{}}@{}%{})@{}%{}"
+        }
+      ]
+    },
+    {
+      "id": "cell-31-399e12",
+      "type": "markdown",
+      "source": "#### Pattern matching with records\n\nRecords can be destructured in let bindings and case expressions. There are two forms of record patterns:\n\n**Exact pattern matching**: When you pattern match on a record without the `..` marker, the pattern matches only records with exactly the specified fields:"
+    },
+    {
+      "id": "cell-32-183721",
+      "type": "code",
+      "source": "(* Exact pattern matching - matches only records with fields a and f *)\nlet val record = {a = 10, b = \"Hello\", f = fn x => x + 1}\n    val {a, f} = record  (* Error: pattern expects exactly fields a and f *)\nin f a\nend",
+      "outputs": [
+        {
+          "type": "stdout",
+          "data": "Runtime error in thread b097b0c7-b914-41e6-be57-821f6c63facf@{}%{}\n"
+        },
+        {
+          "type": "stdout",
+          "data": "  3 |     val {a, f} = record  (* Error: pattern expects exactly fields a and f *)\n"
+        },
+        {
+          "type": "stdout",
+          "data": "    |         ^\n"
+        },
+        {
+          "type": "stdout",
+          "data": ">> pattern match failure in let declaration\n"
+        },
+        {
+          "type": "stdout",
+          "data": ">> at /var/folders/8w/fmq_y9hj22j0qjvyrvrzj2nr0000gn/T/troupe-nb-6f9ef4c8.trp:3:9\n"
+        }
+      ]
+    },
+    {
+      "id": "cell-33-3cbe26",
+      "type": "markdown",
+      "source": "**Partial pattern matching with `..`**: When you include the `..` marker at the end of  a record pattern, it matches records that have at least the specified fields, ignoring any additional fields:"
+    },
+    {
+      "id": "cell-34-e63a2a",
+      "type": "code",
+      "source": "(* Partial pattern matching - matches records with at least fields a and f *)\nlet val record = {a = 10, b = \"Hello\", f = fn x => x + 1}\n    val {a, f, ..} = record  (* extracts fields a and f, ignores b *)\nin f a  (* returns 11 *)\nend",
+      "outputs": [
+        {
+          "type": "result",
+          "data": "11@{}%{}"
+        }
+      ]
+    },
+    {
+      "id": "cell-35-19a7ac",
+      "type": "markdown",
+      "source": "This distinction is particularly useful in functions where you want to accept records with specific required fields while allowing additional fields:"
+    },
+    {
+      "id": "cell-36-62bc85",
+      "type": "code",
+      "source": "(* Function accepting records with at least field 'a' *)\nlet fun getA (x) = \n  let val {a, ..} = x in a end\n    \nin (getA {a = 10},              (* returns 10 *)\n    getA {a = 20, b = \"hi\"},    (* returns 20 *)\n    getA {a = 30, b = 1, c = 2}) (* returns 30 *)\nend",
+      "outputs": [
+        {
+          "type": "result",
+          "data": "(10@{}%{}, 20@{}%{}, 30@{}%{})@{}%{}"
+        }
+      ]
+    },
+    {
+      "id": "cell-37-3fd019",
+      "type": "markdown",
+      "source": "Pattern matching in case expressions also supports both forms:"
+    },
+    {
+      "id": "cell-38-885051",
+      "type": "code",
+      "source": "(* Pattern matching in case expression *)\nlet val point = {x = 10, y = 20, z = 30}\nin case point of\n     {x = 0, y = 0} => \"2D origin\"          (* matches only 2D points *)\n   | {x = 0, y = 0, z = 0} => \"3D origin\"   (* matches only 3D points *)\n   | {x = 0, ..} => \"on yz-plane\"           (* matches any record with x = 0 *)\n   | {x, y, ..} => \"point with x=\" ^ toString x ^ \", y=\" ^ toString y\nend",
+      "outputs": [
+        {
+          "type": "result",
+          "data": "\"point with x=10, y=20\"@{}%{}"
+        }
+      ]
+    },
+    {
+      "id": "cell-39-7c7fd8",
+      "type": "markdown",
+      "source": "Note that the `..` marker must be in the last position in the record pattern.\n\n#### Important notes about records\n\n1. **Field order independence**: Records with the same fields and values are equal regardless of field order:\n   ```troupe\n   {a = 1, b = 2} = {b = 2, a = 1}  (* true *)\n   ```\n\n2. **Duplicate fields**: If a record literal contains duplicate field names, the second value is used:\n   ```troupe\n   {x = 100, x = 200}.x  (* returns 200 *)\n   ```\n\n3. **Record pattern must use unique names**.\n"
+    },
+    {
+      "id": "cell-1-ymdft1",
+      "type": "markdown",
+      "source": "## Libraries\n\nTroupe has a minimal support for built-in libraries. Current libraries include a library `lists` for common list manipulations, library `declassifyutil` for declassification of aggregate data structures, and library\n`stdio` with convenient wrappers for standard input and output. To use a library, one needs to import it with an `import` statement at the top of the program."
+    },
+    {
+      "id": "cell-40-95b774",
+      "type": "code",
+      "source": "import List\nprintWithLabels (map ( fn i => i + 1) [1,2,3])",
+      "outputs": [
+        {
+          "type": "stdout",
+          "data": "[2@{}%{}, 3@{}%{}, 4@{}%{}]@{}%{}\n"
+        },
+        {
+          "type": "result",
+          "data": "()@{}%{}"
+        }
+      ]
+    }
+  ]
+}
