@@ -15,7 +15,7 @@ jobs:
       - name: Install apt packages
         run: |
           sudo apt-get update
-          sudo apt-get install -y libnuma-dev diffutils
+          sudo apt-get install -y libnuma-dev diffutils socat
       
       # Cache GHC installation
       - name: Cache GHC
