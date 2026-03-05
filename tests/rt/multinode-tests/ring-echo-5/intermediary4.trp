@@ -1,6 +1,6 @@
 let
     val timeout_pid = spawn(fn () => 
-        let val _ = sleep 10000
+        let val _ = sleep 30000
         in exit(authority, 124)
         end)
     
