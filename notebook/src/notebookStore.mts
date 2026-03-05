@@ -72,10 +72,10 @@ export class NotebookStore {
                         'Notebook was modified by another session. Reload or force save.'
                     );
                 }
-            } catch (err: any) {
+            } catch (err: unknown) {
                 if (err instanceof VersionConflictError) throw err;
                 // File doesn't exist yet (ENOENT) — ok to proceed
-                if (err.code !== 'ENOENT') throw err;
+                if ((err as NodeJS.ErrnoException).code !== 'ENOENT') throw err;
             }
         }
         await writeFile(fullPath, JSON.stringify(data, null, 2) + '\n', 'utf-8');

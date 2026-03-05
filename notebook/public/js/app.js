@@ -190,9 +190,12 @@ function updateSaveStatus(override) {
             e.preventDefault();
             saveNotebook(true);
         };
-        el.querySelector('.conflict-reload').onclick = (e) => {
+        el.querySelector('.conflict-reload').onclick = async (e) => {
             e.preventDefault();
-            if (currentNotebookPath) loadNotebook(currentNotebookPath);
+            if (currentNotebookPath) {
+                const ok = await loadNotebook(currentNotebookPath);
+                if (ok) setAutoSave(true);
+            }
         };
     } else if (override === 'saving') {
         el.textContent = 'Auto-saving...';
@@ -375,7 +378,9 @@ function connectWS() {
                     cell.el.classList.remove('timed-out');
                 }
                 if (exitCode !== 0) {
-                    const label = `Exited with code ${exitCode}`;
+                    const label = exitCode === 124
+                        ? 'Exited with code 124 (timeout)'
+                        : `Exited with code ${exitCode}`;
                     cell.outputs.push({ type: 'exit-code', data: label });
                     appendOutput(cell, label, 'exit-code');
                 }
@@ -392,6 +397,20 @@ function connectWS() {
 
     ws.onclose = () => {
         console.log('WebSocket disconnected, reconnecting in 2s...');
+        // Reset any cells stuck in running state — server lost the connection
+        for (const cell of cells) {
+            if (cell.running) {
+                cell.running = false;
+                cell.el.classList.remove('running');
+                executingCount = Math.max(0, executingCount - 1);
+                updateCellHeader(cell);
+                appendOutput(cell, 'Disconnected — execution interrupted\n', 'stderr');
+                cell.outputs.push({ type: 'stderr', data: 'Disconnected — execution interrupted\n' });
+            }
+        }
+        if (executingCount === 0 && autoSaveEnabled && dirty) {
+            scheduleAutoSave();
+        }
         setTimeout(connectWS, 2000);
     };
 }
@@ -673,7 +692,7 @@ function renderCodeCellActions(cell, actions) {
         navigator.clipboard.writeText(source).then(() => {
             copyBtn.textContent = 'Copied!';
             setTimeout(() => { copyBtn.textContent = 'Copy'; }, 1500);
-        });
+        }).catch(() => {});
     };
     actions.appendChild(copyBtn);
 
@@ -752,7 +771,7 @@ function renderCodeCellBody(cell, el) {
         navigator.clipboard.writeText(text).then(() => {
             copyOutBtn.textContent = 'Copied!';
             setTimeout(() => { copyOutBtn.textContent = 'Copy'; }, 1500);
-        });
+        }).catch(() => {});
     };
     outputWrap.appendChild(copyOutBtn);
 
@@ -990,6 +1009,15 @@ function executeCell(cell) {
         options.timeout = cell.cellTimeout;
     }
 
+    if (!ws || ws.readyState !== WebSocket.OPEN) {
+        cell.running = false;
+        cell.el.classList.remove('running');
+        executingCount = Math.max(0, executingCount - 1);
+        updateCellHeader(cell);
+        appendOutput(cell, 'Not connected to server\n', 'stderr');
+        cell.outputs.push({ type: 'stderr', data: 'Not connected to server\n' });
+        return;
+    }
     ws.send(JSON.stringify({
         type: 'execute',
         cellId: cell.id,
@@ -1001,6 +1029,7 @@ function executeCell(cell) {
 
 function interruptCell(cell) {
     if (!cell.running) return;
+    if (!ws || ws.readyState !== WebSocket.OPEN) return;
     ws.send(JSON.stringify({
         type: 'interrupt',
         cellId: cell.id,
@@ -1022,15 +1051,35 @@ function duplicateCell(cell) {
         newCell.fragmentName = cell.fragmentName ? cell.fragmentName + ' (copy)' : 'copy';
         activateFragmentMode(newCell);
     }
+    // Copy per-cell timeout
+    if (cell.cellTimeout > 0) {
+        newCell.cellTimeout = cell.cellTimeout;
+        const input = newCell.el?.querySelector('.cell-timeout-input');
+        if (input) input.value = cell.cellTimeout;
+    }
 }
 
 function deleteCell(cell) {
     const idx = cells.indexOf(cell);
     if (idx === -1) return;
-    if (cell.running) interruptCell(cell);
+    if (cell.running) {
+        interruptCell(cell);
+        cell.running = false;
+        executingCount = Math.max(0, executingCount - 1);
+        if (executingCount === 0 && autoSaveEnabled && dirty) {
+            scheduleAutoSave();
+        }
+    }
     if (cell.editor) cell.editor.destroy();
     cell.el.remove();
+    const deletedId = cell.id;
     cells.splice(idx, 1);
+    // Clean stale fragment references from other cells
+    for (const c of cells) {
+        if (c.includedFragments) {
+            c.includedFragments = c.includedFragments.filter(id => id !== deletedId);
+        }
+    }
     markDirty();
 }
 
@@ -1346,6 +1395,13 @@ function importNotebook(event) {
                 showStatus('Invalid notebook file', true);
                 return;
             }
+            // Validate all cells before clearing
+            for (const cellData of data.cells) {
+                if (!cellData.type || typeof cellData.source !== 'string') {
+                    showStatus('Invalid cell data in notebook file', true);
+                    return;
+                }
+            }
             clearAllCells();
             currentNotebookPath = null;
             currentNotebookVersion = null;
@@ -1478,6 +1534,10 @@ function activateFragmentMode(cell) {
     if (clearBtn) clearBtn.style.display = 'none';
     const pickerWrap = cell.el.querySelector('.fragment-picker-wrap');
     if (pickerWrap) pickerWrap.style.display = 'none';
+    const timeoutWrap = cell.el.querySelector('.cell-timeout-wrap');
+    if (timeoutWrap) timeoutWrap.style.display = 'none';
+    const copyOutBtn = cell.el.querySelector('.copy-output-btn');
+    if (copyOutBtn) copyOutBtn.style.display = 'none';
 }
 
 function clearAllCells() {

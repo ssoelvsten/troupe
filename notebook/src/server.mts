@@ -22,7 +22,7 @@ const port = parseInt(process.env.PORT || '8888', 10);
 
 const app = express();
 const server = createServer(app);
-const wss = new WebSocketServer({ server });
+const wss = new WebSocketServer({ server, maxPayload: 10 * 1024 * 1024 });
 
 const executionManager = new ExecutionManager(troupeRoot);
 const notebookStore = new NotebookStore(notebookDir);
@@ -116,6 +116,20 @@ wss.on('connection', (ws: WebSocket) => {
         }
     });
 });
+
+// Graceful shutdown: kill child processes, close connections
+function shutdown() {
+    console.log('\nShutting down...');
+    executionManager.shutdownAll();
+    wss.clients.forEach(client => client.close());
+    wss.close();
+    server.close(() => process.exit(0));
+    // Force exit if server doesn't close within 5s
+    setTimeout(() => process.exit(1), 5000).unref();
+}
+
+process.on('SIGTERM', shutdown);
+process.on('SIGINT', shutdown);
 
 server.listen(port, () => {
     console.log(`Troupe Notebook server running at http://localhost:${port}`);

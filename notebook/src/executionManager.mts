@@ -11,6 +11,7 @@ function signalNumber(sig: string): number | undefined {
 }
 
 const DEFAULT_TIMEOUT_SECONDS = 10;
+const MAX_TIMEOUT_SECONDS = 300;
 
 export interface OutputCallback {
     (type: 'stdout' | 'stderr' | 'compile_error' | 'result' | 'done', data: string): void;
@@ -76,6 +77,14 @@ export class ExecutionManager {
         return false;
     }
 
+    shutdownAll(): void {
+        for (const [cellId, proc] of this.running) {
+            this.clearTimer(cellId);
+            proc.kill('SIGKILL');
+        }
+        this.running.clear();
+    }
+
     private compile(trpFile: string, jsFile: string, cellId: string, onOutput: OutputCallback): Promise<boolean> {
         return new Promise((resolve) => {
             const compiler = join(this.troupeRoot, 'bin', 'troupec');
@@ -127,7 +136,8 @@ export class ExecutionManager {
                     runtimeArgs.push(`--label-format=${options.labelFormat}`);
                 }
             }
-            const timeout = (options?.timeout && options.timeout > 0) ? options.timeout : DEFAULT_TIMEOUT_SECONDS;
+            const rawTimeout = (options?.timeout && options.timeout > 0) ? options.timeout : DEFAULT_TIMEOUT_SECONDS;
+            const timeout = Math.min(rawTimeout, MAX_TIMEOUT_SECONDS);
             runtimeArgs.push(`--timeout=${timeout}`);
 
             const proc = spawn('node', runtimeArgs, {
@@ -151,20 +161,28 @@ export class ExecutionManager {
             const mainThreadRe = /^>>> Main thread finished with value: (.+)$/;
 
             proc.stdout?.on('data', (chunk: Buffer) => {
-                const text = chunk.toString();
-                for (const line of text.split('\n')) {
-                    if (!line) continue;
-                    const match = mainThreadRe.exec(line);
-                    if (match) {
-                        onOutput('result', match[1]);
-                    } else {
-                        onOutput('stdout', line + '\n');
+                try {
+                    const text = chunk.toString();
+                    for (const line of text.split('\n')) {
+                        if (!line) continue;
+                        const match = mainThreadRe.exec(line);
+                        if (match) {
+                            onOutput('result', match[1]);
+                        } else {
+                            onOutput('stdout', line + '\n');
+                        }
                     }
+                } catch (err) {
+                    console.error('Error in stdout handler:', err);
                 }
             });
 
             proc.stderr?.on('data', (chunk: Buffer) => {
-                onOutput('stderr', chunk.toString());
+                try {
+                    onOutput('stderr', chunk.toString());
+                } catch (err) {
+                    console.error('Error in stderr handler:', err);
+                }
             });
 
             proc.on('close', (code, signal) => {
