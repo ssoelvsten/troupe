@@ -22,6 +22,11 @@ export enum DowngradeErrorReason {
 	TRANSPARENCY_VIOLATION = 6
 }
 
+export enum ValueDowngradeGranularity {
+	TYPE_ONLY = 1,
+	BOTH_VALUE_AND_TYPE = 2,
+}
+
 export type SuccessfulDowngradeResult = {
 	kind: "SUCCESS";
 };

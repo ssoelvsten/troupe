@@ -1,0 +1,8 @@
+let val x = if true raisedTo `<alice; #root-integrity>`
+            then 42
+            else 21
+    val _ = blockdown authority
+    val x' = declassifyType (x, authority, `{}`)
+in (x, x')
+end
+
