@@ -9,3 +9,7 @@ Color coding (border colors, background tints) can be used as a supplementary vi
 - **Execution state**: Running/idle state should be indicated by button changes (Run vs Stop) and text, not just border color.
 
 This ensures information is accessible regardless of color perception and is unambiguous at a glance.
+
+## Avoid unnecessary capitalization in UI elements
+
+Do not use uppercase or `text-transform: uppercase` for UI labels, section headings in panels, or button text unless there is a strong convention for it (e.g., single-word cell type badges like "CODE" or "MD"). Prefer sentence case for labels and headings.
