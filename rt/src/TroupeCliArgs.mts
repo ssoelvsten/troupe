@@ -55,6 +55,7 @@ export enum TroupeCliArg {
     Explain = 'explain',
     Timeout = 'timeout',
     TimeoutExitCode = 'timeout-exit-code',
+    ResultSocket = 'result-socket',
 }
 
 export interface ParsedArgs {
@@ -87,6 +88,7 @@ export interface ParsedArgs {
     [TroupeCliArg.Explain]?: boolean;
     [TroupeCliArg.Timeout]?: number;
     [TroupeCliArg.TimeoutExitCode]?: number;
+    [TroupeCliArg.ResultSocket]?: string;
     [key: string]: any;
 }
 
@@ -172,6 +174,10 @@ export function getCliArgs(): ParsedArgs {
                 type: 'number',
                 default: 124,
                 describe: 'Exit code to use when execution times out'
+            })
+            .option(TroupeCliArg.ResultSocket, {
+                type: 'string',
+                describe: 'Unix socket path for structured lifecycle messages (main thread result, process exit)'
             })
             .parseSync();
 

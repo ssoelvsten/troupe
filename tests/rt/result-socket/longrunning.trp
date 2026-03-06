@@ -1,0 +1,5 @@
+let fun loop () = let val _ = sleep 100
+                  in loop ()
+                  end
+in loop ()
+end

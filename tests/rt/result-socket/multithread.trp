@@ -1,0 +1,6 @@
+let fun worker () =
+      receive [hn x => x]
+    val p = spawn worker
+in send (p, "done");
+   100
+end

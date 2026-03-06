@@ -48,7 +48,7 @@ ci-test-golden-no-color:
 	mkdir -p out 
 	./bin/golden --no-color
 
-test: test/local test/multinode
+test: test/local test/multinode test/result-socket
 test/local:
 	mkdir -p out
 	cd compiler && $(MAKE) test
@@ -61,6 +61,16 @@ test/libp2p-migration-verbose:
 test/ci-network: rt p2p-tools
 	@echo "Running CI network test..."
 	./tests/ci-network-test.sh
+test/result-socket: test/result-socket-socat test/result-socket-node
+test/result-socket-socat:
+	@if command -v socat >/dev/null 2>&1; then \
+		bash tests/rt/result-socket/test-result-socket.sh; \
+	else \
+		echo "SKIP: socat not installed"; \
+	fi
+test/result-socket-node:
+	node tests/rt/result-socket/test-result-socket.mjs
+
 test/ci-relay: p2p-tools
 	@echo "Running CI relay test..."
 	./tests/ci-relay-test.sh
