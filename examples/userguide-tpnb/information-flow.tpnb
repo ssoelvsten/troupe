@@ -1,0 +1,274 @@
+{
+  "troupe_notebook": 1,
+  "options": {
+    "nmifc": true,
+    "labelFormat": "v1",
+    "timeout": 10
+  },
+  "cells": [
+    {
+      "id": "cell-1-ca8223",
+      "type": "markdown",
+      "source": "# Information flow control\n\nTroupe implements dynamic information flow control. Information flow violations result in termination of a process, unless the process is sandboxed.\n\n**Labeled values**\n\nEvery value in Troupe is *deeply labeled* with confidentiality levels. The security level of a value specifies the confidentiality policy of the value. Troupe uses the syntax `v@{ℓ_val}%{ℓ_type}` to denote that the value `v` has security level `ℓ_val`, and the information about the type of this value is labeled at `ℓ_type`.\n\n**Remark**\n\nCurrent version of Troupe only enforces confidentiality properties.\n\n## Tag-based label model\n\nThe current version of Troupe uses a simple tag-based label model. Tags are abstract identifiers, e.g., `alice`, `bob`, `secret`, that specify confidentiality restrictions on data. A security level is a set of tags, e.g., `{alice, bob}`, or `{alice, bob, charlie}`. The more tags there are in the level the more restrictive is the data. For example, the level `{alice, bob}` is less restrictive than `{alice, bob, charlie}`. The least restrictive level is the empty set level `{}`. When two levels are ordered we write ℓ₁ ⊑ ℓ₂ to say that level ℓ₂ is as restrictive as ℓ₁.\n\n## Monitoring for information flow\n\nA labeled value can be created using Troupe's `raisedTo` primitive. Troupe's runtime propagates labels throughout the computation. This section presents examples of label propagation via explicit flows, implicit flows, and finally via termination and blocking.\n\n**Explicit flows**\n\nThe following example shows how to create labeled values and how explicit dependencies are propagated."
+    },
+    {
+      "id": "cell-2-27ed1e",
+      "type": "code",
+      "source": "let val x = 10 raisedTo `{alice}`\n    val y = 20 raisedTo `{bob}`\nin x + y\nend",
+      "outputs": [
+        {
+          "type": "result",
+          "data": "30@{alice,bob}%{}"
+        }
+      ]
+    },
+    {
+      "id": "cell-3-d7d1ad",
+      "type": "markdown",
+      "source": "**Expected output:**\n```\nmain thread finished with value: 30@{alice,bob}%{}\n```"
+    },
+    {
+      "id": "cell-4-24069e",
+      "type": "markdown",
+      "source": "**Relationship between type and value labels**\n\nObserve how the result of this computation is labeled with the level `{alice, bob}`, but the type label is `{}`. Because information about the value is more precise than the information about the type, it holds that ℓ_type ⊑ ℓ_val.\n\n**Labels as values and label comparison**\n\nLabels in Troupe are first-class:"
+    },
+    {
+      "id": "cell-5-eaeba6",
+      "type": "code",
+      "source": "import List\nmap (fn (x,lev) => x raisedTo lev) [ (1, `{alice}`)\n                                   , (2, `{bob}`)\n                                   , (3, `{charlie}`) ]",
+      "outputs": [
+        {
+          "type": "result",
+          "data": "[1@{alice}%{}, 2@{bob}%{}, 3@{charlie}%{}]@{}%{}"
+        }
+      ]
+    },
+    {
+      "id": "cell-6-d352e4",
+      "type": "markdown",
+      "source": "**Expected output:**\n```\n>>> Main thread finished with value: [1@{alice}%{}, 2@{bob}%{}, \n3@{charlie}%{}]@{}%{}\n```"
+    },
+    {
+      "id": "cell-7-ee3689",
+      "type": "markdown",
+      "source": "**Implicit flows**\n\nConditionals propagate the flows as well:"
+    },
+    {
+      "id": "cell-8-cf88d8",
+      "type": "code",
+      "source": "let val x = 10 raisedTo `{alice}` \nin if x > 5 then 1 else 0 \nend",
+      "outputs": [
+        {
+          "type": "result",
+          "data": "1@{alice}%{alice}"
+        }
+      ]
+    },
+    {
+      "id": "cell-9-ba1f85",
+      "type": "markdown",
+      "source": "**Expected output:**\n```\nmain thread finished with value: 1@{alice}%{alice}\n```"
+    },
+    {
+      "id": "cell-10-1a85ff",
+      "type": "markdown",
+      "source": "Observe how the final value carries the dependency of the branch that has been chosen here. Because, of the dynamic nature of type checking, we also carry the information about the chosen branch into the type label.\n\n**Implicit flows and I/O**\n\nThe implicit information flows are further propagated between processes. In the mailbox, each message is additionally tagged with a label that corresponds to the blocking level of the sender at the time when the message was sent. Troupe supports filtering messages based on these tags. In the following example, `rcvp` is a form of receive statement that selects messages where the pc-tag set to the provided label argument."
+    },
+    {
+      "id": "cell-11-089060",
+      "type": "code",
+      "source": "let val x = 10 raisedTo `{secret}`\n    val p = self()\n    val _ = spawn ( fn () => if x > 0 \n                               then send (p, 1) \n                               else send (p, 0) )\nin rcvp (`{secret}`, [ hn x => x ])\nend",
+      "outputs": [
+        {
+          "type": "result",
+          "data": "1@{secret}%{secret}"
+        }
+      ]
+    },
+    {
+      "id": "cell-12-7a744b",
+      "type": "markdown",
+      "source": "**Expected output:**\n```\nmain thread finished with value: 1@{secret}%{secret}\n```"
+    },
+    {
+      "id": "cell-13-4e2866",
+      "type": "markdown",
+      "source": "**Termination and blocking flows**\n\nIn addition to tracking implicit flows via control flow, Troupe also tracks possible leaks via program termination or blocking. The sources of blocking are all synchronous operations such as receive statements or reading from standard input. Each thread has two runtime labels: the program counter label `pc`, and the blocking (termination) label `block`. It is always the case that `pc ⊑ block`. To view the labels there is a helper internal function `debugpc ()`."
+    },
+    {
+      "id": "cell-14-912052",
+      "type": "code",
+      "source": "let val x = 1 raisedTo `{secret}`\n    val _ = debugpc() \n    val x = if x > 2 then receive [] else () \n    val _ = debugpc() \nin () \nend",
+      "outputs": [
+        {
+          "type": "stdout",
+          "data": "PID:47d40d16-8cae-426d-bf2d-9849089b73fe@{}%{}     PC:{}                BL:{}                HNNORMAL             _sp:13               \n"
+        },
+        {
+          "type": "stdout",
+          "data": "PID:47d40d16-8cae-426d-bf2d-9849089b73fe@{}%{}     PC:{}                BL:{secret}          HNNORMAL             _sp:13               \n"
+        },
+        {
+          "type": "result",
+          "data": "()@{secret}%{secret}"
+        }
+      ]
+    },
+    {
+      "id": "cell-15-806921",
+      "type": "markdown",
+      "source": "Each call to `debugpc` prints out the information about the process identifier, the pc label, and the blocking label."
+    },
+    {
+      "id": "cell-16-194a89",
+      "type": "markdown",
+      "source": "**Expected output:**\n```\nPID:2dfe86ae-6bf3-4bfc-8a0c-200230e0296c@{}%{}     PC:{}       BL:{}                \nPID:2dfe86ae-6bf3-4bfc-8a0c-200230e0296c@{}%{}     PC:{}       BL:{secret}\n```"
+    },
+    {
+      "id": "cell-17-dec1de",
+      "type": "markdown",
+      "source": "As one can see from the output above, the pc label after the conditional statement is lowered back to `{}`, but the blocking label remains tainted with the label of the branch. The distinction between the two labels is helpful when declassifying the blocking label.\n\n**Implicit flows and type labels**\n\nType labels of values created in branches are also tainted by the pc-label. Operations that check the type label, e.g., arithmetics or pattern matching, use the information in the type label to appropriately taint the blocking level. the value."
+    },
+    {
+      "id": "cell-18-fb742e",
+      "type": "code",
+      "source": "let val x = 100 raisedTo `{alice}`\n    val y = 200 raisedTo `{bob}`\n    val z = 300 raisedTo `{charlie}`\n    val a = let pini authority \n                val a = if y > 10 then z else \"not an integer\"\n            in a \n            end\n    val _ = printWithLabels a\n    val _ = debugpc()\n    val w = a + x\n    val _ = printWithLabels w\nin debugpc()\nend",
+      "outputs": [
+        {
+          "type": "stdout",
+          "data": "300@{bob,charlie}%{bob}\n"
+        },
+        {
+          "type": "stdout",
+          "data": "PID:a577cfdd-9dba-49db-bc1a-2b33908bce0b@{}%{}     PC:{}                BL:{}                HNNORMAL             _sp:25               \n"
+        },
+        {
+          "type": "stdout",
+          "data": "400@{alice,bob,charlie}%{}\n"
+        },
+        {
+          "type": "stdout",
+          "data": "PID:a577cfdd-9dba-49db-bc1a-2b33908bce0b@{}%{}     PC:{}                BL:{bob}             HNNORMAL             _sp:25               \n"
+        },
+        {
+          "type": "result",
+          "data": "()@{bob}%{bob}"
+        }
+      ]
+    },
+    {
+      "id": "cell-19-142ca0",
+      "type": "markdown",
+      "source": "**Expected output:**\n```\n300@{charlie,bob}%{bob}\nPID:2dfdc81f-1027-40e2-810c-11fadb2dd40f@{}%{}     PC:{}          BL:{}\n400@{charlie,bob,alice}%{}\nPID:2dfdc81f-1027-40e2-810c-11fadb2dd40f@{}%{}     PC:{}          BL:{bob}\n```"
+    },
+    {
+      "id": "cell-20-45ac85",
+      "type": "markdown",
+      "source": "**Implementation note**\n\nTroupe implements information flow enforcement via inlining.\n\n## Declassification and progress-sensitivity\n\nTo relax the constraints imposed by the information flow control, Troupe offers a mechanism for *declassification*.\n\n### Authority\n\nIn Troupe, declassifying information requires a capability to declassify, known as the *declassification authority*. The authority carries a security level that is the upper bound on what information it can declassify.\n\nGiven a value at level ℓ_from, an authority of level ℓ_auth permits a declassification to level ℓ_to if ℓ_from ⊑ ℓ_to ∪ ℓ_auth.\n\nAuthorities in Troupe are capabilities, which means that they cannot be created out of thin air. At the start of a Troupe program, the top-level authority is bound to variable `authority`. This authority can be used freely by the program. Note, however, that the authority is not available to code that is imported from the libraries or to code that is received over the network.\n\n### Attenuation\n\nAuthority can be attenuated using the `attenuate` primitive."
+    },
+    {
+      "id": "cell-21-9f648e",
+      "type": "code",
+      "source": "attenuate (authority, `{alice}`)",
+      "outputs": [
+        {
+          "type": "result",
+          "data": "!{alice}@{}%{}"
+        }
+      ]
+    },
+    {
+      "id": "cell-22-ac8213",
+      "type": "markdown",
+      "source": "**Expected output:**\n```\n>>> Main thread finished with value: !{alice}@{}%{}\n```"
+    },
+    {
+      "id": "cell-23-77717c",
+      "type": "markdown",
+      "source": "### Basic declassification\n\nTroupe provides an explicit declassification command `declassify` that takes three arguments: the expression to declassify, the authority, and the target label. For example, a basic declassification looks like this."
+    },
+    {
+      "id": "cell-24-7497e7",
+      "type": "code",
+      "source": "let val x = 10 raisedTo `<alice; #root-integrity>`\n in declassify (x , authority, `<;#root-integrity>` )\nend",
+      "outputs": [
+        {
+          "type": "result",
+          "data": "10@{}%{}"
+        }
+      ]
+    },
+    {
+      "id": "cell-25-31fe3c",
+      "type": "markdown",
+      "source": "When authority for declassification is not sufficient, Troupe returns an error message."
+    },
+    {
+      "id": "cell-26-654396",
+      "type": "code",
+      "source": "let val authAlice = attenuate (authority, `{alice}`)\n    val x = 1 raisedTo `{bob}`\nin declassify (x, authAlice, `{}`)\nend",
+      "outputs": [
+        {
+          "type": "stdout",
+          "data": "Runtime error in thread c76090fb-cefc-414f-b826-6c4315cb4dda@{}%{}\n"
+        },
+        {
+          "type": "stdout",
+          "data": ">> Integrity level mismatch for declassification\n"
+        },
+        {
+          "type": "stdout",
+          "data": " | integrity level of the data: bob\n"
+        },
+        {
+          "type": "stdout",
+          "data": " | integrity level of the target: #root-integrity\n"
+        }
+      ]
+    },
+    {
+      "id": "cell-27-01d381",
+      "type": "markdown",
+      "source": "**Expected output:**\n```\nRuntime error in thread b469cbef-16d3-4fe8-ac1e-bd21c7e8950d@{}%{}\n>> Not enough authority for declassification\n | level of the data: {bob}\n | level of the authority: {alice}\n | target level of the declassification: {}\n```"
+    },
+    {
+      "id": "cell-28-2d35d0",
+      "type": "markdown",
+      "source": "### Declassification of the blocking level\n\nThe treatment of the blocking and termination labels is often restrictive in practice. To relax this, Troupe provides declassification of the blocking label. This is done using a variant of the `let` declaration that is called `let pini`. This statement requires the authority argument to declassify the blocking label after the sequence of the declarations (i.e., just before the `in` block). These declarations are accessible in the body of the let statement at permissive levels."
+    },
+    {
+      "id": "cell-29-91cae5",
+      "type": "code",
+      "source": "let val x = 10 raisedTo `{alice}`\n    val y = 0\n    val z = \n        let pini authority\n          val _ = if x > 1000 then receive [] else ()\n          val z = y + 1\n          val _ = debugpc () \n        in z\n        end\n    val _ = debugpc()\nin z\nend",
+      "outputs": [
+        {
+          "type": "stdout",
+          "data": "PID:142bcd79-62ef-4354-af9e-98d9d981e8c7@{}%{}     PC:{}                BL:{alice}           HNNORMAL             _sp:16               \n"
+        },
+        {
+          "type": "stdout",
+          "data": "PID:142bcd79-62ef-4354-af9e-98d9d981e8c7@{}%{}     PC:{}                BL:{}                HNNORMAL             _sp:16               \n"
+        },
+        {
+          "type": "result",
+          "data": "1@{}%{}"
+        }
+      ]
+    },
+    {
+      "id": "cell-30-70d2c1",
+      "type": "markdown",
+      "source": "**Expected output:**\n```\nPID:54bd148b-912e-4ae9-9787-aaf1166e9bc9@{}%{}     PC:{}       BL:{alice}           \nPID:54bd148b-912e-4ae9-9787-aaf1166e9bc9@{}%{}     PC:{}       BL:{}            \n>>> Main thread finished with value: 1@{}%{}\n```"
+    },
+    {
+      "id": "cell-31-f7edda",
+      "type": "markdown",
+      "source": "Observe that in the above program, the level of the final value `z` is not tainted by the blocking label of the high conditional.\n\n**Implementation note**\n\nThe expression `let pini e0` declarations `in e1 end` is desugared by the compiler frontend into the form:\n\n```\nlet val tmp = pinipush e0 \n    declarations\n    val _ = pinipop tmp\nin e1      \nend\n```\n\nHere, `tmp` is a fresh variable that is not part of the user program. Primitives `pinipush` and `pinipop` dynamically scope the part of the execution for which the blocking label is declassified."
+    },
+    {
+      "id": "cell-33-68adf4",
+      "type": "markdown",
+      "source": "## Information flow control with I/O primitives\n\nThis section may be omitted upon first read as it has a number of information flow subtleties that can be omitted when first starting to use the system.\n\n### Generalized receive and mailbox clearances\n\nI/O operations such as send and receive introduce additional concerns w.r.t. information flow control. In particular, because mailbox acts as a mutable state, an extra care needs to be taken to control information flows through the mailbox structure.\n\nEvery message in a mailbox carries an extra label -- the blocking level of the sender. We refer to this extra label as the *presence label*. Receiving a value furthermore propagates the taint of the blocking level from the sender to the receiver via the presence label. In order to constrain a receive operation from an accidental raise of the blocking level, Troupe provides a general receive primitive in the form `rcv(lev1,lev2,hns)`. Here, `lev1` and `lev2` indicate the to and from-levels of the presence labels on the messages, and `hns` is the list of handlers as before. The `receive` operation we introduced earlier is equivalent to `rcvp` at the level of the current pc label.\n\nWhile such a form of general receive over an interval of levels is useful, it is also too powerful and needs to be further constrained. Consider the following snippet:\n\n```\nlet val _ = if secret then rcv (`{}`, `{alice}`, [hn x => x])\n                      else ()\nin rcv (`{}`, `{}`, [hn x => x])\nend\n```\n\nBecause the receive in the high branch is on an interval, the value of `x` may depend on the secret value. In general, one can encode an entire secret in the structure of the mailbox. To prevent such programs, Troupe provides a special notion of *mailbox clearance* that constrains receives on an interval. The mailbox clearance is a proxy for an authority. It can be raised using a dedicated command `raisembox (lev)` that returns a lowering capability and lowered with command `lowermbox(c, authority)`. There are a few constraints related to the mailbox clearance.\n\n1. In order to receive on an interval (ℓ₁, ℓ₂) under `pc` with mailbox clearance ℓ_clear it must hold that ℓ₂ ∪ pc ⊑ ℓ₁ ∪ ℓ_clear. This constraint ensures that the mailbox clearance is sufficient for the interval receives. When mailbox clearance is ⊥ -- as it is in the beginning of the program -- only point intervals of the form (ℓ, ℓ) where pc ⊑ ℓ are allowed.\n\n2. The `pc`-label of the program point where the mailbox clearance is raised affects the lower bound of the intervals. In particular, if the clearance is raised when the `pc` counter is pc_raise, the mailbox structure cannot be influenced by receives that are not as restrictive as pc_raise; in other words: pc_raise ⊑ pc ∩ ℓ₁, where ℓ₁ is the lower bound of the interval receive.\n\n3. If the process mailbox clearance is raised in a branch, it must be lowered back before reaching the join point of the branch."
+    }
+  ]
+}

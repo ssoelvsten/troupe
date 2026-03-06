@@ -360,19 +360,13 @@ header h1 {
 }
 
 .cell-output .result {
+    display: block;
     color: #2c3e50;
     font-weight: 600;
-    border-top: 1px solid #eee;
-    padding-top: 4px;
-    margin-top: 4px;
-}
-
-.cell-output .result::before {
-    content: "=> ";
-    color: #7f8c8d;
 }
 
 .cell-output .exit-code {
+    display: block;
     color: #e74c3c;
     font-weight: 600;
     font-style: italic;
@@ -400,6 +394,14 @@ header h1 {
 .cell.markdown-cell .cell-rendered pre code {
     display: block;
     padding: 8px;
+}
+.cell.markdown-cell .cell-rendered ul,
+.cell.markdown-cell .cell-rendered ol {
+    margin: 6px 0;
+    padding-left: 24px;
+}
+.cell.markdown-cell .cell-rendered li {
+    margin: 2px 0;
 }
 
 .add-cell-bar {

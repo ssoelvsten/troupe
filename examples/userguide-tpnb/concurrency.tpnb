@@ -1,0 +1,143 @@
+{
+  "troupe_notebook": 1,
+  "options": {
+    "nmifc": true,
+    "labelFormat": "v1",
+    "timeout": 10
+  },
+  "cells": [
+    {
+      "id": "cell-1-57ac14",
+      "type": "markdown",
+      "source": "# Concurrency\n\n## Spawning processes\n\nNew processes are created using `spawn` function that takes as its argument a unit-argument function. \nIt return the process identifier of the new process, and starts the new process that from now on runs concurrently with the \nparent process."
+    },
+    {
+      "id": "cell-2-64311d",
+      "type": "code",
+      "source": "import List\nlet fun printwait x = let val _ = printWithLabels x in sleep 10 end\n    fun foo () = map printwait [1,2,3]\n    fun bar () = map printwait [\"A\", \"B\", \"C\"]\nin  (spawn foo, spawn bar)\nend",
+      "outputs": [
+        {
+          "type": "result",
+          "data": "(8365458e-e6a7-452e-b9ab-407cddf6f655@{}%{}, e5dc85bc-2de4-45be-afa2-b38001746018@{}%{})@{}%{}"
+        },
+        {
+          "type": "stdout",
+          "data": "1@{}%{}\n"
+        },
+        {
+          "type": "stdout",
+          "data": "\"A\"@{}%{}\n"
+        },
+        {
+          "type": "stdout",
+          "data": "2@{}%{}\n"
+        },
+        {
+          "type": "stdout",
+          "data": "\"B\"@{}%{}\n"
+        },
+        {
+          "type": "stdout",
+          "data": "3@{}%{}\n"
+        },
+        {
+          "type": "stdout",
+          "data": "\"C\"@{}%{}\n"
+        }
+      ]
+    },
+    {
+      "id": "cell-3-421108",
+      "type": "markdown",
+      "source": "Execution of this program yields the following output:"
+    },
+    {
+      "id": "cell-4-01ec71",
+      "type": "markdown",
+      "source": "**Expected output:**\n```\nmain thread finished with value: (ae07ebcc-8a36-401e-b755-ff2393588c87@{}%{}, \ned165a5d-acb0-4c6e-9843-29d9f263c6da@{}%{})@{}%{}\n1@{}%{}\n\"A\"@{}%{}\n2@{}%{}\n\"B\"@{}%{}\n3@{}%{}\n\"C\"@{}%{}\n```"
+    },
+    {
+      "id": "cell-5-b9b151",
+      "type": "markdown",
+      "source": "## Sending and receiving messages\n\nProcess communication in Troupe happens via message passing. Every process has a designated mailbox,\nand other processes may send messages to that mailbox. Only the process that owns the mailbox may pick the messages from it.\n\nTo send a message to another process, we use function `send` that accepts as its argument a tuple of\na process identifier and a value to send. To receive a message from the mailbox, we use function `receive`\nthat accepts as its argument a list of handlers that select a message from the mailbox."
+    },
+    {
+      "id": "cell-6-8247b0",
+      "type": "code",
+      "source": "let fun foo () =\n      receive [hn x => printWithLabels (\"foo received\", x)]\n    val p = spawn foo\nin send (p, \"hello\")\nend",
+      "outputs": [
+        {
+          "type": "result",
+          "data": "()@{}%{}"
+        },
+        {
+          "type": "stdout",
+          "data": "(\"foo received\"@{}%{}, \"hello\"@{}%{})@{}%{}\n"
+        }
+      ]
+    },
+    {
+      "id": "cell-7-25cfa0",
+      "type": "markdown",
+      "source": "**Handlers**\n\nIn the example above, the expression `hn x => ...` is a *handler*. \nHandlers are used for selecting messages from the mailbox. The syntax for handlers is\n\n`hn pat when e1 => e2`\n\nHere, `pat` is the pattern to match, `e1` is the guard expression, and `e2` is the body of the handler. \nThe guard part of the handler (`when e1`) may be omitted. \nWhen several handlers are provided they are used in the order they appear in the list.\nFinally, note that, on each invocation of `receive`, only one message is selected. Subsequent selection\nrequires another call to `receive`.\nFinally, note that handlers are first class (see also the implementation note below).\n\n**Constraints on the guard expressions**\n\nEvaluation of pattern and guard expressions is *sandboxed* -- it may not invoke I/O operations, or \nspawn threads.\n\n**Implementation note**\n\nInternally, handlers are desugared into a function with a case expression that returns a tuple such that the first \nelement of the tuple indicates whether the message should be picked or not, and the second element is the body \nof the handler wrapped in a function, e.g., a value of the form `fn () => e2`.\n\n## Example: receive with a timeout\n\nThe following listing illustrates a program that implements\nreceive with a timeout. In the code below, the primitive `sleep`\nsuspends the execution of the thread for the specified number of milliseconds,\nwhile the primitive `mkuuid` creates a unique string.\nThe use of the unique string avoids creating a confusion when multiple\ntimeouts may be involved."
+    },
+    {
+      "id": "cell-8-70c5cc",
+      "type": "code",
+      "source": "let fun timeout p r t = let val _ = sleep t\n                        in send (p, r)\n                        end\n    val p = self () \n    val r = mkuuid () \n    val _ = spawn ( fn () => timeout p r 1000)    \nin receive [ hn (\"MESSAGE\", x) => print x\n           , hn s when s = r => print \"timeout\" \n           ]\nend",
+      "outputs": [
+        {
+          "type": "stdout",
+          "data": "\"timeout\"\n"
+        },
+        {
+          "type": "result",
+          "data": "()@{}%{}"
+        }
+      ]
+    },
+    {
+      "id": "cell-9-c5edd7",
+      "type": "markdown",
+      "source": "## Example: updateable service\n\nThe listing below presents an example of an updateable service -- \nthis is implemented by having a dedicated handler selecting on \nmessages with the `\"UPDATE\"` string."
+    },
+    {
+      "id": "cell-10-004518",
+      "type": "code",
+      "source": "import timeout\nlet fun v_one n =\n         receive [ hn (\"REQUEST\", senderid) => \n                        let val _ = send (senderid, n) \n                        in v_one (n+1) \n                        end\n                 , hn (\"UPDATE\", newversion) => newversion n\n                 ]\n                 \n    val service = spawn (fn () => v_one 0)\n    val _ = send (service, (\"REQUEST\", self()))\n    val _ = receive [ hn x => print x]\n                    \n    fun v_two n =\n        receive [ hn (\"REQUEST\", senderid) => \n                        let val _ = send (senderid, n) \n                         in v_two (n+1) \n                        end\n                , hn (\"COMPUTE\", senderid, f, x) =>\n                        let val _ = send (senderid, f x)\n                         in v_two (n+1)\n                        end\n                , hn (\"UPDATE\", newversion) => newversion n\n                ]\n\n    val _ = send (service, (\"UPDATE\", v_two))\n    val _ = send (service, (\"COMPUTE\", self(), fn x => x * x, 42))\n    val _ = receive [ hn x => print x]\nin exitAfterTimeout authority 1000 0 \n        \"force terminating the server example after 1s\"; ()\nend",
+      "outputs": [
+        {
+          "type": "stdout",
+          "data": "0\n"
+        },
+        {
+          "type": "stdout",
+          "data": "1764\n"
+        },
+        {
+          "type": "result",
+          "data": "()@{}%{}"
+        },
+        {
+          "type": "stdout",
+          "data": "force terminating the server example after 1s\n"
+        }
+      ]
+    },
+    {
+      "id": "cell-11-17c709",
+      "type": "markdown",
+      "source": "The evaluation of this program results in the output"
+    },
+    {
+      "id": "cell-12-f17a43",
+      "type": "markdown",
+      "source": "**Expected output:**\n```\n0@{}%{}\n1764@{}%{}\nmain thread finished with value: ()@{}%{}\nforce terminating the server example after 1s\n```"
+    },
+    {
+      "id": "cell-13-f7b813",
+      "type": "markdown",
+      "source": "## Debugging concurrent programs\n\nTo help debugging concurrent programs, one can use a special primitive `_setProcessDebuggingName` that\ntakes a string argument and uses that string when reporting errors in the process. By design, there is no mechanism\nfor reading the process name other than causing an error; this prevents using process names to leak information."
+    }
+  ]
+}
