@@ -4,6 +4,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { randomUUID } from 'node:crypto';
 import { constants } from 'node:os';
+import * as net from 'node:net';
 
 const signalNumbers: Record<string, number> = constants.signals as Record<string, number>;
 function signalNumber(sig: string): number | undefined {
@@ -114,95 +115,134 @@ export class ExecutionManager {
         });
     }
 
-    private run(jsFile: string, cellId: string, onOutput: OutputCallback, options?: RuntimeOptions): Promise<void> {
-        return new Promise((resolve) => {
-            const runtime = join(this.troupeRoot, 'rt', 'built', 'troupe.mjs');
-            const runtimeArgs = [
-                '--stack-trace-limit=1000',
-                runtime,
-                '-f=' + jsFile,
-                '--localonly',
-                '--suppress-local-info-message',
-                '--no-color',
-            ];
+    private async run(jsFile: string, cellId: string, onOutput: OutputCallback, options?: RuntimeOptions): Promise<void> {
+        const id = cellId.slice(0, 8);
+        const socketPath = join(tmpdir(), `troupe-nb-result-${id}.sock`);
 
-            const ALLOWED_LABEL_FORMATS = ['v1', 'v2'];
-            if (options) {
-                if (options.nmifc === false) {
-                    runtimeArgs.push('--no-nmifc');
-                }
-                if (options.labelFormat && options.labelFormat !== 'v1'
-                    && ALLOWED_LABEL_FORMATS.includes(options.labelFormat)) {
-                    runtimeArgs.push(`--label-format=${options.labelFormat}`);
-                }
-            }
-            const rawTimeout = (options?.timeout && options.timeout > 0) ? options.timeout : DEFAULT_TIMEOUT_SECONDS;
-            const timeout = Math.min(rawTimeout, MAX_TIMEOUT_SECONDS);
-            runtimeArgs.push(`--timeout=${timeout}`);
+        // Clean up any stale socket file from a previous run
+        await unlink(socketPath).catch(() => {});
 
-            const proc = spawn('node', runtimeArgs, {
-                env: { ...process.env, TROUPE: this.troupeRoot },
-            });
+        // Create the Unix socket server before spawning the runtime
+        const socketServer = net.createServer();
+        await new Promise<void>((resolve, reject) => {
+            socketServer.listen(socketPath, () => resolve());
+            socketServer.on('error', reject);
+        });
 
-            this.running.set(cellId, proc);
-
-            // Safety-net hard kill: if runtime doesn't exit within timeout + 5s grace, force kill
-            {
-                const graceMs = (timeout + 5) * 1000;
-                const timer = setTimeout(() => {
-                    this.timeoutTimers.delete(cellId);
-                    if (proc.exitCode === null) {
-                        proc.kill('SIGKILL');
-                    }
-                }, graceMs);
-                this.timeoutTimers.set(cellId, timer);
-            }
-
-            const mainThreadRe = /^>>> Main thread finished with value: (.+)$/;
-
-            proc.stdout?.on('data', (chunk: Buffer) => {
-                try {
-                    const text = chunk.toString();
-                    for (const line of text.split('\n')) {
-                        if (!line) continue;
-                        const match = mainThreadRe.exec(line);
-                        if (match) {
-                            onOutput('result', match[1]);
-                        } else {
-                            onOutput('stdout', line + '\n');
+        // Handle incoming connection from the runtime
+        let socketBuffer = '';
+        socketServer.on('connection', (conn) => {
+            conn.on('data', (chunk: Buffer) => {
+                socketBuffer += chunk.toString();
+                // Process complete newline-delimited JSON messages
+                let newlineIdx: number;
+                while ((newlineIdx = socketBuffer.indexOf('\n')) !== -1) {
+                    const line = socketBuffer.slice(0, newlineIdx);
+                    socketBuffer = socketBuffer.slice(newlineIdx + 1);
+                    if (!line) continue;
+                    try {
+                        const msg = JSON.parse(line);
+                        if (msg.type === 'main-thread-result' && msg.value != null) {
+                            onOutput('result', msg.value);
+                        } else if (msg.type === 'error' && msg.message) {
+                            onOutput('stderr', msg.message + '\n');
                         }
+                        // process-exit messages are informational; exit code
+                        // comes from the process close event
+                    } catch {
+                        // Ignore malformed JSON
                     }
-                } catch (err) {
-                    console.error('Error in stdout handler:', err);
                 }
-            });
-
-            proc.stderr?.on('data', (chunk: Buffer) => {
-                try {
-                    onOutput('stderr', chunk.toString());
-                } catch (err) {
-                    console.error('Error in stderr handler:', err);
-                }
-            });
-
-            proc.on('close', (code, signal) => {
-                this.clearTimer(cellId);
-                this.running.delete(cellId);
-                // Signal kills: SIGINT→130, SIGKILL→137, etc.
-                const exitCode = code !== null ? code
-                    : signal ? 128 + (signalNumber(signal) || 0)
-                    : 0;
-                onOutput('done', String(exitCode));
-                resolve();
-            });
-
-            proc.on('error', (err) => {
-                this.clearTimer(cellId);
-                this.running.delete(cellId);
-                onOutput('stderr', `Failed to start runtime: ${err.message}\n`);
-                onOutput('done', '1');
-                resolve();
             });
         });
+
+        try {
+            await new Promise<void>((resolve) => {
+                const runtime = join(this.troupeRoot, 'rt', 'built', 'troupe.mjs');
+                const runtimeArgs = [
+                    '--stack-trace-limit=1000',
+                    runtime,
+                    '-f=' + jsFile,
+                    '--localonly',
+                    '--suppress-local-info-message',
+                    '--no-color',
+                    `--result-socket=${socketPath}`,
+                ];
+
+                const ALLOWED_LABEL_FORMATS = ['v1', 'v2'];
+                if (options) {
+                    if (options.nmifc === false) {
+                        runtimeArgs.push('--no-nmifc');
+                    }
+                    if (options.labelFormat && options.labelFormat !== 'v1'
+                        && ALLOWED_LABEL_FORMATS.includes(options.labelFormat)) {
+                        runtimeArgs.push(`--label-format=${options.labelFormat}`);
+                    }
+                }
+                const rawTimeout = (options?.timeout && options.timeout > 0) ? options.timeout : DEFAULT_TIMEOUT_SECONDS;
+                const timeout = Math.min(rawTimeout, MAX_TIMEOUT_SECONDS);
+                runtimeArgs.push(`--timeout=${timeout}`);
+
+                const proc = spawn('node', runtimeArgs, {
+                    env: { ...process.env, TROUPE: this.troupeRoot },
+                });
+
+                this.running.set(cellId, proc);
+
+                // Safety-net hard kill: if runtime doesn't exit within timeout + 5s grace, force kill
+                {
+                    const graceMs = (timeout + 5) * 1000;
+                    const timer = setTimeout(() => {
+                        this.timeoutTimers.delete(cellId);
+                        if (proc.exitCode === null) {
+                            proc.kill('SIGKILL');
+                        }
+                    }, graceMs);
+                    this.timeoutTimers.set(cellId, timer);
+                }
+
+                proc.stdout?.on('data', (chunk: Buffer) => {
+                    try {
+                        const text = chunk.toString();
+                        for (const line of text.split('\n')) {
+                            if (!line) continue;
+                            onOutput('stdout', line + '\n');
+                        }
+                    } catch (err) {
+                        console.error('Error in stdout handler:', err);
+                    }
+                });
+
+                proc.stderr?.on('data', (chunk: Buffer) => {
+                    try {
+                        onOutput('stderr', chunk.toString());
+                    } catch (err) {
+                        console.error('Error in stderr handler:', err);
+                    }
+                });
+
+                proc.on('close', (code, signal) => {
+                    this.clearTimer(cellId);
+                    this.running.delete(cellId);
+                    // Signal kills: SIGINT→130, SIGKILL→137, etc.
+                    const exitCode = code !== null ? code
+                        : signal ? 128 + (signalNumber(signal) || 0)
+                        : 0;
+                    onOutput('done', String(exitCode));
+                    resolve();
+                });
+
+                proc.on('error', (err) => {
+                    this.clearTimer(cellId);
+                    this.running.delete(cellId);
+                    onOutput('stderr', `Failed to start runtime: ${err.message}\n`);
+                    onOutput('done', '1');
+                    resolve();
+                });
+            });
+        } finally {
+            socketServer.close();
+            await unlink(socketPath).catch(() => {});
+        }
     }
 }
