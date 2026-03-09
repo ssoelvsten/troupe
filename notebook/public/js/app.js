@@ -82,6 +82,7 @@ function getRuntimeOptions() {
         nmifc: document.getElementById('opt-nmifc').checked,
         labelFormat: document.getElementById('opt-label-format').value,
         timeout: Math.max(1, parseInt(document.getElementById('opt-timeout').value, 10) || DEFAULT_TIMEOUT_SECONDS),
+        resultStyle: document.getElementById('opt-result-style').value,
     };
 }
 
@@ -97,6 +98,13 @@ function setRuntimeOptions(options) {
         document.getElementById('opt-timeout').value = options.timeout;
     } else {
         document.getElementById('opt-timeout').value = DEFAULT_TIMEOUT_SECONDS;
+    }
+    if (options.resultStyle) {
+        document.getElementById('opt-result-style').value = options.resultStyle;
+        applyResultStyle(options.resultStyle);
+    } else {
+        document.getElementById('opt-result-style').value = 'plain';
+        applyResultStyle('plain');
     }
 }
 
@@ -766,7 +774,7 @@ function renderCodeCellBody(cell, el) {
     copyOutBtn.textContent = 'Copy';
     copyOutBtn.title = 'Copy output to clipboard';
     copyOutBtn.onclick = () => {
-        const text = cell.outputEl ? cell.outputEl.textContent : '';
+        const text = cell.outputEl ? cell.outputEl.innerText : '';
         if (!text) return;
         navigator.clipboard.writeText(text).then(() => {
             copyOutBtn.textContent = 'Copied!';
@@ -1152,6 +1160,22 @@ document.getElementById('opt-timeout').addEventListener('change', markDirty);
 document.getElementById('opt-autosave').addEventListener('change', (e) => {
     setAutoSave(e.target.checked);
 });
+
+// Settings panel toggle
+document.getElementById('btn-settings').addEventListener('click', () => {
+    document.getElementById('settings-panel').classList.toggle('open');
+});
+
+// Result style dropdown
+const resultStyleSelect = document.getElementById('opt-result-style');
+function applyResultStyle(style) {
+    document.getElementById('notebook').setAttribute('data-result-style', style || 'plain');
+}
+resultStyleSelect.addEventListener('change', () => {
+    applyResultStyle(resultStyleSelect.value);
+    markDirty();
+});
+applyResultStyle('plain');
 
 // Drag-and-drop: global listeners on the notebook container
 const notebookContainer = document.getElementById('notebook');

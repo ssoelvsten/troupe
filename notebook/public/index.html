@@ -24,6 +24,8 @@
             <button id="btn-export" title="Export notebook as .tpnb file">Export</button>
             <button id="btn-import" title="Import .tpnb file from disk">Import</button>
             <input type="file" id="import-file-input" accept=".tpnb" style="display:none">
+            <span class="toolbar-separator"></span>
+            <button id="btn-settings" class="settings-btn" title="Display settings">&#9881;</button>
         </div>
     </header>
     <div class="options-bar">
@@ -50,6 +52,19 @@
             Auto-save
         </label>
         <span id="save-status" class="save-status"></span>
+    </div>
+    <div id="settings-panel" class="settings-panel">
+        <h3>Display settings</h3>
+        <label class="option-item" title="How the main thread result value is displayed">
+            Result style:
+            <select id="opt-result-style">
+                <option value="plain" selected>Plain (accent bar)</option>
+                <option value="out">Out:</option>
+                <option value="triangle">&#9656; Triangle</option>
+                <option value="val">val (SML-style)</option>
+                <option value="cli">Main thread finished with value</option>
+            </select>
+        </label>
     </div>
     <main id="notebook">
         <!-- Cells are rendered here -->
