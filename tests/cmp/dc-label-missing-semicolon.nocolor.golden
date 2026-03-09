@@ -1,1 +1,11 @@
-1:33 unexpected token TokenSym "bob"
+tests/cmp/dc-label-missing-semicolon.trp:1:33: parse error
+  (while parsing DC label)
+  1 | let val x = 42 raisedTo `<alice bob>`
+    |                                 ^
+  unexpected identifier 'bob'
+  expected ';'
+
+Suggestion: In DC labels, use ';' to separate confidentiality and integrity.
+  Syntax: `< confidentiality ; integrity >`
+  Example: `< alice ; bob >`
+

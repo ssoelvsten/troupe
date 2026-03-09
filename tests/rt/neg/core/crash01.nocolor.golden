@@ -1,4 +1,9 @@
-2025-06-24T21:28:36.853Z [RTM] info: Skipping network creation. Observe that all external IO operations will yield a runtime error.
+2026-03-09T22:33:02.385Z [RTM] info: Skipping network creation. Observe that all external IO operations will yield a runtime error.
 >>> Main thread finished with value: ()@{}%{}
-Runtime error in thread d5b5a65f-29e4-4a20-af49-c0ce27a82c64@{}%{}
->> pattern match failure in case expression at :2:23
+Runtime error in thread b1827758-ff5d-42bb-85e7-2b99c7aed448@{}%{}
+
+  2 |                    in case x of     
+    |                       ^
+
+>> pattern match failure in case expression
+>> at tests/rt/neg/core/crash01.trp:2:23

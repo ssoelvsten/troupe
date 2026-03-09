@@ -1,0 +1,8 @@
+2026-03-09T22:33:02.841Z [RTM] info: Skipping network creation. Observe that all external IO operations will yield a runtime error.
+Runtime error in thread 87772231-2d0b-4fcf-a471-e82f7983449e@{}%{}
+
+  2 |   case f () of
+    |   ^
+
+>> pattern match failure in case expression
+>> at tests/rt/neg/core/tuplepatterns02c.trp:2:3

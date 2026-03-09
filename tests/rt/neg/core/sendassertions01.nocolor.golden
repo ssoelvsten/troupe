@@ -1,3 +1,8 @@
-2025-06-24T21:28:37.550Z [RTM] info: Skipping network creation. Observe that all external IO operations will yield a runtime error.
-Runtime error in thread ee632a7b-85ae-4be3-b44b-67237c8c73b3@{}%{}
+2026-03-09T22:33:04.491Z [RTM] info: Skipping network creation. Observe that all external IO operations will yield a runtime error.
+Runtime error in thread 1184a14c-a7b6-465b-bf4d-c707a1f12f71@{}%{}
+
+  1 | send ("whatever", ())
+    | ^
+
 >> value "whatever"@{}%{} is not a process id
+>> at tests/rt/neg/core/sendassertions01.trp:1:1

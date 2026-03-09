@@ -1,3 +1,8 @@
-2025-06-24T21:28:36.918Z [RTM] info: Skipping network creation. Observe that all external IO operations will yield a runtime error.
-Runtime error in thread ce8c2ec4-3b11-4037-9622-d4e249bc6ad1@{}%{}
+2026-03-09T22:33:03.716Z [RTM] info: Skipping network creation. Observe that all external IO operations will yield a runtime error.
+Runtime error in thread 9e0545f5-307f-4ba3-9d12-b36f50a8c05f@{}%{}
+
+  1 | node self
+    | ^
+
 >> value <basefun:self>@{}%{} is not a process id
+>> at tests/rt/neg/core/node_from_procid.trp:1:1

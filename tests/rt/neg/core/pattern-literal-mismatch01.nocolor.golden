@@ -1,3 +1,8 @@
-2025-06-24T21:28:37.581Z [RTM] info: Skipping network creation. Observe that all external IO operations will yield a runtime error.
-Runtime error in thread 2dce7bf2-3bdb-4712-a221-5cb3f21aca66@{}%{}
->> pattern match failure in let declaration at :1:5
+2026-03-09T22:33:03.181Z [RTM] info: Skipping network creation. Observe that all external IO operations will yield a runtime error.
+Runtime error in thread ddce6cff-697d-4402-9c5c-fe61e3b1c9b2@{}%{}
+
+  1 | let val 10 = 20 in () end 
+    |         ^
+
+>> pattern match failure in let declaration
+>> at tests/rt/neg/core/pattern-literal-mismatch01.trp:1:9

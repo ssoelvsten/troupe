@@ -1,0 +1,8 @@
+2026-03-09T22:33:04.190Z [RTM] info: Skipping network creation. Observe that all external IO operations will yield a runtime error.
+Runtime error in thread a9e2da08-98d7-4926-af54-a3a2900d610f@{}%{}
+
+  1 | (1,2).2
+    | ^
+
+>> Index out of bounds: tuple (1@{}%{}, 2@{}%{}) does not have length more than 2
+>> at tests/rt/neg/core/tuples_idx03.trp:1:1

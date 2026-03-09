@@ -1,7 +1,12 @@
-2025-06-24T21:28:39.977Z [RTM] info: Skipping network creation. Observe that all external IO operations will yield a runtime error.
-Runtime error in thread 1755a158-1238-4f25-be33-f681a0cf67ce@{}%{}
+2026-03-09T22:33:07.270Z [RTM] info: Skipping network creation. Observe that all external IO operations will yield a runtime error.
+Runtime error in thread 4abaa5e3-9a30-4533-bd52-9d6f6bd76518@{}%{}
+
+  10 |         then rcvp (`{}`, [hn x => x]) 
+     |              ^
+
 >> Not enough mailbox clearance for this receive
  | receive lower bound: {}
  | receive upper bound: {}
  | pc level           : {alice}
  | mailbox clearance  : {}
+>> at tests/rt/neg/ifc/lclear-implicit-receive.trp:10:14

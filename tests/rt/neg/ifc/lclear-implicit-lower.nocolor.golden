@@ -1,5 +1,10 @@
-2025-06-24T21:28:38.162Z [RTM] info: Skipping network creation. Observe that all external IO operations will yield a runtime error.
-Runtime error in thread 8468086f-923e-4a8f-a340-4b73c09c41a2@{}%{}
+2026-03-09T22:33:05.059Z [RTM] info: Skipping network creation. Observe that all external IO operations will yield a runtime error.
+Runtime error in thread 340740c3-cbfc-4291-8cbb-6dfa7e0db176@{}%{}
+
+  5 |         then lowermbox (c, authority)
+    |              ^
+
 >> Cannot lower mailbox when the pc more sensitive than the mailbox clearance level
 | current thread's pc level: {alice}
 | mailbox clearance level: {}
+>> at tests/rt/neg/ifc/lclear-implicit-lower.trp:5:14

@@ -1,6 +1,11 @@
-2025-06-24T21:28:38.965Z [RTM] info: Skipping network creation. Observe that all external IO operations will yield a runtime error.
-Runtime error in thread 53c4d5d4-cf27-42c4-a46c-d96eb4b26c40@{}%{}
+2026-03-09T22:33:06.422Z [RTM] info: Skipping network creation. Observe that all external IO operations will yield a runtime error.
+Runtime error in thread 3729500d-cd7f-48c1-bb9b-3897643c1ecd@{}%{}
+
+  5 |     val y = declassify (x, aliceAuthority, z)
+    |             ^
+
 >> Not enough authority for declassification
  | level of the data: <alice&bob;#root-integrity>
  | level of the authority: <alice;#root-integrity>
  | target level of the declassification: <alice;#root-integrity>
+>> at tests/rt/neg/ifc/decl.trp:5:13

@@ -1,3 +1,8 @@
-2025-06-24T21:28:37.668Z [RTM] info: Skipping network creation. Observe that all external IO operations will yield a runtime error.
-Runtime error in thread 9ee63518-0d2f-422d-83f2-23b066062d71@{}%{}
+2026-03-09T22:33:04.473Z [RTM] info: Skipping network creation. Observe that all external IO operations will yield a runtime error.
+Runtime error in thread e830ae48-05e2-4d09-af75-581f7f6096bb@{}%{}
+
+  1 | listToTuple (1, 2, 3)
+    | ^
+
 >> value (1@{}%{}, 2@{}%{}, 3@{}%{}) is not a list
+>> at tests/rt/neg/core/listToTuple_neg.trp:1:1

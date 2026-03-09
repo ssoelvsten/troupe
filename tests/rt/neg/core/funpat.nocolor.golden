@@ -1,3 +1,8 @@
-2025-06-24T21:28:37.026Z [RTM] info: Skipping network creation. Observe that all external IO operations will yield a runtime error.
-Runtime error in thread 1a4f3be6-d85a-45f2-9b45-dfa6e441b39e@{}%{}
->> pattern match failure in function isTwo at :2:9
+2026-03-09T22:33:03.860Z [RTM] info: Skipping network creation. Observe that all external IO operations will yield a runtime error.
+Runtime error in thread da6dca67-c46e-4ec6-b1bc-399846092fb4@{}%{}
+
+  2 |     and isTwo 2 = true 
+    |         ^
+
+>> pattern match failure in function isTwo
+>> at tests/rt/neg/core/funpat.trp:2:9

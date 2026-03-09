@@ -1,7 +1,12 @@
-2025-06-24T21:28:39.580Z [RTM] info: Skipping network creation. Observe that all external IO operations will yield a runtime error.
->>> Main thread finished with value: 3f525931-d4e4-42da-bc83-681814e5471c@{secret}%{secret}
-Runtime error in thread 3f525931-d4e4-42da-bc83-681814e5471c@{secret}%{secret}
+2026-03-09T22:33:05.762Z [RTM] info: Skipping network creation. Observe that all external IO operations will yield a runtime error.
+>>> Main thread finished with value: 880570ea-662d-4d00-ab7d-421a95fcabd3@{secret}%{secret}
+Runtime error in thread 880570ea-662d-4d00-ab7d-421a95fcabd3@{secret}%{secret}
+
+  3 |    fun f () = adv 1
+    |               ^
+
 >> Illegal flow in adv function:
  |    pc: {secret}
  | block: {secret}
  | value: 1@{secret}%{secret}
+>> at tests/rt/neg/ifc/flow1.trp:3:15

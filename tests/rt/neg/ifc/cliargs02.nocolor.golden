@@ -1,0 +1,9 @@
+2026-03-09T22:33:05.110Z [RTM] info: Skipping network creation. Observe that all external IO operations will yield a runtime error.
+Runtime error in thread 97d0d9bf-8f90-4b67-a585-683fe2967766@{}%{}
+
+  3 | in getCliArgs lowAuth
+    |    ^
+
+>> Provided authority is not ROOT
+ | level of the provided authority: {bob}
+>> at tests/rt/neg/ifc/cliargs02.trp:3:4

@@ -1,4 +1,9 @@
-2025-06-24T21:28:36.144Z [RTM] info: Skipping network creation. Observe that all external IO operations will yield a runtime error.
-Runtime error in thread 89b805e6-bb70-494c-8973-f8f2848eeb02@{}%{}
+2026-03-09T22:33:01.640Z [RTM] info: Skipping network creation. Observe that all external IO operations will yield a runtime error.
+Runtime error in thread e1ffb422-2c43-483b-b668-58582bdea3ec@{}%{}
+
+  1 | exit (attenuate (authority, `{alice}`), 0)
+    | ^
+
 >> Provided authority is not ROOT
  | level of the provided authority: {alice}
+>> at tests/rt/neg/core/exit02.trp:1:1

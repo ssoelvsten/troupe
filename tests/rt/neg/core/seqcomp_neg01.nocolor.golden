@@ -1,5 +1,10 @@
-2025-06-24T21:28:36.910Z [RTM] info: Skipping network creation. Observe that all external IO operations will yield a runtime error.
+2026-03-09T22:33:03.881Z [RTM] info: Skipping network creation. Observe that all external IO operations will yield a runtime error.
 "Hello"
 "World"
-Runtime error in thread 8ea22e5b-1c79-447b-8885-4727df2c18d6@{}%{}
+Runtime error in thread 0a6f55a4-f55b-47f6-bac6-c3c061f01154@{}%{}
+
+  4 | print "Hello"; 1 + print "World"; 2
+    |                    ^
+
 >> value () is not a number
+>> at tests/rt/neg/core/seqcomp_neg01.trp:4:20

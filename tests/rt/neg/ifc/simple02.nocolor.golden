@@ -1,6 +1,11 @@
-2025-06-24T21:28:38.161Z [RTM] info: Skipping network creation. Observe that all external IO operations will yield a runtime error.
-Runtime error in thread 07859c5b-fea9-44cf-a024-c5252635a762@{}%{}
+2026-03-09T22:33:05.804Z [RTM] info: Skipping network creation. Observe that all external IO operations will yield a runtime error.
+Runtime error in thread 994deb87-f7eb-4de9-8c1d-d7664e749473@{}%{}
+
+  4 | in if secret > 0 then adv x else adv y
+    |                       ^
+
 >> Illegal flow in adv function:
  |    pc: {#TOP}
  | block: {#TOP}
  | value: 10@{}%{}
+>> at tests/rt/neg/ifc/simple02.trp:4:23

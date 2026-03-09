@@ -1,0 +1,18 @@
+2026-03-09T22:32:59.745Z [RTM] info: Skipping network creation. Observe that all external IO operations will yield a runtime error.
+[34mbegin [0mRuntime Label Equality
+  [34mbegin [0mequality (commutativity)
+      [33m[ TEST ][0m it l1 join l2 = l2 join l1      [32m[ PASS ][0m it l1 join l2 = l2 join l1
+      [33m[ TEST ][0m it l1 join l3 = l3 join l1      [32m[ PASS ][0m it l1 join l3 = l3 join l1
+      [33m[ TEST ][0m it (l1 join l2) join l3 = (l2 join l1) join l3      [32m[ PASS ][0m it (l1 join l2) join l3 = (l2 join l1) join l3
+  [34mend [0m
+  [34mbegin [0minequality
+      [33m[ TEST ][0m it l1 <> l2      [32m[ PASS ][0m it l1 <> l2
+      [33m[ TEST ][0m it l1 <> l3      [32m[ PASS ][0m it l1 <> l3
+      [33m[ TEST ][0m it l1 join l2 <> l1      [32m[ PASS ][0m it l1 join l2 <> l1
+      [33m[ TEST ][0m it l1 join l2 <> l2      [32m[ PASS ][0m it l1 join l2 <> l2
+  [34mend [0m
+[34mend [0m
+
+Total:  7
+Passes: 7
+>>> Main thread finished with value: true@{1144356d-35bf-4a89-a26a-f4d61b375a49,27fb9905-ee63-4056-a3b7-f3f9a26451f7,500e08db-8b7f-4ff6-8992-6ff2cb40b71f}%{1144356d-35bf-4a89-a26a-f4d61b375a49,27fb9905-ee63-4056-a3b7-f3f9a26451f7,500e08db-8b7f-4ff6-8992-6ff2cb40b71f}

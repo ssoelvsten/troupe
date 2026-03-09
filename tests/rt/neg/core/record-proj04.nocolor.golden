@@ -1,0 +1,8 @@
+2026-03-09T22:33:04.350Z [RTM] info: Skipping network creation. Observe that all external IO operations will yield a runtime error.
+Runtime error in thread eed74958-12fe-4368-86fa-ff40cef06ebf@{}%{}
+
+  2 | in r.somefield
+    |    ^
+
+>> record {} does not have field 'somefield'
+>> at tests/rt/neg/core/record-proj04.trp:2:4

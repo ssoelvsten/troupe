@@ -1,0 +1,8 @@
+2026-03-09T22:33:06.432Z [RTM] info: Skipping network creation. Observe that all external IO operations will yield a runtime error.
+Runtime error in thread ec98aa4f-180b-4ba8-9c98-b4dec5cfa6be@{}%{}
+
+  2 | getCliArgs ()
+    | ^
+
+>> value ()@{}%{} is not a authority
+>> at tests/rt/neg/ifc/cliargs-noauth01.trp:2:1

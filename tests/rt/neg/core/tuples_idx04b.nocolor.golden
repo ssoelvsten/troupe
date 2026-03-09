@@ -1,0 +1,8 @@
+2026-03-09T22:33:02.804Z [RTM] info: Skipping network creation. Observe that all external IO operations will yield a runtime error.
+Runtime error in thread 9699f043-12d4-4bd7-a08d-4c91cb3ae527@{}%{}
+
+  1 | [].0
+    | ^
+
+>> value [] is not a tuple
+>> at tests/rt/neg/core/tuples_idx04b.trp:1:1

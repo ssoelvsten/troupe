@@ -1,6 +1,11 @@
-2025-06-24T21:28:38.790Z [RTM] info: Skipping network creation. Observe that all external IO operations will yield a runtime error.
-Runtime error in thread 80236ab7-26ee-4816-905b-54d57627061a@{}%{}
+2026-03-09T22:33:05.796Z [RTM] info: Skipping network creation. Observe that all external IO operations will yield a runtime error.
+Runtime error in thread c4718a43-d20f-4045-adc9-0e42abdc69c8@{}%{}
+
+  3 | in cert(u) 
+    |    ^
+
 >> Illegal flow in cert function:
  |    pc: {}
  | block: {alice}
  | value: 10@{alice}%{}
+>> at tests/rt/neg/ifc/cert-neg-02.trp:3:4

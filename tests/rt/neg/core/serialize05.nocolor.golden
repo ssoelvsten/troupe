@@ -1,4 +1,9 @@
-2025-06-24T21:28:37.540Z [RTM] info: Skipping network creation. Observe that all external IO operations will yield a runtime error.
+2026-03-09T22:33:03.873Z [RTM] info: Skipping network creation. Observe that all external IO operations will yield a runtime error.
 1
-Runtime error in thread 72d8523d-e50c-43e0-a04b-c7258b88731a@{}%{}
+Runtime error in thread c411ba85-7a3a-4590-b8a6-2bda6cb4651c@{}%{}
+
+  14 | in  save (authority,"serialize05", fn () => resume)
+     |     ^
+
 >> Unserializable object: <sandboxkont>@{}%{}
+>> at tests/rt/neg/core/serialize05.trp:14:5

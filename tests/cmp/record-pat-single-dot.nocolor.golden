@@ -1,1 +1,6 @@
-3:13 unexpected token TokenDot
+tests/cmp/record-pat-single-dot.trp:3:13: parse error
+  3 |     val {a, .} = r
+    |             ^
+  unexpected '.'
+  expected identifier
+
