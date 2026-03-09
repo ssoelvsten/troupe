@@ -1,0 +1,20 @@
+(* This example shows that without Bob's authority it is still possible to
+ * downgrade information tainted by Bob via the termination channel.
+ *)
+let val aliceL   = `<alice; #root-integrity>`
+    val bobL     = `<bob; #root-integrity>`
+    val charlieL = `<charlie; #root-integrity>`
+    val botL     = `<#null-confidentiality; #root-integrity>`
+
+    (* TODO (#137): 42 raisedTo (aliceL lub charlieL) *)
+    val x = 42 raisedTo `<alice & charlie; #root-integrity>`
+
+    val aliceAuth = attenuate (authority, aliceL)
+
+    val targetL = if false raisedTo bobL then botL else charlieL
+    val targetL = downgradeType (targetL, authority, botL)
+    val _ = blockdown authority
+
+    val x' = declassify (x, aliceAuth, targetL)
+in adv ()
+end

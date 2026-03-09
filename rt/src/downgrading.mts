@@ -53,7 +53,11 @@ export function downgrader (runtime,
             //   TODO (2026-03-09; SS): Should we instead fail on a tainted authority, similar to
             //                          the `blockdecl` etc.? In this case, we  don't need to raise
             //                          the blocking label by `auth.lev`.
-            runtime.$t.raiseBlockingThreadLev(auth.lev);
+            //
+            // - Depending on the given target level. For reference, see the following example of a
+            //   leak to the adversary via the termination channel:
+            //   `tests/rt/neg/ifc/declassify_blocking.to.trp`
+            runtime.$t.raiseBlockingThreadLev(lub (auth.lev, toLevV.lev));
 
             let pc = runtime.$t.pc;
             const levFrom = typeOnly ? data.tlev : data.lev;
