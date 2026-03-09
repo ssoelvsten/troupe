@@ -41,6 +41,20 @@ export function downgrader (runtime,
             assertIsAuthority(auth);
             let toLevV = argv[2];
             assertIsLevel(toLevV);
+
+            // 2026-03-09; AA & SS
+            // Downgrading may fail, depending on the data in `data`, `auth`, and `toLevV`. Hence,
+            // we need to raise the blocking label accordingly.
+            //
+            // - Depending on the given authority. For reference, see the following example of a
+            //   leak to the adversary via the termination channel:
+            //   `tests/rt/neg/ifc/declassify_blocking.authority.trp`
+            //
+            //   TODO (2026-03-09; SS): Should we instead fail on a tainted authority, similar to
+            //                          the `blockdecl` etc.? In this case, we  don't need to raise
+            //                          the blocking label by `auth.lev`.
+            runtime.$t.raiseBlockingThreadLev(auth.lev);
+
             let pc = runtime.$t.pc;
             const levFrom = typeOnly ? data.tlev : data.lev;
             let bl = runtime.$t.bl;
