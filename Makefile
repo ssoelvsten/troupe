@@ -49,6 +49,10 @@ ci-test-golden-no-color:
 	./bin/golden --no-color
 
 test: test/local test/multinode test/result-socket
+
+# Test target for Docker runner (no Haskell toolchain available).
+test/docker: ci-test-golden-no-color test/multinode test/result-socket
+
 test/local:
 	mkdir -p out
 	cd compiler && $(MAKE) test

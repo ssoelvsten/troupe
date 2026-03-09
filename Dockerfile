@@ -1,29 +1,47 @@
-FROM node:slim AS base
+FROM node:22-slim AS base
 ENV TROUPE=/Troupe
+ENV LANG=C.UTF-8
 WORKDIR $TROUPE
 RUN npm install -g typescript
 
-# Install runtime dependencies for multinode tests
-RUN apt-get update && apt-get install -qy procps jq && rm -rf /var/lib/apt/lists/*
+# Install runtime and test dependencies.
+RUN apt-get update && apt-get install -qy procps jq diffutils socat lsof make && rm -rf /var/lib/apt/lists/*
 
 # Image for building everything.
 FROM base AS builder
-ENV TROUPE=/Troupe
 WORKDIR $TROUPE
 
-# Copy the files to the container.
-COPY . .
+# Install build dependencies (includes Stack's prerequisites so the installer doesn't need apt).
+RUN apt-get update && apt-get install -qy \
+    g++ curl make libnuma-dev xz-utils \
+    libffi-dev libgmp-dev zlib1g-dev git gnupg netbase \
+    && rm -rf /var/lib/apt/lists/*
 
-# Install packages for building the image.
-RUN apt-get update && apt-get install -qy haskell-stack g++
+# Install Stack (GHC is managed by Stack via the resolver in stack.yaml).
+RUN curl -sSL https://get.haskellstack.org/ | sh
 
-# Build Troupe.
-RUN npm install
+# Copy dependency manifests and install npm packages (cached unless package.json changes).
+COPY package.json package-lock.json ./
+RUN --mount=type=cache,target=/root/.npm npm install
+
+# Copy compiler sources and build (cached unless compiler/ changes).
+COPY compiler/ compiler/
+COPY Makefile ./
+RUN --mount=type=cache,target=/root/.stack make compiler
+
+# Copy runtime sources and build (cached unless rt/ changes).
+COPY rt/ rt/
 RUN make rt
-RUN make compiler
+
+# Copy p2p-tools and build (cached unless p2p-tools/ changes).
+COPY p2p-tools/ p2p-tools/
 RUN make p2p-tools
-RUN make libs
-RUN make service
+
+# Copy everything else for lib, trp-rt, and notebook.
+COPY . .
+RUN make lib
+RUN make trp-rt
+RUN make notebook
 
 # Create runner image.
 FROM base
@@ -46,9 +64,15 @@ COPY --from=builder $TROUPE/rollup.config.js $TROUPE/rollup.config.js
 COPY --from=builder $TROUPE/trustmap.json $TROUPE/trustmap.json
 COPY --from=builder $TROUPE/scripts $TROUPE/scripts
 COPY --from=builder $TROUPE/Makefile $TROUPE/Makefile
+COPY --from=builder $TROUPE/notebook $TROUPE/notebook
+COPY --from=builder $TROUPE/notebook.sh $TROUPE/notebook.sh
+COPY --from=builder $TROUPE/.troupe-root $TROUPE/.troupe-root
 
 # Create necessary directories
 RUN mkdir -p $TROUPE/out
+
+# Expose notebook server port
+EXPOSE 8888
 
 # Command to overwrite the node image command, that starts in node.
 CMD ["bash"]

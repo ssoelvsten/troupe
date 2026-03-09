@@ -1,0 +1,9 @@
+node_modules/
+bin/
+out/
+compiler/.stack-work/
+rt/built/
+notebook/built/
+notebook/node_modules/
+notebook/public/js/bundle.js
+.git/

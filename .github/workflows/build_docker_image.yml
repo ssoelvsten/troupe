@@ -1,9 +1,15 @@
 name: Build docker image and push to registry
-on: push
-jobs: 
+on: [push, pull_request]
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: troupelang/troupe2
+
+jobs:
+  # Existing master job — unchanged.
   publish_docker:
     runs-on: ubuntu-latest
-    if: (github.ref == 'refs/heads/master') && (github.repository_owner == 'TroupeLang') 
+    if: (github.ref == 'refs/heads/master') && (github.repository_owner == 'TroupeLang')
     steps:
       - uses: docker/login-action@v1
         with:
@@ -15,3 +21,90 @@ jobs:
         with:
           push: true
           tags: ghcr.io/troupelang/troupe:latest
+
+  # Quick single-arch build validation on non-master, non-release branches.
+  validate_docker:
+    runs-on: ubuntu-latest
+    if: >-
+      github.ref != 'refs/heads/master' &&
+      github.ref != 'refs/heads/troupe-2-docker-release' &&
+      github.repository_owner == 'TroupeLang'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - name: Build docker image (no push)
+        uses: docker/build-push-action@v4
+        with:
+          context: .
+          push: false
+          tags: troupe:test
+
+  # Multi-arch build and push on the designated release branch.
+  build_docker:
+    runs-on: ${{ matrix.runner }}
+    if: >-
+      github.ref == 'refs/heads/troupe-2-docker-release' &&
+      github.repository_owner == 'TroupeLang'
+    strategy:
+      matrix:
+        include:
+          - platform: linux/amd64
+            runner: ubuntu-latest
+          - platform: linux/arm64
+            runner: ubuntu-24.04-arm
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.repository_owner }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Build and push by digest
+        id: build
+        uses: docker/build-push-action@v4
+        with:
+          context: .
+          platforms: ${{ matrix.platform }}
+          push: true
+          tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          outputs: type=image,push-by-digest=true,name-canonical=true
+      - name: Export digest
+        run: |
+          mkdir -p /tmp/digests
+          digest="${{ steps.build.outputs.digest }}"
+          touch "/tmp/digests/${digest#sha256:}"
+      - name: Upload digest
+        uses: actions/upload-artifact@v4
+        with:
+          name: digests-${{ matrix.runner }}
+          path: /tmp/digests/*
+          if-no-files-found: error
+          retention-days: 1
+
+  # Merge platform-specific images into a single multi-arch manifest.
+  merge_docker:
+    runs-on: ubuntu-latest
+    if: >-
+      github.ref == 'refs/heads/troupe-2-docker-release' &&
+      github.repository_owner == 'TroupeLang'
+    needs: build_docker
+    steps:
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.repository_owner }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Download digests
+        uses: actions/download-artifact@v4
+        with:
+          path: /tmp/digests
+          pattern: digests-*
+          merge-multiple: true
+      - name: Create and push multi-arch manifest
+        working-directory: /tmp/digests
+        run: |
+          docker buildx imagetools create \
+            --tag ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:docker-release \
+            $(printf '${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}@sha256:%s ' *)
