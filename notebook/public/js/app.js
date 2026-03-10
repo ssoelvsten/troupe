@@ -111,6 +111,10 @@ function setRuntimeOptions(options) {
 // ---- State ----
 
 let ws = null;
+let wsReconnectDelay = 1000;
+const WS_MIN_DELAY = 1000;
+const WS_MAX_DELAY = 15000;
+let wsReconnectTimer = null;
 let cells = [];
 let cellIdCounter = 0;
 let currentNotebookPath = null; // e.g. "foo.tpnb"
@@ -336,11 +340,45 @@ function handleDrop(e) {
 
 // ---- WebSocket Connection ----
 
+function updateConnectionStatus(state) {
+    const el = document.getElementById('ws-status');
+    if (!el) return;
+    el.classList.remove('ws-connected', 'ws-disconnected', 'ws-reconnecting');
+    switch (state) {
+        case 'connected':
+            el.textContent = '';
+            el.classList.add('ws-connected');
+            el.style.display = 'none';
+            break;
+        case 'disconnected':
+            el.textContent = 'Disconnected';
+            el.classList.add('ws-disconnected');
+            el.style.display = 'inline';
+            break;
+        case 'reconnecting':
+            el.textContent = 'Reconnecting\u2026';
+            el.classList.add('ws-reconnecting');
+            el.style.display = 'inline';
+            break;
+    }
+}
+
 function connectWS() {
     const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
     ws = new WebSocket(`${protocol}//${location.host}`);
 
-    ws.onopen = () => console.log('WebSocket connected');
+    ws.onopen = () => {
+        console.log('WebSocket connected');
+        wsReconnectDelay = WS_MIN_DELAY;
+        updateConnectionStatus('connected');
+        if (autoSaveEnabled && dirty && currentNotebookPath) {
+            scheduleAutoSave();
+        }
+    };
+
+    ws.onerror = (err) => {
+        console.warn('WebSocket error', err);
+    };
 
     ws.onmessage = (event) => {
         let msg;
@@ -404,22 +442,33 @@ function connectWS() {
     };
 
     ws.onclose = () => {
-        console.log('WebSocket disconnected, reconnecting in 2s...');
-        // Reset any cells stuck in running state — server lost the connection
-        for (const cell of cells) {
-            if (cell.running) {
-                cell.running = false;
-                cell.el.classList.remove('running');
-                executingCount = Math.max(0, executingCount - 1);
-                updateCellHeader(cell);
-                appendOutput(cell, 'Disconnected — execution interrupted\n', 'stderr');
-                cell.outputs.push({ type: 'stderr', data: 'Disconnected — execution interrupted\n' });
+        console.log('WebSocket disconnected, reconnecting in ' + wsReconnectDelay + 'ms...');
+
+        // Reset any cells stuck in running state — wrapped in try-catch
+        // so a DOM error cannot break the reconnection chain.
+        try {
+            for (const cell of cells) {
+                if (cell.running) {
+                    cell.running = false;
+                    cell.el.classList.remove('running');
+                    executingCount = Math.max(0, executingCount - 1);
+                    updateCellHeader(cell);
+                    appendOutput(cell, 'Disconnected \u2014 execution interrupted\n', 'stderr');
+                    cell.outputs.push({ type: 'stderr', data: 'Disconnected \u2014 execution interrupted\n' });
+                }
             }
+        } catch (e) {
+            console.error('Error resetting cell state on disconnect:', e);
         }
-        if (executingCount === 0 && autoSaveEnabled && dirty) {
-            scheduleAutoSave();
-        }
-        setTimeout(connectWS, 2000);
+
+        updateConnectionStatus('reconnecting');
+
+        wsReconnectTimer = setTimeout(() => {
+            wsReconnectTimer = null;
+            connectWS();
+        }, wsReconnectDelay);
+
+        wsReconnectDelay = Math.min(wsReconnectDelay * 1.5, WS_MAX_DELAY);
     };
 }
 

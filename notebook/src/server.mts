@@ -87,6 +87,9 @@ app.put('/api/notebook', async (req, res) => {
 
 // WebSocket handling
 wss.on('connection', (ws: WebSocket) => {
+    (ws as any).isAlive = true;
+    ws.on('pong', () => { (ws as any).isAlive = true; });
+
     ws.on('message', async (raw: Buffer) => {
         let msg: any;
         try {
@@ -117,9 +120,26 @@ wss.on('connection', (ws: WebSocket) => {
     });
 });
 
+// Heartbeat: ping clients every 30s, terminate unresponsive ones
+const HEARTBEAT_INTERVAL = 30000;
+const heartbeatTimer = setInterval(() => {
+    wss.clients.forEach((ws) => {
+        if ((ws as any).isAlive === false) {
+            return ws.terminate();
+        }
+        (ws as any).isAlive = false;
+        ws.ping();
+    });
+}, HEARTBEAT_INTERVAL);
+
+wss.on('close', () => {
+    clearInterval(heartbeatTimer);
+});
+
 // Graceful shutdown: kill child processes, close connections
 function shutdown() {
     console.log('\nShutting down...');
+    clearInterval(heartbeatTimer);
     executionManager.shutdownAll();
     wss.clients.forEach(client => client.close());
     wss.close();
