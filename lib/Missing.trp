@@ -1,6 +1,22 @@
 (** 2025-12-14; AA:
     Some missing functionality that should find better home *)
 
-let val x = 42
-in []
+let 
+    fun ergo_downgrade downv downbl (x, auth, target) =
+            let val result = downv (x, auth, target) 
+                val _ = downbl (auth, target)
+            in result 
+            end 
+    fun pdeclassify args = 
+            ergo_downgrade declassify blockdeclto args
+
+    fun pendorse args = 
+            ergo_downgrade endorse blockendorseto args 
+    
+    fun pdowngrade args =
+            ergo_downgrade downgrade blockdownto args 
+
+in [("pdeclassify", pdeclassify)
+   ,("pendorse",    pendorse)
+   ,("pdowngrade",  pdowngrade)]
 end

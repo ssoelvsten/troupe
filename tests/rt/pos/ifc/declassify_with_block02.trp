@@ -4,12 +4,14 @@
    and declassification.
 
 *)
+import Missing
+
 let val x = false raisedTo `<alice & bob;#root-integrity>`
     val y = false raisedTo `<alice;#root-integrity>`
     val auth_alice = attenuate (authority, `<alice;#root-integrity>`) 
     val _ = if x then receive [] else () 
     val _ = blockdecl authority 
-    val y = declassify (y,  auth_alice, `{}`) 
+    val y = pdeclassify (y,  auth_alice, `{}`) 
     val _ = if y then receive [] else ()  
     val _ = debugpc () 
     val _ = adv y 

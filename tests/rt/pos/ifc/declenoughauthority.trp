@@ -1,4 +1,5 @@
+import Missing 
 let val x = 42 raisedTo `<alice;#root-integrity>`
-    val y = declassify (x, authority, `{}` )
+    val y = pdeclassify (x, authority, `{}` )
 in y 
 end

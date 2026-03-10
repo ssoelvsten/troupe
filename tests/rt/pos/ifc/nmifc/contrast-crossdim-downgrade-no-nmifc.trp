@@ -15,12 +15,12 @@
 
    See: nmifc-summary.md for details on the robustness condition
 *)
-
+import Missing 
 let val x = 42 raisedTo `{alice,bob}`
     (* {alice,bob} = <alice & bob; alice | bob> -- a corrupt label *)
 
     (* Cross-dimensional downgrade to BOT *)
     (* This succeeds without NMIFC but would fail with NMIFC enabled *)
-    val y = downgrade (x, authority, `<#null-confidentiality; #root-integrity>`)
+    val y = pdowngrade (x, authority, `<#null-confidentiality; #root-integrity>`)
 in print y
 end

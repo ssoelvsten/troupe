@@ -22,5 +22,6 @@ let val x = 42 raisedTo `{alice,bob}`
     (* Endorse: change integrity to FALSE (trusted), preserve confidentiality as alice&bob *)
     (* This succeeds without NMIFC but would fail with NMIFC enabled *)
     val y = endorse (x, authority, `<alice&bob; #root-integrity>`)
+    val _ = blockdown authority
 in print y
 end

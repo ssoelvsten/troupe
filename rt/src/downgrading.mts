@@ -12,6 +12,7 @@ import {
     formatTransparencyViolationMsg
 } from './DowngradeFormatter.mjs';
 import { ErrorKind } from './TroupeError.mjs';
+import { RuntimeInterface } from './RuntimeInterface.mjs';
 
 
 function stringOfDowngrader (d: DowngradeDimension): string {
@@ -28,7 +29,7 @@ function stringOfDowngrader (d: DowngradeDimension): string {
     }
 }
 
-export function downgrader (runtime,
+export function downgrader (runtime: RuntimeInterface,
                             dimension: DowngradeDimension,
                             granularity: ValueDowngradeGranularity = ValueDowngradeGranularity.BOTH_VALUE_AND_TYPE) {
     return (arg => {
@@ -57,10 +58,12 @@ export function downgrader (runtime,
             // - Depending on the given target level. For reference, see the following example of a
             //   leak to the adversary via the termination channel:
             //   `tests/rt/neg/ifc/declassify_blocking.to.trp`
-            runtime.$t.raiseBlockingThreadLev(lub (auth.lev, toLevV.lev));
-
             let pc = runtime.$t.pc;
+            
             const levFrom = typeOnly ? data.tlev : data.lev;
+            // runtime.$t.raiseBlockingThreadLev(lub (auth.lev, toLevV.lev, toLevV.val));
+            runtime.$t.raiseBlockingThreadLev(lub (auth.lev, toLevV.lev, levFrom));
+
             let bl = runtime.$t.bl;
             let isNMIFC = runtime.$t.isNmifcMode;
             let lev_to = toLevV.val
