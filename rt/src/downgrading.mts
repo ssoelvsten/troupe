@@ -1,8 +1,8 @@
-import { LCopyVal } from './Lval.mjs';
+import { LCopyVal, LVal } from './Lval.mjs';
 import { assertIsNTuple, assertIsAuthority, assertIsLevel } from './Asserts.mjs'
 import { __unit } from './UnitVal.mjs';
 import { lub, flowsTo, okToDeclassify, okToEndorse, okToCrossDimensionalDowngrade}  from './Level.mjs'
-import { DowngradeResult, DowngradeDimension, DowngradeErrorReason, DowngradeKind } from './DowngradeEnums.mjs';
+import { DowngradeResult, DowngradeDimension, DowngradeErrorReason, DowngradeKind, ValueDowngradeGranularity } from './DowngradeEnums.mjs';
 import {
     formatIntegrityMismatchMsg,
     formatConfidentialityMismatchMsg,
@@ -28,17 +28,39 @@ function stringOfDowngrader (d: DowngradeDimension): string {
     }
 }
 
-export function downgrader (runtime, dimension:DowngradeDimension) {
+export function downgrader (runtime,
+                            dimension: DowngradeDimension,
+                            granularity: ValueDowngradeGranularity = ValueDowngradeGranularity.BOTH_VALUE_AND_TYPE) {
     return (arg => {
+            const typeOnly = granularity === ValueDowngradeGranularity.TYPE_ONLY;
+
             assertIsNTuple(arg, 3);
-            let argv = arg.val;
-            let data = argv[0];
-            let auth = argv[1];
+            let argv: LVal = arg.val;
+            let data: LVal = argv[0];
+            let auth: LVal = argv[1];
             assertIsAuthority(auth);
             let toLevV = argv[2];
             assertIsLevel(toLevV);
+
+            // 2026-03-09; AA & SS
+            // Downgrading may fail, depending on the data in `data`, `auth`, and `toLevV`. Hence,
+            // we need to raise the blocking label accordingly.
+            //
+            // - Depending on the given authority. For reference, see the following example of a
+            //   leak to the adversary via the termination channel:
+            //   `tests/rt/neg/ifc/declassify_blocking.authority.trp`
+            //
+            //   TODO (2026-03-09; SS): Should we instead fail on a tainted authority, similar to
+            //                          the `blockdecl` etc.? In this case, we  don't need to raise
+            //                          the blocking label by `auth.lev`.
+            //
+            // - Depending on the given target level. For reference, see the following example of a
+            //   leak to the adversary via the termination channel:
+            //   `tests/rt/neg/ifc/declassify_blocking.to.trp`
+            runtime.$t.raiseBlockingThreadLev(lub (auth.lev, toLevV.lev));
+
             let pc = runtime.$t.pc;
-            let levFrom = data.lev;
+            const levFrom = typeOnly ? data.tlev : data.lev;
             let bl = runtime.$t.bl;
             let isNMIFC = runtime.$t.isNmifcMode;
             let lev_to = toLevV.val
@@ -52,7 +74,10 @@ export function downgrader (runtime, dimension:DowngradeDimension) {
                 dg_f(levFrom, lev_to, auth.val.authorityLevel, bl, isNMIFC, pc)
 
             if (ok_to_downgrade_result.kind === "SUCCESS") {
-                let r = new LCopyVal(data, lub(lev_to, pc, arg.lev, auth.lev));
+                const taintedLevTo = lub(lev_to, pc, arg.lev, auth.lev);
+                const r = typeOnly
+                    ? new LCopyVal(data, lub(data.lev, taintedLevTo), taintedLevTo)
+                    : new LCopyVal(data, taintedLevTo);
                 return runtime.ret(r)
             } else {
                 let errorMessage = "";
