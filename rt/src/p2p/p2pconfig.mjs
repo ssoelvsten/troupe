@@ -29,7 +29,6 @@ if (existsSync(P2PCONFIG_FILE)) {
   try {
     let s = readFileSync(P2PCONFIG_FILE) 
     let o = JSON.parse (s);
-    console.log (o.relays)
     if (o.relays) {      
       relays = o.relays
     } else {
