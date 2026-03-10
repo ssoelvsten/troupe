@@ -22,6 +22,7 @@ compiler:
 
 p2p-tools:
 	cd p2p-tools; tsc
+	cd p2p-tools/relay; tsc
 
 lib: check-compiler
 	cd lib; $(MAKE) build
