@@ -1088,6 +1088,7 @@ function processExpectedNetworkErrors(err, source="unknown") {
         switch (errorId) {
           case 'NetworkUnreachableError':
           case 'ENETUNREACH':
+          case 'EHOSTUNREACH':
             debug(`${err.toString()}`)
             break;
           case 'NotFoundError':

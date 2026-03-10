@@ -7,14 +7,11 @@ let logger;
 })()
 
 import { existsSync, readFileSync } from 'fs';
+import { resolve } from 'path';
+import { getTroupeRoot } from '../troupeRoot.mjs';
 let relays
 
-
-// TODO: change the relay address to be the actual address
 let default_relays = []
-  // ["/dns4/relay.troupe-lang.net/tcp/5555/p2p/QmcQpBNGULxRC3QmvxVGXSw8BarpMvdADYvFtmvKAL5QMe"]
-  // TODO: dns resolution of the relay has stopped working
-  // ["/ip4/134.209.92.133/tcp/5555/ws/p2p/12D3KooWShh9qmeS1UEgwWpjAsrjsigu8UGh8DRKyx1UG6HeHzjf"]
   
 let known_nodes = [
     {nodeid:"QmNnooDu7bfjPFoTZYxMNLWUQJyrVwtbZg5gBMjTezGAJN", ip: "/dnsaddr/bootstrap.libp2p.io"},
@@ -25,22 +22,22 @@ let known_nodes = [
 ]
   
 
-if (existsSync(P2PCONFIG_FILE)) {
+// Load relays from a config file, returns null if not found or invalid
+function loadRelaysFromConfig(path) {
+  if (!existsSync(path)) return null;
   try {
-    let s = readFileSync(P2PCONFIG_FILE) 
-    let o = JSON.parse (s);
-    if (o.relays) {      
-      relays = o.relays
-    } else {
-      throw new Error ("relays field undefined")
-    }
+    let o = JSON.parse(readFileSync(path));
+    return o.relays || null;
   } catch (err) {
-    logger.error ("error parsing p2p configuration file")    
-    relays = default_relays
+    logger?.error(`error parsing p2p configuration file: ${path}`)
+    return null;
   }
-} else {
-  relays = default_relays
 }
+
+// Precedence: local p2pconfig.json > $TROUPE/p2pconfig.json > default
+relays = loadRelaysFromConfig(P2PCONFIG_FILE)
+      || loadRelaysFromConfig(resolve(getTroupeRoot(), P2PCONFIG_FILE))
+      || default_relays;
 
 let cliRelays = null;
 
