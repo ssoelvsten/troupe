@@ -112,7 +112,7 @@ function convert(mdContent) {
         type: 'markdown',
         source: fence + '\n' + content + '\n```',
       });
-      lastCellWasCode = false;
+      hasRecentCodeCell = false;
     }
   }
 
