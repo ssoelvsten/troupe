@@ -58,10 +58,14 @@ export function downgrader (runtime: RuntimeInterface,
             // - Depending on the given target level. For reference, see the following example of a
             //   leak to the adversary via the termination channel:
             //   `tests/rt/neg/ifc/declassify_blocking.to.trp`
+            //
+            // - Depending on the data level of the value being downgraded. Without this,
+            //   the success/failure of the downgrade leaks information about the value's
+            //   level. For reference, see:
+            //   `tests/rt/neg/ifc/declassify_blocking.value_level.trp`
             let pc = runtime.$t.pc;
-            
+
             const levFrom = typeOnly ? data.tlev : data.lev;
-            // runtime.$t.raiseBlockingThreadLev(lub (auth.lev, toLevV.lev, toLevV.val));
             runtime.$t.raiseBlockingThreadLev(lub (auth.lev, toLevV.lev, levFrom));
 
             let bl = runtime.$t.bl;

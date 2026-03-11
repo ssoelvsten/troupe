@@ -15,7 +15,7 @@
 
    See: nmifc-summary.md for details on the robustness condition
 *)
-import Missing 
+import IfcUtil
 let val x = 42 raisedTo `{alice,bob}`
     (* {alice,bob} = <alice & bob; alice | bob> -- a corrupt label *)
 

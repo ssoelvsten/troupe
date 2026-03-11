@@ -1,4 +1,4 @@
-import Missing 
+import IfcUtil
 let val x = 42 raisedTo `<alice;#root-integrity>`
     val y = pdeclassify (x, authority, `{}` )
 in y 

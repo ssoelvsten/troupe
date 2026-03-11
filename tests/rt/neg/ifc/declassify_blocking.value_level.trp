@@ -1,0 +1,23 @@
+(* Demonstrates information leak through the data level of a declassified value.
+ * Charlie's secret determines whether x is at `<alice; ...>` or `<alice & bob; ...>`.
+ * With secret=true, declassify succeeds (alice can handle alice-only data),
+ * but the blocking level is raised by levFrom which includes charlie's taint.
+ * adv() then fails because the blocking level has charlie without charlie's authority.
+ *
+ * Based on the example in issue #148.
+ *)
+let val aliceL   = `<alice; #root-integrity>`
+    val bobL     = `<bob; #root-integrity>`
+    val charlieL = `<charlie; #root-integrity>`
+    val botL     = `<#null-confidentiality; #root-integrity>`
+
+    val x = 42 raisedTo (if true raisedTo charlieL
+                         then aliceL
+                         else `<alice & bob; #root-integrity>`)
+    val _ = blockdown authority
+
+    val aliceAuth = attenuate (authority, aliceL)
+
+    val x' = declassify (x, aliceAuth, charlieL)
+in adv ()
+end

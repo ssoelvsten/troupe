@@ -4,7 +4,7 @@
    and declassification.
 
 *)
-import Missing
+import IfcUtil
 
 let val x = false raisedTo `<alice & bob;#root-integrity>`
     val y = false raisedTo `<alice;#root-integrity>`

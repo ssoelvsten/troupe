@@ -957,7 +957,9 @@ export class Thread {
     // Cross-dimensional blocking level downgrade: changes both confidentiality and integrity
     blockDowngradeTo (auth, bl_to = this.pc) {
         if (! flowsTo (this.pc, bl_to)) {
-            this.threadError ("The provided target blocking level is lower than the current pc\n" + // TODO: 2026-03-10; AA -- change this phrasing to use 'does not flow to' instead of 'lower'
+            // TODO: 2026-03-10; AA -- change phrasing to use
+            //   'does not flow to' instead of 'lower'
+            this.threadError ("The provided target blocking level is lower than the current pc\n" +
                               ` | the current pc: ${this.pc.stringRep()}\n` +
                               ` | target blocking level: ${bl_to.stringRep()}`, false, null, ErrorKind.IFCCheck)
         }
