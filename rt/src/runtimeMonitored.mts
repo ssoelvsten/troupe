@@ -333,7 +333,7 @@ let rt_debug = function (s) {
     chalk.red(formatToN("PC:" + pc, 20)),
     chalk.red(formatToN("BL:" + bl, 20)),
     chalk.red(formatToN("HN" + handler_state, 20)),
-    chalk.red(formatToN("_sp:" + $t()._sp, 20)),
+    // chalk.red(formatToN("_sp:" + $t()._sp, 20)),
     s 
   );
 }
