@@ -1,0 +1,20 @@
+(* This example shows that without Bob's authority it is still possible to
+ * downgrade information tainted by Bob via the termination channel.
+ * Mirrors declassify_blocking.authority.trp for both dimensions.
+ *
+ * Uses confidentiality-only data so that downgrade succeeds with alice
+ * authority, while the authority itself carries bob taint via .lev.
+ *)
+let val botL     = `<#null-confidentiality; #root-integrity>`
+    val aliceL   = `<alice; #root-integrity>`
+    val bobL     = `<bob; #root-integrity>`
+
+    val x = 42 raisedTo aliceL
+
+    val auth = attenuate (authority, if true raisedTo bobL then aliceL else botL)
+    val _ = blockdown authority
+    val auth = downgradeType (auth, authority, botL)
+
+    val x' = downgrade (x, auth, botL)
+in adv ()
+end

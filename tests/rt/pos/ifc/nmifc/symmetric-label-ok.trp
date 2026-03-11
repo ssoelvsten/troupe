@@ -26,19 +26,22 @@
 
    See: nmifc-summary.md for details on the non-corruption condition
 *)
-
+import IfcUtil
 let val x = 42 raisedTo `{alice}`
     (* {alice} = <alice; alice> -- a symmetric, non-corrupt label *)
 
     (* Declassify: change confidentiality from alice to TRUE, keep integrity as alice *)
-    val y = declassify (x, authority, `<#null-confidentiality;alice>`)
+    val y = pdeclassify (x, authority, `<#null-confidentiality;alice>`)
     val _ = print y
+
+    val _ = blockendorse authority
 
     val z = 100 raisedTo `{bob}`
     (* {bob} = <bob; bob> -- a symmetric, non-corrupt label *)
 
     (* Endorse: change integrity from bob to FALSE (trusted), keep confidentiality as bob *)
-    val w = endorse (z, authority, `<bob;#root-integrity>`)
+    val w = pendorse (z, authority, `<bob;#root-integrity>`)
     val _ = print w
+    val _ = blockdown authority 
 in ()
 end

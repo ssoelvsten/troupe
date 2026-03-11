@@ -1,0 +1,22 @@
+(* Demonstrates information leak through blockendorseto.
+ * With secret=true, cert() succeeds. Changing to false makes it fail,
+ * proving that secret information (at bobIntL) leaks through the blocking level
+ * without requiring Bob's authority.
+ *)
+let val botL      = `<#null-confidentiality; #root-integrity>`
+    val aliceIntL = `<#null-confidentiality; alice>`
+    val bobIntL   = `<#null-confidentiality; bob>`
+
+    val secret = true raisedTo bobIntL
+
+    val target = if secret then botL else aliceIntL
+    val target = endorseType (target, authority, botL)
+    val _ = blockdown authority
+
+    val x = 42 raisedTo aliceIntL
+    val _ = x + 0
+
+    val intAliceAuth = attenuate (authority, aliceIntL)
+    val _ = blockendorseto (intAliceAuth, target)
+in cert ()
+end

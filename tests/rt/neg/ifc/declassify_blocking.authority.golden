@@ -6,6 +6,6 @@ Runtime error in thread 5cf58678-5e24-4d24-8779-a310bb3840a9@{}%{}
 
 >> Illegal flow in adv function:
  |    pc: {}
- | block: <bob;#root-integrity>
+ | block: <alice&bob;#root-integrity>
  | value: ()@{}%{}
 >> at tests/rt/neg/ifc/declassify_blocking.authority.trp:15:4

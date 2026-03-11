@@ -25,12 +25,12 @@
 
    See: nmifc-summary.md for details on NMIFC conditions
 *)
-
+import IfcUtil
 let val x = 42 raisedTo `{alice}`
     (* {alice} = <alice; alice> -- a symmetric, non-corrupt label *)
 
     (* Downgrade: change both dimensions at once *)
     (* From <alice; alice> to <TRUE; FALSE> = fully public and trusted *)
-    val y = downgrade (x, authority, `<#null-confidentiality; #root-integrity>`)
+    val y = pdowngrade (x, authority, `<#null-confidentiality; #root-integrity>`)
 in print y
 end

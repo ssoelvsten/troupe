@@ -1,8 +1,9 @@
+import IfcUtil
 let val x = 42 raisedTo `<alice&bob;#root-integrity>`
     val y = 100 raisedTo `<alice&bob;#root-integrity>`
 
     val t = x
-in case declassify (t, authority, `{}`) of
+in case pdeclassify (t, authority, `{}`) of
       (_,_) =>  2
     | (_,_,_) => 3
     | (_ :: _ ) => 1

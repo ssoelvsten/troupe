@@ -1,0 +1,11 @@
+2026-03-11T09:23:29.580Z [RTM] [32minfo[39m: Skipping network creation. Observe that all external IO operations will yield a runtime error.
+Runtime error in thread 7413d6cb-9271-4ba3-a572-a7f10bece334@{}%{}
+
+  19 | in adv ()
+     |    ^
+
+>> Illegal flow in adv function:
+ |    pc: {}
+ | block: <alice&bob&charlie;alice&charlie>
+ | value: ()@{}%{}
+>> at tests/rt/neg/ifc/downgrade_blocking.to.trp:19:4

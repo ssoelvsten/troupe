@@ -171,6 +171,27 @@ let (*-------------------------- Lattice Constants  -------------------------*)
     fun downgradeDeep (x, authority, level) =
         deep downgrade (x, authority, level)
 
+    (*-----------------------  Progress Downgrades  -------------------------*)
+
+    (** Helper: downgrade the value and then lower the blocking label to match. *)
+    fun ergo_downgrade downv downbl (x, auth, target) =
+            let val result = downv (x, auth, target)
+                val _ = downbl (auth, target)
+            in result
+            end
+
+    (** Declassify value and lower blocking label to target. *)
+    fun pdeclassify args =
+            ergo_downgrade declassify blockdeclto args
+
+    (** Endorse value and lower blocking label to target. *)
+    fun pendorse args =
+            ergo_downgrade endorse blockendorseto args
+
+    (** Downgrade value and lower blocking label to target. *)
+    fun pdowngrade args =
+            ergo_downgrade downgrade blockdownto args
+
     (*--------------------------------  I/O  --------------------------------*)
 
     (** Similar to `freadln` but ensures the blocking label is not raised. *)
@@ -202,6 +223,11 @@ in [ (*-- Constants --*)
    , ("declassifyDeep", declassifyDeep)
    , ("endorseDeep", endorseDeep)
    , ("downgradeDeep", downgradeDeep)
+
+     (*-- Progress + Regular Downgrades --*)
+   , ("pdeclassify", pdeclassify)
+   , ("pendorse",    pendorse)
+   , ("pdowngrade",  pdowngrade)
 
      (*-- I/O --*)
    , ("freadlnPini", freadlnPini)

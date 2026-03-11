@@ -126,7 +126,7 @@ let fun printpc () =
     val _ = printString "freadlnPini"
     val _ = printString "============================================================"
 
-    val _ = blockdecl authority
+    val _ = blockdown authority
 
     val x = IfcUtil.freadlnPini (stdin authority, authority)
     val _ = printWithLabels x
@@ -141,6 +141,7 @@ let fun printpc () =
 
     val x = IfcUtil.freadlnAtLevel (stdin authority, authority, IfcUtil.bot)
     val _ = printWithLabels x
+    val _ = blockdown authority
     val _ = printpc ()
 
 in () end

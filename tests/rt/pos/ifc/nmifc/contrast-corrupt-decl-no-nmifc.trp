@@ -22,5 +22,6 @@ let val x = 42 raisedTo `{alice,bob}`
     (* Declassify: change confidentiality to TRUE, preserve integrity as alice|bob *)
     (* This succeeds without NMIFC but would fail with NMIFC enabled *)
     val y = declassify (x, authority, `<#null-confidentiality; alice|bob>`)
+    val _ = blockdown authority
 in print y
 end
