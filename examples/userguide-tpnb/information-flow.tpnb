@@ -3,13 +3,24 @@
   "options": {
     "nmifc": true,
     "labelFormat": "v1",
-    "timeout": 10
+    "timeout": 10,
+    "resultStyle": "plain"
   },
   "cells": [
     {
       "id": "cell-1-ca8223",
       "type": "markdown",
-      "source": "# Information flow control\n\nTroupe implements dynamic information flow control. Information flow violations result in termination of a process, unless the process is sandboxed.\n\n**Labeled values**\n\nEvery value in Troupe is *deeply labeled* with confidentiality levels. The security level of a value specifies the confidentiality policy of the value. Troupe uses the syntax `v@{ℓ_val}%{ℓ_type}` to denote that the value `v` has security level `ℓ_val`, and the information about the type of this value is labeled at `ℓ_type`.\n\n**Remark**\n\nCurrent version of Troupe only enforces confidentiality properties.\n\n## Tag-based label model\n\nThe current version of Troupe uses a simple tag-based label model. Tags are abstract identifiers, e.g., `alice`, `bob`, `secret`, that specify confidentiality restrictions on data. A security level is a set of tags, e.g., `{alice, bob}`, or `{alice, bob, charlie}`. The more tags there are in the level the more restrictive is the data. For example, the level `{alice, bob}` is less restrictive than `{alice, bob, charlie}`. The least restrictive level is the empty set level `{}`. When two levels are ordered we write ℓ₁ ⊑ ℓ₂ to say that level ℓ₂ is as restrictive as ℓ₁.\n\n## Monitoring for information flow\n\nA labeled value can be created using Troupe's `raisedTo` primitive. Troupe's runtime propagates labels throughout the computation. This section presents examples of label propagation via explicit flows, implicit flows, and finally via termination and blocking.\n\n**Explicit flows**\n\nThe following example shows how to create labeled values and how explicit dependencies are propagated."
+      "source": "# Information flow control\n\nTroupe implements dynamic information flow control. Information flow violations result in termination of a process, unless the process is sandboxed.\n\n**Labeled values**\n\nEvery value in Troupe is *deeply labeled* with confidentiality levels. The security level of a value specifies the confidentiality policy of the value. Troupe uses the syntax `v@{ℓ_val}%{ℓ_type}` to denote that the value `v` has security level `ℓ_val`, and the information about the type of this value is labeled at `ℓ_type`.\n\n## Label models\n\nV1 of Troupe only enforces confidentiality properties using a simple tag-based model. V2 enforces both confidentiality and integrity using a DC-label that extends the tag-based model.\n\n## Tag-based label model\n\nTags are abstract identifiers, e.g., `alice`, `bob`, `secret`, that specify confidentiality restrictions on data. A security level is a set of tags, e.g., `{alice, bob}`, or `{alice, bob, charlie}`. The more tags there are in the level the more restrictive is the data. For example, the level `{alice, bob}` is less restrictive than `{alice, bob, charlie}`. The least restrictive level is the empty set level `{}`. When two levels are ordered we write ℓ₁ ⊑ ℓ₂ to say that level ℓ₂ is as restrictive as ℓ₁.\n"
+    },
+    {
+      "id": "cell-2-xpxq0c",
+      "type": "markdown",
+      "source": "## DC-label model\n\nThe DC-label model is based on the paper by Stefan et al on Disjunctive Categoy Labels. Labels are pairs of the form `<C;I>` where `C` is the confidentiality component, and `I` is the integrity component. Each of the components is a boolean formula representing the restrictions on the data. The confidentiality restrictions from the tag-based model correspond to conjunctions of tags. For integrity, the similar restrictions correspond to disjunctions of tags. For example, in the label `<alice & bob ; alice | bob>`, the confidentiality component `alice & bob` means that the data is restricted to include both alice's and bob's confidentiality. The integrity tag `alice | bob` encodes that both alice and bob have influenced this data.\n\n### V1 shortcuts for common cases\n\nBecause tags of the form `alice & bob; alice | bob` are frequent, Troupe avoids the clutter and uses the tag-based notation `{alice,bob}` (note the difference in the delimeters) to reduce the label clutter.\n\n\n### Special tags\n\nWe distinguish special tags `#null-confidentiality, #root-confedintiality, #null-integrity, #root-integrity`.  The empty V1 tag `{}` corresponds to the label `<#null-confidentiality ; #root-integrity>` that corresponds to the _least restrictive security level_. Information at this level can flow anywhere in the system.\n\n\n\n### Model expressivity\n\nObserve that it is not the case that `&` is exclusive to confidentality and `|` is exclusive to integrity (then the tag-based model would be sufficient). For example, the label `< alice | bob; #root-integrity>` encodes that this information is as confidential as _either_ alice or bob, which means that it can flow to either alice or bob. This allows more granularity in labels than what tag-based model can express.\n\n"
+    },
+    {
+      "id": "cell-1-11tbt7",
+      "type": "markdown",
+      "source": "\n## Monitoring for information flow\n\nA labeled value can be created using Troupe's `raisedTo` primitive. Troupe's runtime propagates labels throughout the computation. This section presents examples of label propagation via explicit flows, implicit flows, and finally via termination and blocking.\n\n**Explicit flows**\n\nThe following example shows how to create labeled values and how explicit dependencies are propagated."
     },
     {
       "id": "cell-2-27ed1e",
@@ -102,11 +113,11 @@
       "outputs": [
         {
           "type": "stdout",
-          "data": "PID:47d40d16-8cae-426d-bf2d-9849089b73fe@{}%{}     PC:{}                BL:{}                HNNORMAL             _sp:13               \n"
+          "data": "PID:f536449f-ca59-46fb-8a66-d6379749e258@{}%{}     PC:{}                BL:{}                HNNORMAL             \n"
         },
         {
           "type": "stdout",
-          "data": "PID:47d40d16-8cae-426d-bf2d-9849089b73fe@{}%{}     PC:{}                BL:{secret}          HNNORMAL             _sp:13               \n"
+          "data": "PID:f536449f-ca59-46fb-8a66-d6379749e258@{}%{}     PC:{}                BL:{secret}          HNNORMAL             \n"
         },
         {
           "type": "result",
@@ -140,7 +151,7 @@
         },
         {
           "type": "stdout",
-          "data": "PID:a577cfdd-9dba-49db-bc1a-2b33908bce0b@{}%{}     PC:{}                BL:{}                HNNORMAL             _sp:25               \n"
+          "data": "PID:f0ecf197-45c2-4093-b9d2-44bef88bbb4f@{}%{}     PC:{}                BL:{}                HNNORMAL             \n"
         },
         {
           "type": "stdout",
@@ -148,7 +159,7 @@
         },
         {
           "type": "stdout",
-          "data": "PID:a577cfdd-9dba-49db-bc1a-2b33908bce0b@{}%{}     PC:{}                BL:{bob}             HNNORMAL             _sp:25               \n"
+          "data": "PID:f0ecf197-45c2-4093-b9d2-44bef88bbb4f@{}%{}     PC:{}                BL:{bob}             HNNORMAL             \n"
         },
         {
           "type": "result",
@@ -190,13 +201,22 @@
     {
       "id": "cell-24-7497e7",
       "type": "code",
-      "source": "let val x = 10 raisedTo `<alice; #root-integrity>`\n in declassify (x , authority, `<;#root-integrity>` )\nend",
+      "source": "let val x = 10 raisedTo `<alice; #root-integrity>`\n    val y = declassify (x , authority, `<;#root-integrity>` )\n    val _ = printWithLabels y\nin ()    \nend",
       "outputs": [
         {
+          "type": "stdout",
+          "data": "10@{}%{}\n"
+        },
+        {
           "type": "result",
-          "data": "10@{}%{}"
+          "data": "()@<alice;#root-integrity>%<alice;#root-integrity>"
         }
       ]
+    },
+    {
+      "id": "cell-4-kwspcq",
+      "type": "markdown",
+      "source": "Here, `printWithLabels` is a Troupe buildin primitive. Because declassification can fail depending on the arguments passed to it, the declassify operation also raises the blocking label, which we see reflected in the final labels around the `()` value."
     },
     {
       "id": "cell-25-31fe3c",
@@ -206,30 +226,34 @@
     {
       "id": "cell-26-654396",
       "type": "code",
-      "source": "let val authAlice = attenuate (authority, `{alice}`)\n    val x = 1 raisedTo `{bob}`\nin declassify (x, authAlice, `{}`)\nend",
+      "source": "let val authAlice = attenuate (authority, `<alice; #root-integrity>`)\n    val x = 1 raisedTo `<bob; #root-integrity>`\nin declassify (x, authAlice, `<;#root-integrity>`)\nend",
       "outputs": [
         {
           "type": "stdout",
-          "data": "Runtime error in thread c76090fb-cefc-414f-b826-6c4315cb4dda@{}%{}\n"
+          "data": "Runtime error in thread 15120ccc-5fe7-4c5f-ae1d-8fc39dfd3121@{}%{}\n"
         },
         {
           "type": "stdout",
-          "data": ">> Integrity level mismatch for declassification\n"
+          "data": ">> Not enough authority for declassification\n"
         },
         {
           "type": "stdout",
-          "data": " | integrity level of the data: bob\n"
+          "data": " | level of the data: <bob;#root-integrity>\n"
         },
         {
           "type": "stdout",
-          "data": " | integrity level of the target: #root-integrity\n"
+          "data": " | level of the authority: <alice;#root-integrity>\n"
+        },
+        {
+          "type": "stdout",
+          "data": " | target level of the declassification: {}\n"
         }
       ]
     },
     {
       "id": "cell-27-01d381",
       "type": "markdown",
-      "source": "**Expected output:**\n```\nRuntime error in thread b469cbef-16d3-4fe8-ac1e-bd21c7e8950d@{}%{}\n>> Not enough authority for declassification\n | level of the data: {bob}\n | level of the authority: {alice}\n | target level of the declassification: {}\n```"
+      "source": "**Expected output:**\n```\nRuntime error in thread 15120ccc-5fe7-4c5f-ae1d-8fc39dfd3121@{}%{}\n>> Not enough authority for declassification\n | level of the data: <bob;#root-integrity>\n | level of the authority: <alice;#root-integrity>\n | target level of the declassification: {}\n\n```"
     },
     {
       "id": "cell-28-2d35d0",
@@ -243,11 +267,11 @@
       "outputs": [
         {
           "type": "stdout",
-          "data": "PID:142bcd79-62ef-4354-af9e-98d9d981e8c7@{}%{}     PC:{}                BL:{alice}           HNNORMAL             _sp:16               \n"
+          "data": "PID:51723934-f056-4f39-86da-a76cb9b0653a@{}%{}     PC:{}                BL:{alice}           HNNORMAL             \n"
         },
         {
           "type": "stdout",
-          "data": "PID:142bcd79-62ef-4354-af9e-98d9d981e8c7@{}%{}     PC:{}                BL:{}                HNNORMAL             _sp:16               \n"
+          "data": "PID:51723934-f056-4f39-86da-a76cb9b0653a@{}%{}     PC:{}                BL:{}                HNNORMAL             \n"
         },
         {
           "type": "result",
@@ -263,7 +287,87 @@
     {
       "id": "cell-31-f7edda",
       "type": "markdown",
-      "source": "Observe that in the above program, the level of the final value `z` is not tainted by the blocking label of the high conditional.\n\n**Implementation note**\n\nThe expression `let pini e0` declarations `in e1 end` is desugared by the compiler frontend into the form:\n\n```\nlet val tmp = pinipush e0 \n    declarations\n    val _ = pinipop tmp\nin e1      \nend\n```\n\nHere, `tmp` is a fresh variable that is not part of the user program. Primitives `pinipush` and `pinipop` dynamically scope the part of the execution for which the blocking label is declassified."
+      "source": "Observe that in the above program, the level of the final value `z` is not tainted by the blocking label of the high conditional."
+    },
+    {
+      "id": "cell-5-96xy2z",
+      "type": "markdown",
+      "source": "## `blockdecl` and `blockdeclto` primitives\n\nAs an alternative to `let pini`, Troupe also provides a `blockdecl` primitive that declassifies the blocking label to the level of the pc, and a more general version of it called `blockdeclto` that allows more fine grained specification of the new blocking label."
+    },
+    {
+      "id": "cell-6-s7t2jz",
+      "type": "code",
+      "source": "let val x = 10 raisedTo `<alice; #root-integrity>`\n    val _ = debugpc()\n    val _ = if x > 1000 then receive [] else ()\n    val _ = debugpc()\n    val _ = blockdecl authority\n    val _ = debugpc()\nin ()\nend",
+      "outputs": [
+        {
+          "type": "stdout",
+          "data": "PID:b7c83c50-e77e-40a8-9fa1-97359167020f@{}%{}     PC:{}                BL:{}                HNNORMAL             \n"
+        },
+        {
+          "type": "stdout",
+          "data": "PID:b7c83c50-e77e-40a8-9fa1-97359167020f@{}%{}     PC:{}                BL:<alice;#root-integrity> HNNORMAL             \n"
+        },
+        {
+          "type": "stdout",
+          "data": "PID:b7c83c50-e77e-40a8-9fa1-97359167020f@{}%{}     PC:{}                BL:{}                HNNORMAL             \n"
+        },
+        {
+          "type": "result",
+          "data": "()@{}%{}"
+        }
+      ]
+    },
+    {
+      "id": "cell-10-fjxndt",
+      "type": "code",
+      "source": "Here is an example with `blockdeclto`."
+    },
+    {
+      "id": "cell-9-jaqck4",
+      "type": "code",
+      "source": "let val x = 10 raisedTo `<alice & bob; #root-integrity>`\n    val _ = debugpc()\n    val _ = if x > 1000 then receive [] else ()\n    val _ = debugpc()\n    val _ = blockdeclto (authority, `<alice; #root-integrity>`)\n    val _ = debugpc()\nin ()\nend",
+      "outputs": [
+        {
+          "type": "stdout",
+          "data": "PID:33dc2c71-43a6-4085-9670-297c3a99d64e@{}%{}     PC:{}                BL:{}                HNNORMAL             \n"
+        },
+        {
+          "type": "stdout",
+          "data": "PID:33dc2c71-43a6-4085-9670-297c3a99d64e@{}%{}     PC:{}                BL:<alice&bob;#root-integrity> HNNORMAL             \n"
+        },
+        {
+          "type": "stdout",
+          "data": "PID:33dc2c71-43a6-4085-9670-297c3a99d64e@{}%{}     PC:{}                BL:<alice;#root-integrity> HNNORMAL             \n"
+        },
+        {
+          "type": "result",
+          "data": "()@<alice;#root-integrity>%<alice;#root-integrity>"
+        }
+      ]
+    },
+    {
+      "id": "cell-7-hvq6so",
+      "type": "markdown",
+      "source": "## Endorsement\n\nAn integrity counterpart of declassification is called _endorsement_. The following example illustrates how `endorse` can be used to add integrity to the value. In terms of the restrictions, we are lowering information from `#null-integrity` to `alice`, because of the duality between confidentiality and integrity.\n\nThe primitives `blockendorse` is used for the endorsement of the blocking label endorsement and is similar to `blockdecl`. Then, we also have a `blockendorseto`. "
+    },
+    {
+      "id": "cell-8-jpbfen",
+      "type": "code",
+      "source": "let val x = 10 raisedTo `<; #null-integrity >` (* x is untrusted! *)\n    val aliceAuth = attenuate (authority, `{alice}`)\n    val y = endorse (x , aliceAuth, `<;alice>` ) (* _lower_ the label of x to alice *)\n    val _ = printWithLabels y\n    val _ = debugpc()\n    val _ = blockendorseto (aliceAuth, `<;alice>`) \nin ()    \nend",
+      "outputs": [
+        {
+          "type": "stdout",
+          "data": "10@<#null-confidentiality;alice>%<#null-confidentiality;alice>\n"
+        },
+        {
+          "type": "stdout",
+          "data": "PID:4652fa8b-f420-4c59-8d16-2a289f47c8e7@{}%{}     PC:{}                BL:{#NULL}           HNNORMAL             \n"
+        },
+        {
+          "type": "result",
+          "data": "()@<#null-confidentiality;alice>%<#null-confidentiality;alice>"
+        }
+      ]
     },
     {
       "id": "cell-33-68adf4",
