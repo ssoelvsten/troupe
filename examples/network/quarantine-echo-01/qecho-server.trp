@@ -38,6 +38,7 @@ let
                  downgrade (datum, authority, `{}`)
             val x' = downgrade (x, authority, `{}`)
             val y' = downgrade (y, authority, `{}`)
+            val _ = blockdown authority
             val _ = debugpc ()
         in (x', y')
         end 

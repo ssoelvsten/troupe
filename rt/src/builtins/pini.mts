@@ -34,6 +34,7 @@ export function BuiltinPini <TBase extends Constructor<UserRuntimeZero>> (Base:T
             assertIsNTuple(arg, 2)
             assertIsAuthority(arg.val[0])
             assertIsLevel(arg.val[1])
+            this.runtime.$t.raiseBlockingThreadLev(arg.val[1].lev);
             let is_lev_ok = flowsTo(this.runtime.$t.bl, arg.val[1].val);
             if (!is_lev_ok) {
                 this.runtime.$t.threadError(`level argument of pinipushto operation must flow to the current blocking level\n` +
@@ -59,6 +60,7 @@ export function BuiltinPini <TBase extends Constructor<UserRuntimeZero>> (Base:T
             assertIsNTuple(arg, 2);
             assertIsAuthority(arg.val[0])
             assertIsLevel(arg.val[1]);
+            this.runtime.$t.raiseBlockingThreadLev (arg.val[1].lev);
             return this.runtime.$t.blockDeclassifyTo(arg.val[0], arg.val[1].val)
         })
 
@@ -71,6 +73,7 @@ export function BuiltinPini <TBase extends Constructor<UserRuntimeZero>> (Base:T
             assertIsNTuple(arg, 2);
             assertIsAuthority(arg.val[0])
             assertIsLevel(arg.val[1]);
+            this.runtime.$t.raiseBlockingThreadLev (arg.val[1].lev);
             return this.runtime.$t.blockEndorseTo(arg.val[0], arg.val[1].val)
         })
 
@@ -85,6 +88,7 @@ export function BuiltinPini <TBase extends Constructor<UserRuntimeZero>> (Base:T
             assertIsNTuple(arg, 2);
             assertIsAuthority(arg.val[0])
             assertIsLevel(arg.val[1]);
+            this.runtime.$t.raiseBlockingThreadLev (arg.val[1].lev);
             return this.runtime.$t.blockDowngradeTo(arg.val[0], arg.val[1].val)
         })
 

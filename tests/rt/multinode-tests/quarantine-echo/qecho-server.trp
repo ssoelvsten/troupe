@@ -26,6 +26,7 @@ let
     val (x, y) = downgrade(datum, authority, `{}`)
     val x' = downgrade(x, authority, `{}`)
     val y' = downgrade(y, authority, `{}`)
+    val _ = blockdown authority
 
     val _ = print "SERVER: Received quarantined message"
 

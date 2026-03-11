@@ -1,0 +1,11 @@
+2026-03-11T09:23:18.385Z [RTM] [32minfo[39m: Skipping network creation. Observe that all external IO operations will yield a runtime error.
+Runtime error in thread 57d1c561-c0dd-4946-8b97-8097af1b0719@{}%{}
+
+  20 |     val _ = blockdownto (aliceAuth, target)
+     |             ^
+
+>> Not enough authority for blocking level downgrade
+ | from level of the blocking level: <bob;#root-integrity>
+ | level of the authority: {alice}
+ | to level of the blocking level: {}
+>> at tests/rt/neg/ifc/blockdownto_leak.trp:20:13

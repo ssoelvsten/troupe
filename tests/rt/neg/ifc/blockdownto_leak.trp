@@ -1,0 +1,22 @@
+(* Demonstrates information leak through blockdownto.
+ * With secret=true, adv() succeeds. Changing to false makes it fail,
+ * proving that secret information (at bobL) leaks through the blocking level
+ * without requiring Bob's authority.
+ *)
+let val botL   = `<#null-confidentiality; #root-integrity>`
+    val aliceL = `<alice; alice>`
+    val bobL   = `<bob; #root-integrity>`
+
+    val secret = true raisedTo bobL
+
+    val target = if secret then botL else aliceL
+    val target = downgradeType (target, authority, botL)
+    val _ = blockdown authority
+
+    val x = 42 raisedTo aliceL
+    val _ = x + 0
+
+    val aliceAuth = attenuate (authority, aliceL)
+    val _ = blockdownto (aliceAuth, target)
+in adv ()
+end

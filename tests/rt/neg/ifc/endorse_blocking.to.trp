@@ -1,0 +1,24 @@
+(* This example shows that without Bob's authority it is still possible to
+ * endorse information tainted by Bob via the termination channel.
+ * Mirrors declassify_blocking.to.trp for the integrity dimension.
+ *
+ * The target level is tainted by bob (confidentiality) via if-expression.
+ * endorse raises BL by toLevV.lev, which includes bob confidentiality.
+ * adv() then fails because BL has bob without bob's authority.
+ *)
+let val aliceIntL = `<#null-confidentiality; alice>`
+    val bobL      = `<bob; #root-integrity>`
+    val charlieIntL = `<#null-confidentiality; charlie>`
+    val botL      = `<#null-confidentiality; #root-integrity>`
+
+    val x = 42 raisedTo `<#null-confidentiality; alice & charlie>`
+
+    val aliceAuth = attenuate (authority, aliceIntL)
+
+    val targetL = if false raisedTo bobL then botL else charlieIntL
+    val targetL = downgradeType (targetL, authority, botL)
+    val _ = blockdown authority
+
+    val x' = endorse (x, aliceAuth, targetL)
+in adv ()
+end
