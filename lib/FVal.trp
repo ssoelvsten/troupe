@@ -13,9 +13,6 @@ datatype Atoms = Tombstone
 
 let (*--- Internal: List Predicates and Filtering ---*)
 
-    (** The *root* level with the highest privilege. *)
-    val ROOT = `<#root-confidentiality; #root-integrity>`
-
     (* NOTE (NMIFC): To not get corrupt labels, we have to declassify the levels prior to the
      *               `flowsTo` check. To ensure the result has the correct level, we use `raisedTo`
      *               later to compensate for the downgrade.
@@ -63,7 +60,7 @@ let (*--- Internal: List Predicates and Filtering ---*)
              *       are certainly safe.
              *)
             val lvl' = levelOf fv
-            val lvl' = (downgrade (lvl', authority, _pc())) glb ROOT
+            val lvl' = (downgrade (lvl', authority, _pc())) glb IfcUtil.root
             val _    = blockdown authority
         in fv' raisedTo lvl'
         end
